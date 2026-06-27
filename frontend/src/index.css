@@ -1,0 +1,39 @@
+@import "tw-animate-css";
+@import "@fontsource-variable/geist";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import "@fontsource/vazirmatn";
+
+html {
+  direction: rtl;
+}
+
+html,
+body,
+#root {
+  min-height: 100vh;
+}
+
+body {
+  font-family: "Vazirmatn", sans-serif;
+  color: #1f2937;
+
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(220, 38, 38, 0.08),
+      transparent 35%
+    ),
+    radial-gradient(
+      circle at bottom left,
+      rgba(239, 68, 68, 0.05),
+      transparent 40%
+    ),
+    #fafafa;
+}
+
+* {
+  box-sizing: border-box;
+}
