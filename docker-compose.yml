@@ -1,0 +1,31 @@
+services:
+  portal:
+    build: .
+    container_name: jira-form-portal
+    ports:
+      - "8080:8000"
+    volumes:
+      - portal_data:/app/backend/data
+    environment:
+      - DATABASE_URL=sqlite:///./data/portal.db
+      - UPLOAD_DIR=./data/uploads
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - LDAP_ENABLED=${LDAP_ENABLED:-true}
+      - LDAP_SERVER=${LDAP_SERVER:-ldap://dc.vosouq.local}
+      - LDAP_PORT=${LDAP_PORT:-389}
+      - LDAP_USE_SSL=${LDAP_USE_SSL:-false}
+      - LDAP_BASE_DN=${LDAP_BASE_DN:-DC=vosouq,DC=local}
+      - LDAP_USER_DN_TEMPLATE=${LDAP_USER_DN_TEMPLATE:-{username}@vosouq.local}
+      - DEV_AUTH_ENABLED=${DEV_AUTH_ENABLED:-true}
+      - DEV_AUTH_USERNAME=${DEV_AUTH_USERNAME:-admin}
+      - DEV_AUTH_PASSWORD=${DEV_AUTH_PASSWORD:-admin}
+      - JIRA_BASE_URL=${JIRA_BASE_URL:-https://jira.vosouq.me}
+      - JIRA_ENABLED=${JIRA_ENABLED:-true}
+      - JIRA_USERNAME=${JIRA_USERNAME:-}
+      - JIRA_PASSWORD=${JIRA_PASSWORD:-}
+      - REPORTS_API_KEY=${REPORTS_API_KEY:-jira-admin-reports-key}
+      - BACKEND_CORS_ORIGINS=http://localhost:8080,http://localhost:5173
+    restart: unless-stopped
+
+volumes:
+  portal_data:

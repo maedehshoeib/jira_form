@@ -1,8 +1,10 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 import HomePage from "./pages/HomePage";
 import DepartmentPage from "./pages/DepartmentPage";
 import FormPage from "./pages/FormPage";
+import LoginPage from "./pages/LoginPage";
 
 import ReportsHome from "./pages/reports/ReportsHome";
 import PerformanceReports from "./pages/reports/PerformanceReports";
@@ -10,32 +12,54 @@ import PerformanceReports from "./pages/reports/PerformanceReports";
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<HomePage />} />
+      <Route path="/login" element={<LoginPage />} />
+
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <HomePage />
+          </ProtectedRoute>
+        }
+      />
 
       <Route
         path="/departments/:departmentId"
-        element={<DepartmentPage />}
+        element={
+          <ProtectedRoute>
+            <DepartmentPage />
+          </ProtectedRoute>
+        }
       />
 
       <Route
         path="/forms/:formId"
-        element={<FormPage />}
+        element={
+          <ProtectedRoute>
+            <FormPage />
+          </ProtectedRoute>
+        }
       />
 
       <Route
         path="/reports"
-        element={<ReportsHome />}
+        element={
+          <ProtectedRoute>
+            <ReportsHome />
+          </ProtectedRoute>
+        }
       />
 
       <Route
         path="/reports/performance"
-        element={<PerformanceReports />}
+        element={
+          <ProtectedRoute>
+            <PerformanceReports />
+          </ProtectedRoute>
+        }
       />
 
-      <Route
-        path="*"
-        element={<Navigate to="/" replace />}
-      />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

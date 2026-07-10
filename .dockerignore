@@ -1,0 +1,11 @@
+node_modules/
+frontend/dist/
+backend/data/
+backend/.env
+*.db
+__pycache__/
+*.pyc
+.env
+.git/
+*.md
+!README.md

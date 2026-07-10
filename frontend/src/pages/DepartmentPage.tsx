@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import AppShell from '../components/layout/AppShell';
-import { API_BASE, Department } from '../config/portal';
-import { Card, CardContent } from '../components/ui/card';
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import AppShell from "../components/layout/AppShell";
+import { API_BASE, Department } from "../config/portal";
+import bankLogo from "../assets/bankmellat_logo_01_s2.png";
+import { Card, CardContent } from "../components/ui/card";
 
 export default function DepartmentPage() {
   const { departmentId } = useParams();
@@ -11,13 +12,17 @@ export default function DepartmentPage() {
   useEffect(() => {
     if (!departmentId) return;
 
-    fetch(`${API_BASE}/departments/${departmentId}`)
+    const token = localStorage.getItem("access_token");
+    fetch(`${API_BASE}/departments/${departmentId}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
       .then((res) => res.json())
       .then(setDepartment);
   }, [departmentId]);
 
-  if (!department)
-    return <AppShell>در حال بارگذاری...</AppShell>;
+  if (!department) return <AppShell>در حال بارگذاری...</AppShell>;
+
+  const isBank = department.id === "bank";
 
   return (
     <AppShell>
@@ -29,14 +34,24 @@ export default function DepartmentPage() {
           بازگشت
         </Link>
 
-        <h2 className="text-3xl font-bold">
-          {department.title}
-        </h2>
+        <div className="flex items-center gap-4">
+          {isBank && (
+            <img
+              src={bankLogo}
+              alt="بانک ملت"
+              className="h-14 object-contain"
+            />
+          )}
+          <h2 className="text-3xl font-bold">{department.title}</h2>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         {department.sections.map((s) => (
-          <Link key={s.id} to={`/forms/${s.form_id}`}>
+          <Link
+            key={s.id}
+            to={`/forms/${s.form_id}?department=${department.id}&section=${s.id}`}
+          >
             <Card
               className="
                 h-full
@@ -53,13 +68,15 @@ export default function DepartmentPage() {
               "
             >
               <CardContent className="p-8 text-right">
-                <h3 className="text-xl font-bold text-slate-800">
-                  {s.title}
-                </h3>
-
-                <p className="mt-3 text-sm text-red-500">
-                  ورود به فرم
-                </p>
+                {isBank && (
+                  <img
+                    src={bankLogo}
+                    alt="بانک ملت"
+                    className="mb-4 h-10 object-contain"
+                  />
+                )}
+                <h3 className="text-xl font-bold text-slate-800">{s.title}</h3>
+                <p className="mt-3 text-sm text-red-500">ورود به فرم</p>
               </CardContent>
             </Card>
           </Link>

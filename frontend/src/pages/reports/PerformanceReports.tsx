@@ -1,4 +1,8 @@
+import { useEffect, useState } from "react";
+
 import AppShell from "../../components/layout/AppShell";
+import client from "../../api/client";
+import { endpoints } from "../../api/endpoints";
 
 import ReportSection from "../../components/reports/ReportSection";
 import SummaryTable from "../../components/reports/SummaryTable";
@@ -6,229 +10,108 @@ import TextSection from "../../components/reports/TextSection";
 import ReportTable from "../../components/reports/ReportTable";
 import ReportHeader from "../../components/reports/ReportHeader";
 
+type PerformanceData = {
+  summary: { label: string; value: string }[];
+  achievements: string;
+  challenges: string;
+  goals: { columns: { key: string; title: string }[]; rows: Record<string, string>[] };
+  actions: { columns: { key: string; title: string }[]; rows: Record<string, string>[] };
+  metrics: { columns: { key: string; title: string }[]; rows: Record<string, string>[] };
+  analysis: string;
+  risks: string;
+  corrective_actions: string;
+  next_plans: string;
+  management_decisions: string;
+};
+
 export default function PerformanceReports() {
-  const summary = [
-    {
-      label: "واحد سازمانی",
-      value: "فناوری اطلاعات",
-    },
-    {
-      label: "عنوان گزارش",
-      value: "گزارش عملکرد شورای معاونین و مدیران",
-    },
-    {
-      label: "ثبت کننده",
-      value: "مائده شعیب",
-    },
-    {
-      label: "تاریخ ثبت",
-      value: "1405/04/08",
-    },
-    {
-      label: "آخرین بروزرسانی",
-      value: "1405/04/08",
-    },
-    {
-      label: "وضعیت",
-      value: "ثبت شده",
-    },
-  ];
+  const [report, setReport] = useState<{
+    title: string;
+    status: string;
+    created_by: string;
+    created_at: string;
+    data: PerformanceData;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const goalsColumns = [
-    {
-      key: "goal",
-      title: "هدف",
-    },
-    {
-      key: "owner",
-      title: "مسئول",
-    },
-    {
-      key: "progress",
-      title: "درصد پیشرفت",
-    },
-  ];
+  useEffect(() => {
+    client
+      .get(endpoints.reportsPerformance)
+      .then((res) => setReport(res.data))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const goalsRows = [
-    {
-      goal: "پیاده سازی سامانه",
-      owner: "واحد فناوری",
-      progress: "70%",
-    },
-    {
-      goal: "بهبود زیرساخت",
-      owner: "واحد شبکه",
-      progress: "55%",
-    },
-  ];
+  if (loading) {
+    return <AppShell>در حال بارگذاری گزارش...</AppShell>;
+  }
 
-  const actionsColumns = [
-    {
-      key: "title",
-      title: "اقدام",
-    },
-    {
-      key: "status",
-      title: "وضعیت",
-    },
-    {
-      key: "description",
-      title: "توضیحات",
-    },
-  ];
+  if (!report) {
+    return <AppShell>گزارشی یافت نشد.</AppShell>;
+  }
 
-  const actionsRows = [
-    {
-      title: "راه اندازی سرویس",
-      status: "انجام شد",
-      description: "بدون مشکل",
-    },
-    {
-      title: "به روزرسانی تجهیزات",
-      status: "در حال انجام",
-      description: "50 درصد",
-    },
-  ];
+  const data = report.data;
 
   return (
     <AppShell>
-
       <div className="space-y-8">
-
         <div>
-
-          <h1 className="text-3xl font-bold text-slate-800">
-            گزارش عملکرد شورای معاونین و مدیران
-          </h1>
-
+          <h1 className="text-3xl font-bold text-slate-800">{report.title}</h1>
           <p className="mt-2 text-slate-500">
-            اطلاعات ثبت شده فرم ها در این قسمت نمایش داده می شود.
+            اطلاعات ثبت شده فرم‌ها در این قسمت نمایش داده می‌شود.
           </p>
-
         </div>
+
         <ReportHeader
-    title="گزارش عملکرد شورای معاونین و مدیران"
-    createdAt="1405/04/08"
-    createdBy="مائده شعیب"
-    status="ثبت شده"
-/>
+          title={report.title}
+          createdAt={report.created_at}
+          createdBy={report.created_by}
+          status={report.status}
+        />
 
         <ReportSection title="مشخصات کلی گزارش">
-
-          <SummaryTable items={summary} />
-
+          <SummaryTable items={data.summary} />
         </ReportSection>
 
         <ReportSection title="مهمترین دستاوردهای دوره">
-
-          <TextSection
-            title=""
-            value="پیاده سازی نسخه جدید سامانه خدمات، افزایش سرعت پاسخگویی، بهبود فرآیندهای داخلی."
-          />
-
+          <TextSection title="" value={data.achievements} />
         </ReportSection>
 
-        <ReportSection title="مهمترین مشکلات و چالش ها">
-
-          <TextSection
-            title=""
-            value="کمبود منابع انسانی، محدودیت بودجه و نیاز به ارتقاء زیرساخت."
-          />
-
+        <ReportSection title="مهمترین مشکلات و چالش‌ها">
+          <TextSection title="" value={data.challenges} />
         </ReportSection>
 
-        <ReportSection title="اهداف و برنامه های دوره">
-
-          <ReportTable
-            columns={goalsColumns}
-            rows={goalsRows}
-          />
-
+        <ReportSection title="اهداف و برنامه‌های دوره">
+          <ReportTable columns={data.goals.columns} rows={data.goals.rows} />
         </ReportSection>
 
         <ReportSection title="اقدامات انجام شده">
-
-          <ReportTable
-            columns={actionsColumns}
-            rows={actionsRows}
-          />
-
+          <ReportTable columns={data.actions.columns} rows={data.actions.rows} />
         </ReportSection>
 
-        <ReportSection title="شاخص های عملکرد">
-
-          <ReportTable
-            columns={[
-              {
-                key: "name",
-                title: "شاخص",
-              },
-              {
-                key: "value",
-                title: "مقدار",
-              },
-            ]}
-            rows={[
-              {
-                name: "درصد رضایت",
-                value: "91%",
-              },
-              {
-                name: "تعداد درخواست ها",
-                value: "245",
-              },
-            ]}
-          />
-
+        <ReportSection title="شاخص‌های عملکرد">
+          <ReportTable columns={data.metrics.columns} rows={data.metrics.rows} />
         </ReportSection>
 
         <ReportSection title="تحلیل عملکرد">
-
-          <TextSection
-            title=""
-            value="عملکرد واحد در این دوره نسبت به دوره قبل بهبود قابل توجهی داشته است."
-          />
-
+          <TextSection title="" value={data.analysis} />
         </ReportSection>
 
-        <ReportSection title="ریسک ها و مشکلات">
-
-          <TextSection
-            title=""
-            value="احتمال افزایش بار سامانه و کمبود منابع سخت افزاری."
-          />
-
+        <ReportSection title="ریسک‌ها و مشکلات">
+          <TextSection title="" value={data.risks} />
         </ReportSection>
 
         <ReportSection title="اقدامات اصلاحی">
-
-          <TextSection
-            title=""
-            value="افزایش ظرفیت سرورها و بهینه سازی فرآیند پاسخگویی."
-          />
-
+          <TextSection title="" value={data.corrective_actions} />
         </ReportSection>
 
-        <ReportSection title="برنامه های دوره بعد">
-
-          <TextSection
-            title=""
-            value="تکمیل پروژه، توسعه داشبورد مدیریتی و اتصال کامل به Jira."
-          />
-
+        <ReportSection title="برنامه‌های دوره بعد">
+          <TextSection title="" value={data.next_plans} />
         </ReportSection>
 
         <ReportSection title="تصمیمات مورد نیاز مدیریت">
-
-          <TextSection
-            title=""
-            value="تخصیص بودجه برای ارتقاء زیرساخت و جذب نیروی متخصص."
-          />
-
+          <TextSection title="" value={data.management_decisions} />
         </ReportSection>
-
       </div>
-
     </AppShell>
   );
 }

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import AppShell from "../components/layout/AppShell";
 import { API_BASE, Department } from "../config/portal";
+import bankLogo from "../assets/bankmellat_logo_01_s2.png";
 
 import { Card, CardContent } from "../components/ui/card";
 
@@ -11,40 +12,47 @@ import {
   Monitor,
   Users,
   Briefcase,
-  Landmark,
   FileText,
   Building2,
+  BarChart3,
 } from "lucide-react";
 
 export default function HomePage() {
   const [departments, setDepartments] = useState<Department[]>([]);
 
   useEffect(() => {
-    fetch(`${API_BASE}/departments`)
+    const token = localStorage.getItem("access_token");
+    fetch(`${API_BASE}/departments`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
       .then((res) => res.json())
       .then(setDepartments);
   }, []);
 
-  const getDepartmentIcon = (title: string) => {
-    if (title.includes("مالی"))
-      return <Wallet className="h-8 w-8" />;
+  const getDepartmentIcon = (dept: Department) => {
+    if (dept.id === "bank") {
+      return (
+        <img
+          src={bankLogo}
+          alt="بانک ملت"
+          className="h-12 w-12 object-contain"
+        />
+      );
+    }
 
-    if (title.includes("فناوری"))
-      return <Monitor className="h-8 w-8" />;
-
-    if (title.includes("منابع"))
-      return <Users className="h-8 w-8" />;
-
-    if (title.includes("کسب"))
-      return <Briefcase className="h-8 w-8" />;
-
-    if (title.includes("بانک"))
-      return <Landmark className="h-8 w-8" />;
-
-    if (title.includes("قرارداد"))
-      return <FileText className="h-8 w-8" />;
-
+    const title = dept.title;
+    if (title.includes("مالی")) return <Wallet className="h-8 w-8" />;
+    if (title.includes("فناوری")) return <Monitor className="h-8 w-8" />;
+    if (title.includes("منابع")) return <Users className="h-8 w-8" />;
+    if (title.includes("کسب")) return <Briefcase className="h-8 w-8" />;
+    if (title.includes("قرارداد")) return <FileText className="h-8 w-8" />;
+    if (title.includes("گزارش")) return <BarChart3 className="h-8 w-8" />;
     return <Building2 className="h-8 w-8" />;
+  };
+
+  const getDepartmentLink = (dept: Department) => {
+    if (dept.id === "reports") return "/reports";
+    return `/departments/${dept.id}`;
   };
 
   return (
@@ -53,7 +61,6 @@ export default function HomePage() {
         <h2 className="text-5xl font-extrabold text-slate-900">
           واحدهای سازمانی
         </h2>
-
         <p className="mt-4 text-lg text-slate-500">
           واحد مورد نظر خود را انتخاب کنید
         </p>
@@ -61,7 +68,7 @@ export default function HomePage() {
 
       <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-4">
         {departments.map((d) => (
-          <Link key={d.id} to={`/departments/${d.id}`}>
+          <Link key={d.id} to={getDepartmentLink(d)}>
             <Card
               className="
               group
@@ -93,15 +100,15 @@ export default function HomePage() {
                   group-hover:scale-110
                 "
                 >
-                  {getDepartmentIcon(d.title)}
+                  {getDepartmentIcon(d)}
                 </div>
 
-                <h3 className="text-xl font-bold text-slate-900">
-                  {d.title}
-                </h3>
+                <h3 className="text-xl font-bold text-slate-900">{d.title}</h3>
 
                 <p className="mt-3 text-sm text-red-500">
-                  {d.sections.length} زیرمجموعه
+                  {d.id === "reports"
+                    ? "مشاهده گزارشات"
+                    : `${d.sections.length} زیرمجموعه`}
                 </p>
               </CardContent>
             </Card>

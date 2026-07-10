@@ -1,37 +1,42 @@
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.api.routes.auth import router as auth_router
+from app.api.routes.jira import router as jira_router
 from app.api.routes.portal import router as portal_router
+from app.api.routes.reports import router as reports_router
 from app.core.cors import add_cors
+from app.db.init_db import init_db
 
-app = FastAPI(title="سامانه جامع خدمات")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(title="سامانه جامع خدمات", lifespan=lifespan)
 
 add_cors(app)
 
-# ---------------- API ----------------
-
-app.include_router(
-    portal_router,
-    prefix="/api/v1",
-    tags=["portal"],
-)
-
-# ---------------- React ----------------
+app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(portal_router, prefix="/api/v1", tags=["portal"])
+app.include_router(reports_router, prefix="/api/v1/reports", tags=["reports"])
+app.include_router(jira_router, prefix="/api/v1/jira", tags=["jira"])
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
 
-# فایل‌های assets
 app.mount(
     "/assets",
     StaticFiles(directory=FRONTEND_DIST / "assets"),
     name="assets",
 )
 
-# favicon اگر وجود داشت
 favicon = FRONTEND_DIST / "favicon.ico"
 if favicon.exists():
 
@@ -39,10 +44,9 @@ if favicon.exists():
     async def favicon_icon():
         return FileResponse(favicon)
 
-# همه Routeهای React
+
 @app.get("/{full_path:path}", include_in_schema=False)
 async def react_app(full_path: str):
-
     requested = FRONTEND_DIST / full_path
 
     if requested.exists() and requested.is_file():

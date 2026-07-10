@@ -1,11 +1,13 @@
 export const endpoints = {
-
-    departments: "/departments",
-
-    forms: "/forms",
-
-    reports: "/reports",
-
-    submissions: "/submissions",
-
-}
+  login: "/auth/login",
+  me: "/auth/me",
+  departments: "/departments",
+  forms: "/forms",
+  reports: "/reports",
+  reportsPublic: "/reports/public",
+  reportsPerformance: "/reports/performance/latest",
+  submissions: "/submissions",
+  jiraMe: "/jira/me",
+  jiraUsers: "/jira/users",
+  jiraRequestTypes: "/jira/request-types",
+};
