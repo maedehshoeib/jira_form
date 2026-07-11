@@ -1,3 +1,8 @@
+export type PerformanceTableSection = {
+  columns: { key: string; title: string }[];
+  rows: Record<string, string>[];
+};
+
 export type PerformanceReportExport = {
   id?: number;
   title: string;
@@ -5,26 +10,23 @@ export type PerformanceReportExport = {
   created_by: string;
   created_at: string;
   data: {
-    summary: { label: string; value: string }[];
+    general_specs?: PerformanceTableSection;
     achievements: string;
-    challenges: string;
-    goals: {
-      columns: { key: string; title: string }[];
-      rows: Record<string, string>[];
-    };
-    actions: {
-      columns: { key: string; title: string }[];
-      rows: Record<string, string>[];
-    };
-    metrics: {
-      columns: { key: string; title: string }[];
-      rows: Record<string, string>[];
-    };
-    analysis: string;
-    risks: string;
-    corrective_actions: string;
-    next_plans: string;
-    management_decisions: string;
+    problems_risks_summary?: string;
+    management_decisions_summary?: string;
+    next_period_key_programs?: string;
+    goals: PerformanceTableSection;
+    actions: PerformanceTableSection;
+    metrics: PerformanceTableSection;
+    analysis: PerformanceTableSection | string;
+    risks: PerformanceTableSection | string;
+    corrective_actions: PerformanceTableSection | string;
+    next_plans: PerformanceTableSection | string;
+    management_decisions: PerformanceTableSection | string;
+    attachments?: PerformanceTableSection;
+    manager_scoring?: PerformanceTableSection;
+    summary?: { label: string; value: string }[];
+    challenges?: string;
   };
 };
 
@@ -38,54 +40,82 @@ function escapeCsv(value: string): string {
 
 function tableSection(
   title: string,
-  columns: { key: string; title: string }[],
-  rows: Record<string, string>[]
+  section: PerformanceTableSection | string | undefined
 ): string[] {
-  const lines = [`\n${title}`, columns.map((c) => c.title).join(",")];
-  for (const row of rows) {
-    lines.push(columns.map((c) => escapeCsv(row[c.key] ?? "")).join(","));
+  if (!section) return [`\n${title}`, "(بدون داده)"];
+
+  if (typeof section === "string") {
+    return [`\n${title}`, escapeCsv(section || "(بدون داده)")];
   }
-  if (rows.length === 0) {
+
+  const lines = [`\n${title}`, section.columns.map((c) => c.title).join(",")];
+  for (const row of section.rows) {
+    lines.push(
+      section.columns.map((c) => escapeCsv(row[c.key] ?? "")).join(",")
+    );
+  }
+  if (section.rows.length === 0) {
     lines.push("(بدون داده)");
   }
   return lines;
 }
 
-export function exportPerformanceReportToExcel(report: PerformanceReportExport): void {
+function textSection(title: string, value: string): string[] {
+  return [`\n${title}`, escapeCsv(value || "(بدون داده)")];
+}
+
+export function exportPerformanceReportToExcel(
+  report: PerformanceReportExport
+): void {
   const { data } = report;
+
+  const generalSpecs =
+    data.general_specs ??
+    (data.summary
+      ? {
+          columns: [
+            { key: "title", title: "عنوان" },
+            { key: "value", title: "شرح/مقدار" },
+          ],
+          rows: data.summary.map((item) => ({
+            title: item.label,
+            value: item.value,
+          })),
+        }
+      : undefined);
+
   const lines: string[] = [
     "عنوان گزارش," + escapeCsv(report.title),
     "ثبت کننده," + escapeCsv(report.created_by),
     "تاریخ ثبت," + escapeCsv(report.created_at),
     "وضعیت," + escapeCsv(report.status),
-    "",
-    "مشخصات کلی",
-    "عنوان,مقدار",
-    ...data.summary.map((item) => `${escapeCsv(item.label)},${escapeCsv(item.value)}`),
-    "",
-    "مهمترین دستاوردهای دوره",
-    escapeCsv(data.achievements || ""),
-    "",
-    "مهمترین مشکلات و چالش‌ها",
-    escapeCsv(data.challenges || ""),
-    ...tableSection("اهداف و برنامه‌های دوره", data.goals.columns, data.goals.rows),
-    ...tableSection("اقدامات انجام شده", data.actions.columns, data.actions.rows),
-    ...tableSection("شاخص‌های عملکرد", data.metrics.columns, data.metrics.rows),
-    "",
-    "تحلیل عملکرد",
-    escapeCsv(data.analysis || ""),
-    "",
-    "ریسک‌ها و مشکلات",
-    escapeCsv(data.risks || ""),
-    "",
-    "اقدامات اصلاحی",
-    escapeCsv(data.corrective_actions || ""),
-    "",
-    "برنامه‌های دوره بعد",
-    escapeCsv(data.next_plans || ""),
-    "",
-    "تصمیمات مورد نیاز مدیریت",
-    escapeCsv(data.management_decisions || ""),
+    ...tableSection("مشخصات کلی گزارش", generalSpecs),
+    ...textSection("مهم‌ترین دستاوردهای دوره", data.achievements || ""),
+    ...textSection(
+      "مهم‌ترین مشکلات و ریسک‌ها",
+      data.problems_risks_summary || data.challenges || ""
+    ),
+    ...textSection(
+      "مهم‌ترین تصمیمات مورد نیاز از مدیریت",
+      data.management_decisions_summary || ""
+    ),
+    ...textSection(
+      "برنامه‌های کلیدی دوره بعد",
+      data.next_period_key_programs || ""
+    ),
+    ...tableSection("اهداف و برنامه‌های دوره", data.goals),
+    ...tableSection("اقدامات انجام شده", data.actions),
+    ...tableSection("شاخص‌های عملکردی واحد", data.metrics),
+    ...tableSection("تحلیل عملکرد", data.analysis),
+    ...tableSection("مشکلات، موانع و ریسک‌ها", data.risks),
+    ...tableSection("اقدامات اصلاحی و پیشنهادی", data.corrective_actions),
+    ...tableSection("برنامه دوره بعد", data.next_plans),
+    ...tableSection("تصمیمات مورد نیاز از مدیریت", data.management_decisions),
+    ...tableSection("پیوست‌ها و مستندات", data.attachments),
+    ...tableSection(
+      "فرم امتیازدهی و جمع‌بندی مدیر واحد",
+      data.manager_scoring
+    ),
   ];
 
   const bom = "\uFEFF";

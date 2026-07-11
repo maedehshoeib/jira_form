@@ -5,6 +5,10 @@ class SelectOption(BaseModel):
     label: str
     value: str
 
+class TableColumn(BaseModel):
+    key: str
+    title: str
+
 class FormField(BaseModel):
     name: str
     label: str
@@ -12,6 +16,9 @@ class FormField(BaseModel):
     required: bool = False
     placeholder: Optional[str] = None
     options: list[SelectOption] = []
+    section: Optional[str] = None
+    columns: list[TableColumn] = []
+    default_rows: list[dict[str, str]] = []
 
 class FormTemplate(BaseModel):
     id: str

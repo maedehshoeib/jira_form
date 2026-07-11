@@ -1,6 +1,7 @@
 import { FormField } from '../../config/portal';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
+import FormTableField from './FormTableField';
 import {
   Select,
   SelectContent,
@@ -26,6 +27,25 @@ export default function FormFieldRenderer({
 }: Props) {
   const commonClass =
     'h-12 rounded-xl border border-slate-200 bg-slate-50 text-right shadow-sm focus-visible:ring-2 focus-visible:ring-red-500';
+
+  if (field.type === 'table') {
+    const columns = field.columns ?? [];
+    const defaultRows = field.default_rows ?? [];
+    const rows = Array.isArray(value) && value.length > 0
+      ? value
+      : defaultRows.length > 0
+        ? defaultRows.map((row) => ({ ...row }))
+        : [];
+
+    return (
+      <FormTableField
+        columns={columns}
+        rows={rows}
+        defaultRows={defaultRows}
+        onChange={(nextRows) => onChange(field.name, nextRows)}
+      />
+    );
+  }
 
   if (field.type === 'textarea') {
     return (

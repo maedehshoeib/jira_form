@@ -1,8 +1,13 @@
-export type FieldType = 'text' | 'textarea' | 'select' | 'date' | 'file' | 'email';
+export type FieldType = 'text' | 'textarea' | 'select' | 'date' | 'file' | 'email' | 'table';
 
 export type SelectOption = {
   label: string;
   value: string;
+};
+
+export type TableColumn = {
+  key: string;
+  title: string;
 };
 
 export type FormField = {
@@ -12,6 +17,9 @@ export type FormField = {
   required?: boolean;
   placeholder?: string;
   options?: SelectOption[];
+  section?: string;
+  columns?: TableColumn[];
+  default_rows?: Record<string, string>[];
 };
 
 export type FormTemplate = {

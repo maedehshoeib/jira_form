@@ -1,16 +1,29 @@
 import json
-from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from app.api.routes.reports_helpers import DEFAULT_PERFORMANCE_DATA
 from app.models.report import Report
 from app.models.user import User
 from app.services.portal_service import DEPARTMENTS
+from app.services.performance_report_schema import PERFORMANCE_TABLE_COLUMNS
 
 PERFORMANCE_FORM_ID = "performance-report-form"
 PERFORMANCE_SECTION_ID = "management-report"
 PERFORMANCE_DEPARTMENT_ID = "reports"
+
+TABLE_FIELD_KEYS = [
+    "general_specs",
+    "goals",
+    "actions",
+    "metrics",
+    "analysis",
+    "risks",
+    "corrective_actions",
+    "next_plans",
+    "management_decisions",
+    "attachments",
+    "manager_scoring",
+]
 
 
 def is_performance_report_submission(
@@ -30,6 +43,7 @@ def _department_title(department_id: str) -> str:
 
 
 def _parse_table_rows(text: str, columns: list[dict]) -> list[dict]:
+    """Legacy pipe-delimited table parser for backward compatibility."""
     rows = []
     for line in (text or "").strip().splitlines():
         line = line.strip()
@@ -38,59 +52,62 @@ def _parse_table_rows(text: str, columns: list[dict]) -> list[dict]:
         parts = [part.strip() for part in line.split("|")]
         if len(parts) < len(columns):
             continue
-        rows.append(
-            {columns[i]["key"]: parts[i] for i in range(len(columns))}
-        )
+        rows.append({columns[i]["key"]: parts[i] for i in range(len(columns))})
     return rows
+
+
+def _parse_table_field(form_data: dict, field_key: str) -> dict:
+    columns = PERFORMANCE_TABLE_COLUMNS[field_key]
+    raw = form_data.get(field_key, "")
+
+    if isinstance(raw, list):
+        rows = raw
+    elif isinstance(raw, str) and raw.strip():
+        try:
+            parsed = json.loads(raw)
+            rows = parsed if isinstance(parsed, list) else []
+        except json.JSONDecodeError:
+            rows = _parse_table_rows(raw, columns)
+    else:
+        rows = []
+
+    return {"columns": columns, "rows": rows}
+
+
+def _org_unit_from_specs(general_specs: dict, user: User, department_id: str) -> str:
+    for row in general_specs.get("rows", []):
+        title = (row.get("title") or "").strip()
+        if title in ("واحد سازمانی", "واحد"):
+            value = (row.get("value") or "").strip()
+            if value:
+                return value
+    return user.department or _department_title(department_id) or ""
 
 
 def build_performance_report_data(
     form_data: dict, user: User, department_id: str
 ) -> dict:
-    now = datetime.utcnow()
-    org_unit = (
-        form_data.get("organizational_unit")
-        or user.department
-        or _department_title(department_id)
-        or ""
+    report_data: dict = {}
+
+    for key in TABLE_FIELD_KEYS:
+        report_data[key] = _parse_table_field(form_data, key)
+
+    org_unit = _org_unit_from_specs(report_data["general_specs"], user, department_id)
+
+    report_data["achievements"] = form_data.get("achievements", "")
+    report_data["problems_risks_summary"] = form_data.get(
+        "problems_risks_summary", form_data.get("challenges", "")
+    )
+    report_data["management_decisions_summary"] = form_data.get(
+        "management_decisions_summary", ""
+    )
+    report_data["next_period_key_programs"] = form_data.get(
+        "next_period_key_programs", form_data.get("next_plans", "")
+        if isinstance(form_data.get("next_plans"), str)
+        else ""
     )
 
-    goals_columns = DEFAULT_PERFORMANCE_DATA["goals"]["columns"]
-    actions_columns = DEFAULT_PERFORMANCE_DATA["actions"]["columns"]
-    metrics_columns = DEFAULT_PERFORMANCE_DATA["metrics"]["columns"]
-
-    return {
-        "summary": [
-            {"label": "واحد سازمانی", "value": org_unit},
-            {
-                "label": "عنوان گزارش",
-                "value": "گزارش عملکرد شورای معاونین و مدیران",
-            },
-            {"label": "ثبت کننده", "value": user.display_name or user.username},
-            {"label": "تاریخ ثبت", "value": now.strftime("%Y/%m/%d")},
-            {"label": "آخرین بروزرسانی", "value": now.strftime("%Y/%m/%d %H:%M")},
-            {"label": "وضعیت", "value": "ثبت شده"},
-        ],
-        "achievements": form_data.get("achievements", ""),
-        "challenges": form_data.get("challenges", ""),
-        "goals": {
-            "columns": goals_columns,
-            "rows": _parse_table_rows(form_data.get("goals", ""), goals_columns),
-        },
-        "actions": {
-            "columns": actions_columns,
-            "rows": _parse_table_rows(form_data.get("actions", ""), actions_columns),
-        },
-        "metrics": {
-            "columns": metrics_columns,
-            "rows": _parse_table_rows(form_data.get("metrics", ""), metrics_columns),
-        },
-        "analysis": form_data.get("analysis", ""),
-        "risks": form_data.get("risks", ""),
-        "corrective_actions": form_data.get("corrective_actions", ""),
-        "next_plans": form_data.get("next_plans", ""),
-        "management_decisions": form_data.get("management_decisions", ""),
-    }
+    return report_data
 
 
 def create_report_from_submission(
@@ -100,9 +117,8 @@ def create_report_from_submission(
     department_id: str,
 ) -> Report:
     report_data = build_performance_report_data(form_data, user, department_id)
-    org_unit = next(
-        (item["value"] for item in report_data["summary"] if item["label"] == "واحد سازمانی"),
-        "",
+    org_unit = _org_unit_from_specs(
+        report_data["general_specs"], user, department_id
     )
 
     report = Report(

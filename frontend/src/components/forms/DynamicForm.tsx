@@ -6,6 +6,16 @@ import FormFieldRenderer from "./FormFieldRenderer";
 
 import { Button } from "../ui/button";
 
+function isFieldFilled(value: unknown): boolean {
+  if (value === "" || value === null || value === undefined) return false;
+  if (Array.isArray(value)) {
+    return value.some((row) =>
+      Object.values(row).some((cell) => String(cell).trim() !== "")
+    );
+  }
+  return true;
+}
+
 export default function DynamicForm({ form }: { form: FormTemplate }) {
   const [searchParams] = useSearchParams();
   const departmentId = searchParams.get("department") || form.department_id || "";
@@ -14,7 +24,14 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
   const initialValues = useMemo(() => {
     const obj: Record<string, unknown> = {};
     form.fields.forEach((field) => {
-      obj[field.name] = field.type === "file" ? null : "";
+      if (field.type === "file") {
+        obj[field.name] = null;
+      } else if (field.type === "table") {
+        obj[field.name] =
+          field.default_rows?.map((row) => ({ ...row })) ?? [];
+      } else {
+        obj[field.name] = "";
+      }
     });
     return obj;
   }, [form]);
@@ -29,9 +46,7 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
     setValues((prev) => ({ ...prev, [name]: value }));
   };
 
-  const completedFields = Object.values(values).filter(
-    (v) => v !== "" && v !== null && v !== undefined
-  ).length;
+  const completedFields = Object.values(values).filter(isFieldFilled).length;
 
   const progress =
     form.fields.length === 0 ? 0 : (completedFields / form.fields.length) * 100;
@@ -49,6 +64,8 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
     Object.entries(values).forEach(([key, val]) => {
       if (val instanceof File) {
         fd.append(key, val);
+      } else if (Array.isArray(val)) {
+        fd.append(key, JSON.stringify(val));
       } else if (val !== null && val !== undefined) {
         fd.append(key, String(val));
       }
@@ -74,6 +91,8 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
       setLoading(false);
     }
   };
+
+  let lastSection = "";
 
   return (
     <div className="rounded-3xl border-0 bg-white p-8 shadow-xl">
@@ -116,33 +135,53 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="grid gap-6 md:grid-cols-2">
-        {form.fields.map((field) => (
-          <div key={field.name} className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-slate-700">
-              {field.label}
-              {field.required && (
-                <span className="mr-1 text-red-500">*</span>
+      <form onSubmit={handleSubmit} className="space-y-8">
+        {form.fields.map((field) => {
+          const showSection = field.section && field.section !== lastSection;
+          if (field.section) lastSection = field.section;
+
+          const isFullWidth =
+            field.type === "textarea" || field.type === "table";
+
+          return (
+            <div key={field.name}>
+              {showSection && (
+                <h2 className="mb-4 border-r-4 border-red-600 pr-3 text-lg font-bold text-slate-800">
+                  {field.section}
+                </h2>
               )}
-            </label>
 
-            <FormFieldRenderer
-              field={field}
-              value={values[field.name]}
-              onChange={handleChange}
-            />
-          </div>
-        ))}
+              <div
+                className={
+                  isFullWidth ? "flex flex-col gap-2" : "flex flex-col gap-2"
+                }
+              >
+                {field.type !== "table" && (
+                  <label className="text-sm font-semibold text-slate-700">
+                    {field.label}
+                    {field.required && (
+                      <span className="mr-1 text-red-500">*</span>
+                    )}
+                  </label>
+                )}
 
-        <div className="md:col-span-2">
-          <Button
-            type="submit"
-            disabled={loading}
-            className="h-12 w-full rounded-xl bg-red-600 text-base hover:bg-red-700"
-          >
-            {loading ? "در حال ثبت..." : "ثبت درخواست"}
-          </Button>
-        </div>
+                <FormFieldRenderer
+                  field={field}
+                  value={values[field.name]}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
+          );
+        })}
+
+        <Button
+          type="submit"
+          disabled={loading}
+          className="h-12 w-full rounded-xl bg-red-600 text-base hover:bg-red-700"
+        >
+          {loading ? "در حال ثبت..." : "ثبت گزارش"}
+        </Button>
       </form>
     </div>
   );
