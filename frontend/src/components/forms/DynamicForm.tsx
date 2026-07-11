@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { API_BASE, FormTemplate } from "../../config/portal";
 import FormFieldRenderer from "./FormFieldRenderer";
@@ -22,6 +22,8 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
   const [values, setValues] = useState<Record<string, unknown>>(initialValues);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [reportId, setReportId] = useState<number | null>(null);
+  const isPerformanceReport = form.id === "performance-report-form";
 
   const handleChange = (name: string, value: unknown) => {
     setValues((prev) => ({ ...prev, [name]: value }));
@@ -62,6 +64,10 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
       });
 
       if (res.ok) {
+        const data = await res.json();
+        if (typeof data.report_id === "number") {
+          setReportId(data.report_id);
+        }
         setDone(true);
       }
     } finally {
@@ -73,7 +79,24 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
     <div className="rounded-3xl border-0 bg-white p-8 shadow-xl">
       {done && (
         <div className="mb-6 rounded-2xl border border-green-200 bg-green-50 p-4 text-green-700">
-          درخواست با موفقیت ثبت شد.
+          {isPerformanceReport
+            ? "گزارش با موفقیت ثبت شد و در بخش گزارشات قابل مشاهده است."
+            : "درخواست با موفقیت ثبت شد."}
+          {isPerformanceReport && (
+            <div className="mt-3">
+              <Link
+                to="/reports/performance"
+                className="font-semibold text-red-600 hover:text-red-700"
+              >
+                مشاهده گزارش ثبت‌شده
+              </Link>
+              {reportId !== null && (
+                <span className="mr-2 text-sm text-slate-500">
+                  (شناسه گزارش: {reportId})
+                </span>
+              )}
+            </div>
+          )}
         </div>
       )}
 

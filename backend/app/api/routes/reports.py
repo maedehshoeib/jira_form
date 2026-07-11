@@ -8,7 +8,6 @@ from app.models.report import Report
 from app.models.user import User
 from app.schemas.report import ReportCreate, ReportListItem, ReportResponse, ReportUpdate
 from app.api.routes.reports_helpers import (
-    DEFAULT_PERFORMANCE_DATA,
     _format_dt,
     _report_to_response,
     _verify_api_key,
@@ -74,8 +73,6 @@ def get_latest_performance_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from datetime import datetime
-
     report = (
         db.query(Report)
         .filter(Report.report_type == "performance")
@@ -83,29 +80,13 @@ def get_latest_performance_report(
         .first()
     )
     if not report:
-        now = datetime.utcnow()
-        data = DEFAULT_PERFORMANCE_DATA.copy()
-        data["summary"] = [
-            {"label": "واحد سازمانی", "value": current_user.department or "فناوری اطلاعات"},
-            {"label": "عنوان گزارش", "value": "گزارش عملکرد شورای معاونین و مدیران"},
-            {"label": "ثبت کننده", "value": current_user.display_name},
-            {"label": "تاریخ ثبت", "value": now.strftime("%Y/%m/%d")},
-            {"label": "آخرین بروزرسانی", "value": now.strftime("%Y/%m/%d")},
-            {"label": "وضعیت", "value": "ثبت شده"},
-        ]
-        report = Report(
-            title="گزارش عملکرد شورای معاونین و مدیران",
-            report_type="performance",
-            department=current_user.department or "فناوری اطلاعات",
-            status="ثبت شده",
-            data=__import__("json").dumps(data, ensure_ascii=False),
-            created_by_id=current_user.id,
+        raise HTTPException(
+            status_code=404,
+            detail="هنوز گزارشی ثبت نشده است. لطفاً ابتدا فرم گزارش را تکمیل کنید.",
         )
-        db.add(report)
-        db.commit()
-        db.refresh(report)
 
-    return _report_to_response(report, current_user)
+    creator = db.query(User).filter(User.id == report.created_by_id).first()
+    return _report_to_response(report, creator or current_user)
 
 
 @router.get("/{report_id}", response_model=ReportResponse)

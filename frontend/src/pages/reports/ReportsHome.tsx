@@ -25,6 +25,39 @@ export default function ReportsHome() {
 
         <div className="grid md:grid-cols-3 gap-6 mt-10">
 
+          <Link to="/departments/reports">
+
+            <Card className="rounded-3xl hover:shadow-xl transition">
+
+              <CardContent className="p-8">
+
+                <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center">
+
+                  <BarChart3
+                    className="text-red-600"
+                    size={34}
+                  />
+
+                </div>
+
+                <h2 className="text-xl font-bold mt-6">
+
+                  ثبت گزارش جدید
+
+                </h2>
+
+                <p className="text-slate-500 mt-2">
+
+                  تکمیل فرم گزارش عملکرد
+
+                </p>
+
+              </CardContent>
+
+            </Card>
+
+          </Link>
+
           <Link to="/reports/performance">
 
             <Card className="rounded-3xl hover:shadow-xl transition">
@@ -48,7 +81,7 @@ export default function ReportsHome() {
 
                 <p className="text-slate-500 mt-2">
 
-                  ورود به گزارش
+                  مشاهده آخرین گزارش ثبت‌شده
 
                 </p>
 

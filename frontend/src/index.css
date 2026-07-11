@@ -46,3 +46,26 @@ select,
 button {
   font-family: "Vazirmatn", sans-serif;
 }
+
+@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  #report-print-area {
+    padding: 0;
+  }
+
+  #report-print-area section {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+}

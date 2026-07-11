@@ -51,7 +51,6 @@ export default function HomePage() {
   };
 
   const getDepartmentLink = (dept: Department) => {
-    if (dept.id === "reports") return "/reports";
     return `/departments/${dept.id}`;
   };
 
@@ -107,7 +106,7 @@ export default function HomePage() {
 
                 <p className="mt-3 text-sm text-red-500">
                   {d.id === "reports"
-                    ? "مشاهده گزارشات"
+                    ? "ثبت و مشاهده گزارشات"
                     : `${d.sections.length} زیرمجموعه`}
                 </p>
               </CardContent>

@@ -23,6 +23,7 @@ export default function DepartmentPage() {
   if (!department) return <AppShell>در حال بارگذاری...</AppShell>;
 
   const isBank = department.id === "bank";
+  const isReports = department.id === "reports";
 
   return (
     <AppShell>
@@ -45,6 +46,23 @@ export default function DepartmentPage() {
           <h2 className="text-3xl font-bold">{department.title}</h2>
         </div>
       </div>
+
+      {isReports && (
+        <div className="mb-8">
+          <Link to="/reports/performance">
+            <Card className="rounded-3xl border border-red-100 bg-red-50/50 shadow-md transition hover:shadow-lg">
+              <CardContent className="p-6 text-right">
+                <h3 className="text-lg font-bold text-slate-800">
+                  مشاهده آخرین گزارش ثبت‌شده
+                </h3>
+                <p className="mt-2 text-sm text-red-600">
+                  ورود به صفحه گزارش عملکرد
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         {department.sections.map((s) => (

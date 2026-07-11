@@ -7,6 +7,8 @@ interface Props {
   createdAt: string;
   status: string;
   createdBy: string;
+  onPrint?: () => void;
+  onExportExcel?: () => void;
 }
 
 export default function ReportHeader({
@@ -14,6 +16,8 @@ export default function ReportHeader({
   createdAt,
   status,
   createdBy,
+  onPrint,
+  onExportExcel,
 }: Props) {
   return (
     <div className="rounded-3xl bg-white shadow-xl border border-slate-200 p-8">
@@ -24,7 +28,7 @@ export default function ReportHeader({
 
           <Link
             to="/reports"
-            className="mb-4 inline-flex items-center gap-2 text-red-600 hover:text-red-700"
+            className="no-print mb-4 inline-flex items-center gap-2 text-red-600 hover:text-red-700"
           >
             <ArrowRight size={18} />
             بازگشت
@@ -52,18 +56,22 @@ export default function ReportHeader({
 
         </div>
 
-        <div className="flex gap-3">
+        <div className="no-print flex gap-3">
 
           <Button
+            type="button"
             variant="outline"
             className="rounded-xl"
+            onClick={onPrint}
           >
             <Printer className="ml-2 h-4 w-4" />
             چاپ
           </Button>
 
           <Button
+            type="button"
             className="rounded-xl bg-red-600 hover:bg-red-700"
+            onClick={onExportExcel}
           >
             <FileSpreadsheet className="ml-2 h-4 w-4" />
             خروجی Excel

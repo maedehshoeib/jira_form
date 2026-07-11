@@ -11,6 +11,10 @@ from app.db.session import get_db
 from app.models.submission import Submission
 from app.models.user import User
 from app.services.portal_service import DEPARTMENTS, FORM_TEMPLATES
+from app.services.report_submission_service import (
+    create_report_from_submission,
+    is_performance_report_submission,
+)
 
 router = APIRouter()
 
@@ -87,9 +91,19 @@ async def create_submission(
     db.commit()
     db.refresh(submission)
 
-    return {
+    report_id = None
+    if is_performance_report_submission(form_id, department_id, section_id):
+        report = create_report_from_submission(
+            db, form_data, current_user, department_id
+        )
+        report_id = report.id
+
+    response = {
         "message": "submitted",
         "id": submission.id,
         "subject": subject,
         "file": attachment_name,
     }
+    if report_id is not None:
+        response["report_id"] = report_id
+    return response

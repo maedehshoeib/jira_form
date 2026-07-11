@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 
 import AppShell from "../../components/layout/AppShell";
@@ -9,6 +10,11 @@ import SummaryTable from "../../components/reports/SummaryTable";
 import TextSection from "../../components/reports/TextSection";
 import ReportTable from "../../components/reports/ReportTable";
 import ReportHeader from "../../components/reports/ReportHeader";
+import {
+  exportPerformanceReportToExcel,
+  printPerformanceReport,
+  type PerformanceReportExport,
+} from "../../lib/reportExport";
 
 type PerformanceData = {
   summary: { label: string; value: string }[];
@@ -25,19 +31,19 @@ type PerformanceData = {
 };
 
 export default function PerformanceReports() {
-  const [report, setReport] = useState<{
-    title: string;
-    status: string;
-    created_by: string;
-    created_at: string;
-    data: PerformanceData;
-  } | null>(null);
+  const [report, setReport] = useState<PerformanceReportExport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
     client
       .get(endpoints.reportsPerformance)
       .then((res) => setReport(res.data))
+      .catch((err) => {
+        if (err?.response?.status === 404) {
+          setNotFound(true);
+        }
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -45,16 +51,33 @@ export default function PerformanceReports() {
     return <AppShell>در حال بارگذاری گزارش...</AppShell>;
   }
 
-  if (!report) {
-    return <AppShell>گزارشی یافت نشد.</AppShell>;
+  if (notFound || !report) {
+    return (
+      <AppShell>
+        <div className="space-y-6 text-center">
+          <h1 className="text-3xl font-bold text-slate-800">
+            گزارش عملکرد شورای معاونین و مدیران
+          </h1>
+          <p className="text-slate-500">
+            هنوز گزارشی ثبت نشده است. لطفاً ابتدا فرم گزارش را تکمیل کنید.
+          </p>
+          <Link
+            to="/departments/reports"
+            className="inline-block rounded-xl bg-red-600 px-6 py-3 font-semibold text-white hover:bg-red-700"
+          >
+            رفتن به فرم ثبت گزارش
+          </Link>
+        </div>
+      </AppShell>
+    );
   }
 
   const data = report.data;
 
   return (
     <AppShell>
-      <div className="space-y-8">
-        <div>
+      <div id="report-print-area" className="space-y-8">
+        <div className="no-print">
           <h1 className="text-3xl font-bold text-slate-800">{report.title}</h1>
           <p className="mt-2 text-slate-500">
             اطلاعات ثبت شده فرم‌ها در این قسمت نمایش داده می‌شود.
@@ -66,6 +89,8 @@ export default function PerformanceReports() {
           createdAt={report.created_at}
           createdBy={report.created_by}
           status={report.status}
+          onPrint={printPerformanceReport}
+          onExportExcel={() => exportPerformanceReportToExcel(report)}
         />
 
         <ReportSection title="مشخصات کلی گزارش">

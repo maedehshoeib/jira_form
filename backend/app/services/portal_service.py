@@ -88,6 +88,61 @@ BUSINESS_FIELDS = [
     FormField(name="attachment", label="پیوست", type="file"),
 ]
 
+PERFORMANCE_REPORT_FIELDS = [
+    FormField(name="organizational_unit", label="واحد سازمانی", type="text", required=True),
+    FormField(
+        name="achievements",
+        label="مهمترین دستاوردهای دوره",
+        type="textarea",
+        required=True,
+    ),
+    FormField(
+        name="challenges",
+        label="مهمترین مشکلات و چالش‌ها",
+        type="textarea",
+        required=False,
+    ),
+    FormField(
+        name="goals",
+        label="اهداف و برنامه‌های دوره (هر خط: هدف|مسئول|درصد پیشرفت)",
+        type="textarea",
+        required=False,
+    ),
+    FormField(
+        name="actions",
+        label="اقدامات انجام شده (هر خط: اقدام|وضعیت|توضیحات)",
+        type="textarea",
+        required=False,
+    ),
+    FormField(
+        name="metrics",
+        label="شاخص‌های عملکرد (هر خط: شاخص|مقدار)",
+        type="textarea",
+        required=False,
+    ),
+    FormField(name="analysis", label="تحلیل عملکرد", type="textarea", required=False),
+    FormField(name="risks", label="ریسک‌ها و مشکلات", type="textarea", required=False),
+    FormField(
+        name="corrective_actions",
+        label="اقدامات اصلاحی",
+        type="textarea",
+        required=False,
+    ),
+    FormField(
+        name="next_plans",
+        label="برنامه‌های دوره بعد",
+        type="textarea",
+        required=False,
+    ),
+    FormField(
+        name="management_decisions",
+        label="تصمیمات مورد نیاز مدیریت",
+        type="textarea",
+        required=False,
+    ),
+    FormField(name="attachment", label="پیوست", type="file", required=False),
+]
+
 IT_SUPPORT_FIELDS = [
     FormField(name="subject", label="موضوع درخواست", type="text", required=True),
     FormField(name="product", label="محصول", type="text"),
@@ -150,7 +205,11 @@ DEPARTMENTS = [
         Section(id="bank-request", title="درخواست بانک", form_id="common-form"),
     ]),
     Department(id="reports", title="گزارشات", sections=[
-        Section(id="management-report", title="گزارش عملکرد شورای معاونین و مدیران", form_id="common-form"),
+        Section(
+            id="management-report",
+            title="گزارش عملکرد شورای معاونین و مدیران",
+            form_id="performance-report-form",
+        ),
     ]),
 ]
 
@@ -160,4 +219,11 @@ FORM_TEMPLATES = {
     "digital-marketing-form": FormTemplate(id="digital-marketing-form", title="درخواست دیجیتال مارکتینگ", department_id="business", section_id="digital-marketing", fields=DIGITAL_MARKETING_FIELDS),
     "business-form": FormTemplate(id="business-form", title="درخواست کسب و کار", department_id="business", section_id="business-projects", fields=BUSINESS_FIELDS),
     "hr-form": FormTemplate(id="hr-form", title="فرم منابع انسانی", department_id="hr", section_id="new-hire", fields=COMMON_FIELDS + [FormField(name="personnel_code", label="کد پرسنلی", type="text")]),
+    "performance-report-form": FormTemplate(
+        id="performance-report-form",
+        title="گزارش عملکرد شورای معاونین و مدیران",
+        department_id="reports",
+        section_id="management-report",
+        fields=PERFORMANCE_REPORT_FIELDS,
+    ),
 }
