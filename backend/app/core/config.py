@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     LDAP_USER_DN_TEMPLATE: str = "{username}@vosouq.local"
     LDAP_BIND_DN: str = ""
     LDAP_BIND_PASSWORD: str = ""
+    LDAP_TIMEOUT: int = 5
 
     # Dev fallback when not on internal network
     DEV_AUTH_ENABLED: bool = True

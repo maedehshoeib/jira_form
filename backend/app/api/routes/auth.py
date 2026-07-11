@@ -9,7 +9,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.schemas.auth import LoginRequest, TokenResponse, UserResponse
 from app.services.jira_service import jira_service
-from app.services.ldap_service import ldap_service
+from app.services.ldap_service import ldap_service, normalize_username
 
 router = APIRouter()
 
@@ -40,17 +40,23 @@ def _get_or_create_user(db: Session, ldap_info) -> User:
 
 @router.post("/login", response_model=TokenResponse)
 async def login(body: LoginRequest, db: Session = Depends(get_db)):
-    ldap_info = ldap_service.authenticate(body.username, body.password)
-    if not ldap_info:
+    username = normalize_username(body.username)
+    password = body.password
+
+    user_info = ldap_service.authenticate(username, password)
+    if not user_info:
+        user_info = await jira_service.authenticate(username, password)
+
+    if not user_info:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="نام کاربری یا رمز عبور اشتباه است",
         )
 
-    user = _get_or_create_user(db, ldap_info)
+    user = _get_or_create_user(db, user_info)
 
-    jira_me = await jira_service.get_me(body.username, body.password)
-    if jira_me.get("displayName") and jira_me["displayName"] != body.username:
+    jira_me = await jira_service.get_me(username, password)
+    if jira_me.get("displayName") and jira_me["displayName"] != username:
         user.display_name = jira_me["displayName"]
     if jira_me.get("email"):
         user.email = jira_me["email"]

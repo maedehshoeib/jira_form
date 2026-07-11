@@ -30,12 +30,14 @@ app.include_router(jira_router, prefix="/api/v1/jira", tags=["jira"])
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
+FRONTEND_INDEX = FRONTEND_DIST / "index.html"
 
-app.mount(
-    "/assets",
-    StaticFiles(directory=FRONTEND_DIST / "assets"),
-    name="assets",
-)
+if (FRONTEND_DIST / "assets").exists():
+    app.mount(
+        "/assets",
+        StaticFiles(directory=FRONTEND_DIST / "assets"),
+        name="assets",
+    )
 
 favicon = FRONTEND_DIST / "favicon.ico"
 if favicon.exists():
@@ -45,11 +47,13 @@ if favicon.exists():
         return FileResponse(favicon)
 
 
-@app.get("/{full_path:path}", include_in_schema=False)
-async def react_app(full_path: str):
-    requested = FRONTEND_DIST / full_path
+if FRONTEND_INDEX.exists():
 
-    if requested.exists() and requested.is_file():
-        return FileResponse(requested)
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def react_app(full_path: str):
+        requested = FRONTEND_DIST / full_path
 
-    return FileResponse(FRONTEND_DIST / "index.html")
+        if requested.exists() and requested.is_file():
+            return FileResponse(requested)
+
+        return FileResponse(FRONTEND_INDEX)
