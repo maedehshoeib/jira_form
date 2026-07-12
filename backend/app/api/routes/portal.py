@@ -2,14 +2,20 @@ import json
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
+from app.api.routes.submissions_helpers import (
+    _submission_to_list_item,
+    _submission_to_response,
+    require_api_key_or_user,
+)
 from app.core.config import settings
 from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.submission import Submission
 from app.models.user import User
+from app.schemas.submission import SubmissionListItem, SubmissionResponse
 from app.services.portal_service import DEPARTMENTS, FORM_TEMPLATES
 from app.services.report_submission_service import (
     create_report_from_submission,
@@ -97,6 +103,11 @@ async def create_submission(
             db, form_data, current_user, department_id
         )
         report_id = report.id
+        form_data["_report_id"] = report_id
+
+    submission.data = json.dumps(form_data, ensure_ascii=False)
+    db.commit()
+    db.refresh(submission)
 
     response = {
         "message": "submitted",
@@ -107,3 +118,44 @@ async def create_submission(
     if report_id is not None:
         response["report_id"] = report_id
     return response
+
+
+@router.get("/submissions", response_model=list[SubmissionListItem])
+def list_submissions(
+    form_id: str | None = Query(default=None),
+    department_id: str | None = Query(default=None),
+    section_id: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    _auth: User | None = Depends(require_api_key_or_user),
+):
+    query = db.query(Submission).order_by(Submission.created_at.desc())
+
+    if form_id:
+        query = query.filter(Submission.form_id == form_id)
+    if department_id:
+        query = query.filter(Submission.department_id == department_id)
+    if section_id:
+        query = query.filter(Submission.section_id == section_id)
+
+    submissions = query.offset(offset).limit(limit).all()
+    result = []
+    for submission in submissions:
+        user = db.query(User).filter(User.id == submission.user_id).first()
+        result.append(_submission_to_list_item(submission, user))
+    return result
+
+
+@router.get("/submissions/{submission_id}", response_model=SubmissionResponse)
+def get_submission(
+    submission_id: int,
+    db: Session = Depends(get_db),
+    _auth: User | None = Depends(require_api_key_or_user),
+):
+    submission = db.query(Submission).filter(Submission.id == submission_id).first()
+    if not submission:
+        raise HTTPException(status_code=404, detail="درخواست یافت نشد")
+
+    user = db.query(User).filter(User.id == submission.user_id).first()
+    return _submission_to_response(submission, user)
