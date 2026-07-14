@@ -47,6 +47,30 @@ button {
   font-family: "Vazirmatn", sans-serif;
 }
 
+/* Select dropdown overlay */
+[data-slot="select-content"] {
+  z-index: 9999 !important;
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18) !important;
+}
+
+[data-slot="select-viewport"] {
+  background-color: #ffffff !important;
+}
+
+[data-slot="select-item"] {
+  background-color: #ffffff !important;
+  color: #334155 !important;
+}
+
+[data-slot="select-item"][data-highlighted],
+[data-slot="select-item"][data-state="checked"] {
+  background-color: #fef2f2 !important;
+  color: #0f172a !important;
+}
+
 @media print {
   @page {
     margin: 12mm;

@@ -43,13 +43,13 @@ export default function ReportFilters() {
 
             <Select>
 
-              <SelectTrigger className="h-11 rounded-xl">
+              <SelectTrigger className="h-11 w-full rounded-xl">
 
                 <SelectValue placeholder="همه واحدها" />
 
               </SelectTrigger>
 
-              <SelectContent>
+              <SelectContent position="popper" sideOffset={4}>
 
                 <SelectItem value="all">
                   همه واحدها
@@ -83,13 +83,13 @@ export default function ReportFilters() {
 
             <Select>
 
-              <SelectTrigger className="h-11 rounded-xl">
+              <SelectTrigger className="h-11 w-full rounded-xl">
 
                 <SelectValue placeholder="همه" />
 
               </SelectTrigger>
 
-              <SelectContent>
+              <SelectContent position="popper" sideOffset={4}>
 
                 <SelectItem value="all">
                   همه

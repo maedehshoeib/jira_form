@@ -78,19 +78,12 @@ export default function FormFieldRenderer({
         }
       >
         <SelectTrigger
-          className="
-            h-12
-            rounded-xl
-            border-slate-200
-            bg-slate-50
-            text-right
-            shadow-sm
-          "
+          className="h-12 w-full rounded-xl border-slate-200 bg-slate-50 text-right shadow-sm"
         >
           <SelectValue placeholder="انتخاب کنید" />
         </SelectTrigger>
 
-        <SelectContent>
+        <SelectContent position="popper" sideOffset={4}>
           {field.options?.map((opt) => (
             <SelectItem
               key={opt.value}

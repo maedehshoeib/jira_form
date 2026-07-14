@@ -1,10 +1,24 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { API_BASE, FormTemplate } from "../../config/portal";
 import FormFieldRenderer from "./FormFieldRenderer";
 
 import { Button } from "../ui/button";
+
+function createEmptyValues(form: FormTemplate): Record<string, unknown> {
+  const obj: Record<string, unknown> = {};
+  form.fields.forEach((field) => {
+    if (field.type === "file") {
+      obj[field.name] = null;
+    } else if (field.type === "table") {
+      obj[field.name] = field.default_rows?.map((row) => ({ ...row })) ?? [];
+    } else {
+      obj[field.name] = "";
+    }
+  });
+  return obj;
+}
 
 function isFieldFilled(value: unknown): boolean {
   if (value === "" || value === null || value === undefined) return false;
@@ -21,25 +35,14 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
   const departmentId = searchParams.get("department") || form.department_id || "";
   const sectionId = searchParams.get("section") || form.section_id || "";
 
-  const initialValues = useMemo(() => {
-    const obj: Record<string, unknown> = {};
-    form.fields.forEach((field) => {
-      if (field.type === "file") {
-        obj[field.name] = null;
-      } else if (field.type === "table") {
-        obj[field.name] =
-          field.default_rows?.map((row) => ({ ...row })) ?? [];
-      } else {
-        obj[field.name] = "";
-      }
-    });
-    return obj;
-  }, [form]);
+  const initialValues = useMemo(() => createEmptyValues(form), [form]);
 
   const [values, setValues] = useState<Record<string, unknown>>(initialValues);
+  const [formKey, setFormKey] = useState(0);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [reportId, setReportId] = useState<number | null>(null);
+  const isSubmittingRef = useRef(false);
   const isPerformanceReport = form.id === "performance-report-form";
 
   const handleChange = (name: string, value: unknown) => {
@@ -53,6 +56,9 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRef.current) return;
+
+    isSubmittingRef.current = true;
     setLoading(true);
     setDone(false);
 
@@ -86,9 +92,12 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
           setReportId(data.report_id);
         }
         setDone(true);
+        setValues(createEmptyValues(form));
+        setFormKey((key) => key + 1);
       }
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -135,7 +144,7 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
+      <form key={formKey} onSubmit={handleSubmit} className="space-y-8">
         {form.fields.map((field) => {
           const showSection = field.section && field.section !== lastSection;
           if (field.section) lastSection = field.section;
