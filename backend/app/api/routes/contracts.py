@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -21,10 +21,15 @@ CONTRACT_TYPE_LABELS = {
 }
 
 
+IRAN_TZ = timezone(timedelta(hours=3, minutes=30))
+
+
 def _format_dt(value: datetime | None) -> str:
     if not value:
         return ""
-    return value.strftime("%Y/%m/%d %H:%M")
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(IRAN_TZ).strftime("%Y/%m/%d %H:%M")
 
 
 def _contract_to_list_item(contract: Contract) -> ContractListItem:

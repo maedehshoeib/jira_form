@@ -11,6 +11,7 @@ import { Download, Search } from "lucide-react";
 import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
+import { formatPersianDateTime } from "../../lib/persianDate";
 
 type ContractItem = {
   id: number;
@@ -38,6 +39,7 @@ function contractSearchText(contract: ContractItem): string {
     contract.has_attachment ? "پیوست" : "",
     contract.created_by_name,
     contract.created_at,
+    formatPersianDateTime(contract.created_at),
   ]
     .filter(Boolean)
     .join(" ")
@@ -265,7 +267,9 @@ export default function ContractList() {
                           )}
                         </td>
                         <td className="px-4 py-3">{contract.created_by_name}</td>
-                        <td className="px-4 py-3">{contract.created_at}</td>
+                        <td className="px-4 py-3">
+                          {formatPersianDateTime(contract.created_at)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
