@@ -6,6 +6,7 @@ export const endpoints = {
   reports: "/reports",
   reportsPublic: "/reports/public",
   reportsPerformance: "/reports/performance/latest",
+  contracts: "/contracts",
   submissions: "/submissions",
   jiraMe: "/jira/me",
   jiraUsers: "/jira/users",

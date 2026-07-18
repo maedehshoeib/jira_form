@@ -45,12 +45,13 @@ export default function HomePage() {
     if (title.includes("فناوری")) return <Monitor className="h-8 w-8" />;
     if (title.includes("منابع")) return <Users className="h-8 w-8" />;
     if (title.includes("کسب")) return <Briefcase className="h-8 w-8" />;
-    if (title.includes("قرارداد")) return <FileText className="h-8 w-8" />;
+    if (title.includes("قرارداد") || title.includes("ارشیو")) return <FileText className="h-8 w-8" />;
     if (title.includes("گزارش")) return <BarChart3 className="h-8 w-8" />;
     return <Building2 className="h-8 w-8" />;
   };
 
   const getDepartmentLink = (dept: Department) => {
+    if (dept.id === "contract-archive") return "/contracts-archive";
     return `/departments/${dept.id}`;
   };
 
@@ -107,7 +108,9 @@ export default function HomePage() {
                 <p className="mt-3 text-sm text-red-500">
                   {d.id === "reports"
                     ? "ثبت و مشاهده گزارشات"
-                    : `${d.sections.length} زیرمجموعه`}
+                    : d.id === "contract-archive"
+                      ? "ثبت و مشاهده آرشیو قراردادها"
+                      : `${d.sections.length} زیرمجموعه`}
                 </p>
               </CardContent>
             </Card>

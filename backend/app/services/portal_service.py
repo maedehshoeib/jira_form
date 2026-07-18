@@ -271,6 +271,7 @@ DEPARTMENTS = [
             form_id="performance-report-form",
         ),
     ]),
+    Department(id="contract-archive", title="ارشیو قراردادها", sections=[]),
 ]
 
 FORM_TEMPLATES = {

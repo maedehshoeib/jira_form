@@ -8,6 +8,9 @@ import LoginPage from "./pages/LoginPage";
 
 import ReportsHome from "./pages/reports/ReportsHome";
 import PerformanceReports from "./pages/reports/PerformanceReports";
+import ContractsArchiveHome from "./pages/contracts/ContractsArchiveHome";
+import ContractReportForm from "./pages/contracts/ContractReportForm";
+import ContractList from "./pages/contracts/ContractList";
 
 export default function App() {
   return (
@@ -55,6 +58,33 @@ export default function App() {
         element={
           <ProtectedRoute>
             <PerformanceReports />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/contracts-archive"
+        element={
+          <ProtectedRoute>
+            <ContractsArchiveHome />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/contracts-archive/submit"
+        element={
+          <ProtectedRoute>
+            <ContractReportForm />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/contracts-archive/list"
+        element={
+          <ProtectedRoute>
+            <ContractList />
           </ProtectedRoute>
         }
       />

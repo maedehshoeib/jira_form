@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "سامانه جامع خدمات"
     BACKEND_CORS_ORIGINS: str = "http://localhost:5173,http://localhost:8000"
     DATABASE_URL: str = "sqlite:///./data/portal.db"
+    CONTRACTS_DATABASE_URL: str = "sqlite:///./data/contracts.db"
 
     # JWT
     SECRET_KEY: str = "change-me-in-production-use-a-long-random-string"
@@ -38,6 +39,7 @@ class Settings(BaseSettings):
 
     # File uploads
     UPLOAD_DIR: str = "./data/uploads"
+    CONTRACTS_UPLOAD_DIR: str = "./data/contracts_uploads"
 
     class Config:
         env_file = ".env"

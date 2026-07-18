@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes.auth import router as auth_router
+from app.api.routes.contracts import router as contracts_router
 from app.api.routes.jira import router as jira_router
 from app.api.routes.portal import router as portal_router
 from app.api.routes.reports import router as reports_router
@@ -26,6 +27,7 @@ add_cors(app)
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(portal_router, prefix="/api/v1", tags=["portal"])
 app.include_router(reports_router, prefix="/api/v1/reports", tags=["reports"])
+app.include_router(contracts_router, prefix="/api/v1/contracts", tags=["contracts"])
 app.include_router(jira_router, prefix="/api/v1/jira", tags=["jira"])
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent

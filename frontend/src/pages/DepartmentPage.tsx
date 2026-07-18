@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, Navigate, useParams } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
 import { API_BASE, Department } from "../config/portal";
 import bankLogo from "../assets/bankmellat_logo_01_s2.png";
@@ -10,7 +10,7 @@ export default function DepartmentPage() {
   const [department, setDepartment] = useState<Department | null>(null);
 
   useEffect(() => {
-    if (!departmentId) return;
+    if (!departmentId || departmentId === "contract-archive") return;
 
     const token = localStorage.getItem("access_token");
     fetch(`${API_BASE}/departments/${departmentId}`, {
@@ -19,6 +19,10 @@ export default function DepartmentPage() {
       .then((res) => res.json())
       .then(setDepartment);
   }, [departmentId]);
+
+  if (departmentId === "contract-archive") {
+    return <Navigate to="/contracts-archive" replace />;
+  }
 
   if (!department) return <AppShell>در حال بارگذاری...</AppShell>;
 
