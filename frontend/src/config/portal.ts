@@ -20,6 +20,9 @@ export type FormField = {
   section?: string;
   columns?: TableColumn[];
   default_rows?: Record<string, string>[];
+  /** For date fields: literal YYYY/MM/DD or `'today'` */
+  maxDate?: 'today' | string;
+  minDate?: string;
 };
 
 export type FormTemplate = {

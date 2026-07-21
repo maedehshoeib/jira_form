@@ -1,4 +1,5 @@
 import { FormField } from '../../config/portal';
+import { normalizePersianDate, PERSIAN_DATE_FORMAT } from '../../lib/persianDate';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import FormTableField from './FormTableField';
@@ -10,6 +11,7 @@ import {
   SelectValue,
 } from '../ui/select';
 
+import DateObject from 'react-date-object';
 import DatePicker from 'react-multi-date-picker';
 import persian from 'react-date-object/calendars/persian';
 import persian_fa from 'react-date-object/locales/persian_fa';
@@ -18,12 +20,32 @@ type Props = {
   field: FormField;
   value: any;
   onChange: (name: string, value: any) => void;
+  dateMin?: string;
+  dateMax?: string;
+  inputKey?: string | number;
 };
+
+function resolveDateConstraint(
+  value: 'today' | string | undefined
+): DateObject | undefined {
+  if (!value) return undefined;
+  if (value === 'today') {
+    return new DateObject({ calendar: persian, locale: persian_fa });
+  }
+  try {
+    return new DateObject({ date: value, calendar: persian });
+  } catch {
+    return undefined;
+  }
+}
 
 export default function FormFieldRenderer({
   field,
   value,
   onChange,
+  dateMin,
+  dateMax,
+  inputKey,
 }: Props) {
   const commonClass =
     'h-12 rounded-xl border border-slate-200 bg-slate-50 text-right shadow-sm focus-visible:ring-2 focus-visible:ring-red-500';
@@ -98,16 +120,20 @@ export default function FormFieldRenderer({
   }
 
   if (field.type === 'date') {
+    const maxDate = resolveDateConstraint(dateMax ?? field.maxDate);
+    const minDate = resolveDateConstraint(dateMin ?? field.minDate);
+
     return (
       <DatePicker
+        key={inputKey ?? field.name}
         calendar={persian}
         locale={persian_fa}
-        value={value}
+        format={PERSIAN_DATE_FORMAT}
+        value={value || undefined}
+        maxDate={maxDate}
+        minDate={minDate}
         onChange={(date) =>
-          onChange(
-            field.name,
-            date?.format?.('YYYY/MM/DD') ?? ''
-          )
+          onChange(field.name, normalizePersianDate(date))
         }
         inputClass={`
           w-full

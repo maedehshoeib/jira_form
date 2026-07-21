@@ -4,6 +4,12 @@ import { Link } from "react-router-dom";
 import AppShell from "../../components/layout/AppShell";
 import FormFieldRenderer from "../../components/forms/FormFieldRenderer";
 import { API_BASE, FormField, FormTemplate } from "../../config/portal";
+import {
+  addOneYearAndOneDay,
+  getTodayPersian,
+  isPersianDateAfter,
+  normalizePersianDate,
+} from "../../lib/persianDate";
 import { Button } from "../../components/ui/button";
 
 const CONTRACT_FORM: FormTemplate = {
@@ -16,6 +22,7 @@ const CONTRACT_FORM: FormTemplate = {
       type: "date",
       section: "تاریخ ثبت قرارداد",
       required: true,
+      maxDate: "today",
     },
     {
       name: "end_date",
@@ -89,7 +96,19 @@ export default function ContractReportForm() {
   const isSubmittingRef = useRef(false);
 
   const handleChange = (name: string, value: unknown) => {
-    setValues((prev) => ({ ...prev, [name]: value }));
+    setValues((prev) => {
+      const normalizedValue =
+        name === "start_date" || name === "end_date"
+          ? normalizePersianDate(value)
+          : value;
+      const next = { ...prev, [name]: normalizedValue };
+
+      if (name === "start_date" && normalizedValue) {
+        next.end_date = addOneYearAndOneDay(String(normalizedValue));
+      }
+
+      return next;
+    });
   };
 
   const completedFields = Object.entries(values).filter(([key, val]) => {
@@ -107,6 +126,12 @@ export default function ContractReportForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmittingRef.current) return;
+
+    const startDate = String(values.start_date ?? "").trim();
+    if (startDate && isPersianDateAfter(startDate, getTodayPersian())) {
+      setError("تاریخ شروع نمی‌تواند بعد از امروز باشد.");
+      return;
+    }
 
     isSubmittingRef.current = true;
     setLoading(true);
@@ -234,6 +259,16 @@ export default function ContractReportForm() {
                   field={field}
                   value={values[field.name]}
                   onChange={handleChange}
+                  dateMin={
+                    field.name === "end_date"
+                      ? String(values.start_date ?? "")
+                      : undefined
+                  }
+                  inputKey={
+                    field.name === "end_date"
+                      ? `end-${String(values.start_date ?? "")}-${String(values.end_date ?? "")}`
+                      : field.name
+                  }
                 />
               </div>
             );
