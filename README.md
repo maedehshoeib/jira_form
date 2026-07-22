@@ -101,6 +101,8 @@ cd frontend && npm run build
 | GET | `/api/v1/departments` | لیست دپارتمان‌ها |
 | GET | `/api/v1/forms/{form_id}` | قالب فرم |
 | POST | `/api/v1/submissions` | ثبت درخواست (multipart/form-data) |
+| GET | `/api/v1/submissions` | فهرست درخواست‌های کاربر جاری (با API Key: همه درخواست‌ها) |
+| GET | `/api/v1/submissions/{id}` | جزئیات درخواست کاربر جاری (با API Key: هر درخواست) |
 
 ### گزارشات
 

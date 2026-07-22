@@ -128,9 +128,14 @@ def list_submissions(
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
-    _auth: User | None = Depends(require_api_key_or_user),
+    auth: User | None = Depends(require_api_key_or_user),
 ):
     query = db.query(Submission).order_by(Submission.created_at.desc())
+
+    # API-key callers are administrative integrations and may list everything.
+    # A signed-in employee must only ever receive their own submissions.
+    if auth is not None:
+        query = query.filter(Submission.user_id == auth.id)
 
     if form_id:
         query = query.filter(Submission.form_id == form_id)
@@ -151,10 +156,13 @@ def list_submissions(
 def get_submission(
     submission_id: int,
     db: Session = Depends(get_db),
-    _auth: User | None = Depends(require_api_key_or_user),
+    auth: User | None = Depends(require_api_key_or_user),
 ):
     submission = db.query(Submission).filter(Submission.id == submission_id).first()
     if not submission:
+        raise HTTPException(status_code=404, detail="درخواست یافت نشد")
+    if auth is not None and submission.user_id != auth.id:
+        # Return 404 so request identifiers belonging to other employees are not exposed.
         raise HTTPException(status_code=404, detail="درخواست یافت نشد")
 
     user = db.query(User).filter(User.id == submission.user_id).first()

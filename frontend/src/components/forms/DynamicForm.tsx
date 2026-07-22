@@ -125,6 +125,16 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
               )}
             </div>
           )}
+          {!isPerformanceReport && (
+            <div className="mt-3">
+              <Link
+                to="/my-requests"
+                className="font-semibold text-red-600 hover:text-red-700"
+              >
+                مشاهده درخواست‌های من
+              </Link>
+            </div>
+          )}
         </div>
       )}
 

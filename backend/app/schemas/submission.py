@@ -8,7 +8,9 @@ class SubmissionListItem(BaseModel):
     form_id: str
     form_title: str
     department_id: str
+    department_title: str
     section_id: str
+    section_title: str
     subject: str
     status: str
     submitted_by: str
@@ -23,7 +25,9 @@ class SubmissionResponse(BaseModel):
     form_id: str
     form_title: str
     department_id: str
+    department_title: str
     section_id: str
+    section_title: str
     subject: str
     status: str
     submitted_by: str

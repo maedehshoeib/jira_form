@@ -5,6 +5,7 @@ import HomePage from "./pages/HomePage";
 import DepartmentPage from "./pages/DepartmentPage";
 import FormPage from "./pages/FormPage";
 import LoginPage from "./pages/LoginPage";
+import MyRequestsPage from "./pages/MyRequestsPage";
 
 import ReportsHome from "./pages/reports/ReportsHome";
 import PerformanceReports from "./pages/reports/PerformanceReports";
@@ -40,6 +41,15 @@ export default function App() {
         element={
           <ProtectedRoute>
             <FormPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/my-requests"
+        element={
+          <ProtectedRoute>
+            <MyRequestsPage />
           </ProtectedRoute>
         }
       />
