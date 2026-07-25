@@ -19,6 +19,7 @@ import ContractList from "./pages/contracts/ContractList";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminSessionsPage from "./pages/admin/AdminSessionsPage";
+import AdminBannerPage from "./pages/admin/AdminBannerPage";
 
 export default function App() {
   return (
@@ -138,6 +139,15 @@ export default function App() {
         element={
           <ProtectedRoute>
             <AdminRoute><AdminDashboardPage /></AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/banner"
+        element={
+          <ProtectedRoute>
+            <AdminRoute><AdminBannerPage /></AdminRoute>
           </ProtectedRoute>
         }
       />

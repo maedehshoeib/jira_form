@@ -5,6 +5,7 @@ export const endpoints = {
   profile: "/auth/profile",
   changePassword: "/auth/change-password",
   departments: "/departments",
+  banner: "/banner",
   forms: "/forms",
   reports: "/reports",
   reportsPublic: "/reports/public",
@@ -17,4 +18,5 @@ export const endpoints = {
   adminDashboard: "/admin/dashboard",
   adminUsers: "/admin/users",
   adminSessions: "/admin/sessions",
+  adminBanner: "/admin/banner",
 };

@@ -87,3 +87,14 @@ class DashboardResponse(BaseModel):
     requests_by_department: list[ChartItem]
     requests_by_month: list[ChartItem]
     recent_requests: list[DashboardRecentRequest]
+
+
+class SiteBannerResponse(BaseModel):
+    is_active: bool
+    image_url: str | None
+    image_name: str
+    updated_at: datetime | None = None
+
+
+class SiteBannerUpdate(BaseModel):
+    is_active: bool = False

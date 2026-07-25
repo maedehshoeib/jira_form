@@ -3,6 +3,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.routes.submissions_helpers import (
@@ -14,7 +15,9 @@ from app.core.config import settings
 from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.submission import Submission
+from app.models.site_banner import SiteBanner
 from app.models.user import User
+from app.schemas.admin import SiteBannerResponse
 from app.schemas.submission import SubmissionListItem, SubmissionResponse
 from app.services.portal_service import DEPARTMENTS, FORM_TEMPLATES
 from app.services.report_submission_service import (
@@ -28,6 +31,36 @@ router = APIRouter()
 @router.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+@router.get("/banner", response_model=SiteBannerResponse)
+def get_home_banner(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    banner = db.query(SiteBanner).filter(SiteBanner.id == 1).first()
+    if not banner:
+        return SiteBannerResponse(is_active=False, image_url=None, image_name="")
+    version = int(banner.updated_at.timestamp() * 1_000_000) if banner.updated_at else 0
+    return SiteBannerResponse(
+        is_active=banner.is_active,
+        image_url=f"/api/v1/banner/image?v={version}" if banner.image_path else None,
+        image_name=banner.image_name,
+        updated_at=banner.updated_at,
+    )
+
+
+@router.get("/banner/image")
+def get_home_banner_image(
+    db: Session = Depends(get_db),
+):
+    banner = db.query(SiteBanner).filter(SiteBanner.id == 1).first()
+    if not banner or not banner.image_path:
+        raise HTTPException(status_code=404, detail="تصویر بنر یافت نشد.")
+    image_path = Path(banner.image_path)
+    if not image_path.is_file():
+        raise HTTPException(status_code=404, detail="تصویر بنر یافت نشد.")
+    return FileResponse(image_path)
 
 
 @router.get("/departments")

@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import AppShell from "../components/layout/AppShell";
+import client from "../api/client";
+import { endpoints } from "../api/endpoints";
 import { API_BASE, Department } from "../config/portal";
+import { SiteBanner } from "../features/banner";
 import bankLogo from "../assets/bankmellat_logo_01_s2.png";
 
 import { Card, CardContent } from "../components/ui/card";
@@ -19,6 +22,7 @@ import {
 
 export default function HomePage() {
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [banner, setBanner] = useState<SiteBanner | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
@@ -27,6 +31,11 @@ export default function HomePage() {
     })
       .then((res) => res.json())
       .then(setDepartments);
+
+    client
+      .get<SiteBanner>(endpoints.banner)
+      .then(({ data }) => setBanner(data))
+      .catch(() => setBanner(null));
   }, []);
 
   const getDepartmentIcon = (dept: Department) => {
@@ -57,6 +66,16 @@ export default function HomePage() {
 
   return (
     <AppShell>
+      {banner?.is_active && banner.image_url && (
+        <section className="mb-10 overflow-hidden rounded-3xl bg-slate-900 shadow-xl shadow-slate-900/15">
+          <img
+            src={banner.image_url}
+            alt={banner.image_name || "بنر صفحه اصلی"}
+            className="aspect-[4/3] w-full object-cover sm:aspect-[16/7]"
+          />
+        </section>
+      )}
+
       <div className="mb-12 text-center">
         <h2 className="text-5xl font-extrabold text-slate-900">
           واحدهای سازمانی

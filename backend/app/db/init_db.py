@@ -9,7 +9,8 @@ from app.db.contracts_session import contracts_engine
 from app.db.seed_users import seed_users
 from app.db.session import engine
 from app.db.session import SessionLocal
-from app.models import admin_session, contract, report, submission, user  # noqa: F401
+from app.models import admin_session, contract, report, site_banner, submission, user  # noqa: F401
+from app.models.site_banner import SiteBanner
 
 
 def _migrate_contracts_db():
@@ -135,6 +136,28 @@ def _migrate_users_db():
                 conn.execute(text(ddl))
 
 
+def _migrate_site_banner_db():
+    """Add image fields when upgrading from the earlier text-banner version."""
+    inspector = inspect(engine)
+    if "site_banners" not in inspector.get_table_names():
+        return
+    columns = {col["name"] for col in inspector.get_columns("site_banners")}
+    migrations = [
+        (
+            "image_path",
+            "ALTER TABLE site_banners ADD COLUMN image_path VARCHAR(512) NOT NULL DEFAULT ''",
+        ),
+        (
+            "image_name",
+            "ALTER TABLE site_banners ADD COLUMN image_name VARCHAR(256) NOT NULL DEFAULT ''",
+        ),
+    ]
+    with engine.begin() as conn:
+        for column_name, ddl in migrations:
+            if column_name not in columns:
+                conn.execute(text(ddl))
+
+
 def init_db():
     db_path = settings.DATABASE_URL.replace("sqlite:///", "")
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
@@ -142,9 +165,13 @@ def init_db():
     Path(settings.CONTRACTS_UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
     _migrate_users_db()
+    _migrate_site_banner_db()
 
     db = SessionLocal()
     try:
+        if not db.query(SiteBanner).filter(SiteBanner.id == 1).first():
+            db.add(SiteBanner(id=1))
+            db.commit()
         seed_users(db)
     finally:
         db.close()
