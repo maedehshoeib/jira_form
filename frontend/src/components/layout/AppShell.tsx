@@ -25,6 +25,7 @@ type NavigationItem = {
 const navigationItems: NavigationItem[] = [
   { label: "خانه", href: "/", icon: Home },
   { label: "درخواست‌های من", href: "/my-requests", icon: ClipboardList },
+  { label: "پروفایل من", href: "/profile", icon: UserRound },
 ];
 
 export default function AppShell({ children }: { children: ReactNode }) {
@@ -98,7 +99,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
       <div className="border-t border-white/10 p-4">
         {user && (
-          <div className="mb-3 rounded-2xl bg-white/10 p-3.5 ring-1 ring-white/10">
+          <Link
+            to="/profile"
+            className="mb-3 block rounded-2xl bg-white/10 p-3.5 ring-1 ring-white/10 transition-colors hover:bg-white/15"
+          >
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-red-600 shadow-sm">
                 <UserRound size={21} />
@@ -122,7 +126,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 {user.email && <p className="truncate" dir="ltr">{user.email}</p>}
               </div>
             )}
-          </div>
+          </Link>
         )}
 
         <Button

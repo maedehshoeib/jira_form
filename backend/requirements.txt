@@ -6,6 +6,7 @@ sqlalchemy
 python-multipart
 python-dotenv
 python-jose[cryptography]
-passlib[bcrypt]
-ldap3
+pwdlib[argon2]
+email-validator
+openpyxl
 httpx

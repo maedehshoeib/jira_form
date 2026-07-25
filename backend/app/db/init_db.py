@@ -6,7 +6,9 @@ from app.core.config import settings
 from app.db.base import Base
 from app.db.contracts_base import ContractsBase
 from app.db.contracts_session import contracts_engine
+from app.db.seed_users import seed_users
 from app.db.session import engine
+from app.db.session import SessionLocal
 from app.models import contract, report, submission, user  # noqa: F401
 
 
@@ -86,12 +88,62 @@ def _migrate_contracts_db():
                 conn.execute(text(ddl))
 
 
+def _migrate_users_db():
+    """Idempotent migration for databases created before local authentication."""
+    inspector = inspect(engine)
+    if "users" not in inspector.get_table_names():
+        return
+
+    columns = {col["name"] for col in inspector.get_columns("users")}
+    migrations = [
+        (
+            "password_hash",
+            "ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NOT NULL DEFAULT ''",
+        ),
+        (
+            "must_change_password",
+            "ALTER TABLE users ADD COLUMN must_change_password BOOLEAN NOT NULL DEFAULT 1",
+        ),
+        (
+            "category",
+            "ALTER TABLE users ADD COLUMN category VARCHAR(256) NOT NULL DEFAULT ''",
+        ),
+        (
+            "job_title",
+            "ALTER TABLE users ADD COLUMN job_title VARCHAR(512) NOT NULL DEFAULT ''",
+        ),
+        (
+            "extension",
+            "ALTER TABLE users ADD COLUMN extension VARCHAR(32) NOT NULL DEFAULT ''",
+        ),
+        (
+            "updated_at",
+            "ALTER TABLE users ADD COLUMN updated_at DATETIME",
+        ),
+        (
+            "password_changed_at",
+            "ALTER TABLE users ADD COLUMN password_changed_at DATETIME",
+        ),
+    ]
+    with engine.begin() as conn:
+        for column_name, ddl in migrations:
+            if column_name not in columns:
+                conn.execute(text(ddl))
+
+
 def init_db():
     db_path = settings.DATABASE_URL.replace("sqlite:///", "")
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
     Path(settings.CONTRACTS_UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
+    _migrate_users_db()
+
+    db = SessionLocal()
+    try:
+        seed_users(db)
+    finally:
+        db.close()
 
     contracts_db_path = settings.CONTRACTS_DATABASE_URL.replace("sqlite:///", "")
     Path(contracts_db_path).parent.mkdir(parents=True, exist_ok=True)

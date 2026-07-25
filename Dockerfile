@@ -14,15 +14,11 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libldap2-dev \
-    libsasl2-dev \
-    && rm -rf /var/lib/apt/lists/*
-
 COPY backend/requirements.txt ./backend/
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
 COPY backend/ ./backend/
+COPY users.xlsx ./users.xlsx
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 
 WORKDIR /app/backend

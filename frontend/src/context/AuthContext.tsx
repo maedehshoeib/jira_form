@@ -15,14 +15,19 @@ export type AuthUser = {
   username: string;
   display_name: string;
   email: string;
+  category: string;
   department: string;
+  job_title: string;
+  extension: string;
+  must_change_password: boolean;
 };
 
 type AuthContextType = {
   user: AuthUser | null;
   loading: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<AuthUser>;
   logout: () => void;
+  updateUser: (user: AuthUser) => void;
   isAuthenticated: boolean;
 };
 
@@ -41,11 +46,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const updateUser = useCallback((nextUser: AuthUser) => {
+    localStorage.setItem("user", JSON.stringify(nextUser));
+    setUser(nextUser);
+  }, []);
+
   const login = useCallback(async (username: string, password: string) => {
     const { data } = await client.post(endpoints.login, { username, password });
     localStorage.setItem("access_token", data.access_token);
     localStorage.setItem("user", JSON.stringify(data.user));
     setUser(data.user);
+    return data.user as AuthUser;
   }, []);
 
   useEffect(() => {
@@ -71,9 +82,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       login,
       logout,
+      updateUser,
       isAuthenticated: !!user,
     }),
-    [user, loading, login, logout]
+    [user, loading, login, logout, updateUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

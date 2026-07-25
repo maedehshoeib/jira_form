@@ -24,8 +24,10 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await login(username, password);
-      navigate(from, { replace: true });
+      const loggedInUser = await login(username, password);
+      navigate(loggedInUser.must_change_password ? "/change-password" : from, {
+        replace: true,
+      });
     } catch {
       setError("نام کاربری یا رمز عبور اشتباه است");
     } finally {
@@ -61,7 +63,7 @@ export default function LoginPage() {
             <Input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="نام کاربری سیستم"
+              placeholder="مثال: f.amiri"
               required
               className="h-12 rounded-xl"
             />
@@ -75,7 +77,7 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="رمز عبور سیستم"
+              placeholder="رمز عبور"
               required
               className="h-12 rounded-xl"
             />
@@ -92,7 +94,7 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-6 text-center text-xs text-slate-400">
-          کاربران جدید با اولین ورود به صورت خودکار ثبت می‌شوند
+          در اولین ورود، تغییر رمز عبور پیش‌فرض الزامی است.
         </p>
       </div>
     </div>

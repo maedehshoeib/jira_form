@@ -1,6 +1,8 @@
 export const endpoints = {
   login: "/auth/login",
   me: "/auth/me",
+  profile: "/auth/profile",
+  changePassword: "/auth/change-password",
   departments: "/departments",
   forms: "/forms",
   reports: "/reports",

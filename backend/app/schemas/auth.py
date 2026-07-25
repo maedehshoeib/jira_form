@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 
 class LoginRequest(BaseModel):
@@ -11,7 +11,11 @@ class UserResponse(BaseModel):
     username: str
     display_name: str
     email: str
+    category: str
     department: str
+    job_title: str
+    extension: str
+    must_change_password: bool
 
     class Config:
         from_attributes = True
@@ -21,3 +25,22 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+
+class ProfileUpdateRequest(BaseModel):
+    display_name: str = Field(min_length=1, max_length=256)
+    email: EmailStr
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8, max_length=128)
+    confirm_password: str
+
+    @model_validator(mode="after")
+    def passwords_match(self):
+        if self.new_password != self.confirm_password:
+            raise ValueError("تکرار رمز عبور با رمز عبور جدید یکسان نیست")
+        if self.current_password == self.new_password:
+            raise ValueError("رمز عبور جدید باید با رمز عبور فعلی متفاوت باشد")
+        return self
