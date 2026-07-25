@@ -20,6 +20,7 @@ class User(Base):
     job_title: Mapped[str] = mapped_column(String(512), default="")
     extension: Mapped[str] = mapped_column(String(32), default="")
     is_active: Mapped[bool] = mapped_column(default=True)
+    is_admin: Mapped[bool] = mapped_column(default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

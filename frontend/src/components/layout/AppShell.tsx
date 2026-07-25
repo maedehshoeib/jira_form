@@ -4,8 +4,12 @@ import {
   ChevronLeft,
   ClipboardList,
   Home,
+  ListTodo,
   LogOut,
   Menu,
+  BarChart3,
+  History,
+  Users,
   UserRound,
   X,
 } from "lucide-react";
@@ -25,7 +29,13 @@ type NavigationItem = {
 const navigationItems: NavigationItem[] = [
   { label: "خانه", href: "/", icon: Home },
   { label: "درخواست‌های من", href: "/my-requests", icon: ClipboardList },
-  { label: "پروفایل من", href: "/profile", icon: UserRound },
+  { label: "وظایف من", href: "/my-tasks", icon: ListTodo },
+];
+
+const adminNavigationItems: NavigationItem[] = [
+  { label: "داشبورد", href: "/admin/dashboard", icon: BarChart3 },
+  { label: "مدیریت کاربران", href: "/admin/users", icon: Users },
+  { label: "دستگاه‌ها و ورودها", href: "/admin/sessions", icon: History },
 ];
 
 export default function AppShell({ children }: { children: ReactNode }) {
@@ -65,6 +75,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
         {navigationItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
+          const label =
+            user?.is_admin && item.href === "/my-requests"
+              ? "همه درخواست‌ها"
+              : item.label;
           return (
             <Link
               key={item.href}
@@ -84,7 +98,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               >
                 <Icon size={19} />
               </span>
-              <span className="flex-1">{item.label}</span>
+              <span className="flex-1">{label}</span>
               <ChevronLeft
                 size={16}
                 className={cn(
@@ -95,6 +109,34 @@ export default function AppShell({ children }: { children: ReactNode }) {
             </Link>
           );
         })}
+        {user?.is_admin && (
+          <>
+            <div className="mx-3 my-5 border-t border-white/10" />
+            <p className="mb-3 px-3 text-xs font-semibold text-red-100/55">مدیریت سامانه</p>
+            {adminNavigationItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className={cn(
+                    "group flex items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-semibold transition-all",
+                    active
+                      ? "bg-white text-red-700 shadow-lg shadow-red-950/15"
+                      : "text-white/80 hover:bg-white/10 hover:text-white"
+                  )}
+                >
+                  <span className={cn("flex h-9 w-9 items-center justify-center rounded-xl", active ? "bg-red-50 text-red-600" : "bg-white/10 text-white")}>
+                    <Icon size={19} />
+                  </span>
+                  <span className="flex-1">{item.label}</span>
+                  <ChevronLeft size={16} className={active ? "text-red-400" : "text-white/35"} />
+                </Link>
+              );
+            })}
+          </>
+        )}
       </nav>
 
       <div className="border-t border-white/10 p-4">

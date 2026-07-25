@@ -1,11 +1,13 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import ProtectedRoute from "./components/auth/ProtectedRoute";
+import AdminRoute from "./components/auth/AdminRoute";
 import HomePage from "./pages/HomePage";
 import DepartmentPage from "./pages/DepartmentPage";
 import FormPage from "./pages/FormPage";
 import LoginPage from "./pages/LoginPage";
 import MyRequestsPage from "./pages/MyRequestsPage";
+import MyTasksPage from "./pages/MyTasksPage";
 import ChangePasswordPage from "./pages/ChangePasswordPage";
 import ProfilePage from "./pages/ProfilePage";
 
@@ -14,6 +16,9 @@ import PerformanceReports from "./pages/reports/PerformanceReports";
 import ContractsArchiveHome from "./pages/contracts/ContractsArchiveHome";
 import ContractReportForm from "./pages/contracts/ContractReportForm";
 import ContractList from "./pages/contracts/ContractList";
+import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
+import AdminUsersPage from "./pages/admin/AdminUsersPage";
+import AdminSessionsPage from "./pages/admin/AdminSessionsPage";
 
 export default function App() {
   return (
@@ -75,6 +80,15 @@ export default function App() {
       />
 
       <Route
+        path="/my-tasks"
+        element={
+          <ProtectedRoute>
+            <MyTasksPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/reports"
         element={
           <ProtectedRoute>
@@ -115,6 +129,33 @@ export default function App() {
         element={
           <ProtectedRoute>
             <ContractList />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/dashboard"
+        element={
+          <ProtectedRoute>
+            <AdminRoute><AdminDashboardPage /></AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/users"
+        element={
+          <ProtectedRoute>
+            <AdminRoute><AdminUsersPage /></AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/sessions"
+        element={
+          <ProtectedRoute>
+            <AdminRoute><AdminSessionsPage /></AdminRoute>
           </ProtectedRoute>
         }
       />

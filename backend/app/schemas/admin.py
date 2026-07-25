@@ -1,0 +1,89 @@
+from datetime import datetime
+
+from pydantic import BaseModel, Field
+
+
+class AdminUserResponse(BaseModel):
+    id: int
+    username: str
+    display_name: str
+    email: str
+    category: str
+    department: str
+    job_title: str
+    extension: str
+    is_active: bool
+    is_admin: bool
+    must_change_password: bool
+    created_at: datetime
+    last_login: datetime | None
+
+    class Config:
+        from_attributes = True
+
+
+class AdminUserCreate(BaseModel):
+    username: str = Field(min_length=2, max_length=128)
+    password: str = Field(min_length=8, max_length=128)
+    display_name: str = Field(default="", max_length=256)
+    email: str = Field(default="", max_length=256)
+    category: str = Field(default="", max_length=256)
+    department: str = Field(default="", max_length=128)
+    job_title: str = Field(default="", max_length=512)
+    extension: str = Field(default="", max_length=32)
+    is_active: bool = True
+    must_change_password: bool = True
+
+
+class AdminUserUpdate(BaseModel):
+    username: str | None = Field(default=None, min_length=2, max_length=128)
+    password: str | None = Field(default=None, min_length=8, max_length=128)
+    display_name: str | None = Field(default=None, max_length=256)
+    email: str | None = Field(default=None, max_length=256)
+    category: str | None = Field(default=None, max_length=256)
+    department: str | None = Field(default=None, max_length=128)
+    job_title: str | None = Field(default=None, max_length=512)
+    extension: str | None = Field(default=None, max_length=32)
+    is_active: bool | None = None
+    must_change_password: bool | None = None
+
+
+class AdminSessionResponse(BaseModel):
+    id: int
+    device_id: str
+    device_name: str
+    user_agent: str
+    ip_address: str
+    logged_in_at: datetime
+    last_seen_at: datetime
+    logged_out_at: datetime | None
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+class ChartItem(BaseModel):
+    label: str
+    value: int
+
+
+class DashboardRecentRequest(BaseModel):
+    id: int
+    subject: str
+    status: str
+    form_id: str
+    submitted_by: str
+    created_at: datetime
+
+
+class DashboardResponse(BaseModel):
+    total_users: int
+    active_users: int
+    total_requests: int
+    requests_today: int
+    active_admin_devices: int
+    requests_by_status: list[ChartItem]
+    requests_by_department: list[ChartItem]
+    requests_by_month: list[ChartItem]
+    recent_requests: list[DashboardRecentRequest]

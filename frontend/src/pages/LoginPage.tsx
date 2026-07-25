@@ -25,11 +25,19 @@ export default function LoginPage() {
 
     try {
       const loggedInUser = await login(username, password);
-      navigate(loggedInUser.must_change_password ? "/change-password" : from, {
-        replace: true,
-      });
-    } catch {
-      setError("نام کاربری یا رمز عبور اشتباه است");
+      navigate(
+        loggedInUser.must_change_password
+          ? "/change-password"
+          : loggedInUser.is_admin && from === "/"
+            ? "/admin/dashboard"
+            : from,
+        { replace: true }
+      );
+    } catch (requestError: any) {
+      setError(
+        requestError?.response?.data?.detail ||
+          "نام کاربری یا رمز عبور اشتباه است"
+      );
     } finally {
       setLoading(false);
     }

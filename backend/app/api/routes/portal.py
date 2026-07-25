@@ -134,7 +134,7 @@ def list_submissions(
 
     # API-key callers are administrative integrations and may list everything.
     # A signed-in employee must only ever receive their own submissions.
-    if auth is not None:
+    if auth is not None and not auth.is_admin:
         query = query.filter(Submission.user_id == auth.id)
 
     if form_id:
@@ -161,7 +161,7 @@ def get_submission(
     submission = db.query(Submission).filter(Submission.id == submission_id).first()
     if not submission:
         raise HTTPException(status_code=404, detail="درخواست یافت نشد")
-    if auth is not None and submission.user_id != auth.id:
+    if auth is not None and not auth.is_admin and submission.user_id != auth.id:
         # Return 404 so request identifiers belonging to other employees are not exposed.
         raise HTTPException(status_code=404, detail="درخواست یافت نشد")
 

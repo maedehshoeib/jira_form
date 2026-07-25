@@ -20,6 +20,7 @@ export type AuthUser = {
   job_title: string;
   extension: string;
   must_change_password: boolean;
+  is_admin: boolean;
 };
 
 type AuthContextType = {
@@ -41,6 +42,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const logout = useCallback(() => {
+    const token = localStorage.getItem("access_token");
+    if (token) {
+      void client
+        .post(endpoints.logout, undefined, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        .catch(() => undefined);
+    }
     localStorage.removeItem("access_token");
     localStorage.removeItem("user");
     setUser(null);
@@ -52,7 +61,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (username: string, password: string) => {
-    const { data } = await client.post(endpoints.login, { username, password });
+    let deviceId = localStorage.getItem("portal_device_id");
+    if (!deviceId) {
+      deviceId =
+        typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem("portal_device_id", deviceId);
+    }
+    const platform =
+      (navigator as Navigator & { userAgentData?: { platform?: string } })
+        .userAgentData?.platform || navigator.platform || "دستگاه";
+    const browser = /Edg\//.test(navigator.userAgent)
+      ? "Edge"
+      : /Chrome\//.test(navigator.userAgent)
+        ? "Chrome"
+        : /Firefox\//.test(navigator.userAgent)
+          ? "Firefox"
+          : /Safari\//.test(navigator.userAgent)
+            ? "Safari"
+            : "مرورگر";
+    const { data } = await client.post(endpoints.login, {
+      username,
+      password,
+      device_id: deviceId,
+      device_name: `${browser} - ${platform}`,
+    });
     localStorage.setItem("access_token", data.access_token);
     localStorage.setItem("user", JSON.stringify(data.user));
     setUser(data.user);

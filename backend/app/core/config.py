@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     USERS_SEED_ENABLED: bool = True
     USERS_SEED_FILE: str = "../users.xlsx"
     DEFAULT_USER_PASSWORD: str = "Secure@1234567"
+    ADMIN_USERNAME: str = "Vosouq.admin"
+    ADMIN_PASSWORD: str = "Jethro@2003"
+    ADMIN_MAX_DEVICES: int = 4
 
     # Jira ScriptRunner APIs
     JIRA_BASE_URL: str = "https://jira.vosouq.me"

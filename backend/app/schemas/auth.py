@@ -4,6 +4,8 @@ from pydantic import BaseModel, EmailStr, Field, model_validator
 class LoginRequest(BaseModel):
     username: str
     password: str
+    device_id: str = Field(default="", max_length=128)
+    device_name: str = Field(default="", max_length=256)
 
 
 class UserResponse(BaseModel):
@@ -16,6 +18,7 @@ class UserResponse(BaseModel):
     job_title: str
     extension: str
     must_change_password: bool
+    is_admin: bool
 
     class Config:
         from_attributes = True

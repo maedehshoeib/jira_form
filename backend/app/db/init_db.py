@@ -9,7 +9,7 @@ from app.db.contracts_session import contracts_engine
 from app.db.seed_users import seed_users
 from app.db.session import engine
 from app.db.session import SessionLocal
-from app.models import contract, report, submission, user  # noqa: F401
+from app.models import admin_session, contract, report, submission, user  # noqa: F401
 
 
 def _migrate_contracts_db():
@@ -123,6 +123,10 @@ def _migrate_users_db():
         (
             "password_changed_at",
             "ALTER TABLE users ADD COLUMN password_changed_at DATETIME",
+        ),
+        (
+            "is_admin",
+            "ALTER TABLE users ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT 0",
         ),
     ]
     with engine.begin() as conn:

@@ -19,6 +19,7 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { FormField, FormTemplate } from "../config/portal";
+import { useAuth } from "../context/AuthContext";
 
 type SubmissionListItem = {
   id: number;
@@ -32,6 +33,8 @@ type SubmissionListItem = {
   status: string;
   attachment_name: string | null;
   created_at: string;
+  submitted_by?: string;
+  submitted_by_username?: string;
 };
 
 type SubmissionDetail = SubmissionListItem & {
@@ -109,6 +112,7 @@ function displayValue(value: unknown, field?: FormField) {
 }
 
 export default function MyRequestsPage() {
+  const { user } = useAuth();
   const [requests, setRequests] = useState<SubmissionListItem[]>([]);
   const [selected, setSelected] = useState<SubmissionDetail | null>(null);
   const [template, setTemplate] = useState<FormTemplate | null>(null);
@@ -279,8 +283,14 @@ export default function MyRequestsPage() {
               <ClipboardList size={25} />
             </div>
             <div>
-              <h2 className="text-3xl font-extrabold text-slate-900">درخواست‌های من</h2>
-              <p className="mt-1 text-sm text-slate-500">فرم‌هایی که تاکنون ثبت کرده‌اید</p>
+              <h2 className="text-3xl font-extrabold text-slate-900">
+                {user?.is_admin ? "همه درخواست‌ها" : "درخواست‌های من"}
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                {user?.is_admin
+                  ? "مشاهده و پایش درخواست‌های ثبت‌شده توسط همه کاربران"
+                  : "فرم‌هایی که تاکنون ثبت کرده‌اید"}
+              </p>
             </div>
           </div>
         </div>
@@ -423,6 +433,11 @@ export default function MyRequestsPage() {
               </h3>
               <p className="mt-2 text-sm text-slate-500">{request.section_title || request.form_title}</p>
               {request.department_title && <p className="mt-1 text-xs text-slate-400">{request.department_title}</p>}
+              {user?.is_admin && request.submitted_by && (
+                <p className="mt-2 text-xs font-medium text-slate-500">
+                  ثبت‌کننده: {request.submitted_by}
+                </p>
+              )}
               <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4 text-xs text-slate-500">
                 <span className="flex items-center gap-1.5"><CalendarDays size={14} />{request.created_at}</span>
                 <span className="flex items-center gap-1 font-medium text-red-600">مشاهده جزئیات <ChevronLeft size={15} /></span>

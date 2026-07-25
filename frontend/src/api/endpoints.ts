@@ -1,5 +1,6 @@
 export const endpoints = {
   login: "/auth/login",
+  logout: "/auth/logout",
   me: "/auth/me",
   profile: "/auth/profile",
   changePassword: "/auth/change-password",
@@ -13,4 +14,7 @@ export const endpoints = {
   jiraMe: "/jira/me",
   jiraUsers: "/jira/users",
   jiraRequestTypes: "/jira/request-types",
+  adminDashboard: "/admin/dashboard",
+  adminUsers: "/admin/users",
+  adminSessions: "/admin/sessions",
 };

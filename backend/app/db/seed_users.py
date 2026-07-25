@@ -44,6 +44,27 @@ def _employee_rows(seed_file: Path) -> dict[str, dict[str, str]]:
 def seed_users(db: Session) -> tuple[int, int]:
     """Create missing employees without ever resetting an existing password."""
     if not settings.USERS_SEED_ENABLED:
+        admin_username = settings.ADMIN_USERNAME.strip().lower()
+        admin = db.query(User).filter(User.username == admin_username).first()
+        if admin is None:
+            db.add(
+                User(
+                    username=admin_username,
+                    password_hash=hash_password(settings.ADMIN_PASSWORD),
+                    must_change_password=False,
+                    display_name="مدیر سامانه",
+                    category="مدیریت",
+                    department="مدیریت",
+                    job_title="مدیر سامانه",
+                    is_admin=True,
+                    is_active=True,
+                )
+            )
+            db.commit()
+            return 1, 0
+        admin.is_admin = True
+        admin.is_active = True
+        db.commit()
         return 0, 0
 
     seed_file = Path(settings.USERS_SEED_FILE)
@@ -84,6 +105,29 @@ def seed_users(db: Session) -> tuple[int, int]:
             user.display_name = employee["display_name"]
         if not user.email:
             user.email = employee["email"]
+
+    admin_username = settings.ADMIN_USERNAME.strip().lower()
+    admin = db.query(User).filter(User.username == admin_username).first()
+    if admin is None:
+        db.add(
+            User(
+                username=admin_username,
+                password_hash=hash_password(settings.ADMIN_PASSWORD),
+                must_change_password=False,
+                display_name="مدیر سامانه",
+                category="مدیریت",
+                department="مدیریت",
+                job_title="مدیر سامانه",
+                is_admin=True,
+                is_active=True,
+            )
+        )
+        created += 1
+    else:
+        # Preserve an existing password, while guaranteeing that the one
+        # reserved administrative identity always retains its role.
+        admin.is_admin = True
+        admin.is_active = True
 
     db.commit()
     return created, initialized
