@@ -7,6 +7,7 @@ import {
   ListTodo,
   LogOut,
   Menu,
+  MessagesSquare,
   BarChart3,
   History,
   Megaphone,
@@ -31,6 +32,7 @@ const navigationItems: NavigationItem[] = [
   { label: "خانه", href: "/", icon: Home },
   { label: "درخواست‌های من", href: "/my-requests", icon: ClipboardList },
   { label: "وظایف من", href: "/my-tasks", icon: ListTodo },
+  { label: "گفتگو درون سازمانی", href: "/internal-chat", icon: MessagesSquare },
 ];
 
 const adminNavigationItems: NavigationItem[] = [

@@ -11,6 +11,7 @@ import MyTasksPage from "./pages/MyTasksPage";
 import ChangePasswordPage from "./pages/ChangePasswordPage";
 import ProfilePage from "./pages/ProfilePage";
 import TimeSheetPage from "./pages/TimeSheetPage";
+import InternalChatPage from "./pages/InternalChatPage";
 
 import ReportsHome from "./pages/reports/ReportsHome";
 import PerformanceReports from "./pages/reports/PerformanceReports";
@@ -95,6 +96,15 @@ export default function App() {
         element={
           <ProtectedRoute>
             <TimeSheetPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/internal-chat"
+        element={
+          <ProtectedRoute>
+            <InternalChatPage />
           </ProtectedRoute>
         }
       />
