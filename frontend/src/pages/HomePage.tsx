@@ -6,6 +6,7 @@ import {
   BriefcaseBusiness,
   Building2,
   ChevronLeft,
+  ChevronRight,
   ClipboardCheck,
   Clock3,
   FileText,
@@ -171,6 +172,8 @@ function DestinationCard({ card }: { card: HomeCard }) {
 export default function HomePage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [banner, setBanner] = useState<SiteBanner | null>(null);
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [isCarouselPaused, setIsCarouselPaused] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
@@ -187,6 +190,21 @@ export default function HomePage() {
       .catch(() => setBanner(null));
   }, []);
 
+  useEffect(() => {
+    setActiveSlide(0);
+  }, [banner?.images.length]);
+
+  useEffect(() => {
+    const imageCount = banner?.images.length ?? 0;
+    if (imageCount < 2 || isCarouselPaused) return;
+
+    const timer = window.setInterval(() => {
+      setActiveSlide((current) => (current + 1) % imageCount);
+    }, (banner?.interval_seconds ?? 5) * 1000);
+
+    return () => window.clearInterval(timer);
+  }, [banner?.images.length, banner?.interval_seconds, isCarouselPaused]);
+
   const visibleDepartmentIds = useMemo(
     () => new Set(departments.map((department) => department.id)),
     [departments],
@@ -200,13 +218,75 @@ export default function HomePage() {
 
   return (
     <AppShell>
-      {banner?.is_active && banner.image_url && (
-        <section className="mb-10 overflow-hidden rounded-3xl bg-slate-900 shadow-xl shadow-slate-900/15">
-          <img
-            src={banner.image_url}
-            alt={banner.image_name || "بنر صفحه اصلی"}
-            className="aspect-[4/3] w-full object-cover sm:aspect-[16/7]"
-          />
+      {banner?.is_active && banner.images.length > 0 && (
+        <section
+          aria-label="بنرهای صفحه اصلی"
+          aria-roledescription="carousel"
+          className="group relative mb-10 overflow-hidden rounded-3xl bg-slate-900 shadow-xl shadow-slate-900/15"
+          onMouseEnter={() => setIsCarouselPaused(true)}
+          onMouseLeave={() => setIsCarouselPaused(false)}
+          onFocus={() => setIsCarouselPaused(true)}
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) {
+              setIsCarouselPaused(false);
+            }
+          }}
+        >
+          <div className="relative aspect-[4/3] w-full sm:aspect-[16/7]">
+            {banner.images.map((image, index) => (
+              <img
+                key={image.id}
+                src={image.image_url}
+                alt={image.image_name || `بنر ${index + 1} صفحه اصلی`}
+                aria-hidden={index !== activeSlide}
+                className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
+                  index === activeSlide ? "opacity-100" : "pointer-events-none opacity-0"
+                }`}
+              />
+            ))}
+          </div>
+
+          {banner.images.length > 1 && (
+            <>
+              <button
+                type="button"
+                aria-label="تصویر قبلی"
+                onClick={() =>
+                  setActiveSlide(
+                    (current) =>
+                      (current - 1 + banner.images.length) % banner.images.length,
+                  )
+                }
+                className="absolute right-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white opacity-0 backdrop-blur transition hover:bg-black/55 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white group-hover:opacity-100"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                aria-label="تصویر بعدی"
+                onClick={() =>
+                  setActiveSlide((current) => (current + 1) % banner.images.length)
+                }
+                className="absolute left-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white opacity-0 backdrop-blur transition hover:bg-black/55 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white group-hover:opacity-100"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2 rounded-full bg-black/30 px-3 py-2 backdrop-blur">
+                {banner.images.map((image, index) => (
+                  <button
+                    key={image.id}
+                    type="button"
+                    aria-label={`نمایش بنر ${index + 1}`}
+                    aria-current={index === activeSlide}
+                    onClick={() => setActiveSlide(index)}
+                    className={`h-2 rounded-full transition-all ${
+                      index === activeSlide ? "w-6 bg-white" : "w-2 bg-white/55"
+                    }`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </section>
       )}
 

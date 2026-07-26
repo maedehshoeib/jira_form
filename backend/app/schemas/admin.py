@@ -92,15 +92,25 @@ class DashboardResponse(BaseModel):
     recent_requests: list[DashboardRecentRequest]
 
 
+class SiteBannerImageResponse(BaseModel):
+    id: int
+    image_url: str
+    image_name: str
+
+
 class SiteBannerResponse(BaseModel):
     is_active: bool
-    image_url: str | None
-    image_name: str
+    images: list[SiteBannerImageResponse] = Field(default_factory=list)
+    interval_seconds: int = 5
+    # Retained for clients from the single-image banner version.
+    image_url: str | None = None
+    image_name: str = ""
     updated_at: datetime | None = None
 
 
 class SiteBannerUpdate(BaseModel):
     is_active: bool = False
+    interval_seconds: int = Field(default=5, ge=2, le=30)
 
 
 class DepartmentResponse(BaseModel):

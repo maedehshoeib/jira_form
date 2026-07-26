@@ -15,7 +15,7 @@ from app.core.config import settings
 from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.submission import Submission
-from app.models.site_banner import SiteBanner
+from app.models.site_banner import SiteBanner, SiteBannerImage
 from app.models.user import User
 from app.schemas.admin import SiteBannerResponse
 from app.schemas.submission import SubmissionListItem, SubmissionResponse
@@ -41,12 +41,29 @@ def get_home_banner(
 ):
     banner = db.query(SiteBanner).filter(SiteBanner.id == 1).first()
     if not banner:
-        return SiteBannerResponse(is_active=False, image_url=None, image_name="")
-    version = int(banner.updated_at.timestamp() * 1_000_000) if banner.updated_at else 0
+        return SiteBannerResponse(is_active=False)
+    images = (
+        db.query(SiteBannerImage)
+        .filter(SiteBannerImage.banner_id == banner.id)
+        .order_by(SiteBannerImage.sort_order, SiteBannerImage.id)
+        .all()
+    )
+    first_image = images[0] if images else None
     return SiteBannerResponse(
         is_active=banner.is_active,
-        image_url=f"/api/v1/banner/image?v={version}" if banner.image_path else None,
-        image_name=banner.image_name,
+        images=[
+            {
+                "id": image.id,
+                "image_url": f"/api/v1/banner/images/{image.id}",
+                "image_name": image.image_name,
+            }
+            for image in images
+        ],
+        interval_seconds=banner.interval_seconds,
+        image_url=(
+            f"/api/v1/banner/images/{first_image.id}" if first_image else None
+        ),
+        image_name=first_image.image_name if first_image else "",
         updated_at=banner.updated_at,
     )
 
@@ -55,10 +72,36 @@ def get_home_banner(
 def get_home_banner_image(
     db: Session = Depends(get_db),
 ):
-    banner = db.query(SiteBanner).filter(SiteBanner.id == 1).first()
-    if not banner or not banner.image_path:
+    image = (
+        db.query(SiteBannerImage)
+        .filter(SiteBannerImage.banner_id == 1)
+        .order_by(SiteBannerImage.sort_order, SiteBannerImage.id)
+        .first()
+    )
+    if not image:
         raise HTTPException(status_code=404, detail="تصویر بنر یافت نشد.")
-    image_path = Path(banner.image_path)
+    image_path = Path(image.image_path)
+    if not image_path.is_file():
+        raise HTTPException(status_code=404, detail="تصویر بنر یافت نشد.")
+    return FileResponse(image_path)
+
+
+@router.get("/banner/images/{image_id}")
+def get_home_banner_image_by_id(
+    image_id: int,
+    db: Session = Depends(get_db),
+):
+    image = (
+        db.query(SiteBannerImage)
+        .filter(
+            SiteBannerImage.id == image_id,
+            SiteBannerImage.banner_id == 1,
+        )
+        .first()
+    )
+    if not image:
+        raise HTTPException(status_code=404, detail="تصویر بنر یافت نشد.")
+    image_path = Path(image.image_path)
     if not image_path.is_file():
         raise HTTPException(status_code=404, detail="تصویر بنر یافت نشد.")
     return FileResponse(image_path)

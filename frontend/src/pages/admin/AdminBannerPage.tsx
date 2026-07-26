@@ -4,6 +4,7 @@ import {
   Image as ImageIcon,
   Loader2,
   Save,
+  Trash2,
   Upload,
 } from "lucide-react";
 
@@ -15,8 +16,8 @@ import { emptyBanner, SiteBanner } from "../../features/banner";
 
 export default function AdminBannerPage() {
   const [banner, setBanner] = useState<SiteBanner>(emptyBanner);
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState("");
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -31,14 +32,10 @@ export default function AdminBannerPage() {
   }, []);
 
   useEffect(() => {
-    if (!selectedImage) {
-      setPreviewUrl("");
-      return;
-    }
-    const objectUrl = URL.createObjectURL(selectedImage);
-    setPreviewUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [selectedImage]);
+    const objectUrls = selectedImages.map((image) => URL.createObjectURL(image));
+    setPreviewUrls(objectUrls);
+    return () => objectUrls.forEach((url) => URL.revokeObjectURL(url));
+  }, [selectedImages]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -46,7 +43,7 @@ export default function AdminBannerPage() {
     setError("");
     setSaved(false);
     try {
-      if (selectedImage) {
+      for (const selectedImage of selectedImages) {
         const formData = new FormData();
         formData.append("image", selectedImage);
         await client.post<SiteBanner>(
@@ -57,9 +54,10 @@ export default function AdminBannerPage() {
 
       const { data } = await client.put<SiteBanner>(endpoints.adminBanner, {
         is_active: banner.is_active,
+        interval_seconds: banner.interval_seconds,
       });
       setBanner(data);
-      setSelectedImage(null);
+      setSelectedImages([]);
       setSaved(true);
     } catch (requestError: any) {
       const detail = requestError.response?.data?.detail;
@@ -73,7 +71,24 @@ export default function AdminBannerPage() {
     }
   };
 
-  const displayedImage = previewUrl || banner.image_url || "";
+  const removeImage = async (imageId: number) => {
+    setSaving(true);
+    setError("");
+    setSaved(false);
+    try {
+      const { data } = await client.delete<SiteBanner>(
+        `${endpoints.adminBanner}/images/${imageId}`,
+      );
+      setBanner(data);
+    } catch (requestError: any) {
+      const detail = requestError.response?.data?.detail;
+      setError(typeof detail === "string" ? detail : "حذف تصویر بنر با مشکل مواجه شد.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const totalImageCount = banner.images.length + selectedImages.length;
 
   return (
     <AppShell>
@@ -99,46 +114,126 @@ export default function AdminBannerPage() {
           <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
             <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
               <div>
-                <h3 className="font-bold text-slate-800">تصویر بنر</h3>
+                <h3 className="font-bold text-slate-800">تصاویر اسلایدر</h3>
                 <p className="mt-1 text-xs text-slate-500">
-                  فرمت JPG، PNG یا WebP، حداکثر ۱۰ مگابایت. تصویر عریض پیشنهاد می‌شود.
+                  چند تصویر JPG، PNG یا WebP انتخاب کنید؛ حداکثر حجم هر تصویر ۱۰ مگابایت است.
                 </p>
               </div>
               <label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-xl bg-red-600 px-5 text-sm font-bold text-white transition hover:bg-red-700">
                 <Upload size={17} />
-                {displayedImage ? "جایگزینی تصویر" : "انتخاب تصویر"}
+                افزودن تصاویر
                 <input
                   type="file"
+                  multiple
                   accept="image/jpeg,image/png,image/webp"
                   className="sr-only"
                   onChange={(event) => {
-                    setSelectedImage(event.target.files?.[0] || null);
+                    const files = Array.from(event.target.files || []);
+                    setSelectedImages((current) => [...current, ...files]);
                     setSaved(false);
+                    event.target.value = "";
                   }}
                 />
               </label>
             </div>
 
-            <div className="overflow-hidden rounded-2xl border border-dashed border-slate-200 bg-slate-50">
-              {displayedImage ? (
-                <img
-                  src={displayedImage}
-                  alt="پیش‌نمایش بنر"
-                  className="aspect-[16/7] w-full object-cover"
-                />
-              ) : (
-                <div className="flex aspect-[16/7] min-h-56 flex-col items-center justify-center gap-3 text-slate-400">
+            {totalImageCount > 0 ? (
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {banner.images.map((image, index) => (
+                  <div
+                    key={image.id}
+                    className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
+                  >
+                    <div className="relative">
+                      <img
+                        src={image.image_url}
+                        alt={image.image_name || `بنر ${index + 1}`}
+                        className="aspect-[16/7] w-full object-cover"
+                      />
+                      <span className="absolute right-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-xs font-bold text-white">
+                        {index + 1}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`حذف ${image.image_name || `بنر ${index + 1}`}`}
+                        disabled={saving}
+                        onClick={() => removeImage(image.id)}
+                        className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-red-600 shadow transition hover:bg-red-600 hover:text-white disabled:opacity-50"
+                      >
+                        <Trash2 size={17} />
+                      </button>
+                    </div>
+                    <p className="truncate px-3 py-2 text-xs text-slate-500" dir="ltr">
+                      {image.image_name}
+                    </p>
+                  </div>
+                ))}
+                {selectedImages.map((image, index) => (
+                  <div
+                    key={`${image.name}-${image.lastModified}-${index}`}
+                    className="overflow-hidden rounded-2xl border border-dashed border-red-300 bg-red-50/40"
+                  >
+                    <div className="relative">
+                      <img
+                        src={previewUrls[index]}
+                        alt={`پیش‌نمایش ${image.name}`}
+                        className="aspect-[16/7] w-full object-cover"
+                      />
+                      <span className="absolute right-3 top-3 rounded-full bg-red-600 px-2.5 py-1 text-xs font-bold text-white">
+                        جدید
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`حذف ${image.name} از انتخاب‌ها`}
+                        onClick={() =>
+                          setSelectedImages((current) =>
+                            current.filter((_, itemIndex) => itemIndex !== index),
+                          )
+                        }
+                        className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-red-600 shadow transition hover:bg-red-600 hover:text-white"
+                      >
+                        <Trash2 size={17} />
+                      </button>
+                    </div>
+                    <p className="truncate px-3 py-2 text-xs text-slate-500" dir="ltr">
+                      {image.name} · {(image.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex aspect-[16/7] min-h-56 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 text-slate-400">
                   <ImageIcon size={44} strokeWidth={1.5} />
-                  <p className="text-sm">هنوز تصویری برای بنر انتخاب نشده است.</p>
-                </div>
-              )}
-            </div>
-            {selectedImage && (
-              <p className="mt-3 text-xs text-slate-500" dir="ltr">
-                {selectedImage.name} · {(selectedImage.size / 1024 / 1024).toFixed(2)} MB
-              </p>
+                  <p className="text-sm">هنوز تصویری برای اسلایدر انتخاب نشده است.</p>
+              </div>
             )}
           </section>
+
+          <label className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div>
+              <p className="font-bold text-slate-800">زمان نمایش هر تصویر</p>
+              <p className="mt-1 text-xs text-slate-500">
+                اسلایدر پس از این تعداد ثانیه به تصویر بعدی می‌رود.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={2}
+                max={30}
+                value={banner.interval_seconds}
+                onChange={(event) => {
+                  setBanner((current) => ({
+                    ...current,
+                    interval_seconds: Number(event.target.value),
+                  }));
+                  setSaved(false);
+                }}
+                className="h-10 w-20 rounded-xl border border-slate-200 px-3 text-center outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+              />
+              <span className="text-sm text-slate-500">ثانیه</span>
+            </div>
+          </label>
 
           <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div>
@@ -170,7 +265,7 @@ export default function AdminBannerPage() {
           <div className="flex items-center gap-3">
             <Button
               type="submit"
-              disabled={saving || (!displayedImage && banner.is_active)}
+              disabled={saving || (totalImageCount === 0 && banner.is_active)}
               className="h-11 gap-2 rounded-xl bg-red-600 px-6 hover:bg-red-700"
             >
               {saving ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}

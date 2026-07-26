@@ -14,7 +14,7 @@ from app.models.admin_session import AdminSession
 from app.models.department import Department
 from app.models.form_template import DepartmentFormAccess, UserFormAccess
 from app.models.submission import Submission
-from app.models.site_banner import SiteBanner
+from app.models.site_banner import SiteBanner, SiteBannerImage
 from app.models.user import User
 from app.schemas.admin import (
     AdminSessionResponse,
@@ -48,12 +48,29 @@ def _get_banner(db: Session) -> SiteBanner:
     return banner
 
 
-def _banner_response(banner: SiteBanner) -> SiteBannerResponse:
-    version = int(banner.updated_at.timestamp() * 1_000_000) if banner.updated_at else 0
+def _banner_response(banner: SiteBanner, db: Session) -> SiteBannerResponse:
+    images = (
+        db.query(SiteBannerImage)
+        .filter(SiteBannerImage.banner_id == banner.id)
+        .order_by(SiteBannerImage.sort_order, SiteBannerImage.id)
+        .all()
+    )
+    first_image = images[0] if images else None
     return SiteBannerResponse(
         is_active=banner.is_active,
-        image_url=f"/api/v1/banner/image?v={version}" if banner.image_path else None,
-        image_name=banner.image_name,
+        images=[
+            {
+                "id": image.id,
+                "image_url": f"/api/v1/banner/images/{image.id}",
+                "image_name": image.image_name,
+            }
+            for image in images
+        ],
+        interval_seconds=banner.interval_seconds,
+        image_url=(
+            f"/api/v1/banner/images/{first_image.id}" if first_image else None
+        ),
+        image_name=first_image.image_name if first_image else "",
         updated_at=banner.updated_at,
     )
 
@@ -63,7 +80,7 @@ def get_banner_settings(
     db: Session = Depends(get_db),
     _: User = Depends(get_admin_user),
 ):
-    return _banner_response(_get_banner(db))
+    return _banner_response(_get_banner(db), db)
 
 
 @router.put("/banner", response_model=SiteBannerResponse)
@@ -74,9 +91,10 @@ def update_banner_settings(
 ):
     banner = _get_banner(db)
     banner.is_active = body.is_active
+    banner.interval_seconds = body.interval_seconds
     db.commit()
     db.refresh(banner)
-    return _banner_response(banner)
+    return _banner_response(banner, db)
 
 
 @router.post("/banner/image", response_model=SiteBannerResponse)
@@ -109,19 +127,60 @@ async def upload_banner_image(
     new_path.write_bytes(content)
 
     banner = _get_banner(db)
-    old_path = Path(banner.image_path).resolve() if banner.image_path else None
-    banner.image_path = str(new_path)
-    banner.image_name = image.filename or f"banner.{extension}"
+    last_sort_order = (
+        db.query(func.max(SiteBannerImage.sort_order))
+        .filter(SiteBannerImage.banner_id == banner.id)
+        .scalar()
+    )
+    db.add(
+        SiteBannerImage(
+            banner_id=banner.id,
+            image_path=str(new_path),
+            image_name=image.filename or f"banner.{extension}",
+            sort_order=(last_sort_order if last_sort_order is not None else -1) + 1,
+        )
+    )
+    banner.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(banner)
+    return _banner_response(banner, db)
 
-    if old_path and old_path != new_path and old_path.parent == banner_dir and old_path.is_file():
+
+@router.delete("/banner/images/{image_id}", response_model=SiteBannerResponse)
+def delete_banner_image(
+    image_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    banner = _get_banner(db)
+    image = (
+        db.query(SiteBannerImage)
+        .filter(
+            SiteBannerImage.id == image_id,
+            SiteBannerImage.banner_id == banner.id,
+        )
+        .first()
+    )
+    if not image:
+        raise HTTPException(status_code=404, detail="تصویر بنر یافت نشد.")
+
+    image_path = Path(image.image_path).resolve()
+    banner_dir = (Path(settings.UPLOAD_DIR) / "banners").resolve()
+    if banner.image_path and Path(banner.image_path).resolve() == image_path:
+        banner.image_path = ""
+        banner.image_name = ""
+    db.delete(image)
+    banner.updated_at = datetime.utcnow()
+    db.commit()
+
+    if image_path.parent == banner_dir and image_path.is_file():
         try:
-            old_path.unlink()
+            image_path.unlink()
         except OSError:
             pass
 
-    return _banner_response(banner)
+    db.refresh(banner)
+    return _banner_response(banner, db)
 
 
 def _normalized_username(value: str) -> str:

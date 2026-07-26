@@ -22,7 +22,7 @@ from app.models import (  # noqa: F401
 )
 from app.models.department import Department
 from app.models.user import User
-from app.models.site_banner import SiteBanner
+from app.models.site_banner import SiteBanner, SiteBannerImage
 
 
 def _migrate_contracts_db():
@@ -198,7 +198,7 @@ def _seed_departments_from_users():
 
 
 def _migrate_site_banner_db():
-    """Add image fields when upgrading from the earlier text-banner version."""
+    """Upgrade older single-image banner databases without losing their image."""
     inspector = inspect(engine)
     if "site_banners" not in inspector.get_table_names():
         return
@@ -211,6 +211,10 @@ def _migrate_site_banner_db():
         (
             "image_name",
             "ALTER TABLE site_banners ADD COLUMN image_name VARCHAR(256) NOT NULL DEFAULT ''",
+        ),
+        (
+            "interval_seconds",
+            "ALTER TABLE site_banners ADD COLUMN interval_seconds INTEGER NOT NULL DEFAULT 5",
         ),
     ]
     with engine.begin() as conn:
@@ -234,6 +238,23 @@ def init_db():
     try:
         if not db.query(SiteBanner).filter(SiteBanner.id == 1).first():
             db.add(SiteBanner(id=1))
+            db.commit()
+        banner = db.query(SiteBanner).filter(SiteBanner.id == 1).first()
+        if (
+            banner
+            and banner.image_path
+            and not db.query(SiteBannerImage)
+            .filter(SiteBannerImage.banner_id == banner.id)
+            .first()
+        ):
+            db.add(
+                SiteBannerImage(
+                    banner_id=banner.id,
+                    image_path=banner.image_path,
+                    image_name=banner.image_name,
+                    sort_order=0,
+                )
+            )
             db.commit()
         from app.models.timesheet import TimesheetProject
 
