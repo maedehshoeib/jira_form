@@ -47,6 +47,38 @@ button {
   font-family: "Vazirmatn", sans-serif;
 }
 
+.timesheet-scope {
+  --background: 205 65% 97%;
+  --foreground: 220 30% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 30% 12%;
+  --primary: 197 95% 36%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 176 34% 90%;
+  --secondary-foreground: 220 30% 12%;
+  --muted: 205 30% 92%;
+  --muted-foreground: 215 18% 38%;
+  --accent: 31 92% 60%;
+  --accent-foreground: 20 35% 15%;
+  --border: 205 25% 82%;
+  --input: 205 25% 82%;
+  --ring: 197 95% 36%;
+  --radius: 1rem;
+  min-height: 100vh;
+  color: hsl(var(--foreground));
+  direction: rtl;
+  background:
+    radial-gradient(circle at 10% 10%, rgba(34, 211, 238, 0.15), transparent 40%),
+    radial-gradient(circle at 90% 20%, rgba(251, 146, 60, 0.14), transparent 35%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(240, 249, 255, 0.95));
+}
+
+@layer base {
+  .timesheet-scope * {
+    border-color: hsl(var(--border));
+  }
+}
+
 /* Select dropdown overlay */
 [data-slot="select-content"] {
   z-index: 9999 !important;

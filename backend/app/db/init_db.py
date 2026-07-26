@@ -17,6 +17,7 @@ from app.models import (  # noqa: F401
     report,
     site_banner,
     submission,
+    timesheet,
     user,
 )
 from app.models.department import Department
@@ -233,6 +234,11 @@ def init_db():
     try:
         if not db.query(SiteBanner).filter(SiteBanner.id == 1).first():
             db.add(SiteBanner(id=1))
+            db.commit()
+        from app.models.timesheet import TimesheetProject
+
+        if not db.get(TimesheetProject, "GENERAL"):
+            db.add(TimesheetProject(code="GENERAL", title="عمومی"))
             db.commit()
         seed_users(db)
     finally:

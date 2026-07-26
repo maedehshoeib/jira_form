@@ -110,6 +110,7 @@ const HOME_CARDS: HomeCard[] = [
     id: "timesheet",
     title: "تایم شیت",
     description: "ثبت و مدیریت کارکرد",
+    href: "/timesheet",
     icon: Clock3,
   },
 ];

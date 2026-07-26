@@ -11,6 +11,7 @@ from app.api.routes.contracts import router as contracts_router
 from app.api.routes.jira import router as jira_router
 from app.api.routes.portal import router as portal_router
 from app.api.routes.reports import router as reports_router
+from app.api.routes.timesheet import router as timesheet_router
 from app.core.cors import add_cors
 from app.db.init_db import init_db
 
@@ -31,6 +32,7 @@ app.include_router(portal_router, prefix="/api/v1", tags=["portal"])
 app.include_router(reports_router, prefix="/api/v1/reports", tags=["reports"])
 app.include_router(contracts_router, prefix="/api/v1/contracts", tags=["contracts"])
 app.include_router(jira_router, prefix="/api/v1/jira", tags=["jira"])
+app.include_router(timesheet_router, prefix="/api/v1/timesheet", tags=["timesheet"])
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
