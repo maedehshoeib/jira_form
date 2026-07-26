@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { ComponentType, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
+import { Building2, ChevronLeft, FileArchive, Landmark, Users, Wallet } from "lucide-react";
 import AppShell from "../components/layout/AppShell";
 import { API_BASE, Department } from "../config/portal";
 import bankLogo from "../assets/bankmellat_logo_01_s2.png";
@@ -8,6 +9,7 @@ import { Card, CardContent } from "../components/ui/card";
 export default function DepartmentPage() {
   const { departmentId } = useParams();
   const [department, setDepartment] = useState<Department | null>(null);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
@@ -15,6 +17,27 @@ export default function DepartmentPage() {
     setLoadError(false);
 
     const token = localStorage.getItem("access_token");
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    fetch(`${API_BASE}/departments`, { headers })
+      .then((res) => {
+        if (!res.ok) throw new Error(String(res.status));
+        return res.json();
+      })
+      .then((items: Department[]) => {
+        setDepartments(items);
+        if (departmentId === "resource-development") {
+          const hasChild = items.some((item) => item.id === "hr" || item.id === "finance");
+          if (!hasChild) setLoadError(true);
+        }
+      })
+      .catch(() => setLoadError(true));
+
+    if (departmentId === "resource-development") {
+      setDepartment(null);
+      return;
+    }
+
     fetch(`${API_BASE}/departments/${departmentId}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
@@ -25,6 +48,20 @@ export default function DepartmentPage() {
       .then(setDepartment)
       .catch(() => setLoadError(true));
   }, [departmentId]);
+
+  const groupedChildren = useMemo(() => {
+    const childIds =
+      departmentId === "resource-development"
+        ? ["hr", "finance"]
+        : departmentId === "business"
+          ? ["bank"]
+          : departmentId === "contracts"
+            ? ["contract-archive"]
+            : [];
+    return childIds
+      .map((id) => departments.find((item) => item.id === id))
+      .filter((item): item is Department => Boolean(item));
+  }, [departmentId, departments]);
 
   if (departmentId === "contract-archive") {
     return <Navigate to="/contracts-archive" replace />;
@@ -42,10 +79,24 @@ export default function DepartmentPage() {
     );
   }
 
-  if (!department) return <AppShell>در حال بارگذاری...</AppShell>;
+  const isResourceDevelopment = departmentId === "resource-development";
+  if (!department && !isResourceDevelopment) return <AppShell>در حال بارگذاری...</AppShell>;
 
-  const isBank = department.id === "bank";
-  const isReports = department.id === "reports";
+  const isBank = department?.id === "bank";
+  const isReports = department?.id === "reports";
+  const pageTitle = isResourceDevelopment ? "معاونت توسعه منابع" : department!.title;
+
+  const childIcon: Record<string, ComponentType<{ className?: string }>> = {
+    hr: Users,
+    finance: Wallet,
+    bank: Landmark,
+    "contract-archive": FileArchive,
+  };
+
+  const childLink = (child: Department) =>
+    child.id === "contract-archive"
+      ? "/contracts-archive"
+      : `/departments/${child.id}`;
 
   return (
     <AppShell>
@@ -65,9 +116,43 @@ export default function DepartmentPage() {
               className="h-14 object-contain"
             />
           )}
-          <h2 className="text-3xl font-bold">{department.title}</h2>
+          <h2 className="text-3xl font-bold">{pageTitle}</h2>
         </div>
       </div>
+
+      {groupedChildren.length > 0 && (
+        <section className={department?.sections.length ? "mb-10" : ""}>
+          <div className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-500">
+            <Building2 className="h-4 w-4 text-red-500" />
+            زیرمجموعه‌های این واحد
+          </div>
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {groupedChildren.map((child) => {
+              const Icon = childIcon[child.id] || Building2;
+              return (
+                <Link key={child.id} to={childLink(child)}>
+                  <Card className="group h-full rounded-3xl border border-slate-100 bg-white shadow-sm transition-all hover:-translate-y-1 hover:border-red-100 hover:shadow-lg">
+                    <CardContent className="flex items-center gap-4 p-6">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+                        <Icon className="h-6 w-6" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-bold text-slate-800">{child.title}</h3>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {child.id === "contract-archive"
+                            ? "مشاهده آرشیو قراردادها"
+                            : `${child.sections.length.toLocaleString("fa-IR")} خدمت`}
+                        </p>
+                      </div>
+                      <ChevronLeft className="h-5 w-5 text-red-400 transition-transform group-hover:-translate-x-1" />
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {isReports && (
         <div className="mb-8">
@@ -87,10 +172,10 @@ export default function DepartmentPage() {
       )}
 
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {department.sections.map((s) => (
+        {(department?.sections || []).map((s) => (
           <Link
             key={s.id}
-            to={`/forms/${s.form_id}?department=${department.id}&section=${s.id}`}
+            to={`/forms/${s.form_id}?department=${department!.id}&section=${s.id}`}
           >
             <Card
               className="
