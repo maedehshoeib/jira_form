@@ -8,20 +8,38 @@ import { Card, CardContent } from "../components/ui/card";
 export default function DepartmentPage() {
   const { departmentId } = useParams();
   const [department, setDepartment] = useState<Department | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     if (!departmentId || departmentId === "contract-archive") return;
+    setLoadError(false);
 
     const token = localStorage.getItem("access_token");
     fetch(`${API_BASE}/departments/${departmentId}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
-      .then((res) => res.json())
-      .then(setDepartment);
+      .then((res) => {
+        if (!res.ok) throw new Error(String(res.status));
+        return res.json();
+      })
+      .then(setDepartment)
+      .catch(() => setLoadError(true));
   }, [departmentId]);
 
   if (departmentId === "contract-archive") {
     return <Navigate to="/contracts-archive" replace />;
+  }
+
+  if (loadError) {
+    return (
+      <AppShell>
+        <div className="rounded-3xl border border-red-100 bg-white p-10 text-center shadow-sm">
+          <h2 className="text-xl font-bold text-slate-800">دسترسی به این بخش امکان‌پذیر نیست</h2>
+          <p className="mt-2 text-sm text-slate-500">این بخش برای حساب شما فعال نشده است.</p>
+          <Link to="/" className="mt-5 inline-block font-bold text-red-600">بازگشت به خانه</Link>
+        </div>
+      </AppShell>
+    );
   }
 
   if (!department) return <AppShell>در حال بارگذاری...</AppShell>;

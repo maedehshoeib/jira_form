@@ -11,6 +11,8 @@ from app.core.config import settings
 from app.core.security import hash_password
 from app.db.session import get_db
 from app.models.admin_session import AdminSession
+from app.models.department import Department
+from app.models.form_template import DepartmentFormAccess, UserFormAccess
 from app.models.submission import Submission
 from app.models.site_banner import SiteBanner
 from app.models.user import User
@@ -22,9 +24,16 @@ from app.schemas.admin import (
     ChartItem,
     DashboardRecentRequest,
     DashboardResponse,
+    DepartmentCreate,
+    DepartmentResponse,
+    DepartmentUpdate,
+    FormAccessResponse,
+    FormAccessSelection,
+    FormAccessTarget,
     SiteBannerResponse,
     SiteBannerUpdate,
 )
+from app.services.form_access_service import access_catalog, parse_target_keys
 
 router = APIRouter()
 
@@ -117,6 +126,43 @@ async def upload_banner_image(
 
 def _normalized_username(value: str) -> str:
     return value.strip().lower()
+
+
+def _department_or_404(db: Session, department_id: int) -> Department:
+    department = db.query(Department).filter(Department.id == department_id).first()
+    if not department:
+        raise HTTPException(status_code=404, detail="واحد سازمانی یافت نشد.")
+    return department
+
+
+def _department_response(db: Session, department: Department) -> DepartmentResponse:
+    return DepartmentResponse(
+        id=department.id,
+        name=department.name,
+        description=department.description,
+        access_configured=department.access_configured,
+        # Administrator identities are system accounts and are intentionally
+        # absent from the employee-management screen.
+        user_count=db.query(User)
+        .filter(
+            User.department_id == department.id,
+            User.is_admin.is_(False),
+        )
+        .count(),
+    )
+
+
+def _resolve_user_department(
+    db: Session, department_id: int | None, fallback_name: str = ""
+) -> tuple[int | None, str]:
+    if department_id is not None:
+        department = _department_or_404(db, department_id)
+        return department.id, department.name
+    fallback_name = fallback_name.strip()
+    if not fallback_name:
+        return None, ""
+    department = db.query(Department).filter(Department.name == fallback_name).first()
+    return (department.id if department else None), fallback_name
 
 
 def _expire_old_admin_sessions(db: Session, user_id: int) -> None:
@@ -242,6 +288,219 @@ def list_users(
     return query.order_by(User.created_at.desc()).all()
 
 
+@router.get("/departments", response_model=list[DepartmentResponse])
+def list_managed_departments(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    return [
+        _department_response(db, department)
+        for department in db.query(Department).order_by(Department.name).all()
+    ]
+
+
+@router.post("/departments", response_model=DepartmentResponse, status_code=201)
+def create_department(
+    body: DepartmentCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    name = body.name.strip()
+    if db.query(Department).filter(func.lower(Department.name) == name.lower()).first():
+        raise HTTPException(status_code=409, detail="این واحد سازمانی قبلاً ثبت شده است.")
+    department = Department(name=name, description=body.description.strip())
+    db.add(department)
+    db.commit()
+    db.refresh(department)
+    return _department_response(db, department)
+
+
+@router.put("/departments/{department_id}", response_model=DepartmentResponse)
+def update_department(
+    department_id: int,
+    body: DepartmentUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    department = _department_or_404(db, department_id)
+    values = body.model_dump(exclude_unset=True)
+    if "name" in values:
+        name = values["name"].strip()
+        duplicate = (
+            db.query(Department)
+            .filter(func.lower(Department.name) == name.lower(), Department.id != department.id)
+            .first()
+        )
+        if duplicate:
+            raise HTTPException(status_code=409, detail="این واحد سازمانی قبلاً ثبت شده است.")
+        department.name = name
+        # Retain the legacy display field used in profiles and reports.
+        db.query(User).filter(User.department_id == department.id).update(
+            {User.department: name}, synchronize_session=False
+        )
+    if "description" in values:
+        department.description = values["description"].strip()
+    db.commit()
+    db.refresh(department)
+    return _department_response(db, department)
+
+
+@router.delete("/departments/{department_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_department(
+    department_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    department = _department_or_404(db, department_id)
+    if (
+        db.query(User)
+        .filter(
+            User.department_id == department.id,
+            User.is_admin.is_(False),
+        )
+        .first()
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="ابتدا کاربران این واحد را به واحد دیگری منتقل کنید.",
+        )
+    # A hidden system administrator may still carry the seeded "مدیریت"
+    # assignment. It must not prevent an otherwise empty department deletion.
+    db.query(User).filter(
+        User.department_id == department.id,
+        User.is_admin.is_(True),
+    ).update(
+        {User.department_id: None, User.department: ""},
+        synchronize_session=False,
+    )
+    db.query(DepartmentFormAccess).filter(
+        DepartmentFormAccess.department_id == department.id
+    ).delete(synchronize_session=False)
+    db.delete(department)
+    db.commit()
+
+
+@router.get("/form-access/catalog", response_model=list[FormAccessTarget])
+def get_form_access_catalog(_: User = Depends(get_admin_user)):
+    return [FormAccessTarget(**target.__dict__) for target in access_catalog()]
+
+
+@router.get(
+    "/departments/{department_id}/form-access",
+    response_model=FormAccessResponse,
+)
+def get_department_form_access(
+    department_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    department = _department_or_404(db, department_id)
+    rows = db.query(DepartmentFormAccess).filter(
+        DepartmentFormAccess.department_id == department.id
+    ).all()
+    return FormAccessResponse(
+        configured=department.access_configured,
+        targets=[
+            f"{row.portal_department_id}:{row.section_id}:{row.form_id}"
+            for row in rows
+        ],
+    )
+
+
+@router.put(
+    "/departments/{department_id}/form-access",
+    response_model=FormAccessResponse,
+)
+def update_department_form_access(
+    department_id: int,
+    body: FormAccessSelection,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    department = _department_or_404(db, department_id)
+    try:
+        targets = parse_target_keys(body.targets)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    db.query(DepartmentFormAccess).filter(
+        DepartmentFormAccess.department_id == department.id
+    ).delete(synchronize_session=False)
+    department.access_configured = body.configured
+    if body.configured:
+        db.add_all(
+            [
+                DepartmentFormAccess(
+                    department_id=department.id,
+                    portal_department_id=target.portal_department_id,
+                    section_id=target.section_id,
+                    form_id=target.form_id,
+                )
+                for target in targets
+            ]
+        )
+    db.commit()
+    return FormAccessResponse(
+        configured=department.access_configured,
+        targets=[target.key for target in targets] if body.configured else [],
+    )
+
+
+@router.get("/users/{user_id}/form-access", response_model=FormAccessResponse)
+def get_user_form_access(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    user = db.query(User).filter(User.id == user_id, User.is_admin.is_(False)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="کاربر یافت نشد.")
+    rows = db.query(UserFormAccess).filter(UserFormAccess.user_id == user.id).all()
+    return FormAccessResponse(
+        configured=user.form_access_configured,
+        targets=[
+            f"{row.portal_department_id}:{row.section_id}:{row.form_id}"
+            for row in rows
+        ],
+    )
+
+
+@router.put("/users/{user_id}/form-access", response_model=FormAccessResponse)
+def update_user_form_access(
+    user_id: int,
+    body: FormAccessSelection,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    user = db.query(User).filter(User.id == user_id, User.is_admin.is_(False)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="کاربر یافت نشد.")
+    try:
+        targets = parse_target_keys(body.targets)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    db.query(UserFormAccess).filter(UserFormAccess.user_id == user.id).delete(
+        synchronize_session=False
+    )
+    user.form_access_configured = body.configured
+    if body.configured:
+        db.add_all(
+            [
+                UserFormAccess(
+                    user_id=user.id,
+                    portal_department_id=target.portal_department_id,
+                    section_id=target.section_id,
+                    form_id=target.form_id,
+                )
+                for target in targets
+            ]
+        )
+    db.commit()
+    return FormAccessResponse(
+        configured=user.form_access_configured,
+        targets=[target.key for target in targets] if body.configured else [],
+    )
+
+
 @router.post("/users", response_model=AdminUserResponse, status_code=201)
 def create_user(
     body: AdminUserCreate,
@@ -251,13 +510,17 @@ def create_user(
     username = _normalized_username(body.username)
     if db.query(User).filter(User.username == username).first():
         raise HTTPException(status_code=409, detail="این نام کاربری قبلاً ثبت شده است.")
+    department_id, department_name = _resolve_user_department(
+        db, body.department_id, body.department
+    )
     user = User(
         username=username,
         password_hash=hash_password(body.password),
         display_name=body.display_name.strip(),
         email=body.email.strip().lower(),
         category=body.category.strip(),
-        department=body.department.strip(),
+        department=department_name,
+        department_id=department_id,
         job_title=body.job_title.strip(),
         extension=body.extension.strip(),
         is_active=body.is_active,
@@ -295,6 +558,17 @@ def update_user(
     if password:
         user.password_hash = hash_password(password)
         user.password_changed_at = datetime.utcnow()
+    if "department_id" in values:
+        department_id = values.pop("department_id")
+        fallback = values.pop("department", "")
+        user.department_id, user.department = _resolve_user_department(
+            db, department_id, fallback
+        )
+    elif "department" in values:
+        department_name = values.pop("department")
+        user.department_id, user.department = _resolve_user_department(
+            db, None, department_name
+        )
     for field, value in values.items():
         if isinstance(value, str):
             value = value.strip()

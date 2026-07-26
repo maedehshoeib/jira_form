@@ -17,6 +17,7 @@ export type AuthUser = {
   email: string;
   category: string;
   department: string;
+  department_id: number | null;
   job_title: string;
   extension: string;
   must_change_password: boolean;

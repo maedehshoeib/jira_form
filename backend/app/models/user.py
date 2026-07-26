@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, String
+from sqlalchemy import DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -17,6 +17,10 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(256), default="")
     category: Mapped[str] = mapped_column(String(256), default="")
     department: Mapped[str] = mapped_column(String(128), default="")
+    department_id: Mapped[int | None] = mapped_column(
+        ForeignKey("departments.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    form_access_configured: Mapped[bool] = mapped_column(default=False)
     job_title: Mapped[str] = mapped_column(String(512), default="")
     extension: Mapped[str] = mapped_column(String(32), default="")
     is_active: Mapped[bool] = mapped_column(default=True)

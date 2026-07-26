@@ -10,6 +10,7 @@ class AdminUserResponse(BaseModel):
     email: str
     category: str
     department: str
+    department_id: int | None
     job_title: str
     extension: str
     is_active: bool
@@ -29,6 +30,7 @@ class AdminUserCreate(BaseModel):
     email: str = Field(default="", max_length=256)
     category: str = Field(default="", max_length=256)
     department: str = Field(default="", max_length=128)
+    department_id: int | None = None
     job_title: str = Field(default="", max_length=512)
     extension: str = Field(default="", max_length=32)
     is_active: bool = True
@@ -42,6 +44,7 @@ class AdminUserUpdate(BaseModel):
     email: str | None = Field(default=None, max_length=256)
     category: str | None = Field(default=None, max_length=256)
     department: str | None = Field(default=None, max_length=128)
+    department_id: int | None = None
     job_title: str | None = Field(default=None, max_length=512)
     extension: str | None = Field(default=None, max_length=32)
     is_active: bool | None = None
@@ -98,3 +101,39 @@ class SiteBannerResponse(BaseModel):
 
 class SiteBannerUpdate(BaseModel):
     is_active: bool = False
+
+
+class DepartmentResponse(BaseModel):
+    id: int
+    name: str
+    description: str
+    access_configured: bool
+    user_count: int = 0
+
+
+class DepartmentCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=128)
+    description: str = Field(default="", max_length=512)
+
+
+class DepartmentUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=128)
+    description: str | None = Field(default=None, max_length=512)
+
+
+class FormAccessTarget(BaseModel):
+    portal_department_id: str
+    portal_department_title: str
+    section_id: str
+    section_title: str
+    form_id: str
+
+
+class FormAccessSelection(BaseModel):
+    configured: bool = True
+    targets: list[str] = Field(default_factory=list)
+
+
+class FormAccessResponse(BaseModel):
+    configured: bool
+    targets: list[str]

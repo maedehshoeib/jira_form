@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 
 import {
   ChevronLeft,
@@ -14,17 +14,44 @@ import DynamicForm from '../components/forms/DynamicForm';
 
 export default function FormPage() {
   const { formId } = useParams();
+  const [searchParams] = useSearchParams();
 
   const [form, setForm] =
     useState<FormTemplate | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     if (!formId) return;
+    setLoadError(false);
 
-    fetch(`${API_BASE}/forms/${formId}`)
-      .then((res) => res.json())
-      .then(setForm);
-  }, [formId]);
+    const token = localStorage.getItem("access_token");
+    const query = new URLSearchParams();
+    const department = searchParams.get("department");
+    const section = searchParams.get("section");
+    if (department) query.set("department", department);
+    if (section) query.set("section", section);
+    fetch(`${API_BASE}/forms/${formId}?${query}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(String(res.status));
+        return res.json();
+      })
+      .then(setForm)
+      .catch(() => setLoadError(true));
+  }, [formId, searchParams]);
+
+  if (loadError) {
+    return (
+      <AppShell>
+        <div className="rounded-3xl border border-red-100 bg-white p-10 text-center shadow-sm">
+          <h2 className="text-xl font-bold text-slate-800">دسترسی به فرم امکان‌پذیر نیست</h2>
+          <p className="mt-2 text-sm text-slate-500">این فرم برای حساب شما فعال نشده یا دیگر وجود ندارد.</p>
+          <Link to="/" className="mt-5 inline-block font-bold text-red-600">بازگشت به خانه</Link>
+        </div>
+      </AppShell>
+    );
+  }
 
   if (!form) {
     return (

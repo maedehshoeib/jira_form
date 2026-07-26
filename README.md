@@ -110,6 +110,20 @@ cd frontend && npm run build
 | GET | `/api/v1/submissions` | فهرست درخواست‌های کاربر جاری (با API Key: همه درخواست‌ها) |
 | GET | `/api/v1/submissions/{id}` | جزئیات درخواست کاربر جاری (با API Key: هر درخواست) |
 
+### مدیریت واحدها و دسترسی فرم‌ها
+
+| Method | Endpoint | توضیح |
+|--------|----------|-------|
+| GET/POST | `/api/v1/admin/departments` | فهرست و ایجاد واحد سازمانی |
+| PUT/DELETE | `/api/v1/admin/departments/{id}` | ویرایش یا حذف واحد سازمانی |
+| GET | `/api/v1/admin/form-access/catalog` | فهرست فرم‌های قابل تخصیص |
+| GET/PUT | `/api/v1/admin/departments/{id}/form-access` | دسترسی فرم‌ها برای یک واحد |
+| GET/PUT | `/api/v1/admin/users/{id}/form-access` | دسترسی اختصاصی فرم‌ها برای یک کاربر |
+
+دسترسی اختصاصی کاربر بر دسترسی واحد سازمانی اولویت دارد. تا زمانی که
+دسترسی واحد یا کاربر به‌صورت اختصاصی تنظیم نشده باشد، رفتار قبلی حفظ شده و
+همه فرم‌ها قابل مشاهده‌اند.
+
 ### گزارشات
 
 | Method | Endpoint | توضیح |

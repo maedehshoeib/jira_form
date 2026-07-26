@@ -17,6 +17,8 @@ export const endpoints = {
   jiraRequestTypes: "/jira/request-types",
   adminDashboard: "/admin/dashboard",
   adminUsers: "/admin/users",
+  adminDepartments: "/admin/departments",
+  adminFormAccessCatalog: "/admin/form-access/catalog",
   adminSessions: "/admin/sessions",
   adminBanner: "/admin/banner",
 };

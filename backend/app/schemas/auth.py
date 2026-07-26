@@ -15,6 +15,7 @@ class UserResponse(BaseModel):
     email: str
     category: str
     department: str
+    department_id: int | None = None
     job_title: str
     extension: str
     must_change_password: bool

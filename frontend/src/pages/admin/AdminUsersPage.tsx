@@ -1,5 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
-import { Edit3, Loader2, Plus, Search, Trash2, UserCheck, Users, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Building2,
+  Edit3,
+  KeyRound,
+  Loader2,
+  Plus,
+  Search,
+  ShieldCheck,
+  Trash2,
+  UserCheck,
+  Users,
+  X,
+} from "lucide-react";
 
 import client from "../../api/client";
 import { endpoints } from "../../api/endpoints";
@@ -15,6 +27,7 @@ type ManagedUser = {
   email: string;
   category: string;
   department: string;
+  department_id: number | null;
   job_title: string;
   extension: string;
   is_active: boolean;
@@ -23,18 +36,38 @@ type ManagedUser = {
   last_login: string | null;
 };
 
+type ManagedDepartment = {
+  id: number;
+  name: string;
+  description: string;
+  access_configured: boolean;
+  user_count: number;
+};
+
+type AccessTarget = {
+  portal_department_id: string;
+  portal_department_title: string;
+  section_id: string;
+  section_title: string;
+  form_id: string;
+};
+
 type UserForm = {
   username: string;
   password: string;
   display_name: string;
   email: string;
   category: string;
-  department: string;
+  department_id: number | null;
   job_title: string;
   extension: string;
   is_active: boolean;
   must_change_password: boolean;
 };
+
+type AccessEditor =
+  | { kind: "department"; id: number; title: string }
+  | { kind: "user"; id: number; title: string };
 
 const emptyForm: UserForm = {
   username: "",
@@ -42,56 +75,136 @@ const emptyForm: UserForm = {
   display_name: "",
   email: "",
   category: "",
-  department: "",
+  department_id: null,
   job_title: "",
   extension: "",
   is_active: true,
   must_change_password: true,
 };
 
+const targetKey = (target: AccessTarget) =>
+  `${target.portal_department_id}:${target.section_id}:${target.form_id}`;
+
 const formatDate = (value: string | null) =>
   value
-    ? new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value))
+    ? new Intl.DateTimeFormat("fa-IR", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date(value))
     : "هرگز";
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<ManagedUser[]>([]);
+  const [departments, setDepartments] = useState<ManagedDepartment[]>([]);
+  const [catalog, setCatalog] = useState<AccessTarget[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [editing, setEditing] = useState<ManagedUser | null | undefined>(undefined);
+  const [editing, setEditing] = useState<ManagedUser | null | undefined>();
   const [form, setForm] = useState<UserForm>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [departmentName, setDepartmentName] = useState("");
+  const [departmentDescription, setDepartmentDescription] = useState("");
+  const [editingDepartment, setEditingDepartment] =
+    useState<ManagedDepartment | null>(null);
+  const departmentFormRef = useRef<HTMLFormElement>(null);
+  const [departmentFeedback, setDepartmentFeedback] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+  const [accessEditor, setAccessEditor] = useState<AccessEditor | null>(null);
+  const [accessConfigured, setAccessConfigured] = useState(false);
+  const [selectedTargets, setSelectedTargets] = useState<Set<string>>(new Set());
+  const [accessLoading, setAccessLoading] = useState(false);
+  const [accessError, setAccessError] = useState("");
 
   const load = async () => {
     setLoading(true);
     try {
-      const { data } = await client.get<ManagedUser[]>(endpoints.adminUsers);
-      setUsers(data);
+      const [userResponse, departmentResponse, catalogResponse] =
+        await Promise.all([
+          client.get<ManagedUser[]>(endpoints.adminUsers),
+          client.get<ManagedDepartment[]>(endpoints.adminDepartments),
+          client.get<AccessTarget[]>(endpoints.adminFormAccessCatalog),
+        ]);
+      setUsers(userResponse.data);
+      setDepartments(departmentResponse.data);
+      setCatalog(catalogResponse.data);
+      setError("");
     } catch {
-      setError("دریافت فهرست کاربران با مشکل مواجه شد.");
+      setError("دریافت اطلاعات کاربران و واحدها با مشکل مواجه شد.");
     } finally {
       setLoading(false);
     }
   };
-  useEffect(() => { void load(); }, []);
+
+  useEffect(() => {
+    void load();
+  }, []);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("fa");
     if (!query) return users;
     return users.filter((user) =>
-      [user.username, user.display_name, user.email, user.department, user.job_title]
+      [
+        user.username,
+        user.display_name,
+        user.email,
+        user.department,
+        user.job_title,
+        user.category,
+      ]
         .join(" ")
         .toLocaleLowerCase("fa")
-        .includes(query)
+        .includes(query),
     );
   }, [users, search]);
+
+  const groupedUsers = useMemo(() => {
+    const groups = departments.map((department) => ({
+      department,
+      users: filtered.filter((user) => user.department_id === department.id),
+    }));
+    const unassigned = filtered.filter(
+      (user) =>
+        user.department_id === null ||
+        !departments.some((department) => department.id === user.department_id),
+    );
+    return [
+      ...groups,
+      ...(unassigned.length
+        ? [
+            {
+              department: {
+                id: 0,
+                name: "بدون واحد سازمانی",
+                description: "",
+                access_configured: false,
+                user_count: unassigned.length,
+              },
+              users: unassigned,
+            },
+          ]
+        : []),
+    ].filter((group) => group.users.length || !search.trim());
+  }, [departments, filtered, search]);
+
+  const catalogGroups = useMemo(() => {
+    const groups = new Map<string, AccessTarget[]>();
+    catalog.forEach((target) => {
+      const current = groups.get(target.portal_department_title) || [];
+      current.push(target);
+      groups.set(target.portal_department_title, current);
+    });
+    return [...groups.entries()];
+  }, [catalog]);
 
   const openCreate = () => {
     setForm(emptyForm);
     setEditing(null);
     setError("");
   };
+
   const openEdit = (user: ManagedUser) => {
     setForm({
       username: user.username,
@@ -99,7 +212,7 @@ export default function AdminUsersPage() {
       display_name: user.display_name,
       email: user.email,
       category: user.category,
-      department: user.department,
+      department_id: user.department_id,
       job_title: user.job_title,
       extension: user.extension,
       is_active: user.is_active,
@@ -108,10 +221,11 @@ export default function AdminUsersPage() {
     setEditing(user);
     setError("");
   };
-  const update = (field: keyof UserForm, value: string | boolean) =>
+
+  const update = (field: keyof UserForm, value: string | boolean | number | null) =>
     setForm((current) => ({ ...current, [field]: value }));
 
-  const save = async (event: React.FormEvent) => {
+  const saveUser = async (event: React.FormEvent) => {
     event.preventDefault();
     setSaving(true);
     setError("");
@@ -126,14 +240,22 @@ export default function AdminUsersPage() {
       setEditing(undefined);
       await load();
     } catch (requestError: any) {
-      setError(requestError?.response?.data?.detail || "ذخیره اطلاعات کاربر انجام نشد.");
+      setError(
+        requestError?.response?.data?.detail ||
+          "ذخیره اطلاعات کاربر انجام نشد.",
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  const remove = async (user: ManagedUser) => {
-    if (!window.confirm(`دسترسی کاربر «${user.display_name || user.username}» حذف شود؟ سوابق درخواست‌های او حفظ خواهد شد.`)) return;
+  const removeUser = async (user: ManagedUser) => {
+    if (
+      !window.confirm(
+        `دسترسی کاربر «${user.display_name || user.username}» حذف شود؟ سوابق درخواست‌های او حفظ خواهد شد.`,
+      )
+    )
+      return;
     try {
       await client.delete(`${endpoints.adminUsers}/${user.id}`);
       await load();
@@ -142,69 +264,778 @@ export default function AdminUsersPage() {
     }
   };
 
+  const saveDepartment = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!departmentName.trim()) return;
+    setSaving(true);
+    setDepartmentFeedback(null);
+    try {
+      const payload = {
+        name: departmentName.trim(),
+        description: departmentDescription.trim(),
+      };
+      if (editingDepartment) {
+        await client.put(
+          `${endpoints.adminDepartments}/${editingDepartment.id}`,
+          payload,
+        );
+      } else {
+        await client.post(endpoints.adminDepartments, payload);
+      }
+      const successText = editingDepartment
+        ? "تغییرات واحد سازمانی ذخیره شد."
+        : "واحد سازمانی جدید ایجاد شد.";
+      setDepartmentName("");
+      setDepartmentDescription("");
+      setEditingDepartment(null);
+      await load();
+      setDepartmentFeedback({ type: "success", text: successText });
+    } catch (requestError: any) {
+      setDepartmentFeedback({
+        type: "error",
+        text:
+          requestError?.response?.data?.detail ||
+          "ذخیره واحد سازمانی انجام نشد.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeDepartment = async (department: ManagedDepartment) => {
+    setDepartmentFeedback(null);
+    if (department.user_count > 0) {
+      setDepartmentFeedback({
+        type: "error",
+        text: `واحد «${department.name}» دارای ${department.user_count.toLocaleString("fa-IR")} کاربر است. ابتدا کاربران را به واحد دیگری منتقل کنید.`,
+      });
+      departmentFormRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      return;
+    }
+    if (!window.confirm(`واحد «${department.name}» حذف شود؟`)) return;
+    try {
+      await client.delete(`${endpoints.adminDepartments}/${department.id}`);
+      await load();
+      setDepartmentFeedback({
+        type: "success",
+        text: `واحد «${department.name}» حذف شد.`,
+      });
+      departmentFormRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    } catch (requestError: any) {
+      setDepartmentFeedback({
+        type: "error",
+        text:
+          requestError?.response?.data?.detail ||
+          "حذف واحد سازمانی انجام نشد.",
+      });
+    }
+  };
+
+  const openAccess = async (editor: AccessEditor) => {
+    setAccessEditor(editor);
+    setAccessLoading(true);
+    setAccessError("");
+    setAccessConfigured(false);
+    setSelectedTargets(new Set());
+    setError("");
+    try {
+      const base =
+        editor.kind === "department"
+          ? endpoints.adminDepartments
+          : endpoints.adminUsers;
+      const { data } = await client.get<{
+        configured: boolean;
+        targets: string[];
+      }>(`${base}/${editor.id}/form-access`);
+      setAccessConfigured(data.configured);
+      setSelectedTargets(new Set(data.targets));
+    } catch (requestError: any) {
+      setAccessError(
+        requestError?.response?.data?.detail ||
+          "دریافت دسترسی فرم‌ها انجام نشد. سرویس را دوباره راه‌اندازی و مجدداً تلاش کنید.",
+      );
+    } finally {
+      setAccessLoading(false);
+    }
+  };
+
+  const saveAccess = async () => {
+    if (!accessEditor) return;
+    setAccessLoading(true);
+    setAccessError("");
+    try {
+      const base =
+        accessEditor.kind === "department"
+          ? endpoints.adminDepartments
+          : endpoints.adminUsers;
+      await client.put(`${base}/${accessEditor.id}/form-access`, {
+        configured: accessConfigured,
+        targets: [...selectedTargets],
+      });
+      setAccessEditor(null);
+      await load();
+      setDepartmentFeedback({
+        type: "success",
+        text: "دسترسی فرم‌ها با موفقیت ذخیره شد.",
+      });
+    } catch (requestError: any) {
+      setAccessError(
+        requestError?.response?.data?.detail || "ذخیره دسترسی فرم‌ها انجام نشد.",
+      );
+    } finally {
+      setAccessLoading(false);
+    }
+  };
+
+  const toggleTarget = (key: string) =>
+    setSelectedTargets((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
+  const beginDepartmentEdit = (department: ManagedDepartment) => {
+    setEditingDepartment(department);
+    setDepartmentName(department.name);
+    setDepartmentDescription(department.description);
+    setDepartmentFeedback(null);
+    requestAnimationFrame(() => {
+      departmentFormRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      departmentFormRef.current
+        ?.querySelector<HTMLInputElement>("input")
+        ?.focus();
+    });
+  };
+
   return (
     <AppShell>
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600"><Users size={25} /></div>
-          <div><h2 className="text-3xl font-extrabold text-slate-900">مدیریت کاربران</h2><p className="mt-1 text-sm text-slate-500">ایجاد، ویرایش، جستجو و کنترل دسترسی کاربران</p></div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+            <Users size={25} />
+          </div>
+          <div>
+            <h2 className="text-3xl font-extrabold text-slate-900">
+              کاربران و واحدهای سازمانی
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              دسته‌بندی افراد و کنترل فرم‌های قابل مشاهده
+            </p>
+          </div>
         </div>
-        <Button onClick={openCreate} className="h-11 gap-2 rounded-xl bg-red-600 px-5 hover:bg-red-700"><Plus size={18} />کاربر جدید</Button>
+        <Button
+          onClick={openCreate}
+          className="h-11 gap-2 rounded-xl bg-red-600 px-5 hover:bg-red-700"
+        >
+          <Plus size={18} />
+          کاربر جدید
+        </Button>
       </div>
+
+      {error && editing === undefined && !accessEditor && (
+        <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">
+          {error}
+        </div>
+      )}
+
+      <section className="mb-7 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="mb-5 flex items-center gap-3">
+          <Building2 className="text-red-600" />
+          <div>
+            <h3 className="text-lg font-extrabold text-slate-900">
+              مدیریت واحدهای سازمانی
+            </h3>
+            <p className="text-xs text-slate-500">
+              واحد جدید بسازید، نام آن را تغییر دهید یا دسترسی فرم‌های کل واحد را مشخص کنید.
+            </p>
+          </div>
+        </div>
+        <form
+          ref={departmentFormRef}
+          onSubmit={saveDepartment}
+          className="mb-5 grid gap-3 rounded-2xl bg-slate-50 p-4 md:grid-cols-[1fr_1.5fr_auto]"
+        >
+          <Input
+            value={departmentName}
+            onChange={(event) => setDepartmentName(event.target.value)}
+            placeholder="نام واحد سازمانی"
+            required
+            className="h-11 rounded-xl bg-white"
+          />
+          <Input
+            value={departmentDescription}
+            onChange={(event) => setDepartmentDescription(event.target.value)}
+            placeholder="توضیح (اختیاری)"
+            className="h-11 rounded-xl bg-white"
+          />
+          <div className="flex gap-2">
+            {editingDepartment && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setEditingDepartment(null);
+                  setDepartmentName("");
+                  setDepartmentDescription("");
+                }}
+                className="h-11 rounded-xl"
+              >
+                انصراف
+              </Button>
+            )}
+            <Button
+              disabled={saving}
+              className="h-11 gap-2 rounded-xl bg-slate-800 hover:bg-slate-900"
+            >
+              <Plus size={16} />
+              {editingDepartment ? "ذخیره تغییرات" : "افزودن واحد"}
+            </Button>
+          </div>
+        </form>
+        {departmentFeedback && (
+          <div
+            className={`mb-5 rounded-2xl border p-4 text-sm font-semibold ${
+              departmentFeedback.type === "success"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border-red-200 bg-red-50 text-red-700"
+            }`}
+          >
+            {departmentFeedback.text}
+          </div>
+        )}
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {departments.map((department) => (
+            <div
+              key={department.id}
+              className="rounded-2xl border border-slate-200 p-4"
+            >
+              <div>
+                <div>
+                  <p className="font-bold text-slate-800">{department.name}</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {department.user_count.toLocaleString("fa-IR")} کاربر
+                    {department.access_configured
+                      ? " · دسترسی اختصاصی"
+                      : " · همه فرم‌ها"}
+                  </p>
+                </div>
+                <div className="mt-4 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      void openAccess({
+                        kind: "department",
+                        id: department.id,
+                        title: department.name,
+                      })
+                    }
+                    className="gap-1 rounded-xl text-emerald-700"
+                    aria-label="دسترسی فرم‌ها"
+                  >
+                    <ShieldCheck size={15} />
+                    دسترسی
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => beginDepartmentEdit(department)}
+                    className="gap-1 rounded-xl text-blue-600"
+                    aria-label="ویرایش واحد"
+                  >
+                    <Edit3 size={14} />
+                    ویرایش
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void removeDepartment(department)}
+                    className="gap-1 rounded-xl text-red-600"
+                    aria-label="حذف واحد"
+                  >
+                    <Trash2 size={14} />
+                    حذف
+                  </Button>
+                </div>
+              </div>
+              {department.description && (
+                <p className="mt-3 text-xs leading-5 text-slate-500">
+                  {department.description}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
 
       <div className="mb-5 grid gap-4 sm:grid-cols-3">
-        <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm"><p className="text-sm text-slate-500">همه کاربران</p><p className="mt-1 text-3xl font-extrabold text-slate-900">{users.length.toLocaleString("fa-IR")}</p></section>
-        <section className="rounded-3xl border border-emerald-100 bg-emerald-50 p-5"><p className="text-sm text-emerald-700">کاربران فعال</p><p className="mt-1 text-3xl font-extrabold text-emerald-900">{users.filter((item) => item.is_active).length.toLocaleString("fa-IR")}</p></section>
-        <section className="rounded-3xl border border-amber-100 bg-amber-50 p-5"><p className="text-sm text-amber-700">در انتظار تغییر رمز</p><p className="mt-1 text-3xl font-extrabold text-amber-900">{users.filter((item) => item.must_change_password).length.toLocaleString("fa-IR")}</p></section>
+        <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+          <p className="text-sm text-slate-500">همه کاربران</p>
+          <p className="mt-1 text-3xl font-extrabold text-slate-900">
+            {users.length.toLocaleString("fa-IR")}
+          </p>
+        </section>
+        <section className="rounded-3xl border border-emerald-100 bg-emerald-50 p-5">
+          <p className="text-sm text-emerald-700">کاربران فعال</p>
+          <p className="mt-1 text-3xl font-extrabold text-emerald-900">
+            {users
+              .filter((item) => item.is_active)
+              .length.toLocaleString("fa-IR")}
+          </p>
+        </section>
+        <section className="rounded-3xl border border-blue-100 bg-blue-50 p-5">
+          <p className="text-sm text-blue-700">واحدهای سازمانی</p>
+          <p className="mt-1 text-3xl font-extrabold text-blue-900">
+            {departments.length.toLocaleString("fa-IR")}
+          </p>
+        </section>
       </div>
 
-      {error && editing === undefined && <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>}
       <section className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm">
         <div className="border-b border-slate-100 p-5">
-          <div className="relative max-w-lg"><Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="جستجو بر اساس نام، نام کاربری، ایمیل یا واحد..." className="h-11 rounded-xl pr-10" /></div>
+          <div className="relative max-w-lg">
+            <Search
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+              size={18}
+            />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="جستجو بر اساس نام، نام کاربری، ایمیل یا واحد..."
+              className="h-11 rounded-xl pr-10"
+            />
+          </div>
         </div>
         {loading ? (
-          <div className="flex min-h-64 items-center justify-center gap-3 text-slate-500"><Loader2 className="animate-spin text-red-600" />در حال دریافت کاربران...</div>
+          <div className="flex min-h-64 items-center justify-center gap-3 text-slate-500">
+            <Loader2 className="animate-spin text-red-600" />
+            در حال دریافت کاربران...
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-slate-50 text-slate-500"><tr><th className="px-5 py-4 text-right">کاربر</th><th className="px-5 py-4 text-right">واحد و سمت</th><th className="px-5 py-4 text-right">آخرین ورود</th><th className="px-5 py-4 text-right">وضعیت</th><th className="px-5 py-4 text-left">عملیات</th></tr></thead>
-              <tbody className="divide-y divide-slate-100">
-                {filtered.map((user) => (
-                  <tr key={user.id} className="hover:bg-slate-50">
-                    <td className="px-5 py-4"><div className="flex items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 font-bold text-blue-600">{(user.display_name || user.username).slice(0, 1)}</div><div><p className="font-bold text-slate-800">{user.display_name || "بدون نام"}</p><p className="mt-1 text-xs text-slate-500" dir="ltr">{user.username}{user.email ? ` · ${user.email}` : ""}</p></div></div></td>
-                    <td className="px-5 py-4"><p className="text-slate-700">{user.department || "—"}</p><p className="mt-1 text-xs text-slate-400">{user.job_title || user.category || "—"}</p></td>
-                    <td className="whitespace-nowrap px-5 py-4 text-xs text-slate-500">{formatDate(user.last_login)}</td>
-                    <td className="px-5 py-4">{user.is_active ? <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100"><UserCheck className="ml-1" size={13} />فعال</Badge> : <Badge variant="outline" className="text-slate-500">غیرفعال</Badge>}</td>
-                    <td className="px-5 py-4"><div className="flex justify-end gap-2"><Button variant="outline" size="icon" onClick={() => openEdit(user)} className="h-9 w-9 rounded-xl text-blue-600" aria-label="ویرایش"><Edit3 size={15} /></Button><Button variant="outline" size="icon" onClick={() => void remove(user)} className="h-9 w-9 rounded-xl border-red-200 text-red-600" aria-label="حذف"><Trash2 size={15} /></Button></div></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {!filtered.length && <p className="p-12 text-center text-slate-400">کاربری با این مشخصات پیدا نشد.</p>}
+          <div className="space-y-6 p-4 sm:p-5">
+            {groupedUsers.map(({ department, users: departmentUsers }) => (
+              <div
+                key={department.id}
+                className="overflow-hidden rounded-2xl border border-slate-200"
+              >
+                <div className="flex items-center justify-between bg-slate-50 px-5 py-4">
+                  <div className="flex items-center gap-2">
+                    <Building2 size={18} className="text-red-600" />
+                    <h3 className="font-extrabold text-slate-800">
+                      {department.name}
+                    </h3>
+                    <Badge variant="outline">
+                      {departmentUsers.length.toLocaleString("fa-IR")} نفر
+                    </Badge>
+                  </div>
+                </div>
+                {departmentUsers.length ? (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead className="border-y border-slate-100 text-slate-500">
+                        <tr>
+                          <th className="px-5 py-3 text-right">کاربر</th>
+                          <th className="px-5 py-3 text-right">سمت و دسته‌بندی</th>
+                          <th className="px-5 py-3 text-right">آخرین ورود</th>
+                          <th className="px-5 py-3 text-right">وضعیت</th>
+                          <th className="px-5 py-3 text-left">عملیات</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {departmentUsers.map((user) => (
+                          <tr key={user.id} className="hover:bg-slate-50">
+                            <td className="px-5 py-4">
+                              <p className="font-bold text-slate-800">
+                                {user.display_name || "بدون نام"}
+                              </p>
+                              <p
+                                className="mt-1 text-xs text-slate-500"
+                                dir="ltr"
+                              >
+                                {user.username}
+                                {user.email ? ` · ${user.email}` : ""}
+                              </p>
+                            </td>
+                            <td className="px-5 py-4">
+                              <p className="text-slate-700">
+                                {user.job_title || "—"}
+                              </p>
+                              <p className="mt-1 text-xs text-slate-400">
+                                {user.category || "—"}
+                              </p>
+                            </td>
+                            <td className="whitespace-nowrap px-5 py-4 text-xs text-slate-500">
+                              {formatDate(user.last_login)}
+                            </td>
+                            <td className="px-5 py-4">
+                              {user.is_active ? (
+                                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                                  <UserCheck className="ml-1" size={13} />
+                                  فعال
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline">غیرفعال</Badge>
+                              )}
+                            </td>
+                            <td className="px-5 py-4">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() =>
+                                    void openAccess({
+                                      kind: "user",
+                                      id: user.id,
+                                      title: user.display_name || user.username,
+                                    })
+                                  }
+                                  className="h-9 w-9 rounded-xl text-emerald-600"
+                                  aria-label="دسترسی فرم‌ها"
+                                >
+                                  <KeyRound size={15} />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => openEdit(user)}
+                                  className="h-9 w-9 rounded-xl text-blue-600"
+                                  aria-label="ویرایش"
+                                >
+                                  <Edit3 size={15} />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => void removeUser(user)}
+                                  className="h-9 w-9 rounded-xl border-red-200 text-red-600"
+                                  aria-label="حذف"
+                                >
+                                  <Trash2 size={15} />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="p-6 text-center text-sm text-slate-400">
+                    کاربری در این واحد وجود ندارد.
+                  </p>
+                )}
+              </div>
+            ))}
+            {!groupedUsers.length && (
+              <p className="p-12 text-center text-slate-400">
+                کاربری با این مشخصات پیدا نشد.
+              </p>
+            )}
           </div>
         )}
       </section>
 
       {editing !== undefined && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/50 backdrop-blur-sm sm:items-center sm:p-6" onMouseDown={() => setEditing(undefined)}>
-          <form onSubmit={save} onMouseDown={(event) => event.stopPropagation()} className="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white/95 p-6 backdrop-blur"><div><h3 className="text-xl font-extrabold text-slate-900">{editing ? "ویرایش کاربر" : "ایجاد کاربر جدید"}</h3><p className="mt-1 text-xs text-slate-500">اطلاعات حساب و دسترسی را تکمیل کنید.</p></div><Button type="button" variant="ghost" size="icon" onClick={() => setEditing(undefined)} className="rounded-xl"><X size={20} /></Button></div>
-            <div className="grid gap-5 p-6 sm:grid-cols-2">
-              {error && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 sm:col-span-2">{error}</div>}
-              <label className="text-sm font-semibold text-slate-700">نام و نام خانوادگی<Input value={form.display_name} onChange={(e) => update("display_name", e.target.value)} className="mt-2 h-11 rounded-xl" /></label>
-              <label className="text-sm font-semibold text-slate-700">نام کاربری<Input value={form.username} onChange={(e) => update("username", e.target.value)} required dir="ltr" className="mt-2 h-11 rounded-xl text-left" /></label>
-              <label className="text-sm font-semibold text-slate-700">{editing ? "رمز عبور جدید (اختیاری)" : "رمز عبور"}<Input type="password" value={form.password} onChange={(e) => update("password", e.target.value)} required={!editing} minLength={8} dir="ltr" className="mt-2 h-11 rounded-xl text-left" /></label>
-              <label className="text-sm font-semibold text-slate-700">ایمیل<Input type="email" value={form.email} onChange={(e) => update("email", e.target.value)} dir="ltr" className="mt-2 h-11 rounded-xl text-left" /></label>
-              <label className="text-sm font-semibold text-slate-700">واحد سازمانی<Input value={form.department} onChange={(e) => update("department", e.target.value)} className="mt-2 h-11 rounded-xl" /></label>
-              <label className="text-sm font-semibold text-slate-700">سمت شغلی<Input value={form.job_title} onChange={(e) => update("job_title", e.target.value)} className="mt-2 h-11 rounded-xl" /></label>
-              <label className="text-sm font-semibold text-slate-700">دسته‌بندی<Input value={form.category} onChange={(e) => update("category", e.target.value)} className="mt-2 h-11 rounded-xl" /></label>
-              <label className="text-sm font-semibold text-slate-700">شماره داخلی<Input value={form.extension} onChange={(e) => update("extension", e.target.value)} dir="ltr" className="mt-2 h-11 rounded-xl text-left" /></label>
-              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4 text-sm font-semibold text-slate-700"><input type="checkbox" checked={form.is_active} onChange={(e) => update("is_active", e.target.checked)} className="h-4 w-4 accent-red-600" />حساب فعال باشد</label>
-              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4 text-sm font-semibold text-slate-700"><input type="checkbox" checked={form.must_change_password} onChange={(e) => update("must_change_password", e.target.checked)} className="h-4 w-4 accent-red-600" />تغییر رمز در ورود بعدی</label>
+        <div
+          className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/50 backdrop-blur-sm sm:items-center sm:p-6"
+          onMouseDown={() => setEditing(undefined)}
+        >
+          <form
+            onSubmit={saveUser}
+            onMouseDown={(event) => event.stopPropagation()}
+            className="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl"
+          >
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white/95 p-6 backdrop-blur">
+              <div>
+                <h3 className="text-xl font-extrabold text-slate-900">
+                  {editing ? "ویرایش کاربر" : "ایجاد کاربر جدید"}
+                </h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  واحد کاربر را از فهرست واحدهای مدیریت‌شده انتخاب کنید.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setEditing(undefined)}
+              >
+                <X size={20} />
+              </Button>
             </div>
-            <div className="sticky bottom-0 flex justify-end gap-3 border-t bg-white/95 p-5 backdrop-blur"><Button type="button" variant="outline" onClick={() => setEditing(undefined)} className="rounded-xl px-5">انصراف</Button><Button disabled={saving} className="gap-2 rounded-xl bg-red-600 px-6 hover:bg-red-700">{saving && <Loader2 className="animate-spin" size={16} />}ذخیره</Button></div>
+            <div className="grid gap-5 p-6 sm:grid-cols-2">
+              {error && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 sm:col-span-2">
+                  {error}
+                </div>
+              )}
+              <label className="text-sm font-semibold text-slate-700">
+                نام و نام خانوادگی
+                <Input
+                  value={form.display_name}
+                  onChange={(event) =>
+                    update("display_name", event.target.value)
+                  }
+                  className="mt-2 h-11 rounded-xl"
+                />
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
+                نام کاربری
+                <Input
+                  value={form.username}
+                  onChange={(event) => update("username", event.target.value)}
+                  required
+                  dir="ltr"
+                  className="mt-2 h-11 rounded-xl text-left"
+                />
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
+                {editing ? "رمز عبور جدید (اختیاری)" : "رمز عبور"}
+                <Input
+                  type="password"
+                  value={form.password}
+                  onChange={(event) => update("password", event.target.value)}
+                  required={!editing}
+                  minLength={8}
+                  dir="ltr"
+                  className="mt-2 h-11 rounded-xl text-left"
+                />
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
+                ایمیل
+                <Input
+                  type="email"
+                  value={form.email}
+                  onChange={(event) => update("email", event.target.value)}
+                  dir="ltr"
+                  className="mt-2 h-11 rounded-xl text-left"
+                />
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
+                واحد سازمانی
+                <select
+                  value={form.department_id ?? ""}
+                  onChange={(event) =>
+                    update(
+                      "department_id",
+                      event.target.value ? Number(event.target.value) : null,
+                    )
+                  }
+                  className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3"
+                >
+                  <option value="">بدون واحد</option>
+                  {departments.map((department) => (
+                    <option key={department.id} value={department.id}>
+                      {department.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
+                سمت شغلی
+                <Input
+                  value={form.job_title}
+                  onChange={(event) => update("job_title", event.target.value)}
+                  className="mt-2 h-11 rounded-xl"
+                />
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
+                دسته‌بندی
+                <Input
+                  value={form.category}
+                  onChange={(event) => update("category", event.target.value)}
+                  className="mt-2 h-11 rounded-xl"
+                />
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
+                شماره داخلی
+                <Input
+                  value={form.extension}
+                  onChange={(event) => update("extension", event.target.value)}
+                  dir="ltr"
+                  className="mt-2 h-11 rounded-xl text-left"
+                />
+              </label>
+              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4 text-sm font-semibold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={form.is_active}
+                  onChange={(event) => update("is_active", event.target.checked)}
+                  className="h-4 w-4 accent-red-600"
+                />
+                حساب فعال باشد
+              </label>
+              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4 text-sm font-semibold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={form.must_change_password}
+                  onChange={(event) =>
+                    update("must_change_password", event.target.checked)
+                  }
+                  className="h-4 w-4 accent-red-600"
+                />
+                تغییر رمز در ورود بعدی
+              </label>
+            </div>
+            <div className="sticky bottom-0 flex justify-end gap-3 border-t bg-white/95 p-5 backdrop-blur">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditing(undefined)}
+              >
+                انصراف
+              </Button>
+              <Button
+                disabled={saving}
+                className="gap-2 bg-red-600 hover:bg-red-700"
+              >
+                {saving && <Loader2 className="animate-spin" size={16} />}
+                ذخیره
+              </Button>
+            </div>
           </form>
+        </div>
+      )}
+
+      {accessEditor && (
+        <div
+          className="fixed inset-0 z-[110] flex items-end justify-center bg-slate-950/55 backdrop-blur-sm sm:items-center sm:p-6"
+          onMouseDown={() => setAccessEditor(null)}
+        >
+          <div
+            onMouseDown={(event) => event.stopPropagation()}
+            className="max-h-[94vh] w-full max-w-4xl overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl"
+          >
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white/95 p-6 backdrop-blur">
+              <div>
+                <h3 className="text-xl font-extrabold text-slate-900">
+                  دسترسی فرم‌ها: {accessEditor.title}
+                </h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  دسترسی اختصاصی کاربر بر تنظیمات واحد سازمانی اولویت دارد.
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setAccessEditor(null)}
+              >
+                <X size={20} />
+              </Button>
+            </div>
+            {accessLoading ? (
+              <div className="flex min-h-64 items-center justify-center">
+                <Loader2 className="animate-spin text-red-600" />
+              </div>
+            ) : (
+              <div className="p-6">
+                {accessError && (
+                  <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+                    {accessError}
+                  </div>
+                )}
+                <label className="mb-5 flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                  <input
+                    type="checkbox"
+                    checked={accessConfigured}
+                    onChange={(event) =>
+                      setAccessConfigured(event.target.checked)
+                    }
+                    className="mt-1 h-4 w-4 accent-red-600"
+                  />
+                  <span>
+                    <span className="block font-bold text-slate-800">
+                      استفاده از فهرست دسترسی اختصاصی
+                    </span>
+                    <span className="mt-1 block text-xs text-slate-500">
+                      با غیرفعال‌کردن، واحد همه فرم‌ها را می‌بیند و کاربر از
+                      تنظیمات واحد خود ارث می‌برد.
+                    </span>
+                  </span>
+                </label>
+                <div
+                  className={`grid gap-4 md:grid-cols-2 ${!accessConfigured ? "pointer-events-none opacity-50" : ""}`}
+                >
+                  {catalogGroups.map(([title, targets]) => (
+                    <section
+                      key={title}
+                      className="rounded-2xl border border-slate-200 p-4"
+                    >
+                      <div className="mb-3 flex items-center justify-between">
+                        <h4 className="font-extrabold text-slate-800">
+                          {title}
+                        </h4>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedTargets((current) => {
+                              const next = new Set(current);
+                              const keys = targets.map(targetKey);
+                              const allSelected = keys.every((key) =>
+                                next.has(key),
+                              );
+                              keys.forEach((key) =>
+                                allSelected ? next.delete(key) : next.add(key),
+                              );
+                              return next;
+                            })
+                          }
+                          className="text-xs font-bold text-red-600"
+                        >
+                          انتخاب همه
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        {targets.map((target) => {
+                          const key = targetKey(target);
+                          return (
+                            <label
+                              key={key}
+                              className="flex items-center gap-3 rounded-xl bg-slate-50 p-3 text-sm"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedTargets.has(key)}
+                                onChange={() => toggleTarget(key)}
+                                className="h-4 w-4 accent-red-600"
+                              />
+                              {target.section_title}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="sticky bottom-0 flex justify-end gap-3 border-t bg-white/95 p-5 backdrop-blur">
+              <Button variant="outline" onClick={() => setAccessEditor(null)}>
+                انصراف
+              </Button>
+              <Button
+                onClick={() => void saveAccess()}
+                disabled={accessLoading || Boolean(accessError)}
+                className="gap-2 bg-red-600 hover:bg-red-700"
+              >
+                {accessLoading && <Loader2 className="animate-spin" size={16} />}
+                ذخیره دسترسی
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </AppShell>

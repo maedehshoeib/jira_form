@@ -20,6 +20,7 @@ from app.models.user import User
 from app.schemas.admin import SiteBannerResponse
 from app.schemas.submission import SubmissionListItem, SubmissionResponse
 from app.services.portal_service import DEPARTMENTS, FORM_TEMPLATES
+from app.services.form_access_service import allowed_target_keys, can_access_target
 from app.services.report_submission_service import (
     create_report_from_submission,
     is_performance_report_submission,
@@ -64,23 +65,58 @@ def get_home_banner_image(
 
 
 @router.get("/departments")
-def get_departments():
-    return DEPARTMENTS
+def get_departments(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    allowed = allowed_target_keys(db, current_user)
+    if allowed is None:
+        return DEPARTMENTS
+    result = []
+    for department in DEPARTMENTS:
+        if department.sections:
+            sections = [
+                section
+                for section in department.sections
+                if f"{department.id}:{section.id}:{section.form_id}" in allowed
+            ]
+            if sections:
+                result.append(department.model_copy(update={"sections": sections}))
+        elif f"{department.id}::{department.id}" in allowed:
+            result.append(department)
+    return result
 
 
 @router.get("/departments/{department_id}")
-def get_department(department_id: str):
-    for dep in DEPARTMENTS:
+def get_department(
+    department_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    visible = get_departments(db, current_user)
+    for dep in visible:
         if dep.id == department_id:
             return dep
     raise HTTPException(status_code=404, detail="Department not found")
 
 
 @router.get("/forms/{form_id}")
-def get_form(form_id: str):
+def get_form(
+    form_id: str,
+    department: str = Query(default=""),
+    section: str = Query(default=""),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     form = FORM_TEMPLATES.get(form_id)
     if not form:
         raise HTTPException(status_code=404, detail="Form not found")
+    portal_department_id = department or form.department_id
+    section_id = section or form.section_id
+    if not can_access_target(
+        db, current_user, portal_department_id, section_id, form_id
+    ):
+        raise HTTPException(status_code=403, detail="شما به این فرم دسترسی ندارید.")
     return form
 
 
@@ -91,6 +127,13 @@ async def create_submission(
     current_user: User = Depends(get_current_user),
 ):
     form = await request.form()
+    form_id = str(form.get("form_id", "common-form"))
+    department_id = str(form.get("department_id", ""))
+    section_id = str(form.get("section_id", ""))
+    if form_id not in FORM_TEMPLATES or not can_access_target(
+        db, current_user, department_id, section_id, form_id
+    ):
+        raise HTTPException(status_code=403, detail="شما به این فرم دسترسی ندارید.")
     form_data: dict = {}
     attachment_path = None
     attachment_name = None
@@ -99,6 +142,8 @@ async def create_submission(
     upload_dir.mkdir(parents=True, exist_ok=True)
 
     for key, value in form.items():
+        if key in {"form_id", "department_id", "section_id"}:
+            continue
         if hasattr(value, "filename") and value.filename:
             ext = Path(value.filename).suffix
             filename = f"{uuid.uuid4().hex}{ext}"
@@ -111,9 +156,6 @@ async def create_submission(
         else:
             form_data[key] = str(value)
 
-    form_id = form_data.pop("form_id", "common-form")
-    department_id = form_data.pop("department_id", "")
-    section_id = form_data.pop("section_id", "")
     subject = form_data.get("subject", "")
 
     submission = Submission(

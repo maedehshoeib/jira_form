@@ -9,9 +9,11 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.deps import get_current_user
 from app.db.contracts_session import get_contracts_db
+from app.db.session import get_db as get_access_db
 from app.models.contract import Contract
 from app.models.user import User
 from app.schemas.contract import ContractCreateResponse, ContractListItem, ContractResponse
+from app.services.form_access_service import can_access_target
 
 router = APIRouter()
 
@@ -22,6 +24,19 @@ CONTRACT_TYPE_LABELS = {
 
 
 IRAN_TZ = timezone(timedelta(hours=3, minutes=30))
+
+
+def require_contract_archive_access(
+    current_user: User = Depends(get_current_user),
+    access_db: Session = Depends(get_access_db),
+) -> User:
+    if not can_access_target(
+        access_db, current_user, "contract-archive", "", "contract-archive"
+    ):
+        raise HTTPException(
+            status_code=403, detail="شما به آرشیو قراردادها دسترسی ندارید."
+        )
+    return current_user
 
 
 def _format_dt(value: datetime | None) -> str:
@@ -60,7 +75,7 @@ def _next_row_number(db: Session) -> int:
 @router.get("", response_model=list[ContractListItem])
 def list_contracts(
     db: Session = Depends(get_contracts_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_contract_archive_access),
 ):
     contracts = db.query(Contract).order_by(Contract.row_number.desc()).all()
     return [_contract_to_list_item(c) for c in contracts]
@@ -70,7 +85,7 @@ def list_contracts(
 def get_contract(
     contract_id: int,
     db: Session = Depends(get_contracts_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_contract_archive_access),
 ):
     contract = db.query(Contract).filter(Contract.id == contract_id).first()
     if not contract:
@@ -82,7 +97,7 @@ def get_contract(
 async def create_contract(
     request: Request,
     db: Session = Depends(get_contracts_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_contract_archive_access),
 ):
     form = await request.form()
     start_date = str(form.get("start_date", "")).strip()
@@ -148,7 +163,7 @@ async def create_contract(
 def download_contract_attachment(
     contract_id: int,
     db: Session = Depends(get_contracts_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_contract_archive_access),
 ):
     contract = db.query(Contract).filter(Contract.id == contract_id).first()
     if not contract or not contract.attachment_path:

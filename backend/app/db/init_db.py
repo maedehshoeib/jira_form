@@ -9,7 +9,18 @@ from app.db.contracts_session import contracts_engine
 from app.db.seed_users import seed_users
 from app.db.session import engine
 from app.db.session import SessionLocal
-from app.models import admin_session, contract, report, site_banner, submission, user  # noqa: F401
+from app.models import (  # noqa: F401
+    admin_session,
+    contract,
+    department,
+    form_template,
+    report,
+    site_banner,
+    submission,
+    user,
+)
+from app.models.department import Department
+from app.models.user import User
 from app.models.site_banner import SiteBanner
 
 
@@ -129,11 +140,60 @@ def _migrate_users_db():
             "is_admin",
             "ALTER TABLE users ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT 0",
         ),
+        (
+            "department_id",
+            "ALTER TABLE users ADD COLUMN department_id INTEGER",
+        ),
+        (
+            "form_access_configured",
+            "ALTER TABLE users ADD COLUMN form_access_configured BOOLEAN NOT NULL DEFAULT 0",
+        ),
     ]
     with engine.begin() as conn:
         for column_name, ddl in migrations:
             if column_name not in columns:
                 conn.execute(text(ddl))
+
+
+def _seed_departments_from_users():
+    """Preserve existing free-text departments while upgrading."""
+    db = SessionLocal()
+    try:
+        existing = {item.name: item for item in db.query(Department).all()}
+        existing_by_id = {item.id: item for item in existing.values()}
+        users = db.query(User).all()
+        # A managed assignment is authoritative, including after a department rename.
+        for user_item in users:
+            if user_item.is_admin:
+                # System administrator identities are not organizational employees.
+                user_item.department_id = None
+                continue
+            managed = existing_by_id.get(user_item.department_id)
+            if managed:
+                user_item.department = managed.name
+        names = {
+            user_item.department.strip()
+            for user_item in users
+            if not user_item.is_admin
+            and user_item.department_id is None
+            and user_item.department
+            and user_item.department.strip()
+        }
+        for name in sorted(names):
+            if name not in existing:
+                item = Department(name=name)
+                db.add(item)
+                db.flush()
+                existing[name] = item
+        for user_item in users:
+            if user_item.is_admin or user_item.department_id is not None:
+                continue
+            name = (user_item.department or "").strip()
+            if name in existing:
+                user_item.department_id = existing[name].id
+        db.commit()
+    finally:
+        db.close()
 
 
 def _migrate_site_banner_db():
@@ -165,6 +225,8 @@ def init_db():
     Path(settings.CONTRACTS_UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
     _migrate_users_db()
+    # New tables can reference columns added by the idempotent migration above.
+    Base.metadata.create_all(bind=engine)
     _migrate_site_banner_db()
 
     db = SessionLocal()
@@ -175,6 +237,7 @@ def init_db():
         seed_users(db)
     finally:
         db.close()
+    _seed_departments_from_users()
 
     contracts_db_path = settings.CONTRACTS_DATABASE_URL.replace("sqlite:///", "")
     Path(contracts_db_path).parent.mkdir(parents=True, exist_ok=True)
