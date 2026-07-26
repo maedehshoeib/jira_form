@@ -17,7 +17,9 @@ export default function DepartmentPage() {
     setLoadError(false);
 
     const token = localStorage.getItem("access_token");
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const headers: Record<string, string> = token
+      ? { Authorization: `Bearer ${token}` }
+      : {};
 
     fetch(`${API_BASE}/departments`, { headers })
       .then((res) => {
@@ -100,38 +102,39 @@ export default function DepartmentPage() {
 
   return (
     <AppShell>
-      <div className="mb-10 flex items-center justify-between">
-        <Link
-          to="/"
-          className="font-medium text-red-600 hover:text-red-700"
-        >
-          بازگشت
-        </Link>
+      <div className="rounded-[2rem] border border-slate-400/70 bg-gradient-to-br from-slate-300 via-slate-200 to-red-200/80 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_24px_60px_-32px_rgba(15,23,42,0.75)] sm:p-7 lg:p-9">
+        <div className="mb-10 flex items-center justify-between">
+          <Link
+            to="/"
+            className="font-medium text-red-600 hover:text-red-700"
+          >
+            بازگشت
+          </Link>
 
-        <div className="flex items-center gap-4">
-          {isBank && (
-            <img
-              src={bankLogo}
-              alt="بانک ملت"
-              className="h-14 object-contain"
-            />
-          )}
-          <h2 className="text-3xl font-bold">{pageTitle}</h2>
+          <div className="flex items-center gap-4">
+            {isBank && (
+              <img
+                src={bankLogo}
+                alt="بانک ملت"
+                className="h-14 object-contain"
+              />
+            )}
+            <h2 className="text-3xl font-bold">{pageTitle}</h2>
+          </div>
         </div>
-      </div>
 
-      {groupedChildren.length > 0 && (
-        <section className={department?.sections.length ? "mb-10" : ""}>
+        {groupedChildren.length > 0 && (
+          <section className={department?.sections.length ? "mb-10" : ""}>
           <div className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-500">
             <Building2 className="h-4 w-4 text-red-500" />
             زیرمجموعه‌های این واحد
           </div>
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             {groupedChildren.map((child) => {
               const Icon = childIcon[child.id] || Building2;
               return (
                 <Link key={child.id} to={childLink(child)}>
-                  <Card className="group h-full rounded-3xl border border-slate-100 bg-white shadow-sm transition-all hover:-translate-y-1 hover:border-red-100 hover:shadow-lg">
+                  <Card className="group h-full rounded-3xl border border-slate-300 bg-white shadow-[0_14px_32px_-18px_rgba(15,23,42,0.75)] transition-all hover:-translate-y-1 hover:border-red-200 hover:shadow-[0_22px_40px_-18px_rgba(127,29,29,0.6)]">
                     <CardContent className="flex items-center gap-4 p-6">
                       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-50 text-red-600">
                         <Icon className="h-6 w-6" />
@@ -151,13 +154,13 @@ export default function DepartmentPage() {
               );
             })}
           </div>
-        </section>
-      )}
+          </section>
+        )}
 
-      {isReports && (
-        <div className="mb-8">
+        {isReports && (
+          <div className="mb-8">
           <Link to="/reports/performance">
-            <Card className="rounded-3xl border border-red-100 bg-red-50/50 shadow-md transition hover:shadow-lg">
+            <Card className="rounded-3xl border border-red-200 bg-red-50 shadow-[0_14px_32px_-18px_rgba(127,29,29,0.6)] transition hover:-translate-y-1 hover:shadow-[0_22px_40px_-18px_rgba(127,29,29,0.7)]">
               <CardContent className="p-6 text-right">
                 <h3 className="text-lg font-bold text-slate-800">
                   مشاهده آخرین گزارش ثبت‌شده
@@ -168,10 +171,10 @@ export default function DepartmentPage() {
               </CardContent>
             </Card>
           </Link>
-        </div>
-      )}
+          </div>
+        )}
 
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-7 md:grid-cols-2 xl:grid-cols-3">
         {(department?.sections || []).map((s) => (
           <Link
             key={s.id}
@@ -181,15 +184,16 @@ export default function DepartmentPage() {
               className="
                 h-full
                 cursor-pointer
-                border-0
+                border
+                border-slate-300
                 rounded-3xl
                 bg-white/95
-                shadow-md
+                shadow-[0_16px_36px_-18px_rgba(15,23,42,0.8)]
                 transition-all
                 duration-300
                 hover:-translate-y-2
-                hover:shadow-xl
-                hover:shadow-red-100
+                hover:border-red-200
+                hover:shadow-[0_24px_46px_-18px_rgba(127,29,29,0.65)]
               "
             >
               <CardContent className="p-8 text-right">
@@ -206,6 +210,7 @@ export default function DepartmentPage() {
             </Card>
           </Link>
         ))}
+        </div>
       </div>
     </AppShell>
   );

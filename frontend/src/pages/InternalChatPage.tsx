@@ -1,5 +1,5 @@
-import AppShell from "../components/layout/AppShell";
+import ComingSoonPage from "../components/ComingSoonPage";
 
 export default function InternalChatPage() {
-  return <AppShell>{null}</AppShell>;
+  return <ComingSoonPage />;
 }
