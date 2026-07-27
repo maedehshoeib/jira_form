@@ -300,6 +300,59 @@ def my_summary(
     return _day_summary(db, user.id, normalize_digits(work_date))
 
 
+@router.get("/me/range-records")
+def my_range_records(
+    start_date: str = Query(...),
+    end_date: str = Query(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return the current user's attendance and tasks for one Jalali range."""
+    start = normalize_digits(start_date)
+    end = normalize_digits(end_date)
+    if end < start:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="تاریخ پایان باید بعد از تاریخ شروع باشد.",
+        )
+
+    attendance = (
+        db.query(TimesheetAttendance)
+        .filter(
+            TimesheetAttendance.user_id == user.id,
+            TimesheetAttendance.work_date >= start,
+            TimesheetAttendance.work_date <= end,
+        )
+        .order_by(
+            TimesheetAttendance.work_date,
+            TimesheetAttendance.check_in_time,
+            TimesheetAttendance.id,
+        )
+        .all()
+    )
+    tasks = (
+        db.query(TimesheetTask)
+        .filter(
+            TimesheetTask.user_id == user.id,
+            TimesheetTask.work_date >= start,
+            TimesheetTask.work_date <= end,
+        )
+        .order_by(
+            TimesheetTask.work_date,
+            TimesheetTask.start_time,
+            TimesheetTask.id,
+        )
+        .all()
+    )
+    return {
+        "employee_id": str(user.id),
+        "start_date": start,
+        "end_date": end,
+        "attendance": [_serialize_attendance(item) for item in attendance],
+        "tasks": [_serialize_task(item) for item in tasks],
+    }
+
+
 @router.get("/admin/day-records")
 def admin_day_records(
     work_date: str = Query(...),

@@ -16,12 +16,14 @@ export type DaySummary = {
 
 export type AttendanceSegment = {
   id: number;
+  work_date: string;
   check_in_time: string;
   check_out_time: string | null;
 };
 
 export type TaskItem = {
   id: number;
+  work_date: string;
   project_code: string;
   task_name: string;
   start_time: string;
@@ -40,6 +42,14 @@ export type ProjectItem = {
 export type DayTimeline = {
   employee_id: string;
   work_date: string;
+  attendance: AttendanceSegment[];
+  tasks: TaskItem[];
+};
+
+export type MyRangeRecords = {
+  employee_id: string;
+  start_date: string;
+  end_date: string;
   attendance: AttendanceSegment[];
   tasks: TaskItem[];
 };
@@ -136,6 +146,16 @@ export async function fetchSummary(workDate: string): Promise<DaySummary> {
 export async function fetchDayTimeline(workDate: string): Promise<DayTimeline> {
   const { data } = await client.get<DayTimeline>(`${base}/me/day/timeline`, {
     params: { work_date: workDate },
+  });
+  return data;
+}
+
+export async function fetchMyRangeRecords(
+  startDate: string,
+  endDate: string,
+): Promise<MyRangeRecords> {
+  const { data } = await client.get<MyRangeRecords>(`${base}/me/range-records`, {
+    params: { start_date: startDate, end_date: endDate },
   });
   return data;
 }
