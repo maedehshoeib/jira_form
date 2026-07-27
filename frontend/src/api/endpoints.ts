@@ -4,6 +4,7 @@ export const endpoints = {
   me: "/auth/me",
   profile: "/auth/profile",
   changePassword: "/auth/change-password",
+  chat: "/chat",
   departments: "/departments",
   banner: "/banner",
   pdfForms: "/pdf-forms",

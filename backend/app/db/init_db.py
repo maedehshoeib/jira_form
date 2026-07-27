@@ -12,6 +12,7 @@ from app.db.session import engine
 from app.db.session import SessionLocal
 from app.models import (  # noqa: F401
     admin_session,
+    chat,
     contract,
     department,
     form_template,
