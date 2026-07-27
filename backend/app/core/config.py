@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     ADMIN_PASSWORD: str = "Jethro@2003"
     ADMIN_MAX_DEVICES: int = 4
 
+    # Repeatable preview data used by both sides of the timesheet UI.
+    TIMESHEET_SEED_ENABLED: bool = True
+    TIMESHEET_DEMO_USERNAME: str = "ma.shoeib"
+
     # Jira ScriptRunner APIs
     JIRA_BASE_URL: str = "https://jira.vosouq.me"
     JIRA_ENABLED: bool = True

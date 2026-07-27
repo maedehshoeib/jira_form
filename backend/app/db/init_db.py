@@ -304,6 +304,14 @@ def init_db():
     finally:
         db.close()
     _seed_departments_from_users()
+    if settings.TIMESHEET_SEED_ENABLED:
+        # These seeders preserve existing rows and only create missing demo
+        # data. Run them after employees are available, on every server start.
+        from scripts.seed_timesheet_demo import seed as seed_timesheet_demo
+        from scripts.seed_user_timesheet_mock import seed as seed_user_timesheet
+
+        seed_timesheet_demo(initialize_database=False)
+        seed_user_timesheet(initialize_database=False)
     if not pdf_forms_table_existed:
         _seed_pdf_forms()
 

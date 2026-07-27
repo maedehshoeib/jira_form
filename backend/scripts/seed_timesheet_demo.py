@@ -141,8 +141,14 @@ def pick_employees(users: list[User]) -> list[User]:
     return [user for department in departments for user in grouped[department][:4]]
 
 
-def seed() -> dict[str, int | str]:
-    init_db()
+def seed(*, initialize_database: bool = True) -> dict[str, int | str]:
+    """Insert missing admin-dashboard demo rows.
+
+    ``initialize_database`` is disabled when this is called from ``init_db``
+    itself, preventing startup from recursively initializing the database.
+    """
+    if initialize_database:
+        init_db()
     rng = random.Random(14050505)
     db = SessionLocal()
     created_attendance = 0

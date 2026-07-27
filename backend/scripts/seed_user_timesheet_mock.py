@@ -35,6 +35,7 @@ os.environ.setdefault(
 
 from app.db.init_db import init_db  # noqa: E402
 from app.db.session import SessionLocal  # noqa: E402
+from app.core.config import settings  # noqa: E402
 from app.models.timesheet import (  # noqa: E402
     TimesheetAttendance,
     TimesheetProject,
@@ -43,7 +44,6 @@ from app.models.timesheet import (  # noqa: E402
 from app.models.user import User  # noqa: E402
 
 
-USERNAME = os.environ.get("TIMESHEET_DEMO_USERNAME", "ma.shoeib")
 PROJECTS = {
     "PORTAL": "پورتال خدمات سازمانی",
     "DATA": "داشبورد داده و گزارش",
@@ -153,8 +153,19 @@ def duration(start: str, end: str) -> int:
     return (end_hour * 60 + end_minute) - (start_hour * 60 + start_minute)
 
 
-def seed() -> dict[str, int | str]:
-    init_db()
+def seed(
+    *,
+    initialize_database: bool = True,
+    username: str | None = None,
+) -> dict[str, int | str]:
+    """Insert missing preview rows for ``TIMESHEET_DEMO_USERNAME``.
+
+    ``initialize_database`` is disabled when this is called from ``init_db``
+    itself, preventing startup from recursively initializing the database.
+    """
+    if initialize_database:
+        init_db()
+    target_username = (username or settings.TIMESHEET_DEMO_USERNAME).strip()
     db = SessionLocal()
     attendance_created = 0
     tasks_created = 0
@@ -162,11 +173,11 @@ def seed() -> dict[str, int | str]:
     try:
         user = (
             db.query(User)
-            .filter(User.username.ilike(USERNAME))
+            .filter(User.username.ilike(target_username))
             .one_or_none()
         )
         if user is None:
-            raise RuntimeError(f"User {USERNAME!r} was not found.")
+            raise RuntimeError(f"User {target_username!r} was not found.")
 
         for code, title in PROJECTS.items():
             project = db.get(TimesheetProject, code)
