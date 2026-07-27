@@ -15,10 +15,12 @@ from app.core.config import settings
 from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.submission import Submission
+from app.models.pdf_form import PdfForm
 from app.models.site_banner import SiteBanner, SiteBannerImage
 from app.models.user import User
 from app.schemas.admin import SiteBannerResponse
 from app.schemas.submission import SubmissionListItem, SubmissionResponse
+from app.schemas.pdf_form import PdfFormResponse
 from app.services.portal_service import DEPARTMENTS, FORM_TEMPLATES
 from app.services.form_access_service import allowed_target_keys, can_access_target
 from app.services.report_submission_service import (
@@ -32,6 +34,33 @@ router = APIRouter()
 @router.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+@router.get("/pdf-forms", response_model=list[PdfFormResponse])
+def list_pdf_forms(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    return db.query(PdfForm).order_by(PdfForm.created_at.desc(), PdfForm.id.desc()).all()
+
+
+@router.get("/pdf-forms/{form_id}/file")
+def get_pdf_form_file(
+    form_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    item = db.query(PdfForm).filter(PdfForm.id == form_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="فرم PDF یافت نشد.")
+    file_path = Path(item.file_path)
+    if not file_path.is_file():
+        raise HTTPException(status_code=404, detail="فایل PDF یافت نشد.")
+    return FileResponse(
+        file_path,
+        media_type="application/pdf",
+        filename=item.file_name,
+    )
 
 
 @router.get("/banner", response_model=SiteBannerResponse)

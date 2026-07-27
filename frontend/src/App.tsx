@@ -12,6 +12,7 @@ import ChangePasswordPage from "./pages/ChangePasswordPage";
 import ProfilePage from "./pages/ProfilePage";
 import TimeSheetPage from "./pages/TimeSheetPage";
 import InternalChatPage from "./pages/InternalChatPage";
+import PdfFormsPage from "./pages/PdfFormsPage";
 
 import ReportsHome from "./pages/reports/ReportsHome";
 import PerformanceReports from "./pages/reports/PerformanceReports";
@@ -105,6 +106,15 @@ export default function App() {
         element={
           <ProtectedRoute>
             <InternalChatPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/pdf-forms"
+        element={
+          <ProtectedRoute>
+            <PdfFormsPage />
           </ProtectedRoute>
         }
       />

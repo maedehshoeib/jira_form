@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import uuid
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -13,6 +13,7 @@ from app.db.session import get_db
 from app.models.admin_session import AdminSession
 from app.models.department import Department
 from app.models.form_template import DepartmentFormAccess, UserFormAccess
+from app.models.pdf_form import PdfForm
 from app.models.submission import Submission
 from app.models.site_banner import SiteBanner, SiteBannerImage
 from app.models.user import User
@@ -33,9 +34,79 @@ from app.schemas.admin import (
     SiteBannerResponse,
     SiteBannerUpdate,
 )
+from app.schemas.pdf_form import PdfFormResponse
 from app.services.form_access_service import access_catalog, parse_target_keys
 
 router = APIRouter()
+
+
+@router.get("/pdf-forms", response_model=list[PdfFormResponse])
+def list_pdf_forms(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    return db.query(PdfForm).order_by(PdfForm.created_at.desc(), PdfForm.id.desc()).all()
+
+
+@router.post("/pdf-forms", response_model=PdfFormResponse, status_code=201)
+async def upload_pdf_form(
+    title: str = Form(...),
+    description: str = Form(default=""),
+    pdf: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_admin_user),
+):
+    normalized_title = title.strip()
+    if not normalized_title:
+        raise HTTPException(status_code=422, detail="عنوان فرم الزامی است.")
+    if len(normalized_title) > 256 or len(description) > 2000:
+        raise HTTPException(status_code=422, detail="عنوان یا توضیحات فرم بیش از حد طولانی است.")
+
+    content = await pdf.read(20 * 1024 * 1024 + 1)
+    if len(content) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="حجم فایل PDF نباید بیشتر از ۲۰ مگابایت باشد.")
+    if not content.startswith(b"%PDF-"):
+        raise HTTPException(status_code=415, detail="فایل انتخاب‌شده باید با فرمت PDF باشد.")
+
+    forms_dir = (Path(settings.UPLOAD_DIR) / "forms").resolve()
+    forms_dir.mkdir(parents=True, exist_ok=True)
+    new_path = forms_dir / f"{uuid.uuid4().hex}.pdf"
+    new_path.write_bytes(content)
+
+    item = PdfForm(
+        title=normalized_title,
+        description=description.strip(),
+        file_path=str(new_path),
+        file_name=(pdf.filename or f"{normalized_title}.pdf")[:256],
+        file_size=len(content),
+        uploaded_by=current_user.username,
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+@router.delete("/pdf-forms/{form_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_pdf_form(
+    form_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    item = db.query(PdfForm).filter(PdfForm.id == form_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="فرم PDF یافت نشد.")
+
+    file_path = Path(item.file_path).resolve()
+    forms_dir = (Path(settings.UPLOAD_DIR) / "forms").resolve()
+    db.delete(item)
+    db.commit()
+
+    if file_path.parent == forms_dir and file_path.is_file():
+        try:
+            file_path.unlink()
+        except OSError:
+            pass
 
 
 def _get_banner(db: Session) -> SiteBanner:

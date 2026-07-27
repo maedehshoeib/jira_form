@@ -6,6 +6,7 @@ export const endpoints = {
   changePassword: "/auth/change-password",
   departments: "/departments",
   banner: "/banner",
+  pdfForms: "/pdf-forms",
   forms: "/forms",
   reports: "/reports",
   reportsPublic: "/reports/public",
@@ -21,4 +22,5 @@ export const endpoints = {
   adminFormAccessCatalog: "/admin/form-access/catalog",
   adminSessions: "/admin/sessions",
   adminBanner: "/admin/banner",
+  adminPdfForms: "/admin/pdf-forms",
 };

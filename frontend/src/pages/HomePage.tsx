@@ -51,6 +51,7 @@ const HOME_CARDS: HomeCard[] = [
     id: "forms",
     title: "فرم",
     description: "فرم‌های عمومی سازمان",
+    href: "/pdf-forms",
     icon: ClipboardCheck,
   },
   {

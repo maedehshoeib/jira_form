@@ -1,4 +1,5 @@
 from pathlib import Path
+import shutil
 
 from sqlalchemy import inspect, text
 
@@ -14,6 +15,7 @@ from app.models import (  # noqa: F401
     contract,
     department,
     form_template,
+    pdf_form,
     report,
     site_banner,
     submission,
@@ -23,6 +25,7 @@ from app.models import (  # noqa: F401
 from app.models.department import Department
 from app.models.user import User
 from app.models.site_banner import SiteBanner, SiteBannerImage
+from app.models.pdf_form import PdfForm
 
 
 def _migrate_contracts_db():
@@ -223,11 +226,47 @@ def _migrate_site_banner_db():
                 conn.execute(text(ddl))
 
 
+def _seed_pdf_forms():
+    """Add the bundled meeting-request PDF to new and existing installations."""
+    source_path = Path(__file__).resolve().parent.parent / "assets" / "forms" / "meeting-request.pdf"
+    if not source_path.is_file():
+        return
+
+    forms_dir = (Path(settings.UPLOAD_DIR) / "forms").resolve()
+    forms_dir.mkdir(parents=True, exist_ok=True)
+    destination = forms_dir / "meeting-request.pdf"
+    if not destination.is_file():
+        shutil.copy2(source_path, destination)
+
+    db = SessionLocal()
+    try:
+        existing = (
+            db.query(PdfForm)
+            .filter(PdfForm.file_name == "فرم درخواست جلسات.pdf")
+            .first()
+        )
+        if not existing:
+            db.add(
+                PdfForm(
+                    title="فرم درخواست جلسات",
+                    description="فرم ثبت و هماهنگی درخواست جلسه",
+                    file_path=str(destination),
+                    file_name="فرم درخواست جلسات.pdf",
+                    file_size=destination.stat().st_size,
+                    uploaded_by="system",
+                )
+            )
+            db.commit()
+    finally:
+        db.close()
+
+
 def init_db():
     db_path = settings.DATABASE_URL.replace("sqlite:///", "")
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
     Path(settings.CONTRACTS_UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
+    pdf_forms_table_existed = "pdf_forms" in inspect(engine).get_table_names()
     Base.metadata.create_all(bind=engine)
     _migrate_users_db()
     # New tables can reference columns added by the idempotent migration above.
@@ -265,6 +304,8 @@ def init_db():
     finally:
         db.close()
     _seed_departments_from_users()
+    if not pdf_forms_table_existed:
+        _seed_pdf_forms()
 
     contracts_db_path = settings.CONTRACTS_DATABASE_URL.replace("sqlite:///", "")
     Path(contracts_db_path).parent.mkdir(parents=True, exist_ok=True)
