@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
@@ -338,6 +339,97 @@ def admin_day_records(
                 "username": employee.username,
                 "full_name": employee.display_name or employee.username,
             }
+            for item, employee in tasks
+        ],
+    }
+
+
+@router.get("/admin/range-records")
+def admin_range_records(
+    start_date: str = Query(...),
+    end_date: str = Query(...),
+    employee_id: int | None = Query(default=None),
+    department: str | None = Query(default=None),
+    _: User = Depends(_require_timesheet_admin),
+    db: Session = Depends(get_db),
+):
+    """Return a complete timesheet report for a Jalali date range.
+
+    Dates are stored in normalized YYYY/MM/DD form, so lexical comparisons are
+    safe and avoid converting the organization's Jalali reporting dates.
+    """
+    start = normalize_digits(start_date)
+    end = normalize_digits(end_date)
+    if start > end:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="تاریخ شروع باید قبل از تاریخ پایان باشد.",
+        )
+
+    attendance_query = (
+        db.query(TimesheetAttendance, User)
+        .join(User, User.id == TimesheetAttendance.user_id)
+        .filter(
+            TimesheetAttendance.work_date >= start,
+            TimesheetAttendance.work_date <= end,
+        )
+    )
+    tasks_query = (
+        db.query(TimesheetTask, User)
+        .join(User, User.id == TimesheetTask.user_id)
+        .filter(
+            TimesheetTask.work_date >= start,
+            TimesheetTask.work_date <= end,
+        )
+    )
+
+    if employee_id is not None:
+        attendance_query = attendance_query.filter(User.id == employee_id)
+        tasks_query = tasks_query.filter(User.id == employee_id)
+    if department:
+        normalized_department = department.strip()
+        if normalized_department == "بدون واحد":
+            department_filter = or_(User.department == "", User.department.is_(None))
+        else:
+            department_filter = User.department == normalized_department
+        attendance_query = attendance_query.filter(department_filter)
+        tasks_query = tasks_query.filter(department_filter)
+
+    attendance = attendance_query.order_by(
+        TimesheetAttendance.work_date, User.display_name, TimesheetAttendance.check_in_time
+    ).all()
+    tasks = tasks_query.order_by(
+        TimesheetTask.work_date, User.display_name, TimesheetTask.start_time
+    ).all()
+    employees = (
+        db.query(User)
+        .filter(User.is_active.is_(True))
+        .order_by(User.display_name, User.username)
+        .all()
+    )
+
+    def employee_details(employee: User) -> dict:
+        return {
+            "employee_id": str(employee.id),
+            "username": employee.username,
+            "full_name": employee.display_name or employee.username,
+            "department": employee.department or "بدون واحد",
+            "job_title": employee.job_title or "",
+        }
+
+    return {
+        "start_date": start,
+        "end_date": end,
+        "employees": [employee_details(employee) for employee in employees],
+        "departments": sorted(
+            {employee.department or "بدون واحد" for employee in employees}
+        ),
+        "attendance": [
+            {**_serialize_attendance(item), **employee_details(employee)}
+            for item, employee in attendance
+        ],
+        "tasks": [
+            {**_serialize_task(item), **employee_details(employee)}
             for item, employee in tasks
         ],
     }

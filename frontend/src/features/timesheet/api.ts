@@ -49,6 +49,8 @@ export type AdminAttendanceRecord = {
   employee_id: string;
   username: string;
   full_name: string;
+  department: string;
+  job_title: string;
   work_date: string;
   check_in_time: string | null;
   check_out_time: string | null;
@@ -61,6 +63,8 @@ export type AdminTaskRecord = {
   employee_id: string;
   username: string;
   full_name: string;
+  department: string;
+  job_title: string;
   work_date: string;
   project_code: string;
   task_name: string;
@@ -72,6 +76,23 @@ export type AdminTaskRecord = {
 
 export type AdminDayRecords = {
   work_date: string;
+  attendance: AdminAttendanceRecord[];
+  tasks: AdminTaskRecord[];
+};
+
+export type TimesheetEmployee = {
+  employee_id: string;
+  username: string;
+  full_name: string;
+  department: string;
+  job_title: string;
+};
+
+export type AdminRangeRecords = {
+  start_date: string;
+  end_date: string;
+  employees: TimesheetEmployee[];
+  departments: string[];
   attendance: AdminAttendanceRecord[];
   tasks: AdminTaskRecord[];
 };
@@ -124,6 +145,23 @@ export async function fetchAdminDayRecords(
 ): Promise<AdminDayRecords> {
   const { data } = await client.get<AdminDayRecords>(`${base}/admin/day-records`, {
     params: { work_date: workDate },
+  });
+  return data;
+}
+
+export async function fetchAdminRangeRecords(params: {
+  startDate: string;
+  endDate: string;
+  employeeId?: string;
+  department?: string;
+}): Promise<AdminRangeRecords> {
+  const { data } = await client.get<AdminRangeRecords>(`${base}/admin/range-records`, {
+    params: {
+      start_date: params.startDate,
+      end_date: params.endDate,
+      employee_id: params.employeeId,
+      department: params.department,
+    },
   });
   return data;
 }

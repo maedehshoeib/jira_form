@@ -2,550 +2,698 @@ import { useEffect, useMemo, useState } from 'react';
 import DateObject from 'react-date-object';
 import persian from 'react-date-object/calendars/persian';
 import persian_fa from 'react-date-object/locales/persian_fa';
+import {
+  Activity,
+  ArrowRight,
+  BarChart3,
+  BriefcaseBusiness,
+  Building2,
+  CalendarDays,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  Download,
+  Filter,
+  Printer,
+  Search,
+  Sparkles,
+  Target,
+  TimerReset,
+  Users,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { adminCreateProject, adminDeleteProject, fetchAdminDayRecords, fetchAdminProjects, type AdminDayRecords, type ProjectItem } from '@/features/timesheet/api';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/features/timesheet/components/ui/card';
+import {
+  adminCreateProject,
+  adminDeleteProject,
+  fetchAdminProjects,
+  fetchAdminRangeRecords,
+  type AdminRangeRecords,
+  type ProjectItem,
+} from '@/features/timesheet/api';
 import { Button } from '@/features/timesheet/components/ui/button';
-import { Label } from '@/features/timesheet/components/ui/label';
 import { Input } from '@/features/timesheet/components/ui/input';
 import { JalaliDateTimePicker } from '@/features/timesheet/components/jalali-date-time-picker';
 import { Logo } from '@/features/timesheet/components/logo';
 
-function asPersianDate(value: DateObject | null): string {
-  if (value) return value.format('YYYY/MM/DD');
-  return new DateObject({ calendar: persian, locale: persian_fa }).format('YYYY/MM/DD');
+type ReportTab = 'employees' | 'tasks' | 'attendance';
+type PeriodPreset = 'today' | 'week' | 'month' | 'custom';
+
+const numberFormatter = new Intl.NumberFormat('fa-IR');
+
+function jalaliToday(): DateObject {
+  return new DateObject({ calendar: persian, locale: persian_fa });
 }
 
-export function AdminPanel(): JSX.Element {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const employeeId = user ? String(user.id) : null;
-  const fullName = user?.display_name || user?.username || null;
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+function asDate(value: DateObject): string {
+  return value.format('YYYY/MM/DD');
+}
+
+function formatMinutes(minutes: number): string {
+  const safeMinutes = Math.max(0, Math.round(minutes));
+  const hours = Math.floor(safeMinutes / 60);
+  const remainder = safeMinutes % 60;
+  if (!hours) return `${numberFormatter.format(remainder)} دقیقه`;
+  if (!remainder) return `${numberFormatter.format(hours)} ساعت`;
+  return `${numberFormatter.format(hours)} س ${numberFormatter.format(remainder)} د`;
+}
+
+function durationMinutes(start: string | null, end: string | null, workDate?: string): number {
+  if (!start) return 0;
+  if (!end && workDate && workDate !== asDate(jalaliToday())) return 0;
+  const [startHour, startMinute] = start.split(':').map(Number);
+  const [endHour, endMinute] = (end || new Date().toTimeString().slice(0, 5)).split(':').map(Number);
+  return Math.max(0, endHour * 60 + endMinute - startHour * 60 - startMinute);
+}
+
+function escapeCsv(value: string | number): string {
+  return `"${String(value).replace(/"/g, '""')}"`;
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  children,
+  icon,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  children: React.ReactNode;
+  icon: React.ReactNode;
+}): JSX.Element {
+  return (
+    <label className='block min-w-0'>
+      <span className='mb-1.5 block text-xs font-bold text-slate-500'>{label}</span>
+      <span className='relative block'>
+        <span className='pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400'>{icon}</span>
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className='h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pr-10 pl-9 text-sm font-medium text-slate-700 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100'
+        >
+          {children}
+        </select>
+        <ChevronDown className='pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400' />
+      </span>
+    </label>
+  );
+}
+
+function MetricCard({
+  label,
+  value,
+  hint,
+  icon,
+  tone,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+  icon: React.ReactNode;
+  tone: 'cyan' | 'violet' | 'amber' | 'emerald';
+}): JSX.Element {
+  const tones = {
+    cyan: 'bg-cyan-50 text-cyan-700 ring-cyan-100',
+    violet: 'bg-violet-50 text-violet-700 ring-violet-100',
+    amber: 'bg-amber-50 text-amber-700 ring-amber-100',
+    emerald: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
   };
-  const [selectedDate, setSelectedDate] = useState<DateObject | null>(null);
-  const [records, setRecords] = useState<AdminDayRecords | null>(null);
-  const [projects, setProjects] = useState<ProjectItem[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [status, setStatus] = useState<string>('');
-  const [error, setError] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'all' | 'employee' | 'project'>('all');
-  const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
-  const [selectedProject, setSelectedProject] = useState<string>('all');
-  const [searchText, setSearchText] = useState('');
-  const [minMinutes, setMinMinutes] = useState<string>('');
+  return (
+    <article className='rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_30px_rgba(15,23,42,0.04)]'>
+      <div className='flex items-start justify-between gap-3'>
+        <div>
+          <p className='text-xs font-semibold text-slate-500'>{label}</p>
+          <p className='mt-2 text-2xl font-black tracking-tight text-slate-900'>{value}</p>
+          <p className='mt-1 text-[11px] text-slate-400'>{hint}</p>
+        </div>
+        <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ring-1 ${tones[tone]}`}>{icon}</span>
+      </div>
+    </article>
+  );
+}
 
-  const [projectCode, setProjectCode] = useState('');
-  const [projectTitle, setProjectTitle] = useState('');
-  const [projectListSearch, setProjectListSearch] = useState('');
+function TrendChart({
+  data,
+}: {
+  data: Array<{ date: string; attendance: number; tasks: number }>;
+}): JSX.Element {
+  const visible = data.slice(-14);
+  const max = Math.max(...visible.flatMap((item) => [item.attendance, item.tasks]), 60);
+  const width = 720;
+  const height = 210;
+  const padding = 22;
+  const x = (index: number) => visible.length <= 1 ? width / 2 : padding + index * ((width - padding * 2) / (visible.length - 1));
+  const y = (value: number) => height - padding - (value / max) * (height - padding * 2);
+  const taskPoints = visible.map((item, index) => `${x(index)},${y(item.tasks)}`).join(' ');
+  const attendancePoints = visible.map((item, index) => `${x(index)},${y(item.attendance)}`).join(' ');
 
-  const effectiveDate = useMemo(() => asPersianDate(selectedDate), [selectedDate]);
-  const employees = useMemo(() => {
-    const map = new Map<string, string>();
-    (records?.attendance || []).forEach((row) => {
-      map.set(row.employee_id, row.full_name || row.employee_id);
-    });
-    (records?.tasks || []).forEach((row) => {
-      map.set(row.employee_id, row.full_name || row.employee_id);
-    });
-    return Array.from(map.entries())
-      .map(([employee_id, full_name]) => ({ employee_id, full_name }))
-      .sort((a, b) => a.full_name.localeCompare(b.full_name));
-  }, [records]);
-
-  const projectFilterOptions = useMemo(() => {
-    const set = new Set<string>();
-    projects.forEach((p) => set.add(p.code));
-    (records?.tasks || []).forEach((t) => set.add(t.project_code));
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [projects, records]);
-
-
-  const filteredProjectList = useMemo(() => {
-    const q = projectListSearch.trim().toLowerCase();
-    if (!q) return projects;
-    return projects.filter((p) => {
-      return (
-        p.code.toLowerCase().includes(q)
-        || (p.title || '').toLowerCase().includes(q)
-      );
-    });
-  }, [projects, projectListSearch]);
-
-  const filteredTasks = useMemo(() => {
-    let rows = [...(records?.tasks || [])];
-
-    if (selectedEmployee !== 'all') {
-      rows = rows.filter((r) => r.employee_id === selectedEmployee);
-    }
-    if (selectedProject !== 'all') {
-      rows = rows.filter((r) => r.project_code === selectedProject);
-    }
-
-    const minValue = Number(minMinutes || '0');
-    if (!Number.isNaN(minValue) && minValue > 0) {
-      rows = rows.filter((r) => r.minutes_spent >= minValue);
-    }
-
-    const q = searchText.trim().toLowerCase();
-    if (q) {
-      rows = rows.filter((r) => {
-        return (
-          (r.full_name || '').toLowerCase().includes(q)
-          || r.employee_id.toLowerCase().includes(q)
-          || r.project_code.toLowerCase().includes(q)
-          || r.task_name.toLowerCase().includes(q)
-        );
-      });
-    }
-
-    return rows;
-  }, [records, selectedEmployee, selectedProject, minMinutes, searchText]);
-
-  const filteredAttendance = useMemo(() => {
-    let rows = [...(records?.attendance || [])];
-    if (selectedEmployee !== 'all') {
-      rows = rows.filter((r) => r.employee_id === selectedEmployee);
-    }
-    return rows;
-  }, [records, selectedEmployee]);
-
-  const employeeSummary = useMemo(() => {
-    const attendanceMinutesByEmployee = new Map<string, number>();
-    const taskMinutesByEmployee = new Map<string, number>();
-    const nameByEmployee = new Map<string, string>();
-
-    filteredAttendance.forEach((row) => {
-      nameByEmployee.set(row.employee_id, row.full_name || row.employee_id);
-      if (!row.check_in_time || !row.check_out_time) return;
-      const inParts = row.check_in_time.split(':').map(Number);
-      const outParts = row.check_out_time.split(':').map(Number);
-      if (inParts.length !== 2 || outParts.length !== 2) return;
-      const inMin = inParts[0] * 60 + inParts[1];
-      const outMin = outParts[0] * 60 + outParts[1];
-      if (outMin >= inMin) {
-        attendanceMinutesByEmployee.set(
-          row.employee_id,
-          (attendanceMinutesByEmployee.get(row.employee_id) || 0) + (outMin - inMin)
-        );
-      }
-    });
-
-    filteredTasks.forEach((row) => {
-      nameByEmployee.set(row.employee_id, row.full_name || row.employee_id);
-      taskMinutesByEmployee.set(
-        row.employee_id,
-        (taskMinutesByEmployee.get(row.employee_id) || 0) + row.minutes_spent
-      );
-    });
-
-    const allEmployees = new Set<string>([
-      ...Array.from(attendanceMinutesByEmployee.keys()),
-      ...Array.from(taskMinutesByEmployee.keys()),
-      ...Array.from(nameByEmployee.keys()),
-    ]);
-
-    return Array.from(allEmployees)
-      .map((employee_id) => {
-        const attendance_minutes = attendanceMinutesByEmployee.get(employee_id) || 0;
-        const task_minutes = taskMinutesByEmployee.get(employee_id) || 0;
-        const efficiency = attendance_minutes > 0 ? Math.round((task_minutes / attendance_minutes) * 100) : 0;
-        return {
-          employee_id,
-          full_name: nameByEmployee.get(employee_id) || employee_id,
-          attendance_minutes,
-          task_minutes,
-          efficiency,
-        };
-      })
-      .sort((a, b) => b.task_minutes - a.task_minutes);
-  }, [filteredAttendance, filteredTasks]);
-
-  const projectSummary = useMemo(() => {
-    const grouped = new Map<string, { project_code: string; minutes: number; tasks: number; employees: Set<string> }>();
-    filteredTasks.forEach((row) => {
-      const current = grouped.get(row.project_code) || { project_code: row.project_code, minutes: 0, tasks: 0, employees: new Set<string>() };
-      current.minutes += row.minutes_spent;
-      current.tasks += 1;
-      current.employees.add(row.employee_id);
-      grouped.set(row.project_code, current);
-    });
-    return Array.from(grouped.values()).map((x) => ({
-      project_code: x.project_code,
-      minutes: x.minutes,
-      tasks: x.tasks,
-      employees: x.employees.size,
-    })).sort((a, b) => b.minutes - a.minutes);
-  }, [filteredTasks]);
-
-  const analytics = useMemo(() => {
-    const totalTaskMinutes = filteredTasks.reduce((sum, row) => sum + row.minutes_spent, 0);
-    const activeEmployees = new Set(filteredTasks.map((row) => row.employee_id)).size;
-    const avgTaskMinutes = filteredTasks.length > 0 ? Math.round(totalTaskMinutes / filteredTasks.length) : 0;
-    return {
-      totalTaskMinutes,
-      activeEmployees,
-      taskCount: filteredTasks.length,
-      avgTaskMinutes,
-    };
-  }, [filteredTasks]);
-
-  async function loadProjects(): Promise<void> {
-    try {
-      const rows = await fetchAdminProjects();
-      setProjects(rows);
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-
-  async function loadRecords(workDate: string): Promise<void> {
-    setLoading(true);
-    setError('');
-    try {
-      const next = await fetchAdminDayRecords(workDate);
-      setRecords(next);
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || 'خطا در دریافت اطلاعات روزانه')
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    loadRecords(effectiveDate);
-    loadProjects();
-  }, []);
-
-  useEffect(() => {
-    if (selectedProject !== 'all' && !projectFilterOptions.includes(selectedProject)) {
-      setSelectedProject('all');
-    }
-  }, [projectFilterOptions, selectedProject]);
-
-  useEffect(() => {
-    if (selectedEmployee !== 'all' && !employees.some((e) => e.employee_id === selectedEmployee)) {
-      setSelectedEmployee('all');
-    }
-  }, [employees, selectedEmployee]);
-
-  async function handleCreateProject(): Promise<void> {
-    setError('');
-    setStatus('');
-    if (!projectCode.trim()) {
-      setError('کد پروژه الزامی است.');
-      return;
-    }
-
-    try {
-      await adminCreateProject({ code: projectCode.trim(), title: projectTitle.trim() || undefined });
-      setStatus('پروژه جدید با موفقیت ایجاد شد.');
-      setProjectCode('');
-      setProjectTitle('');
-      await loadProjects();
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || 'خطا در ایجاد پروژه جدید');
-    }
-  }
-
-  async function handleDeleteProject(project: ProjectItem): Promise<void> {
-    setError('');
-    setStatus('');
-    const accepted = window.confirm(`آیا از حذف پروژه ${project.code} مطمئن هستید؟ تسک های وابسته به GENERAL منتقل می شوند.`);
-    if (!accepted) return;
-
-    try {
-      const result = await adminDeleteProject(project.code);
-      setStatus(`پروژه حذف شد. تعداد ${result.reassigned_tasks} تسک به GENERAL منتقل شد.`);
-      await Promise.all([loadProjects(), loadRecords(effectiveDate)]);
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || 'خطا در حذف پروژه');
-    }
+  if (!visible.length) {
+    return <div className='grid h-64 place-items-center text-sm text-slate-400'>برای این بازه داده‌ای ثبت نشده است.</div>;
   }
 
   return (
-    <div className='min-h-screen bg-zinc-100 p-4 font-timesheet dark:bg-zinc-900 sm:p-8' dir='rtl'>
-      <div className='mx-auto max-w-7xl space-y-6'>
-        <Logo />
-        <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
-          <div>
-            <h1 className='text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100'>پنل ادمین</h1>
-            <p className='mt-1 text-sm text-zinc-600 dark:text-zinc-400'>مانیتورینگ حضور و غیاب، تسک‌ها و پروژه‌ها</p>
+    <div className='mt-4'>
+      <svg viewBox={`0 0 ${width} ${height}`} className='h-56 w-full overflow-visible' role='img' aria-label='روند حضور و کار ثبت‌شده'>
+        {[0.25, 0.5, 0.75, 1].map((ratio) => (
+          <line key={ratio} x1={padding} x2={width - padding} y1={y(max * ratio)} y2={y(max * ratio)} stroke='#e2e8f0' strokeDasharray='4 6' />
+        ))}
+        <polyline points={attendancePoints} fill='none' stroke='#cbd5e1' strokeWidth='3' strokeLinecap='round' strokeLinejoin='round' />
+        <polyline points={taskPoints} fill='none' stroke='#0891b2' strokeWidth='4' strokeLinecap='round' strokeLinejoin='round' />
+        {visible.map((item, index) => (
+          <g key={item.date}>
+            <circle cx={x(index)} cy={y(item.tasks)} r='4' fill='#fff' stroke='#0891b2' strokeWidth='3'>
+              <title>{`${item.date}: ${formatMinutes(item.tasks)}`}</title>
+            </circle>
+            {(visible.length <= 8 || index % 2 === 0) && (
+              <text x={x(index)} y={height + 2} textAnchor='middle' className='fill-slate-400 text-[10px]'>
+                {item.date.slice(5)}
+              </text>
+            )}
+          </g>
+        ))}
+      </svg>
+      <div className='flex flex-wrap items-center gap-5 text-xs font-semibold text-slate-500'>
+        <span className='flex items-center gap-2'><i className='h-2.5 w-2.5 rounded-full bg-cyan-600' />زمان تسک‌ها</span>
+        <span className='flex items-center gap-2'><i className='h-2.5 w-2.5 rounded-full bg-slate-300' />زمان حضور</span>
+      </div>
+    </div>
+  );
+}
+
+export function AdminPanel(): JSX.Element {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const today = useMemo(() => jalaliToday(), []);
+  const [startDate, setStartDate] = useState<DateObject>(new DateObject(today).subtract(6, 'days'));
+  const [endDate, setEndDate] = useState<DateObject>(new DateObject(today));
+  const [preset, setPreset] = useState<PeriodPreset>('week');
+  const [selectedEmployee, setSelectedEmployee] = useState('all');
+  const [selectedDepartment, setSelectedDepartment] = useState('all');
+  const [selectedProject, setSelectedProject] = useState('all');
+  const [records, setRecords] = useState<AdminRangeRecords | null>(null);
+  const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
+  const [reportTab, setReportTab] = useState<ReportTab>('employees');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [showProjects, setShowProjects] = useState(false);
+  const [projectCode, setProjectCode] = useState('');
+  const [projectTitle, setProjectTitle] = useState('');
+  const [projectListSearch, setProjectListSearch] = useState('');
+  const fullName = user?.display_name || user?.username || 'مدیر سیستم';
+
+  const applyPreset = (nextPreset: PeriodPreset) => {
+    setPreset(nextPreset);
+    if (nextPreset === 'custom') return;
+    const nextEnd = jalaliToday();
+    const days = nextPreset === 'today' ? 0 : nextPreset === 'week' ? 6 : 29;
+    setEndDate(nextEnd);
+    setStartDate(new DateObject(nextEnd).subtract(days, 'days'));
+  };
+
+  const loadRecords = async () => {
+    const start = asDate(startDate);
+    const end = asDate(endDate);
+    if (start > end) {
+      setError('تاریخ شروع نمی‌تواند بعد از تاریخ پایان باشد.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const next = await fetchAdminRangeRecords({
+        startDate: start,
+        endDate: end,
+        employeeId: selectedEmployee === 'all' ? undefined : selectedEmployee,
+        department: selectedDepartment === 'all' ? undefined : selectedDepartment,
+      });
+      setRecords(next);
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || 'دریافت گزارش با خطا روبه‌رو شد.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadRecords();
+    void fetchAdminProjects().then(setProjects).catch(() => undefined);
+  }, []);
+
+  const availableEmployees = useMemo(() => {
+    const rows = records?.employees || [];
+    return selectedDepartment === 'all' ? rows : rows.filter((item) => item.department === selectedDepartment);
+  }, [records, selectedDepartment]);
+
+  const filteredTasks = useMemo(() => {
+    const normalizedQuery = query.trim().toLocaleLowerCase('fa');
+    return (records?.tasks || []).filter((row) => {
+      if (selectedProject !== 'all' && row.project_code !== selectedProject) return false;
+      if (!normalizedQuery) return true;
+      return [row.full_name, row.username, row.department, row.project_code, row.task_name, row.work_date]
+        .some((value) => value.toLocaleLowerCase('fa').includes(normalizedQuery));
+    });
+  }, [records, selectedProject, query]);
+
+  const filteredAttendance = useMemo(() => {
+    const normalizedQuery = query.trim().toLocaleLowerCase('fa');
+    return (records?.attendance || []).filter((row) => {
+      if (!normalizedQuery) return true;
+      return [row.full_name, row.username, row.department, row.work_date]
+        .some((value) => value.toLocaleLowerCase('fa').includes(normalizedQuery));
+    });
+  }, [records, query]);
+
+  const employeeRows = useMemo(() => {
+    const attendance = new Map<string, number>();
+    const taskMinutes = new Map<string, number>();
+    const taskCounts = new Map<string, number>();
+    const activeDays = new Map<string, Set<string>>();
+    filteredAttendance.forEach((row) => {
+      attendance.set(row.employee_id, (attendance.get(row.employee_id) || 0) + durationMinutes(row.check_in_time, row.check_out_time, row.work_date));
+      const days = activeDays.get(row.employee_id) || new Set<string>();
+      days.add(row.work_date);
+      activeDays.set(row.employee_id, days);
+    });
+    filteredTasks.forEach((row) => {
+      taskMinutes.set(row.employee_id, (taskMinutes.get(row.employee_id) || 0) + row.minutes_spent);
+      taskCounts.set(row.employee_id, (taskCounts.get(row.employee_id) || 0) + 1);
+    });
+    let directory = availableEmployees;
+    if (selectedEmployee !== 'all') directory = directory.filter((item) => item.employee_id === selectedEmployee);
+    return directory.map((employee) => {
+      const presence = attendance.get(employee.employee_id) || 0;
+      const tracked = taskMinutes.get(employee.employee_id) || 0;
+      return {
+        ...employee,
+        attendance: presence,
+        tracked,
+        untracked: Math.max(0, presence - tracked),
+        tasks: taskCounts.get(employee.employee_id) || 0,
+        activeDays: activeDays.get(employee.employee_id)?.size || 0,
+        efficiency: presence ? Math.round((tracked / presence) * 100) : 0,
+      };
+    }).sort((a, b) => b.tracked - a.tracked);
+  }, [availableEmployees, filteredAttendance, filteredTasks, selectedEmployee]);
+
+  const visibleEmployeeRows = useMemo(() => {
+    const normalizedQuery = query.trim().toLocaleLowerCase('fa');
+    if (!normalizedQuery) return employeeRows;
+    return employeeRows.filter((row) =>
+      [row.full_name, row.username, row.department, row.job_title]
+        .some((value) => value.toLocaleLowerCase('fa').includes(normalizedQuery)),
+    );
+  }, [employeeRows, query]);
+
+  const dailyTrend = useMemo(() => {
+    const dates = new Map<string, { date: string; attendance: number; tasks: number }>();
+    filteredAttendance.forEach((row) => {
+      const item = dates.get(row.work_date) || { date: row.work_date, attendance: 0, tasks: 0 };
+      item.attendance += durationMinutes(row.check_in_time, row.check_out_time, row.work_date);
+      dates.set(row.work_date, item);
+    });
+    filteredTasks.forEach((row) => {
+      const item = dates.get(row.work_date) || { date: row.work_date, attendance: 0, tasks: 0 };
+      item.tasks += row.minutes_spent;
+      dates.set(row.work_date, item);
+    });
+    return Array.from(dates.values()).sort((a, b) => a.date.localeCompare(b.date));
+  }, [filteredAttendance, filteredTasks]);
+
+  const projectRows = useMemo(() => {
+    const map = new Map<string, { code: string; minutes: number; tasks: number; employees: Set<string> }>();
+    filteredTasks.forEach((row) => {
+      const item = map.get(row.project_code) || { code: row.project_code, minutes: 0, tasks: 0, employees: new Set<string>() };
+      item.minutes += row.minutes_spent;
+      item.tasks += 1;
+      item.employees.add(row.employee_id);
+      map.set(row.project_code, item);
+    });
+    return Array.from(map.values()).sort((a, b) => b.minutes - a.minutes);
+  }, [filteredTasks]);
+
+  const analytics = useMemo(() => {
+    const attendance = filteredAttendance.reduce((sum, row) => sum + durationMinutes(row.check_in_time, row.check_out_time, row.work_date), 0);
+    const tracked = filteredTasks.reduce((sum, row) => sum + row.minutes_spent, 0);
+    return {
+      attendance,
+      tracked,
+      efficiency: attendance ? Math.round((tracked / attendance) * 100) : 0,
+      activeEmployees: new Set([...filteredAttendance.map((row) => row.employee_id), ...filteredTasks.map((row) => row.employee_id)]).size,
+      openAttendance: filteredAttendance.filter((row) => !row.check_out_time).length,
+    };
+  }, [filteredAttendance, filteredTasks]);
+
+  const maxProjectMinutes = Math.max(projectRows[0]?.minutes || 0, 1);
+  const filteredProjectList = projects.filter((item) =>
+    `${item.code} ${item.title}`.toLocaleLowerCase('fa').includes(projectListSearch.trim().toLocaleLowerCase('fa')),
+  );
+
+  const activeRowCount = reportTab === 'employees'
+    ? visibleEmployeeRows.length
+    : reportTab === 'tasks'
+      ? filteredTasks.length
+      : filteredAttendance.length;
+  const pageCount = Math.max(1, Math.ceil(activeRowCount / pageSize));
+  const safePage = Math.min(page, pageCount);
+  const pageStart = (safePage - 1) * pageSize;
+  const pageEnd = Math.min(pageStart + pageSize, activeRowCount);
+  const pagedEmployees = visibleEmployeeRows.slice(pageStart, pageEnd);
+  const pagedTasks = filteredTasks.slice(pageStart, pageEnd);
+  const pagedAttendance = filteredAttendance.slice(pageStart, pageEnd);
+
+  useEffect(() => {
+    setPage(1);
+  }, [
+    reportTab,
+    query,
+    selectedProject,
+    selectedEmployee,
+    selectedDepartment,
+    records?.start_date,
+    records?.end_date,
+    pageSize,
+  ]);
+
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
+
+  const exportCsv = () => {
+    const header = ['تاریخ', 'کارمند', 'واحد', 'پروژه', 'شرح فعالیت', 'شروع', 'پایان', 'مدت (دقیقه)'];
+    const rows = filteredTasks.map((row) => [
+      row.work_date, row.full_name, row.department, row.project_code, row.task_name, row.start_time, row.end_time, row.minutes_spent,
+    ]);
+    const csv = `\uFEFF${[header, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\n')}`;
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `timesheet-${asDate(startDate)}-${asDate(endDate)}.csv`.replaceAll('/', '-');
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const createProject = async () => {
+    if (!projectCode.trim()) return;
+    try {
+      await adminCreateProject({ code: projectCode.trim(), title: projectTitle.trim() || undefined });
+      setProjectCode('');
+      setProjectTitle('');
+      setProjects(await fetchAdminProjects());
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || 'ایجاد پروژه با خطا روبه‌رو شد.');
+    }
+  };
+
+  const deleteProject = async (project: ProjectItem) => {
+    if (!window.confirm(`پروژه ${project.code} حذف شود؟`)) return;
+    try {
+      await adminDeleteProject(project.code);
+      setProjects(await fetchAdminProjects());
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || 'حذف پروژه با خطا روبه‌رو شد.');
+    }
+  };
+
+  return (
+    <div className='min-h-screen bg-[#f5f7fb] font-sans text-slate-900' dir='rtl'>
+      <header className='no-print border-b border-slate-200/80 bg-white/90 backdrop-blur'>
+        <div className='mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-4 sm:px-7'>
+          <div className='flex items-center gap-5'>
+            <Logo />
+            <span className='hidden h-8 w-px bg-slate-200 sm:block' />
+            <div className='hidden sm:block'>
+              <p className='text-sm font-black text-slate-800'>مرکز کنترل تایم‌شیت</p>
+              <p className='text-[11px] text-slate-400'>گزارش مدیریتی حضور و عملکرد</p>
+            </div>
           </div>
           <div className='flex items-center gap-2'>
-            <span className='rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200'>
-              {fullName || employeeId}
-            </span>
-            <Button variant='outline' onClick={handleLogout}>خروج</Button>
+            <div className='hidden rounded-xl bg-slate-50 px-3 py-2 text-left sm:block'>
+              <p className='text-xs font-bold text-slate-700'>{fullName}</p>
+              <p className='text-[10px] text-slate-400'>مدیر تایم‌شیت</p>
+            </div>
+            <Button variant='outline' size='sm' onClick={() => navigate('/')} className='gap-2'>
+              <ArrowRight className='h-4 w-4' /> بازگشت
+            </Button>
           </div>
         </div>
+      </header>
 
-        {error && <div className='rounded-lg border border-red-200 bg-red-100 p-3 text-sm font-semibold text-red-800 dark:border-red-800 dark:bg-red-900/30 dark:text-red-200'>{error}</div>}
-        {status && <div className='rounded-lg border border-green-200 bg-green-100 p-3 text-sm font-semibold text-green-800 dark:border-green-800 dark:bg-green-900/30 dark:text-green-200'>{status}</div>}
+      <main id='timesheet-report' className='mx-auto max-w-[1500px] space-y-5 px-4 py-6 sm:px-7'>
+        <section className='flex flex-col justify-between gap-4 lg:flex-row lg:items-end'>
+          <div>
+            <div className='mb-2 flex items-center gap-2 text-xs font-bold text-cyan-700'>
+              <Sparkles className='h-4 w-4' /> نمای مدیریتی
+            </div>
+            <h1 className='text-2xl font-black tracking-tight text-slate-950 sm:text-3xl'>گزارش جامع زمان و عملکرد</h1>
+            <p className='mt-2 text-sm text-slate-500'>وضعیت کارکنان، واحدها و پروژه‌ها را در یک نگاه بررسی کنید.</p>
+          </div>
+          <div className='no-print flex flex-wrap gap-2'>
+            <Button variant='outline' onClick={() => setShowProjects((value) => !value)} className='gap-2 bg-white'>
+              <BriefcaseBusiness className='h-4 w-4' /> مدیریت پروژه‌ها
+            </Button>
+            <Button variant='outline' onClick={() => window.print()} className='gap-2 bg-white'>
+              <Printer className='h-4 w-4' /> چاپ
+            </Button>
+            <Button variant='outline' onClick={exportCsv} className='gap-2 bg-white'>
+              <Download className='h-4 w-4' /> خروجی CSV
+            </Button>
+          </div>
+        </section>
 
-        <div className='grid grid-cols-1 gap-6 lg:grid-cols-3'>
-          <Card className='shadow-sm dark:bg-zinc-800 lg:col-span-1'>
-            <CardHeader>
-              <CardTitle>مدیریت پروژه‌ها</CardTitle>
-              <CardDescription>ایجاد، جستجو و حذف پروژه‌های تایم شیت</CardDescription>
-            </CardHeader>
-            <CardContent className='space-y-4'>
-              <div className='space-y-2'>
-                <h3 className='text-sm font-bold text-zinc-700 dark:text-zinc-300'>افزودن پروژه</h3>
-                <div className='space-y-1'>
-                  <Label>کد پروژه</Label>
-                  <Input value={projectCode} onChange={(e) => setProjectCode(e.target.value.toUpperCase())} placeholder='PRJ-001' />
-                </div>
-                <div className='space-y-1'>
-                  <Label>عنوان پروژه (اختیاری)</Label>
-                  <Input value={projectTitle} onChange={(e) => setProjectTitle(e.target.value)} placeholder='عنوان پروژه' />
-                </div>
-                <Button variant='outline' className='w-full' onClick={handleCreateProject}>ایجاد پروژه</Button>
-                <Input
-                  value={projectListSearch}
-                  onChange={(e) => setProjectListSearch(e.target.value)}
-                  placeholder='جستجو پروژه: کد یا عنوان'
-                />
-                <div className='max-h-44 overflow-y-auto rounded-lg border border-zinc-200 dark:border-zinc-700'>
-                  <table className='w-full text-xs'>
-                    <thead className='bg-zinc-50 dark:bg-zinc-700/50'>
-                      <tr>
-                        <th className='p-2 text-right'>کد</th>
-                        <th className='p-2 text-right'>عنوان</th>
-                        <th className='p-2 text-right'>عملیات</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredProjectList.map((p) => (
-                        <tr key={p.code} className='border-t border-zinc-100 dark:border-zinc-700'>
-                          <td className='p-2 font-mono'>{p.code}</td>
-                          <td className='p-2'>{p.title || p.code}</td>
-                          <td className='p-2'>
-                            <Button
-                              size='sm'
-                              variant='outline'
-                              className='h-8 border-red-300 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/30'
-                              onClick={() => handleDeleteProject(p)}
-                              disabled={p.code === 'GENERAL'}
-                            >
-                              حذف
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+        {error && <div className='no-print rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700'>{error}</div>}
+
+        <section className='no-print rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.04)]'>
+          <div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
+            <div className='flex items-center gap-2 text-sm font-black text-slate-800'><Filter className='h-4 w-4 text-cyan-600' /> فیلتر گزارش</div>
+            <div className='flex rounded-xl bg-slate-100 p-1'>
+              {([
+                ['today', 'امروز'],
+                ['week', '۷ روز'],
+                ['month', '۳۰ روز'],
+                ['custom', 'دلخواه'],
+              ] as Array<[PeriodPreset, string]>).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => applyPreset(value)}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${preset === value ? 'bg-white text-cyan-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className='grid gap-3 md:grid-cols-2 xl:grid-cols-6'>
+            <label>
+              <span className='mb-1.5 block text-xs font-bold text-slate-500'>از تاریخ</span>
+              <JalaliDateTimePicker value={startDate} onChange={(value: any) => { setStartDate(value); setPreset('custom'); }} format='YYYY/MM/DD' placeholder='تاریخ شروع' />
+            </label>
+            <label>
+              <span className='mb-1.5 block text-xs font-bold text-slate-500'>تا تاریخ</span>
+              <JalaliDateTimePicker value={endDate} onChange={(value: any) => { setEndDate(value); setPreset('custom'); }} format='YYYY/MM/DD' placeholder='تاریخ پایان' />
+            </label>
+            <SelectField label='واحد سازمانی' value={selectedDepartment} onChange={(value) => { setSelectedDepartment(value); setSelectedEmployee('all'); }} icon={<Building2 className='h-4 w-4' />}>
+              <option value='all'>همه واحدها</option>
+              {(records?.departments || []).map((department) => <option key={department} value={department}>{department}</option>)}
+            </SelectField>
+            <SelectField label='کارمند' value={selectedEmployee} onChange={setSelectedEmployee} icon={<Users className='h-4 w-4' />}>
+              <option value='all'>همه کارکنان</option>
+              {availableEmployees.map((employee) => <option key={employee.employee_id} value={employee.employee_id}>{employee.full_name}</option>)}
+            </SelectField>
+            <SelectField label='پروژه' value={selectedProject} onChange={setSelectedProject} icon={<BriefcaseBusiness className='h-4 w-4' />}>
+              <option value='all'>همه پروژه‌ها</option>
+              {projects.map((project) => <option key={project.code} value={project.code}>{project.title || project.code}</option>)}
+            </SelectField>
+            <Button onClick={() => void loadRecords()} disabled={loading} className='mt-auto h-11 gap-2 bg-cyan-700 text-white hover:bg-cyan-800'>
+              {loading ? <Activity className='h-4 w-4 animate-spin' /> : <BarChart3 className='h-4 w-4' />}
+              {loading ? 'در حال دریافت' : 'نمایش گزارش'}
+            </Button>
+          </div>
+        </section>
+
+        {showProjects && (
+          <section className='no-print rounded-2xl border border-slate-200 bg-white p-5'>
+            <div className='grid gap-5 lg:grid-cols-[360px_1fr]'>
+              <div>
+                <h2 className='font-black'>افزودن پروژه</h2>
+                <div className='mt-3 space-y-2'>
+                  <Input value={projectCode} onChange={(event) => setProjectCode(event.target.value.toUpperCase())} placeholder='کد پروژه، مثال PRJ-001' />
+                  <Input value={projectTitle} onChange={(event) => setProjectTitle(event.target.value)} placeholder='عنوان پروژه' />
+                  <Button onClick={() => void createProject()} className='w-full'>ایجاد پروژه</Button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className='shadow-sm dark:bg-zinc-800 lg:col-span-2'>
-            <CardHeader>
-              <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
-                <div>
-                  <CardTitle>مانیتورینگ روزانه</CardTitle>
-                  <CardDescription>نمایش پروژه‌ها بر اساس کد پروژه، کارمند یا نمای کلی</CardDescription>
+              <div>
+                <Input value={projectListSearch} onChange={(event) => setProjectListSearch(event.target.value)} placeholder='جستجو در پروژه‌ها' />
+                <div className='mt-2 max-h-44 overflow-auto rounded-xl border border-slate-200'>
+                  {filteredProjectList.map((project) => (
+                    <div key={project.code} className='flex items-center justify-between border-b border-slate-100 px-3 py-2 last:border-0'>
+                      <div><b className='text-sm'>{project.title}</b><span className='mr-2 font-mono text-xs text-slate-400'>{project.code}</span></div>
+                      <Button size='sm' variant='outline' disabled={project.code === 'GENERAL'} onClick={() => void deleteProject(project)} className='text-rose-600'>حذف</Button>
+                    </div>
+                  ))}
                 </div>
-                <div className='flex items-center gap-2'>
-                  <div className='w-44'>
-                    <JalaliDateTimePicker value={selectedDate} onChange={(v: any) => setSelectedDate(v)} format='YYYY/MM/DD' placeholder='انتخاب تاریخ' />
+              </div>
+            </div>
+          </section>
+        )}
+
+        <section className='grid gap-3 sm:grid-cols-2 xl:grid-cols-5'>
+          <MetricCard label='کل حضور' value={formatMinutes(analytics.attendance)} hint='در بازه انتخاب‌شده' icon={<Clock3 className='h-5 w-5' />} tone='cyan' />
+          <MetricCard label='زمان ثبت‌شده' value={formatMinutes(analytics.tracked)} hint={`${numberFormatter.format(filteredTasks.length)} فعالیت ثبت‌شده`} icon={<Target className='h-5 w-5' />} tone='violet' />
+          <MetricCard label='نرخ ثبت زمان' value={`${numberFormatter.format(analytics.efficiency)}٪`} hint='تسک نسبت به حضور' icon={<Activity className='h-5 w-5' />} tone='emerald' />
+          <MetricCard label='کارمند فعال' value={numberFormatter.format(analytics.activeEmployees)} hint={`از ${numberFormatter.format(employeeRows.length)} کارمند`} icon={<Users className='h-5 w-5' />} tone='amber' />
+          <MetricCard label='حضور باز' value={numberFormatter.format(analytics.openAttendance)} hint='بدون ثبت خروج' icon={<TimerReset className='h-5 w-5' />} tone='cyan' />
+        </section>
+
+        <section className='grid gap-5 xl:grid-cols-[1.55fr_1fr]'>
+          <article className='rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_10px_35px_rgba(15,23,42,0.035)]'>
+            <div className='flex flex-wrap items-start justify-between gap-3'>
+              <div>
+                <h2 className='text-base font-black'>روند زمان ثبت‌شده</h2>
+                <p className='mt-1 text-xs text-slate-400'>مقایسه زمان حضور و فعالیت روزانه</p>
+              </div>
+              <span className='rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-500'>{asDate(startDate)} تا {asDate(endDate)}</span>
+            </div>
+            <TrendChart data={dailyTrend} />
+          </article>
+
+          <article className='rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_10px_35px_rgba(15,23,42,0.035)]'>
+            <div className='flex items-start justify-between'>
+              <div>
+                <h2 className='text-base font-black'>سهم پروژه‌ها</h2>
+                <p className='mt-1 text-xs text-slate-400'>بر اساس زمان فعالیت ثبت‌شده</p>
+              </div>
+              <BriefcaseBusiness className='h-5 w-5 text-violet-500' />
+            </div>
+            <div className='mt-5 space-y-4'>
+              {projectRows.slice(0, 6).map((project, index) => (
+                <div key={project.code}>
+                  <div className='mb-1.5 flex items-center justify-between gap-3 text-xs'>
+                    <span className='truncate font-bold text-slate-700'><i className={`ml-2 inline-block h-2 w-2 rounded-full ${['bg-cyan-500', 'bg-violet-500', 'bg-amber-500', 'bg-emerald-500'][index % 4]}`} />{project.code}</span>
+                    <span className='shrink-0 font-bold text-slate-500'>{formatMinutes(project.minutes)}</span>
                   </div>
-                  <Button variant='outline' onClick={() => loadRecords(asPersianDate(selectedDate))} disabled={loading}>مشاهده</Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className='space-y-6'>
-              <div className='grid grid-cols-1 gap-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-700 sm:grid-cols-3'>
-                <div className='space-y-1'>
-                  <Label>نوع نمایش</Label>
-                  <select
-                    value={viewMode}
-                    onChange={(e) => setViewMode(e.target.value as 'all' | 'employee' | 'project')}
-                    className='flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm'
-                  >
-                    <option value='all'>نمای کلی</option>
-                    <option value='employee'>بر اساس کارمند</option>
-                    <option value='project'>بر اساس کد پروژه</option>
-                  </select>
-                </div>
-                <div className='space-y-1'>
-                  <Label>کارمند</Label>
-                  <select
-                    value={selectedEmployee}
-                    onChange={(e) => setSelectedEmployee(e.target.value)}
-                    className='flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm'
-                  >
-                    <option value='all'>همه</option>
-                    {employees.map((emp) => (
-                      <option key={emp.employee_id} value={emp.employee_id}>{emp.full_name} ({emp.employee_id})</option>
-                    ))}
-                  </select>
-                </div>
-                <div className='space-y-1'>
-                  <Label>کد پروژه</Label>
-                  <select
-                    value={selectedProject}
-                    onChange={(e) => setSelectedProject(e.target.value)}
-                    className='flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm'
-                  >
-                    <option value='all'>همه</option>
-                    {projectFilterOptions.map((code) => (
-                      <option key={code} value={code}>{code}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className='grid grid-cols-1 gap-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-700 sm:grid-cols-2'>
-                <div className='space-y-1'>
-                  <Label>جستجو (کارمند / پروژه / تسک)</Label>
-                  <Input value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder='مثلا: Admin User یا PRJ-001' />
-                </div>
-                <div className='space-y-1'>
-                  <Label>حداقل دقیقه تسک</Label>
-                  <Input value={minMinutes} onChange={(e) => setMinMinutes(e.target.value.replace(/[^0-9]/g, ''))} placeholder='مثلا 30' />
-                </div>
-              </div>
-
-              <div className='grid grid-cols-2 gap-3 sm:grid-cols-4'>
-                <div className='rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900'>
-                  <div className='text-xs text-zinc-500 dark:text-zinc-400'>تعداد تسک</div>
-                  <div className='mt-1 text-xl font-bold text-zinc-900 dark:text-zinc-100'>{analytics.taskCount}</div>
-                </div>
-                <div className='rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900'>
-                  <div className='text-xs text-zinc-500 dark:text-zinc-400'>مجموع دقیقه</div>
-                  <div className='mt-1 text-xl font-bold text-zinc-900 dark:text-zinc-100'>{analytics.totalTaskMinutes}</div>
-                </div>
-                <div className='rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900'>
-                  <div className='text-xs text-zinc-500 dark:text-zinc-400'>کارمند فعال</div>
-                  <div className='mt-1 text-xl font-bold text-zinc-900 dark:text-zinc-100'>{analytics.activeEmployees}</div>
-                </div>
-                <div className='rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900'>
-                  <div className='text-xs text-zinc-500 dark:text-zinc-400'>میانگین دقیقه/تسک</div>
-                  <div className='mt-1 text-xl font-bold text-zinc-900 dark:text-zinc-100'>{analytics.avgTaskMinutes}</div>
-                </div>
-              </div>
-
-              {(viewMode === 'all' || viewMode === 'employee') && (
-                <div>
-                  <h3 className='mb-2 text-sm font-bold text-zinc-700 dark:text-zinc-300'>تحلیل عملکرد کارمندان ({employeeSummary.length})</h3>
-                  <div className='max-h-56 overflow-y-auto rounded-lg border border-zinc-200 dark:border-zinc-700'>
-                    <table className='w-full text-sm'>
-                      <thead className='bg-zinc-50 dark:bg-zinc-700/50'>
-                        <tr>
-                          <th className='p-2 text-right'>کارمند</th>
-                          <th className='p-2 text-right'>مجموع حضور (دقیقه)</th>
-                          <th className='p-2 text-right'>مجموع تسک (دقیقه)</th>
-                          <th className='p-2 text-right'>بهره وری</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {employeeSummary.map((row) => (
-                          <tr key={`emp-sum-${row.employee_id}`} className='border-t border-zinc-100 dark:border-zinc-700'>
-                            <td className='p-2'>{row.full_name} ({row.employee_id})</td>
-                            <td className='p-2'>{row.attendance_minutes}</td>
-                            <td className='p-2'>{row.task_minutes}</td>
-                            <td className='p-2'>{row.efficiency}%</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className='h-2 overflow-hidden rounded-full bg-slate-100'>
+                    <div className='h-full rounded-full bg-gradient-to-l from-cyan-500 to-violet-500' style={{ width: `${Math.max(4, project.minutes / maxProjectMinutes * 100)}%` }} />
                   </div>
                 </div>
-              )}
+              ))}
+              {!projectRows.length && <div className='grid h-48 place-items-center text-sm text-slate-400'>فعالیتی برای نمایش نیست.</div>}
+            </div>
+          </article>
+        </section>
 
-              {(viewMode === 'all' || viewMode === 'project') && (
-                <div>
-                <h3 className='mb-2 text-sm font-bold text-zinc-700 dark:text-zinc-300'>خلاصه پروژه‌ها ({projectSummary.length})</h3>
-                <div className='max-h-56 overflow-y-auto rounded-lg border border-zinc-200 dark:border-zinc-700'>
-                  <table className='w-full text-sm'>
-                    <thead className='bg-zinc-50 dark:bg-zinc-700/50'>
-                      <tr>
-                        <th className='p-2 text-right'>کد پروژه</th>
-                        <th className='p-2 text-right'>تعداد تسک</th>
-                        <th className='p-2 text-right'>کارمند فعال</th>
-                        <th className='p-2 text-right'>مجموع دقیقه</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {projectSummary.map((row) => (
-                        <tr key={`sum-${row.project_code}`} className='border-t border-zinc-100 dark:border-zinc-700'>
-                          <td className='p-2 font-mono'>{row.project_code}</td>
-                          <td className='p-2'>{row.tasks}</td>
-                          <td className='p-2'>{row.employees}</td>
-                          <td className='p-2'>{row.minutes}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                </div>
-              )}
-
-              <div>
-                <h3 className='mb-2 text-sm font-bold text-zinc-700 dark:text-zinc-300'>حضور و غیاب ({filteredAttendance.length || 0})</h3>
-                <div className='max-h-60 overflow-y-auto rounded-lg border border-zinc-200 dark:border-zinc-700'>
-                  <table className='w-full text-sm'>
-                    <thead className='bg-zinc-50 dark:bg-zinc-700/50'>
-                      <tr>
-                        <th className='p-2 text-right'>کاربر</th>
-                        <th className='p-2 text-right'>کد پرسنلی</th>
-                        <th className='p-2 text-right'>ورود</th>
-                        <th className='p-2 text-right'>خروج</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredAttendance.map((row) => (
-                        <tr key={`att-${row.id}`} className='border-t border-zinc-100 dark:border-zinc-700'>
-                          <td className='p-2'>{row.full_name}</td>
-                          <td className='p-2'>{row.employee_id}</td>
-                          <td className='p-2'>{row.check_in_time || '-'}</td>
-                          <td className='p-2'>{row.check_out_time || 'در حال حضور'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+        <section className='rounded-2xl border border-slate-200 bg-white shadow-[0_10px_35px_rgba(15,23,42,0.035)]'>
+          <div className='flex flex-col justify-between gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center'>
+            <div className='flex rounded-xl bg-slate-100 p-1'>
+              {([
+                ['employees', 'کارکنان', visibleEmployeeRows.length],
+                ['tasks', 'فعالیت‌ها', filteredTasks.length],
+                ['attendance', 'ترددها', filteredAttendance.length],
+              ] as Array<[ReportTab, string, number]>).map(([value, label, count]) => (
+                <button key={value} onClick={() => setReportTab(value)} className={`rounded-lg px-3 py-2 text-xs font-bold transition ${reportTab === value ? 'bg-white text-cyan-700 shadow-sm' : 'text-slate-500'}`}>
+                  {label} <span className='mr-1 text-[10px] text-slate-400'>{numberFormatter.format(count)}</span>
+                </button>
+              ))}
+            </div>
+            <label className='no-print relative block sm:w-72'>
+              <Search className='absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400' />
+              <Input value={query} onChange={(event) => setQuery(event.target.value)} className='pr-9' placeholder='جستجو در گزارش...' />
+            </label>
+          </div>
+          <div className='overflow-x-auto'>
+            {reportTab === 'employees' && (
+              <table className='w-full min-w-[850px] text-sm'>
+                <thead><tr className='bg-slate-50/70 text-xs text-slate-500'><th className='p-3 text-right'>کارمند</th><th className='p-3 text-right'>واحد</th><th className='p-3 text-right'>روز فعال</th><th className='p-3 text-right'>حضور</th><th className='p-3 text-right'>زمان ثبت‌شده</th><th className='p-3 text-right'>ثبت‌نشده</th><th className='p-3 text-right'>نرخ ثبت</th><th className='p-3 text-right'>وضعیت</th></tr></thead>
+                <tbody>
+                  {pagedEmployees.map((row) => (
+                    <tr key={row.employee_id} className='border-t border-slate-100 hover:bg-slate-50/60'>
+                      <td className='p-3'><div className='font-bold text-slate-800'>{row.full_name}</div><div className='text-[10px] text-slate-400'>{row.job_title || row.username}</div></td>
+                      <td className='p-3 text-slate-600'>{row.department}</td>
+                      <td className='p-3'>{numberFormatter.format(row.activeDays)}</td>
+                      <td className='p-3'>{formatMinutes(row.attendance)}</td>
+                      <td className='p-3 font-bold text-cyan-700'>{formatMinutes(row.tracked)}</td>
+                      <td className='p-3 text-slate-500'>{formatMinutes(row.untracked)}</td>
+                      <td className='p-3'><div className='flex items-center gap-2'><div className='h-1.5 w-16 overflow-hidden rounded-full bg-slate-100'><div className='h-full rounded-full bg-cyan-500' style={{ width: `${Math.min(100, row.efficiency)}%` }} /></div><b>{numberFormatter.format(row.efficiency)}٪</b></div></td>
+                      <td className='p-3'><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${row.attendance === 0 ? 'bg-slate-100 text-slate-500' : row.efficiency >= 70 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{row.attendance === 0 ? 'بدون رکورد' : row.efficiency >= 70 ? 'مطلوب' : 'نیازمند بررسی'}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {reportTab === 'tasks' && (
+              <table className='w-full min-w-[900px] text-sm'>
+                <thead><tr className='bg-slate-50/70 text-xs text-slate-500'><th className='p-3 text-right'>تاریخ</th><th className='p-3 text-right'>کارمند</th><th className='p-3 text-right'>واحد</th><th className='p-3 text-right'>پروژه</th><th className='p-3 text-right'>شرح فعالیت</th><th className='p-3 text-right'>بازه زمانی</th><th className='p-3 text-right'>مدت</th></tr></thead>
+                <tbody>{pagedTasks.map((row) => <tr key={row.id} className='border-t border-slate-100 hover:bg-slate-50/60'><td className='p-3 font-mono text-xs'>{row.work_date}</td><td className='p-3 font-bold'>{row.full_name}</td><td className='p-3 text-slate-500'>{row.department}</td><td className='p-3 font-mono text-xs text-violet-700'>{row.project_code}</td><td className='max-w-sm truncate p-3'>{row.task_name}</td><td className='p-3 font-mono text-xs'>{row.start_time} – {row.end_time}</td><td className='p-3 font-bold text-cyan-700'>{formatMinutes(row.minutes_spent)}</td></tr>)}</tbody>
+              </table>
+            )}
+            {reportTab === 'attendance' && (
+              <table className='w-full min-w-[760px] text-sm'>
+                <thead><tr className='bg-slate-50/70 text-xs text-slate-500'><th className='p-3 text-right'>تاریخ</th><th className='p-3 text-right'>کارمند</th><th className='p-3 text-right'>واحد</th><th className='p-3 text-right'>ورود</th><th className='p-3 text-right'>خروج</th><th className='p-3 text-right'>مدت حضور</th><th className='p-3 text-right'>وضعیت</th></tr></thead>
+                <tbody>{pagedAttendance.map((row) => <tr key={row.id} className='border-t border-slate-100 hover:bg-slate-50/60'><td className='p-3 font-mono text-xs'>{row.work_date}</td><td className='p-3 font-bold'>{row.full_name}</td><td className='p-3 text-slate-500'>{row.department}</td><td className='p-3 font-mono'>{row.check_in_time}</td><td className='p-3 font-mono'>{row.check_out_time || '—'}</td><td className='p-3 font-bold'>{formatMinutes(durationMinutes(row.check_in_time, row.check_out_time, row.work_date))}</td><td className='p-3'><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${row.check_out_time ? 'bg-slate-100 text-slate-600' : 'bg-emerald-50 text-emerald-700'}`}>{row.check_out_time ? 'تکمیل‌شده' : 'در حال حضور'}</span></td></tr>)}</tbody>
+              </table>
+            )}
+          </div>
+          {((reportTab === 'employees' && !visibleEmployeeRows.length) || (reportTab === 'tasks' && !filteredTasks.length) || (reportTab === 'attendance' && !filteredAttendance.length)) && (
+            <div className='border-t border-slate-100 p-10 text-center text-sm text-slate-400'>نتیجه‌ای مطابق فیلترها پیدا نشد.</div>
+          )}
+          {activeRowCount > 0 && (
+            <div className='no-print flex flex-col items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row'>
+              <div className='flex items-center gap-2 text-xs text-slate-500'>
+                <span>نمایش</span>
+                <select
+                  value={pageSize}
+                  onChange={(event) => setPageSize(Number(event.target.value))}
+                  className='h-8 rounded-lg border border-slate-200 bg-white px-2 font-bold text-slate-700 outline-none focus:border-cyan-500'
+                  aria-label='تعداد ردیف در هر صفحه'
+                >
+                  <option value={10}>۱۰</option>
+                  <option value={20}>۲۰</option>
+                  <option value={50}>۵۰</option>
+                </select>
+                <span>ردیف در هر صفحه</span>
+              </div>
+              <div className='flex items-center gap-3'>
+                <span className='text-xs font-medium text-slate-500'>
+                  {numberFormatter.format(pageStart + 1)} تا {numberFormatter.format(pageEnd)} از {numberFormatter.format(activeRowCount)}
+                </span>
+                <div className='flex items-center gap-1'>
+                  <button
+                    type='button'
+                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                    disabled={safePage === 1}
+                    className='grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-cyan-300 hover:text-cyan-700 disabled:cursor-not-allowed disabled:opacity-35'
+                    aria-label='صفحه قبل'
+                  >
+                    <ChevronRight className='h-4 w-4' />
+                  </button>
+                  <span className='min-w-20 text-center text-xs font-bold text-slate-700'>
+                    صفحه {numberFormatter.format(safePage)} از {numberFormatter.format(pageCount)}
+                  </span>
+                  <button
+                    type='button'
+                    onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+                    disabled={safePage === pageCount}
+                    className='grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-cyan-300 hover:text-cyan-700 disabled:cursor-not-allowed disabled:opacity-35'
+                    aria-label='صفحه بعد'
+                  >
+                    <ChevronLeft className='h-4 w-4' />
+                  </button>
                 </div>
               </div>
+            </div>
+          )}
+        </section>
 
-              <div>
-                <h3 className='mb-2 text-sm font-bold text-zinc-700 dark:text-zinc-300'>تسک‌ها ({filteredTasks.length || 0})</h3>
-                <div className='max-h-72 overflow-y-auto rounded-lg border border-zinc-200 dark:border-zinc-700'>
-                  <table className='w-full text-sm'>
-                    <thead className='bg-zinc-50 dark:bg-zinc-700/50'>
-                      <tr>
-                        <th className='p-2 text-right'>کاربر</th>
-                        <th className='p-2 text-right'>کد پروژه</th>
-                        <th className='p-2 text-right'>تسک</th>
-                        <th className='p-2 text-right'>شروع</th>
-                        <th className='p-2 text-right'>پایان</th>
-                        <th className='p-2 text-right'>مدت (دقیقه)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredTasks.map((row) => (
-                        <tr key={`task-${row.id}`} className='border-t border-zinc-100 dark:border-zinc-700'>
-                          <td className='p-2'>{row.full_name}</td>
-                          <td className='p-2 font-mono'>{row.project_code}</td>
-                          <td className='p-2'>{row.task_name}</td>
-                          <td className='p-2'>{row.start_time}</td>
-                          <td className='p-2'>{row.end_time}</td>
-                          <td className='p-2'>{row.minutes_spent}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+        <footer className='flex flex-wrap items-center justify-between gap-2 py-2 text-[11px] text-slate-400'>
+          <span>آخرین گزارش: {records ? `${records.start_date} تا ${records.end_date}` : '—'}</span>
+          <span className='flex items-center gap-1'><CalendarDays className='h-3.5 w-3.5' /> اطلاعات بر اساس تقویم شمسی</span>
+        </footer>
+      </main>
     </div>
   );
 }
