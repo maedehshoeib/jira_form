@@ -115,6 +115,7 @@ def _user_dict(user: User) -> dict:
         "department": user.department,
         "job_title": user.job_title,
         "extension": user.extension,
+        "avatar_url": user.avatar_url,
     }
 
 

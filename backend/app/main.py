@@ -14,6 +14,7 @@ from app.api.routes.portal import router as portal_router
 from app.api.routes.reports import router as reports_router
 from app.api.routes.timesheet import router as timesheet_router
 from app.core.cors import add_cors
+from app.core.config import settings
 from app.db.init_db import init_db
 
 
@@ -39,6 +40,10 @@ app.include_router(timesheet_router, prefix="/api/v1/timesheet", tags=["timeshee
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
 FRONTEND_INDEX = FRONTEND_DIST / "index.html"
+AVATAR_DIR = (Path(settings.UPLOAD_DIR) / "avatars").resolve()
+AVATAR_DIR.mkdir(parents=True, exist_ok=True)
+
+app.mount("/api/v1/avatars", StaticFiles(directory=AVATAR_DIR), name="avatars")
 
 if (FRONTEND_DIST / "assets").exists():
     app.mount(

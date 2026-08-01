@@ -13,6 +13,7 @@ class AdminUserResponse(BaseModel):
     department_id: int | None
     job_title: str
     extension: str
+    avatar_url: str
     is_active: bool
     is_admin: bool
     must_change_password: bool

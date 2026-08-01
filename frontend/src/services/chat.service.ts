@@ -7,6 +7,7 @@ export type ChatUser = {
   department: string;
   job_title: string;
   extension: string;
+  avatar_url: string;
   role?: "owner" | "member";
   last_read_message_id?: number | null;
 };

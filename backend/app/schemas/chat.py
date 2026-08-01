@@ -8,6 +8,7 @@ class ChatUserResponse(BaseModel):
     department: str
     job_title: str
     extension: str
+    avatar_url: str
 
 
 class ConversationCreate(BaseModel):

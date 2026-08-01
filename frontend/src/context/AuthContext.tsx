@@ -20,6 +20,7 @@ export type AuthUser = {
   department_id: number | null;
   job_title: string;
   extension: string;
+  avatar_url: string;
   must_change_password: boolean;
   is_admin: boolean;
 };

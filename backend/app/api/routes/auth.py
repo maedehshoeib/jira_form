@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta
+from pathlib import Path
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -23,6 +24,13 @@ from app.schemas.auth import (
 )
 
 router = APIRouter()
+
+AVATAR_CONTENT_TYPES = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+}
+MAX_AVATAR_SIZE = 5 * 1024 * 1024
 
 
 def _normalize_username(username: str) -> str:
@@ -169,6 +177,43 @@ def update_profile(
     current_user.email = str(body.email).strip().lower()
     db.commit()
     db.refresh(current_user)
+    return UserResponse.model_validate(current_user)
+
+
+@router.post("/profile/avatar", response_model=UserResponse)
+async def upload_avatar(
+    avatar: UploadFile = File(...),
+    current_user: User = Depends(get_authenticated_user),
+    db: Session = Depends(get_db),
+):
+    extension = AVATAR_CONTENT_TYPES.get(avatar.content_type or "")
+    if not extension:
+        raise HTTPException(status_code=400, detail="Only JPEG, PNG, and WebP images are allowed.")
+    content = await avatar.read(MAX_AVATAR_SIZE + 1)
+    if not content or len(content) > MAX_AVATAR_SIZE:
+        raise HTTPException(status_code=400, detail="Profile image must be smaller than 5 MB.")
+    signatures_valid = {
+        ".jpg": content.startswith(b"\xff\xd8\xff"),
+        ".png": content.startswith(b"\x89PNG\r\n\x1a\n"),
+        ".webp": content.startswith(b"RIFF") and content[8:12] == b"WEBP",
+    }
+    if not signatures_valid[extension]:
+        raise HTTPException(status_code=400, detail="The uploaded file is not a valid image.")
+
+    avatar_dir = (Path(settings.UPLOAD_DIR) / "avatars").resolve()
+    avatar_dir.mkdir(parents=True, exist_ok=True)
+    filename = f"user-{current_user.id}-{uuid.uuid4().hex}{extension}"
+    destination = avatar_dir / filename
+    destination.write_bytes(content)
+
+    old_url = current_user.avatar_url
+    current_user.avatar_url = f"/api/v1/avatars/{filename}"
+    db.commit()
+    db.refresh(current_user)
+    if old_url.startswith(("/avatars/", "/api/v1/avatars/")):
+        old_path = avatar_dir / Path(old_url).name
+        if old_path != destination:
+            old_path.unlink(missing_ok=True)
     return UserResponse.model_validate(current_user)
 
 

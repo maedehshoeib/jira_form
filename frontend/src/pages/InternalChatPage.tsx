@@ -36,6 +36,7 @@ import {
 } from "react";
 
 import AppShell from "../components/layout/AppShell";
+import UserAvatar from "../components/UserAvatar";
 import { useAuth } from "../context/AuthContext";
 import {
   ChatMessage,
@@ -530,11 +531,18 @@ export default function InternalChatPage() {
                         : "hover:bg-slate-50"
                     }`}
                   >
-                    <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-red-500 to-red-700 font-bold text-white">
+                    <div className="relative shrink-0">
                       {conversation.kind === "group" ? (
+                        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-red-500 to-red-700 font-bold text-white">
                         <Users size={21} />
+                        </span>
                       ) : (
-                        initials(conversation.title)
+                        <UserAvatar
+                          name={conversation.title}
+                          avatarUrl={conversation.members.find((member) => member.id !== user?.id)?.avatar_url}
+                          className="h-12 w-12 rounded-2xl"
+                          fallbackClassName="bg-gradient-to-br from-red-500 to-red-700 text-white"
+                        />
                       )}
                       {conversation.unread_count > 0 && (
                         <span className="absolute -bottom-1 -left-1 min-w-5 rounded-full border-2 border-white bg-red-600 px-1 text-center text-[10px] leading-4 text-white">
@@ -609,13 +617,18 @@ export default function InternalChatPage() {
                     onClick={() => setInfoOpen(true)}
                     className="flex min-w-0 flex-1 items-center gap-3 text-right"
                   >
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-red-600 font-bold text-white">
-                      {active.kind === "group" ? (
+                    {active.kind === "group" ? (
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-red-600 font-bold text-white">
                         <Users size={20} />
-                      ) : (
-                        initials(active.title)
-                      )}
-                    </div>
+                      </div>
+                    ) : (
+                      <UserAvatar
+                        name={active.title}
+                        avatarUrl={active.members.find((member) => member.id !== user?.id)?.avatar_url}
+                        className="h-11 w-11 rounded-2xl"
+                        fallbackClassName="bg-red-600 text-white"
+                      />
+                    )}
                     <div className="min-w-0">
                       <p className="truncate font-bold text-slate-800">
                         {active.title}
@@ -718,6 +731,13 @@ export default function InternalChatPage() {
                               mine ? "justify-start" : "justify-end"
                             }`}
                           >
+                            {!mine && (
+                              <UserAvatar
+                                name={message.sender.display_name || message.sender.username}
+                                avatarUrl={message.sender.avatar_url}
+                                className="h-8 w-8 rounded-lg"
+                              />
+                            )}
                             <div
                               className={`relative max-w-[86%] rounded-2xl px-3.5 py-2.5 shadow-sm sm:max-w-[70%] ${
                                 message.deleted_at
@@ -1233,9 +1253,10 @@ function NewConversationModal({
               }
               className="flex w-full items-center gap-3 rounded-2xl p-2.5 text-right hover:bg-slate-50"
             >
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-sm font-bold text-red-600">
-                {initials(item.display_name || item.username)}
-              </span>
+              <UserAvatar
+                name={item.display_name || item.username}
+                avatarUrl={item.avatar_url}
+              />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-bold text-slate-800">
                   {item.display_name || item.username}
@@ -1516,9 +1537,11 @@ function ConversationInfoModal({
                   key={member.id}
                   className="flex items-center gap-3 rounded-2xl p-2.5 hover:bg-slate-50"
                 >
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-50 text-xs font-bold text-red-600">
-                    {initials(member.display_name || member.username)}
-                  </span>
+                  <UserAvatar
+                    name={member.display_name || member.username}
+                    avatarUrl={member.avatar_url}
+                    className="h-9 w-9 rounded-xl"
+                  />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-bold">
                       {member.display_name || member.username}

@@ -18,6 +18,7 @@ class UserResponse(BaseModel):
     department_id: int | None = None
     job_title: str
     extension: str
+    avatar_url: str
     must_change_password: bool
     is_admin: bool
 

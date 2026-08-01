@@ -16,6 +16,7 @@ import {
 import client from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import AppShell from "../../components/layout/AppShell";
+import UserAvatar from "../../components/UserAvatar";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -30,6 +31,7 @@ type ManagedUser = {
   department_id: number | null;
   job_title: string;
   extension: string;
+  avatar_url: string;
   is_active: boolean;
   is_admin: boolean;
   must_change_password: boolean;
@@ -662,16 +664,22 @@ export default function AdminUsersPage() {
                         {departmentUsers.map((user) => (
                           <tr key={user.id} className="hover:bg-slate-50">
                             <td className="px-5 py-4">
-                              <p className="font-bold text-slate-800">
-                                {user.display_name || "بدون نام"}
-                              </p>
-                              <p
-                                className="mt-1 text-xs text-slate-500"
-                                dir="ltr"
-                              >
-                                {user.username}
-                                {user.email ? ` · ${user.email}` : ""}
-                              </p>
+                              <div className="flex items-center gap-3">
+                                <UserAvatar
+                                  name={user.display_name || user.username}
+                                  avatarUrl={user.avatar_url}
+                                  className="h-11 w-11 rounded-xl"
+                                />
+                                <div>
+                                  <p className="font-bold text-slate-800">
+                                    {user.display_name || "بدون نام"}
+                                  </p>
+                                  <p className="mt-1 text-xs text-slate-500" dir="ltr">
+                                    {user.username}
+                                    {user.email ? ` · ${user.email}` : ""}
+                                  </p>
+                                </div>
+                              </div>
                             </td>
                             <td className="px-5 py-4">
                               <p className="text-slate-700">

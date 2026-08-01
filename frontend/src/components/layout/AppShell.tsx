@@ -15,6 +15,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
+import UserAvatar from "../UserAvatar";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import logo from "../../assets/logo.png";
@@ -150,9 +151,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
             className="mb-3 block rounded-2xl bg-white/10 p-3.5 ring-1 ring-white/10 transition-colors hover:bg-white/15"
           >
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-red-600 shadow-sm">
-                <UserRound size={21} />
-              </div>
+              <UserAvatar
+                name={user.display_name || user.username}
+                avatarUrl={user.avatar_url}
+                className="h-11 w-11 rounded-xl shadow-sm"
+                fallbackClassName="bg-white text-red-600"
+              />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-bold text-white">
                   {user.display_name || user.username}

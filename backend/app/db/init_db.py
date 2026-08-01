@@ -153,6 +153,10 @@ def _migrate_users_db():
             "form_access_configured",
             "ALTER TABLE users ADD COLUMN form_access_configured BOOLEAN NOT NULL DEFAULT 0",
         ),
+        (
+            "avatar_url",
+            "ALTER TABLE users ADD COLUMN avatar_url VARCHAR(512) NOT NULL DEFAULT ''",
+        ),
     ]
     with engine.begin() as conn:
         for column_name, ddl in migrations:
