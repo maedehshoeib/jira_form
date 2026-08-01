@@ -73,7 +73,7 @@ export default function DepartmentPage() {
     return (
       <AppShell>
         <div className="rounded-3xl border border-red-100 bg-white p-10 text-center shadow-sm">
-          <h2 className="text-xl font-bold text-slate-800">دسترسی به این بخش امکان‌پذیر نیست</h2>
+          <h2 className="text-xl font-bold text-white">دسترسی به این بخش امکان‌پذیر نیست</h2>
           <p className="mt-2 text-sm text-slate-500">این بخش برای حساب شما فعال نشده است.</p>
           <Link to="/" className="mt-5 inline-block font-bold text-red-600">بازگشت به خانه</Link>
         </div>
@@ -102,11 +102,11 @@ export default function DepartmentPage() {
 
   return (
     <AppShell>
-      <div className="rounded-[2rem] border border-slate-400/70 bg-gradient-to-br from-slate-300 via-slate-200 to-red-200/80 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_24px_60px_-32px_rgba(15,23,42,0.75)] sm:p-7 lg:p-9">
+      <div className="relative isolate overflow-hidden rounded-[2rem] border border-white/65 bg-gradient-to-br from-white/[0.22] via-slate-100/[0.10] to-cyan-100/[0.05] p-5 text-white shadow-[inset_1px_1px_0_rgba(255,255,255,0.85),inset_-1px_-1px_0_rgba(186,230,253,0.14),0_0_30px_rgba(224,242,254,0.12),0_28px_70px_-32px_rgba(0,0,0,0.9)] ring-1 ring-cyan-100/20 backdrop-blur-2xl saturate-150 before:pointer-events-none before:absolute before:-bottom-40 before:-right-28 before:-z-10 before:h-96 before:w-96 before:rounded-full before:bg-red-500/35 before:blur-[90px] sm:p-7 lg:p-9">
         <div className="mb-10 flex items-center justify-between">
           <Link
             to="/"
-            className="font-medium text-red-600 hover:text-red-700"
+            className="rounded-full border border-white/20 bg-white/[0.08] px-5 py-2.5 font-medium text-white/80 backdrop-blur transition hover:border-red-300/60 hover:bg-red-500/20 hover:text-white"
           >
             بازگشت
           </Link>
@@ -119,13 +119,13 @@ export default function DepartmentPage() {
                 className="h-14 object-contain"
               />
             )}
-            <h2 className="text-3xl font-bold">{pageTitle}</h2>
+            <h2 className="text-3xl font-bold text-white">{pageTitle}</h2>
           </div>
         </div>
 
         {groupedChildren.length > 0 && (
           <section className={department?.sections.length ? "mb-10" : ""}>
-          <div className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-500">
+          <div className="mb-4 flex items-center gap-2 text-sm font-bold text-white/60">
             <Building2 className="h-4 w-4 text-red-500" />
             زیرمجموعه‌های این واحد
           </div>
@@ -134,20 +134,20 @@ export default function DepartmentPage() {
               const Icon = childIcon[child.id] || Building2;
               return (
                 <Link key={child.id} to={childLink(child)}>
-                  <Card className="group h-full rounded-3xl border border-slate-300 bg-white shadow-[0_14px_32px_-18px_rgba(15,23,42,0.75)] transition-all hover:-translate-y-1 hover:border-red-200 hover:shadow-[0_22px_40px_-18px_rgba(127,29,29,0.6)]">
+                  <Card className="group relative isolate h-full overflow-hidden rounded-3xl border border-white/65 bg-gradient-to-br from-white/[0.23] via-slate-100/[0.10] to-cyan-100/[0.05] shadow-[inset_1px_1px_0_rgba(255,255,255,0.85),inset_-1px_-1px_0_rgba(186,230,253,0.14),0_0_24px_rgba(224,242,254,0.11),0_20px_45px_-24px_rgba(0,0,0,0.85)] ring-1 ring-cyan-100/20 backdrop-blur-2xl saturate-150 transition-all duration-300 before:absolute before:-bottom-12 before:-left-8 before:-z-10 before:h-28 before:w-28 before:rounded-full before:bg-red-500/25 before:blur-3xl hover:-translate-y-2 hover:border-red-200/70 hover:bg-white/[0.16] hover:shadow-[0_24px_48px_-18px_rgba(239,68,68,0.35)]">
                     <CardContent className="flex items-center gap-4 p-6">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/40 bg-gradient-to-br from-white/25 via-red-400/20 to-red-600/35 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_0_24px_rgba(248,113,113,0.5)]">
                         <Icon className="h-6 w-6" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-bold text-slate-800">{child.title}</h3>
-                        <p className="mt-1 text-xs text-slate-500">
+                        <h3 className="font-bold text-white">{child.title}</h3>
+                        <p className="mt-1 text-xs text-white/50">
                           {child.id === "contract-archive"
                             ? "مشاهده آرشیو قراردادها"
                             : `${child.sections.length.toLocaleString("fa-IR")} خدمت`}
                         </p>
                       </div>
-                      <ChevronLeft className="h-5 w-5 text-red-400 transition-transform group-hover:-translate-x-1" />
+                      <ChevronLeft className="h-5 w-5 text-red-300 transition-transform group-hover:-translate-x-1" />
                     </CardContent>
                   </Card>
                 </Link>
@@ -160,12 +160,12 @@ export default function DepartmentPage() {
         {isReports && (
           <div className="mb-8">
           <Link to="/reports/performance">
-            <Card className="rounded-3xl border border-red-200 bg-red-50 shadow-[0_14px_32px_-18px_rgba(127,29,29,0.6)] transition hover:-translate-y-1 hover:shadow-[0_22px_40px_-18px_rgba(127,29,29,0.7)]">
+            <Card className="rounded-3xl border border-red-200/40 bg-red-500/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_18px_42px_-20px_rgba(239,68,68,0.45)] backdrop-blur-xl transition hover:-translate-y-1 hover:bg-red-500/15 hover:shadow-[0_22px_44px_-18px_rgba(239,68,68,0.55)]">
               <CardContent className="p-6 text-right">
-                <h3 className="text-lg font-bold text-slate-800">
+                <h3 className="text-lg font-bold text-white">
                   مشاهده آخرین گزارش ثبت‌شده
                 </h3>
-                <p className="mt-2 text-sm text-red-600">
+                <p className="mt-2 text-sm text-red-200">
                   ورود به صفحه گزارش عملکرد
                 </p>
               </CardContent>
@@ -185,15 +185,22 @@ export default function DepartmentPage() {
                 h-full
                 cursor-pointer
                 border
-                border-slate-300
+                border-white/65
                 rounded-3xl
-                bg-white/95
-                shadow-[0_16px_36px_-18px_rgba(15,23,42,0.8)]
+                bg-gradient-to-br
+                from-white/[0.23]
+                via-slate-100/[0.10]
+                to-cyan-100/[0.05]
+                backdrop-blur-2xl
+                saturate-150
+                ring-1
+                ring-cyan-100/20
+                shadow-[inset_1px_1px_0_rgba(255,255,255,0.85),inset_-1px_-1px_0_rgba(186,230,253,0.14),0_0_24px_rgba(224,242,254,0.11),0_20px_46px_-22px_rgba(0,0,0,0.85)]
                 transition-all
                 duration-300
                 hover:-translate-y-2
-                hover:border-red-200
-                hover:shadow-[0_24px_46px_-18px_rgba(127,29,29,0.65)]
+                hover:border-red-200/70
+                hover:shadow-[0_26px_50px_-18px_rgba(239,68,68,0.42)]
               "
             >
               <CardContent className="p-8 text-right">
@@ -204,8 +211,8 @@ export default function DepartmentPage() {
                     className="mb-4 h-10 object-contain"
                   />
                 )}
-                <h3 className="text-xl font-bold text-slate-800">{s.title}</h3>
-                <p className="mt-3 text-sm text-red-500">ورود به فرم</p>
+                <h3 className="text-xl font-bold text-white">{s.title}</h3>
+                <p className="mt-3 text-sm text-red-200">ورود به فرم</p>
               </CardContent>
             </Card>
           </Link>

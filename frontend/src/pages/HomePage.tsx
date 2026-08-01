@@ -15,7 +15,6 @@ import {
   Landmark,
   Megaphone,
   Monitor,
-  ScrollText,
 } from "lucide-react";
 
 import client from "../api/client";
@@ -39,7 +38,7 @@ const HOME_CARDS: HomeCard[] = [
     id: "guidelines",
     title: "دستورالعمل",
     description: "آیین‌نامه‌ها و دستورالعمل‌ها",
-    icon: ScrollText,
+    icon: FileText,
   },
   {
     id: "training",
@@ -117,42 +116,58 @@ const HOME_CARDS: HomeCard[] = [
   },
 ];
 
+const HOME_ICON_STYLES: Record<string, string> = {
+  guidelines: "border-cyan-200/60 from-white/30 via-cyan-300/20 to-cyan-500/35 text-cyan-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_0_28px_rgba(34,211,238,0.6)]",
+  training: "border-blue-200/60 from-white/30 via-blue-300/20 to-blue-600/35 text-blue-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_0_28px_rgba(59,130,246,0.65)]",
+  forms: "border-red-200/60 from-white/30 via-red-300/20 to-red-600/40 text-red-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_0_28px_rgba(248,113,113,0.7)]",
+  documents: "border-purple-200/60 from-white/30 via-purple-300/20 to-purple-600/40 text-purple-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_0_28px_rgba(192,132,252,0.7)]",
+  it: "border-emerald-200/60 from-white/30 via-emerald-300/20 to-emerald-600/40 text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_0_28px_rgba(74,222,128,0.65)]",
+  business: "border-violet-200/60 from-white/30 via-violet-300/20 to-violet-600/40 text-violet-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_0_28px_rgba(167,139,250,0.65)]",
+  "resource-development": "border-orange-200/60 from-white/30 via-orange-300/20 to-orange-600/40 text-orange-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_0_28px_rgba(251,146,60,0.7)]",
+  planning: "border-rose-200/60 from-white/30 via-rose-300/20 to-rose-600/40 text-rose-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_0_28px_rgba(251,113,133,0.7)]",
+  reports: "border-green-200/60 from-white/30 via-green-300/20 to-green-600/40 text-green-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_0_28px_rgba(74,222,128,0.65)]",
+  contracts: "border-orange-200/60 from-white/30 via-orange-300/20 to-orange-600/40 text-orange-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_0_28px_rgba(251,146,60,0.7)]",
+  timesheet: "border-blue-200/60 from-white/30 via-blue-300/20 to-blue-600/40 text-blue-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_0_28px_rgba(59,130,246,0.7)]",
+};
+
 function DestinationCard({ card }: { card: HomeCard }) {
   const Icon = card.icon;
   const content = (
     <Card
-      className={`group h-full overflow-hidden rounded-3xl transition-all duration-300 ${
+      className={`group relative isolate h-full overflow-hidden rounded-[1.75rem] border backdrop-blur-2xl transition-all duration-500 before:pointer-events-none before:absolute before:inset-x-6 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white before:to-transparent after:pointer-events-none after:absolute after:left-3 after:top-5 after:h-20 after:w-px after:bg-gradient-to-b after:from-white/70 after:to-transparent ${
         card.href
-          ? "border-0 bg-white/90 shadow-lg backdrop-blur hover:-translate-y-2 hover:shadow-2xl"
-          : "border border-dashed border-slate-200 bg-white/60 shadow-sm"
+          ? "border-white/65 bg-gradient-to-br from-white/[0.24] via-slate-100/[0.11] to-cyan-100/[0.06] shadow-[inset_1px_1px_0_rgba(255,255,255,0.85),inset_-1px_-1px_0_rgba(186,230,253,0.15),0_0_28px_rgba(224,242,254,0.12),0_24px_55px_-24px_rgba(0,0,0,0.78)] ring-1 ring-cyan-100/20 saturate-150 hover:-translate-y-2 hover:border-red-200/70 hover:bg-white/[0.22] hover:shadow-[0_24px_55px_-20px_rgba(239,68,68,0.38)] focus-within:-translate-y-1"
+          : "border-dashed border-white/35 bg-gradient-to-br from-white/[0.12] to-cyan-100/[0.04] shadow-[inset_1px_1px_0_rgba(255,255,255,0.4),0_18px_45px_-28px_rgba(0,0,0,0.7)] saturate-[.85]"
       }`}
     >
-      <CardContent className="relative flex h-full min-h-56 flex-col items-center justify-center p-8 text-center">
+      <div className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-red-500/30 blur-3xl transition-all duration-500 group-hover:bg-red-400/50" />
+      <div className="pointer-events-none absolute -bottom-16 -left-12 h-36 w-36 rounded-full bg-rose-300/10 blur-3xl" />
+      <CardContent className="relative flex h-full min-h-56 flex-col items-center justify-center p-7 text-center sm:p-8">
         {!card.href && (
-          <span className="absolute left-4 top-4 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500">
+          <span className="absolute left-4 top-4 rounded-full border border-white/20 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-white/50 backdrop-blur-md">
             به‌زودی
           </span>
         )}
 
         <div
-          className={`mb-6 flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl transition ${
+          className={`mb-6 flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_12px_28px_-16px_rgba(185,28,28,0.5)] backdrop-blur-md transition-all duration-500 ${
             card.href
-              ? "bg-red-50 text-red-600 group-hover:scale-110"
-              : "bg-slate-100 text-slate-400"
+              ? `bg-gradient-to-br ${HOME_ICON_STYLES[card.id]} group-hover:scale-110 group-hover:-rotate-3`
+              : "border-white/20 bg-white/10 text-white/40"
           }`}
         >
           <Icon className="h-8 w-8" />
         </div>
 
-        <h3 className="text-xl font-bold leading-8 text-slate-900">
+        <h3 className="text-xl font-bold leading-8 text-white">
           {card.title}
         </h3>
-        <div className="mt-3 flex items-center justify-center gap-1 text-sm text-red-500">
-          <span className={card.href ? "" : "text-slate-400"}>
+        <div className="mt-3 flex items-center justify-center gap-1 text-sm font-medium text-red-200">
+          <span className={card.href ? "text-white/70" : "text-white/35"}>
             {card.description}
           </span>
           {card.href && (
-            <ChevronLeft className="h-4 w-4 shrink-0 transition-transform group-hover:-translate-x-1" />
+            <ChevronLeft className="absolute bottom-4 left-4 h-9 w-9 shrink-0 rounded-full border border-white/25 bg-white/10 p-2 text-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_0_14px_rgba(255,255,255,0.08)] backdrop-blur transition-all group-hover:-translate-x-1 group-hover:border-red-200/60 group-hover:bg-red-400/20" />
           )}
         </div>
       </CardContent>
@@ -223,7 +238,7 @@ export default function HomePage() {
         <section
           aria-label="بنرهای صفحه اصلی"
           aria-roledescription="carousel"
-          className="group relative mb-10 overflow-hidden rounded-3xl bg-slate-900 shadow-xl shadow-slate-900/15"
+          className="group relative mb-10 overflow-hidden rounded-[2rem] border border-white/60 bg-slate-900 shadow-[0_24px_70px_-30px_rgba(15,23,42,0.55)] ring-1 ring-slate-900/5"
           onMouseEnter={() => setIsCarouselPaused(true)}
           onMouseLeave={() => setIsCarouselPaused(false)}
           onFocus={() => setIsCarouselPaused(true)}
@@ -297,26 +312,26 @@ export default function HomePage() {
       >
         <aside
           dir="rtl"
-          className="order-2 overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-lg shadow-slate-900/5 xl:order-1 xl:sticky xl:top-8"
+          className="order-2 overflow-hidden rounded-[1.75rem] border border-white/65 bg-gradient-to-br from-white/[0.22] via-slate-100/[0.10] to-cyan-100/[0.05] shadow-[inset_1px_1px_0_rgba(255,255,255,0.82),inset_-1px_-1px_0_rgba(186,230,253,0.12),0_0_28px_rgba(224,242,254,0.1),0_24px_55px_-26px_rgba(0,0,0,0.8)] ring-1 ring-cyan-100/20 backdrop-blur-2xl saturate-150 xl:order-1 xl:sticky xl:top-8"
         >
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-5">
+          <div className="flex items-center justify-between border-b border-white/15 bg-white/[0.04] px-5 py-5">
             <div>
-              <h2 className="text-lg font-extrabold text-slate-800">آخرین اخبار</h2>
-              <p className="mt-1 text-xs text-slate-400">تازه‌ترین اطلاعیه‌های سازمان</p>
+              <h2 className="text-lg font-extrabold text-white">آخرین اخبار</h2>
+              <p className="mt-1 text-xs text-white/45">تازه‌ترین اطلاعیه‌های سازمان</p>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-200/40 bg-red-500/15 text-red-300 shadow-[0_0_22px_rgba(248,113,113,0.25)] backdrop-blur">
               <Megaphone className="h-5 w-5" />
             </div>
           </div>
 
           <div className="flex min-h-64 flex-col items-center justify-center px-6 py-10 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-slate-300">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/20 bg-white/[0.08] text-white/35 shadow-sm backdrop-blur">
               <BookOpen className="h-6 w-6" />
             </div>
-            <p className="mt-4 text-sm font-bold text-slate-600">
+            <p className="mt-4 text-sm font-bold text-white/70">
               خبری منتشر نشده است
             </p>
-            <p className="mt-1 text-xs leading-6 text-slate-400">
+            <p className="mt-1 text-xs leading-6 text-white/40">
               تازه‌ترین اطلاعیه‌ها در این بخش نمایش داده می‌شوند.
             </p>
           </div>

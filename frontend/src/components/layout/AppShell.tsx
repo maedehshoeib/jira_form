@@ -131,6 +131,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
     navigate("/login");
   };
 
+  const usesDarkGlass = location.pathname === "/" || location.pathname.startsWith("/departments/");
+
   const isActive = (href: string) =>
     href === "/" ? location.pathname === "/" : location.pathname.startsWith(href);
 
@@ -291,7 +293,15 @@ export default function AppShell({ children }: { children: ReactNode }) {
   );
 
   return (
-    <div dir="rtl" className="min-h-screen bg-gradient-to-br from-white via-slate-50 to-red-50 font-sans">
+    <div
+      dir="rtl"
+      className={cn(
+        "min-h-screen font-sans transition-colors duration-500",
+        usesDarkGlass
+          ? "bg-[radial-gradient(circle_at_85%_15%,rgba(185,28,28,0.42),transparent_34%),radial-gradient(circle_at_15%_82%,rgba(127,29,29,0.24),transparent_40%),linear-gradient(135deg,#25232d_0%,#111827_52%,#180d12_100%)] text-white"
+          : "bg-gradient-to-br from-white via-slate-50 to-red-50",
+      )}
+    >
       <aside className="no-print fixed inset-y-0 right-0 z-50 hidden w-72 overflow-hidden bg-gradient-to-b from-red-700 via-red-700 to-red-900 shadow-2xl lg:block">
         {sidebar}
       </aside>
@@ -341,7 +351,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </Button>
         </div>
 
-        <main className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">{children}</main>
+        <main className={cn("w-full p-4 sm:p-6", usesDarkGlass ? "max-w-none lg:p-6 xl:px-7" : "mx-auto max-w-7xl lg:p-8")}>{children}</main>
       </div>
     </div>
   );
