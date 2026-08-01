@@ -1,9 +1,12 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from functools import lru_cache
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.timesheet import (
@@ -21,6 +24,20 @@ from app.schemas.timesheet import (
 )
 
 router = APIRouter()
+
+
+@lru_cache(maxsize=1)
+def _timesheet_timezone():
+    """Return the business timezone even when the host has no tzdata package."""
+    try:
+        return ZoneInfo(settings.TIMESHEET_TIMEZONE)
+    except ZoneInfoNotFoundError:
+        # Iran has used a fixed UTC+03:30 offset since September 2022.
+        return timezone(timedelta(hours=3, minutes=30))
+
+
+def _local_now_time() -> str:
+    return datetime.now(_timesheet_timezone()).strftime("%H:%M")
 
 
 def _minutes(value: str) -> int:
@@ -89,7 +106,7 @@ def _day_summary(db: Session, user_id: int, work_date: str) -> dict:
         )
         .all()
     )
-    now_time = datetime.now().strftime("%H:%M")
+    now_time = _local_now_time()
     attendance_minutes = 0
     for item in attendance:
         end = item.check_out_time or now_time
@@ -101,8 +118,8 @@ def _day_summary(db: Session, user_id: int, work_date: str) -> dict:
         "work_date": work_date,
         "check_in_time": attendance[0].check_in_time if attendance else None,
         "check_out_time": attendance[-1].check_out_time if attendance else None,
-        "is_currently_checked_in": bool(
-            attendance and attendance[-1].check_out_time is None
+        "is_currently_checked_in": any(
+            item.check_out_time is None for item in attendance
         ),
         "attendance_minutes": attendance_minutes,
         "task_minutes": task_minutes,
@@ -232,7 +249,10 @@ def add_task(
         )
         .all()
     )
-    now = _minutes(datetime.now().strftime("%H:%M"))
+    # Attendance and task times are employee-local wall-clock values. Using a
+    # naive datetime here made valid tasks fail whenever the API host ran in a
+    # different timezone (for example, a UTC Docker container).
+    now = _minutes(_local_now_time())
     inside_attendance = any(
         start >= _minutes(item.check_in_time)
         and end <= (_minutes(item.check_out_time) if item.check_out_time else now)

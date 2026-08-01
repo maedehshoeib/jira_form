@@ -274,6 +274,38 @@ export function EmployeePanel(): JSX.Element {
     })();
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const refreshAttendance = async () => {
+      try {
+        const freshSummary = await fetchSummary(formatDate(today()));
+        if (!cancelled) setSummary(freshSummary);
+      } catch (refreshError) {
+        // A background refresh must not replace the user's current form error.
+        console.error(refreshError);
+      }
+    };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void refreshAttendance();
+    };
+
+    window.addEventListener('focus', refreshWhenVisible);
+    window.addEventListener('pageshow', refreshWhenVisible);
+    window.addEventListener('online', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    const refreshTimer = window.setInterval(refreshWhenVisible, 60_000);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener('focus', refreshWhenVisible);
+      window.removeEventListener('pageshow', refreshWhenVisible);
+      window.removeEventListener('online', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.clearInterval(refreshTimer);
+    };
+  }, []);
+
   async function loadRange(startDate: string, endDate: string): Promise<void> {
     if (!startDate || !endDate) return;
     if (endDate < startDate) {
@@ -346,7 +378,11 @@ export function EmployeePanel(): JSX.Element {
       const now = today();
       const currentWorkDate = formatDate(now);
       const currentTime = now.format('HH:mm');
-      const currentlyCheckedIn = Boolean(summary?.is_currently_checked_in);
+      // Revalidate immediately before mutating. This covers another tab having
+      // changed attendance after this tab last rendered.
+      const freshSummary = await fetchSummary(currentWorkDate);
+      setSummary(freshSummary);
+      const currentlyCheckedIn = freshSummary.is_currently_checked_in;
 
       if (currentlyCheckedIn) {
         await saveCheckOut({
@@ -370,6 +406,13 @@ export function EmployeePanel(): JSX.Element {
         attendanceIsActive ? 'Failed to check-out' : 'Failed to check-in',
       );
       setError(mapErrorToPersian(rawError));
+      // Recover the correct button state even when a concurrent tab won the
+      // check-in/check-out race and the mutation itself was rejected.
+      try {
+        setSummary(await fetchSummary(formatDate(today())));
+      } catch (refreshError) {
+        console.error(refreshError);
+      }
     } finally {
       setAttendanceBusy(false);
     }

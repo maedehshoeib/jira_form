@@ -21,6 +21,9 @@ class Settings(BaseSettings):
 
     # Repeatable preview data used by both sides of the timesheet UI.
     TIMESHEET_SEED_ENABLED: bool = True
+    # Timesheet values are stored as the organization's local wall-clock time.
+    # Never depend on the host/container timezone for active attendance checks.
+    TIMESHEET_TIMEZONE: str = 'Asia/Tehran'
     TIMESHEET_DEMO_USERNAME: str = "ma.shoeib"
 
     # Jira ScriptRunner APIs
