@@ -34,6 +34,7 @@ class AdminUserCreate(BaseModel):
     job_title: str = Field(default="", max_length=512)
     extension: str = Field(default="", max_length=32)
     is_active: bool = True
+    is_admin: bool = False
     must_change_password: bool = True
 
 
@@ -48,6 +49,7 @@ class AdminUserUpdate(BaseModel):
     job_title: str | None = Field(default=None, max_length=512)
     extension: str | None = Field(default=None, max_length=32)
     is_active: bool | None = None
+    is_admin: bool | None = None
     must_change_password: bool | None = None
 
 

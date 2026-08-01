@@ -31,6 +31,7 @@ type ManagedUser = {
   job_title: string;
   extension: string;
   is_active: boolean;
+  is_admin: boolean;
   must_change_password: boolean;
   created_at: string;
   last_login: string | null;
@@ -62,6 +63,7 @@ type UserForm = {
   job_title: string;
   extension: string;
   is_active: boolean;
+  is_admin: boolean;
   must_change_password: boolean;
 };
 
@@ -79,6 +81,7 @@ const emptyForm: UserForm = {
   job_title: "",
   extension: "",
   is_active: true,
+  is_admin: false,
   must_change_password: true,
 };
 
@@ -216,6 +219,7 @@ export default function AdminUsersPage() {
       job_title: user.job_title,
       extension: user.extension,
       is_active: user.is_active,
+      is_admin: user.is_admin,
       must_change_password: user.must_change_password,
     });
     setEditing(user);
@@ -877,6 +881,15 @@ export default function AdminUsersPage() {
                   className="h-4 w-4 accent-red-600"
                 />
                 حساب فعال باشد
+              </label>
+              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4 text-sm font-semibold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={form.is_admin}
+                  onChange={(event) => update("is_admin", event.target.checked)}
+                  className="h-4 w-4 accent-red-600"
+                />
+                حساب مدیر سیستم
               </label>
               <label className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4 text-sm font-semibold text-slate-700">
                 <input

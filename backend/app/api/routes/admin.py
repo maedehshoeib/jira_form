@@ -406,7 +406,7 @@ def list_users(
     db: Session = Depends(get_db),
     _: User = Depends(get_admin_user),
 ):
-    query = db.query(User).filter(User.is_admin.is_(False))
+    query = db.query(User)
     if search.strip():
         pattern = f"%{search.strip()}%"
         query = query.filter(
@@ -655,7 +655,7 @@ def create_user(
         extension=body.extension.strip(),
         is_active=body.is_active,
         must_change_password=body.must_change_password,
-        is_admin=False,
+        is_admin=body.is_admin,
     )
     db.add(user)
     db.commit()
@@ -668,12 +668,19 @@ def update_user(
     user_id: int,
     body: AdminUserUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_admin_user),
+    current_user: User = Depends(get_admin_user),
 ):
-    user = db.query(User).filter(User.id == user_id, User.is_admin.is_(False)).first()
+    user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="کاربر یافت نشد.")
     values = body.model_dump(exclude_unset=True)
+    if user.id == current_user.id and (
+        values.get("is_active") is False or values.get("is_admin") is False
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="You cannot deactivate or remove administrator access from your own account.",
+        )
     if "username" in values:
         username = _normalized_username(values.pop("username"))
         duplicate = (
@@ -714,11 +721,13 @@ def update_user(
 def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_admin_user),
+    current_user: User = Depends(get_admin_user),
 ):
-    user = db.query(User).filter(User.id == user_id, User.is_admin.is_(False)).first()
+    user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="کاربر یافت نشد.")
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="You cannot deactivate your own account.")
     # Keep historical request ownership intact while removing all login access.
     user.is_active = False
     db.commit()
