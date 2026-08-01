@@ -206,7 +206,9 @@ export default function InternalChatPage() {
           items.map((item) =>
             item.id === conversationId ? { ...item, unread_count: 0 } : item,
           ),
-        );
+        );        if (!search) {
+          window.dispatchEvent(new Event("chat:refresh-notifications"));
+        }
       } catch (requestError) {
         setError(errorText(requestError));
       } finally {
@@ -273,7 +275,14 @@ export default function InternalChatPage() {
           const payload = JSON.parse(event.data) as {
             type: string;
             conversation_id?: number;
+            message?: ChatMessage;
           };
+          if (
+            payload.type === "message.created" &&
+            payload.message?.sender.id !== user?.id
+          ) {
+            window.dispatchEvent(new Event("chat:new-message"));
+          }
           if (
             payload.type === "typing" &&
             payload.conversation_id === activeIdRef.current
@@ -321,8 +330,7 @@ export default function InternalChatPage() {
 
   const filteredConversations = useMemo(() => {
     const term = conversationSearch.trim().toLocaleLowerCase("fa");
-    if (!term) return conversations;
-    return conversations.filter(
+    const matching = !term ? conversations : conversations.filter(
       (item) =>
         item.title.toLocaleLowerCase("fa").includes(term) ||
         item.members.some(
@@ -330,6 +338,11 @@ export default function InternalChatPage() {
             member.display_name.toLocaleLowerCase("fa").includes(term) ||
             member.department.toLocaleLowerCase("fa").includes(term),
         ),
+    );
+    return [...matching].sort(
+      (a, b) =>
+        new Date(b.last_message?.created_at || b.updated_at).getTime() -
+        new Date(a.last_message?.created_at || a.updated_at).getTime(),
     );
   }, [conversationSearch, conversations]);
 
@@ -528,7 +541,9 @@ export default function InternalChatPage() {
                     className={`mb-1 flex w-full items-center gap-3 rounded-2xl p-3 text-right transition ${
                       activeId === conversation.id
                         ? "bg-red-50"
-                        : "hover:bg-slate-50"
+                        : conversation.unread_count > 0
+                          ? "border border-amber-200 bg-amber-50 hover:bg-amber-100"
+                          : "hover:bg-slate-50"
                     }`}
                   >
                     <div className="relative shrink-0">
@@ -552,7 +567,7 @@ export default function InternalChatPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1">
-                        <p className="truncate text-sm font-bold text-slate-800">
+                        <p className={`truncate text-sm font-bold ${conversation.unread_count > 0 ? "text-amber-950" : "text-slate-800"}`}>
                           {conversation.title}
                         </p>
                         {conversation.is_pinned && (
@@ -569,7 +584,7 @@ export default function InternalChatPage() {
                             : ""}
                         </span>
                       </div>
-                      <p className="mt-1 truncate text-xs text-slate-500">
+                      <p className={`mt-1 truncate text-xs ${conversation.unread_count > 0 ? "font-semibold text-amber-800" : "text-slate-500"}`}>
                         {conversation.last_message?.deleted_at
                           ? "پیام حذف شده"
                           : conversation.last_message?.attachment
