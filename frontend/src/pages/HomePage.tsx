@@ -238,7 +238,7 @@ export default function HomePage() {
         <section
           aria-label="بنرهای صفحه اصلی"
           aria-roledescription="carousel"
-          className="group relative mb-10 overflow-hidden rounded-[2rem] border border-white/60 bg-slate-900 shadow-[0_24px_70px_-30px_rgba(15,23,42,0.55)] ring-1 ring-slate-900/5"
+          className="group relative mb-6 overflow-hidden rounded-[1.5rem] border border-white/60 bg-slate-900 shadow-[0_16px_50px_-24px_rgba(15,23,42,0.55)] ring-1 ring-slate-900/5"
           onMouseEnter={() => setIsCarouselPaused(true)}
           onMouseLeave={() => setIsCarouselPaused(false)}
           onFocus={() => setIsCarouselPaused(true)}
@@ -248,7 +248,7 @@ export default function HomePage() {
             }
           }}
         >
-          <div className="relative aspect-[4/3] w-full sm:aspect-[16/7]">
+          <div className="relative aspect-[16/9] w-full max-h-[calc(14rem+5cm)] sm:max-h-[calc(18rem+5cm)] sm:aspect-[16/7]">
             {banner.images.map((image, index) => (
               <img
                 key={image.id}
