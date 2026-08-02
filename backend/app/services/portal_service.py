@@ -273,9 +273,11 @@ IT_SUPPORT_FIELDS = [
         label="اولویت درخواست",
         type="select",
         options=[
+            SelectOption(label="خیلی کم", value="very_low"),
             SelectOption(label="کم", value="low"),
             SelectOption(label="متوسط", value="medium"),
             SelectOption(label="زیاد", value="high"),
+            SelectOption(label="خیلی زیاد", value="very_high"),
         ],
     ),
     FormField(name="delivery_time", label="زمان تحویل", type="date"),
