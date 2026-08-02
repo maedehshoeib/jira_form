@@ -80,10 +80,10 @@ def _serialize_task(item: TimesheetTask) -> dict:
 
 
 def _require_timesheet_admin(user: User = Depends(get_current_user)) -> User:
-    if not user.is_admin or user.username.casefold() != "Vosouq.admin".casefold():
+    if not user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="پنل مدیریت تایم شیت فقط در دسترس Vosouq.admin است.",
+            detail="پنل مدیریت تایم شیت فقط برای مدیران سامانه در دسترس است.",
         )
     return user
 
