@@ -34,18 +34,40 @@ MAX_AVATAR_SIZE = 5 * 1024 * 1024
 
 
 def _normalize_username(username: str) -> str:
+    import unicodedata
+
     value = username.strip()
     if "\\" in value:
         value = value.rsplit("\\", 1)[-1]
     if "@" in value:
         value = value.split("@", 1)[0]
-    return value.lower()
+    # Persian/RTL keyboards often inject invisible marks into Latin usernames.
+    value = "".join(
+        ch
+        for ch in unicodedata.normalize("NFKC", value)
+        if unicodedata.category(ch) not in {"Mn", "Cf", "Me"}
+    )
+    return value.casefold()
+
+
+def _find_user_by_username(db: Session, username: str) -> User | None:
+    user = db.query(User).filter(User.username == username).first()
+    if user:
+        return user
+    # Match and repair legacy rows that still contain invisible characters.
+    for candidate in db.query(User).filter(User.is_active.is_(True)).all():
+        if _normalize_username(candidate.username) == username:
+            if candidate.username != username:
+                candidate.username = username
+                db.commit()
+            return candidate
+    return None
 
 
 @router.post("/login", response_model=TokenResponse)
 def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
     username = _normalize_username(body.username)
-    user = db.query(User).filter(User.username == username).first()
+    user = _find_user_by_username(db, username)
 
     if (
         user is None
