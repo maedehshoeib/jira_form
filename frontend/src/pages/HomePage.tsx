@@ -15,6 +15,7 @@ import {
   Landmark,
   Megaphone,
   Monitor,
+  X,
 } from "lucide-react";
 
 import client from "../api/client";
@@ -23,6 +24,7 @@ import AppShell from "../components/layout/AppShell";
 import { Card, CardContent } from "../components/ui/card";
 import { API_BASE, Department } from "../config/portal";
 import { SiteBanner } from "../features/banner";
+import { SiteNews } from "../features/news";
 
 type HomeCard = {
   id: string;
@@ -130,6 +132,90 @@ const HOME_ICON_STYLES: Record<string, string> = {
   timesheet: "border-blue-200/60 from-white/30 via-blue-300/20 to-blue-600/40 text-blue-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_0_28px_rgba(59,130,246,0.7)]",
 };
 
+const formatNewsDate = (value: string) =>
+  new Intl.DateTimeFormat("fa-IR", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+
+function NewsDetailModal({
+  news,
+  onClose,
+}: {
+  news: SiteNews;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" dir="rtl">
+      <button
+        type="button"
+        aria-label="بستن"
+        onClick={onClose}
+        className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
+      />
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="news-detail-title"
+        className="relative z-10 flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-white/20 bg-slate-950/95 shadow-2xl ring-1 ring-white/10"
+      >
+        <header className="flex items-start justify-between gap-4 border-b border-white/10 px-5 py-4">
+          <div className="min-w-0">
+            <h2
+              id="news-detail-title"
+              className="text-lg font-extrabold leading-8 text-white"
+            >
+              {news.title}
+            </h2>
+            <p className="mt-1 text-xs text-white/45">
+              تاریخ انتشار: {formatNewsDate(news.created_at)}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl p-2 text-white/60 transition hover:bg-white/10 hover:text-white"
+            aria-label="بستن جزئیات خبر"
+          >
+            <X size={20} />
+          </button>
+        </header>
+        <div className="overflow-y-auto px-5 py-5">
+          {news.image_url && (
+            <img
+              src={news.image_url}
+              alt={news.title}
+              className="mb-5 max-h-[28rem] w-full rounded-2xl object-contain bg-black/30"
+            />
+          )}
+          {news.body ? (
+            <p className="whitespace-pre-wrap text-sm leading-8 text-white/80">
+              {news.body}
+            </p>
+          ) : (
+            !news.image_url && (
+              <p className="text-sm text-white/45">جزئیات بیشتری ثبت نشده است.</p>
+            )
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function DestinationCard({ card }: { card: HomeCard }) {
   const Icon = card.icon;
   const content = (
@@ -188,6 +274,8 @@ function DestinationCard({ card }: { card: HomeCard }) {
 export default function HomePage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [banner, setBanner] = useState<SiteBanner | null>(null);
+  const [newsItems, setNewsItems] = useState<SiteNews[]>([]);
+  const [selectedNews, setSelectedNews] = useState<SiteNews | null>(null);
   const [activeSlide, setActiveSlide] = useState(0);
   const [isCarouselPaused, setIsCarouselPaused] = useState(false);
 
@@ -204,6 +292,11 @@ export default function HomePage() {
       .get<SiteBanner>(endpoints.banner)
       .then(({ data }) => setBanner(data))
       .catch(() => setBanner(null));
+
+    client
+      .get<SiteNews[]>(endpoints.news)
+      .then(({ data }) => setNewsItems(data))
+      .catch(() => setNewsItems([]));
   }, []);
 
   useEffect(() => {
@@ -324,17 +417,56 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="flex min-h-64 flex-col items-center justify-center px-6 py-10 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/20 bg-white/[0.08] text-white/35 shadow-sm backdrop-blur">
-              <BookOpen className="h-6 w-6" />
+          {newsItems.length === 0 ? (
+            <div className="flex min-h-64 flex-col items-center justify-center px-6 py-10 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/20 bg-white/[0.08] text-white/35 shadow-sm backdrop-blur">
+                <BookOpen className="h-6 w-6" />
+              </div>
+              <p className="mt-4 text-sm font-bold text-white/70">
+                خبری منتشر نشده است
+              </p>
+              <p className="mt-1 text-xs leading-6 text-white/40">
+                تازه‌ترین اطلاعیه‌ها در این بخش نمایش داده می‌شوند.
+              </p>
             </div>
-            <p className="mt-4 text-sm font-bold text-white/70">
-              خبری منتشر نشده است
-            </p>
-            <p className="mt-1 text-xs leading-6 text-white/40">
-              تازه‌ترین اطلاعیه‌ها در این بخش نمایش داده می‌شوند.
-            </p>
-          </div>
+          ) : (
+            <ul className="max-h-[36rem] divide-y divide-white/10 overflow-y-auto">
+              {newsItems.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedNews(item)}
+                    className="flex w-full gap-3 px-4 py-4 text-right transition hover:bg-white/[0.06] focus:outline-none focus-visible:bg-white/[0.08]"
+                  >
+                    {item.image_url ? (
+                      <img
+                        src={item.image_url}
+                        alt=""
+                        className="h-16 w-16 shrink-0 rounded-xl object-cover ring-1 ring-white/15"
+                      />
+                    ) : (
+                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] text-red-300/80">
+                        <Megaphone className="h-5 w-5" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <h3 className="line-clamp-2 text-sm font-bold leading-6 text-white">
+                        {item.title}
+                      </h3>
+                      {item.body && (
+                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-white/45">
+                          {item.body}
+                        </p>
+                      )}
+                      <p className="mt-2 text-[11px] text-white/35">
+                        {formatNewsDate(item.created_at)}
+                      </p>
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </aside>
 
         <section dir="rtl" aria-label="خدمات سازمان" className="order-1 xl:order-2">
@@ -345,6 +477,13 @@ export default function HomePage() {
           </div>
         </section>
       </div>
+
+      {selectedNews && (
+        <NewsDetailModal
+          news={selectedNews}
+          onClose={() => setSelectedNews(null)}
+        />
+      )}
     </AppShell>
   );
 }

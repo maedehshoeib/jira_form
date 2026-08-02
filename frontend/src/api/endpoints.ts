@@ -24,5 +24,7 @@ export const endpoints = {
   adminFormAccessCatalog: "/admin/form-access/catalog",
   adminSessions: "/admin/sessions",
   adminBanner: "/admin/banner",
+  adminNews: "/admin/news",
   adminPdfForms: "/admin/pdf-forms",
+  news: "/news",
 };

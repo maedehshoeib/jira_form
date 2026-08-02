@@ -17,8 +17,9 @@ from app.db.session import get_db
 from app.models.submission import Submission
 from app.models.pdf_form import PdfForm
 from app.models.site_banner import SiteBanner, SiteBannerImage
+from app.models.site_news import SiteNews
 from app.models.user import User
-from app.schemas.admin import SiteBannerResponse
+from app.schemas.admin import SiteBannerResponse, SiteNewsResponse
 from app.schemas.submission import SubmissionListItem, SubmissionResponse
 from app.schemas.pdf_form import PdfFormResponse
 from app.services.portal_service import DEPARTMENTS, FORM_TEMPLATES
@@ -133,6 +134,40 @@ def get_home_banner_image_by_id(
     image_path = Path(image.image_path)
     if not image_path.is_file():
         raise HTTPException(status_code=404, detail="تصویر بنر یافت نشد.")
+    return FileResponse(image_path)
+
+
+@router.get("/news", response_model=list[SiteNewsResponse])
+def list_home_news(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    items = db.query(SiteNews).order_by(SiteNews.created_at.desc(), SiteNews.id.desc()).all()
+    return [
+        SiteNewsResponse(
+            id=item.id,
+            title=item.title,
+            body=item.body,
+            image_url=f"/api/v1/news/images/{item.id}" if item.image_path else None,
+            image_name=item.image_name,
+            created_at=item.created_at,
+            updated_at=item.updated_at,
+        )
+        for item in items
+    ]
+
+
+@router.get("/news/images/{news_id}")
+def get_news_image(
+    news_id: int,
+    db: Session = Depends(get_db),
+):
+    item = db.query(SiteNews).filter(SiteNews.id == news_id).first()
+    if not item or not item.image_path:
+        raise HTTPException(status_code=404, detail="تصویر خبر یافت نشد.")
+    image_path = Path(item.image_path)
+    if not image_path.is_file():
+        raise HTTPException(status_code=404, detail="تصویر خبر یافت نشد.")
     return FileResponse(image_path)
 
 

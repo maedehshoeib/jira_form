@@ -19,6 +19,7 @@ from app.models import (  # noqa: F401
     pdf_form,
     report,
     site_banner,
+    site_news,
     submission,
     timesheet,
     user,

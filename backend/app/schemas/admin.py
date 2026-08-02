@@ -116,6 +116,16 @@ class SiteBannerUpdate(BaseModel):
     interval_seconds: int = Field(default=5, ge=2, le=30)
 
 
+class SiteNewsResponse(BaseModel):
+    id: int
+    title: str
+    body: str
+    image_url: str | None = None
+    image_name: str = ""
+    created_at: datetime
+    updated_at: datetime | None = None
+
+
 class DepartmentResponse(BaseModel):
     id: int
     name: str

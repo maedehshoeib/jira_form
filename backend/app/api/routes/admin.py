@@ -16,6 +16,7 @@ from app.models.form_template import DepartmentFormAccess, UserFormAccess
 from app.models.pdf_form import PdfForm
 from app.models.submission import Submission
 from app.models.site_banner import SiteBanner, SiteBannerImage
+from app.models.site_news import SiteNews
 from app.models.user import User
 from app.schemas.admin import (
     AdminSessionResponse,
@@ -33,6 +34,7 @@ from app.schemas.admin import (
     FormAccessTarget,
     SiteBannerResponse,
     SiteBannerUpdate,
+    SiteNewsResponse,
 )
 from app.schemas.pdf_form import PdfFormResponse
 from app.services.form_access_service import access_catalog, parse_target_keys
@@ -252,6 +254,166 @@ def delete_banner_image(
 
     db.refresh(banner)
     return _banner_response(banner, db)
+
+
+def _news_response(item: SiteNews) -> SiteNewsResponse:
+    return SiteNewsResponse(
+        id=item.id,
+        title=item.title,
+        body=item.body,
+        image_url=f"/api/v1/news/images/{item.id}" if item.image_path else None,
+        image_name=item.image_name,
+        created_at=item.created_at,
+        updated_at=item.updated_at,
+    )
+
+
+async def _store_news_image(image: UploadFile | None) -> tuple[str, str] | tuple[None, None]:
+    if image is None or not (image.filename or "").strip():
+        return None, None
+
+    content = await image.read(10 * 1024 * 1024 + 1)
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="حجم تصویر خبر نباید بیشتر از ۱۰ مگابایت باشد.")
+
+    signatures = {
+        "jpg": content.startswith(b"\xff\xd8\xff"),
+        "png": content.startswith(b"\x89PNG\r\n\x1a\n"),
+        "webp": len(content) >= 12
+        and content.startswith(b"RIFF")
+        and content[8:12] == b"WEBP",
+    }
+    extension = next((ext for ext, matches in signatures.items() if matches), None)
+    if not extension:
+        raise HTTPException(
+            status_code=415,
+            detail="فرمت تصویر باید JPG، PNG یا WebP باشد.",
+        )
+
+    news_dir = (Path(settings.UPLOAD_DIR) / "news").resolve()
+    news_dir.mkdir(parents=True, exist_ok=True)
+    new_path = news_dir / f"{uuid.uuid4().hex}.{extension}"
+    new_path.write_bytes(content)
+    return str(new_path), (image.filename or f"news.{extension}")[:256]
+
+
+def _delete_news_image_file(image_path: str) -> None:
+    if not image_path:
+        return
+    path = Path(image_path).resolve()
+    news_dir = (Path(settings.UPLOAD_DIR) / "news").resolve()
+    if path.parent == news_dir and path.is_file():
+        try:
+            path.unlink()
+        except OSError:
+            pass
+
+
+def _validate_news_content(title: str, body: str, has_image: bool) -> tuple[str, str]:
+    normalized_title = title.strip()
+    normalized_body = body.strip()
+    if not normalized_title and not normalized_body and not has_image:
+        raise HTTPException(
+            status_code=422,
+            detail="برای ثبت خبر حداقل عنوان، متن یا تصویر لازم است.",
+        )
+    if len(normalized_title) > 256:
+        raise HTTPException(status_code=422, detail="عنوان خبر بیش از حد طولانی است.")
+    if len(normalized_body) > 10000:
+        raise HTTPException(status_code=422, detail="متن خبر بیش از حد طولانی است.")
+    if not normalized_title:
+        normalized_title = "اطلاعیه"
+    return normalized_title, normalized_body
+
+
+@router.get("/news", response_model=list[SiteNewsResponse])
+def list_news(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    items = db.query(SiteNews).order_by(SiteNews.created_at.desc(), SiteNews.id.desc()).all()
+    return [_news_response(item) for item in items]
+
+
+@router.post("/news", response_model=SiteNewsResponse, status_code=201)
+async def create_news(
+    title: str = Form(default=""),
+    body: str = Form(default=""),
+    image: UploadFile | None = File(None),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    image_path, image_name = await _store_news_image(image)
+    normalized_title, normalized_body = _validate_news_content(
+        title, body, bool(image_path)
+    )
+
+    item = SiteNews(
+        title=normalized_title,
+        body=normalized_body,
+        image_path=image_path or "",
+        image_name=image_name or "",
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return _news_response(item)
+
+
+@router.put("/news/{news_id}", response_model=SiteNewsResponse)
+async def update_news(
+    news_id: int,
+    title: str = Form(default=""),
+    body: str = Form(default=""),
+    remove_image: bool = Form(default=False),
+    image: UploadFile | None = File(None),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    item = db.query(SiteNews).filter(SiteNews.id == news_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="خبر یافت نشد.")
+
+    new_image_path, new_image_name = await _store_news_image(image)
+    old_image_path = item.image_path
+
+    if new_image_path:
+        item.image_path = new_image_path
+        item.image_name = new_image_name or ""
+    elif remove_image:
+        item.image_path = ""
+        item.image_name = ""
+
+    has_image = bool(item.image_path)
+    normalized_title, normalized_body = _validate_news_content(
+        title, body, has_image
+    )
+    item.title = normalized_title
+    item.body = normalized_body
+    item.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(item)
+
+    if (new_image_path or remove_image) and old_image_path and old_image_path != item.image_path:
+        _delete_news_image_file(old_image_path)
+
+    return _news_response(item)
+
+
+@router.delete("/news/{news_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_news(
+    news_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    item = db.query(SiteNews).filter(SiteNews.id == news_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="خبر یافت نشد.")
+
+    image_path = item.image_path
+    db.delete(item)
+    db.commit()
+    _delete_news_image_file(image_path)
 
 
 def _normalized_username(value: str) -> str:
