@@ -25,6 +25,7 @@ import { Card, CardContent } from "../components/ui/card";
 import { API_BASE, Department } from "../config/portal";
 import { SiteBanner } from "../features/banner";
 import { SiteNews } from "../features/news";
+import { cn } from "../lib/utils";
 
 type HomeCard = {
   id: string;
@@ -122,17 +123,17 @@ const HOME_CARDS: HomeCard[] = [
 ];
 
 const HOME_ICON_STYLES: Record<string, string> = {
-  guidelines: "border-cyan-200/60 from-white/30 via-cyan-300/20 to-cyan-500/35 text-cyan-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_0_28px_rgba(34,211,238,0.6)]",
-  training: "border-blue-200/60 from-white/30 via-blue-300/20 to-blue-600/35 text-blue-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_0_28px_rgba(59,130,246,0.65)]",
-  forms: "border-red-200/60 from-white/30 via-red-300/20 to-red-600/40 text-red-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_0_28px_rgba(248,113,113,0.7)]",
-  documents: "border-purple-200/60 from-white/30 via-purple-300/20 to-purple-600/40 text-purple-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_0_28px_rgba(192,132,252,0.7)]",
-  it: "border-emerald-200/60 from-white/30 via-emerald-300/20 to-emerald-600/40 text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_0_28px_rgba(74,222,128,0.65)]",
-  business: "border-violet-200/60 from-white/30 via-violet-300/20 to-violet-600/40 text-violet-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_0_28px_rgba(167,139,250,0.65)]",
-  "resource-development": "border-orange-200/60 from-white/30 via-orange-300/20 to-orange-600/40 text-orange-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_0_28px_rgba(251,146,60,0.7)]",
-  planning: "border-rose-200/60 from-white/30 via-rose-300/20 to-rose-600/40 text-rose-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_0_28px_rgba(251,113,133,0.7)]",
-  reports: "border-green-200/60 from-white/30 via-green-300/20 to-green-600/40 text-green-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_0_28px_rgba(74,222,128,0.65)]",
-  contracts: "border-orange-200/60 from-white/30 via-orange-300/20 to-orange-600/40 text-orange-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_0_28px_rgba(251,146,60,0.7)]",
-  timesheet: "border-blue-200/60 from-white/30 via-blue-300/20 to-blue-600/40 text-blue-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_0_28px_rgba(59,130,246,0.7)]",
+  guidelines: "border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-400/40 dark:bg-cyan-500/20 dark:text-cyan-200",
+  training: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-400/40 dark:bg-blue-500/20 dark:text-blue-200",
+  forms: "border-red-200 bg-red-50 text-red-700 dark:border-red-400/40 dark:bg-red-500/20 dark:text-red-200",
+  documents: "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-400/40 dark:bg-purple-500/20 dark:text-purple-200",
+  it: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/40 dark:bg-emerald-500/20 dark:text-emerald-200",
+  business: "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-400/40 dark:bg-violet-500/20 dark:text-violet-200",
+  "resource-development": "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-400/40 dark:bg-orange-500/20 dark:text-orange-200",
+  planning: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-400/40 dark:bg-rose-500/20 dark:text-rose-200",
+  reports: "border-green-200 bg-green-50 text-green-700 dark:border-green-400/40 dark:bg-green-500/20 dark:text-green-200",
+  contracts: "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-400/40 dark:bg-orange-500/20 dark:text-orange-200",
+  timesheet: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-400/40 dark:bg-blue-500/20 dark:text-blue-200",
 };
 
 const formatNewsDate = (value: string) =>
@@ -167,30 +168,30 @@ function NewsDetailModal({
         type="button"
         aria-label="بستن"
         onClick={onClose}
-        className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm dark:bg-slate-950/60"
       />
       <section
         role="dialog"
         aria-modal="true"
         aria-labelledby="news-detail-title"
-        className="relative z-10 flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-white/20 bg-slate-950/95 shadow-2xl ring-1 ring-white/10"
+        className="relative z-10 flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-white/20 dark:bg-slate-950/95 dark:ring-1 dark:ring-white/10"
       >
-        <header className="flex items-start justify-between gap-4 border-b border-white/10 px-5 py-4">
+        <header className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 dark:border-white/10">
           <div className="min-w-0">
             <h2
               id="news-detail-title"
-              className="text-lg font-extrabold leading-8 text-white"
+              className="text-lg font-extrabold leading-8 text-slate-900 dark:text-white"
             >
               {news.title}
             </h2>
-            <p className="mt-1 text-xs text-white/45">
+            <p className="mt-1 text-xs text-slate-500 dark:text-white/45">
               تاریخ انتشار: {formatNewsDate(news.created_at)}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl p-2 text-white/60 transition hover:bg-white/10 hover:text-white"
+            className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white"
             aria-label="بستن جزئیات خبر"
           >
             <X size={20} />
@@ -201,16 +202,16 @@ function NewsDetailModal({
             <img
               src={news.image_url}
               alt={news.title}
-              className="mb-5 max-h-[28rem] w-full rounded-2xl object-contain bg-black/30"
+              className="mb-5 max-h-[28rem] w-full rounded-2xl bg-slate-100 object-contain dark:bg-black/30"
             />
           )}
           {news.body ? (
-            <p className="whitespace-pre-wrap text-sm leading-8 text-white/80">
+            <p className="whitespace-pre-wrap text-sm leading-8 text-slate-700 dark:text-white/80">
               {news.body}
             </p>
           ) : (
             !news.image_url && (
-              <p className="text-sm text-white/45">جزئیات بیشتری ثبت نشده است.</p>
+              <p className="text-sm text-slate-400 dark:text-white/45">جزئیات بیشتری ثبت نشده است.</p>
             )
           )}
         </div>
@@ -223,40 +224,42 @@ function DestinationCard({ card }: { card: HomeCard }) {
   const Icon = card.icon;
   const content = (
     <Card
-      className={`group relative isolate h-full overflow-hidden rounded-[1.75rem] border backdrop-blur-2xl transition-all duration-500 before:pointer-events-none before:absolute before:inset-x-6 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white before:to-transparent after:pointer-events-none after:absolute after:left-3 after:top-5 after:h-20 after:w-px after:bg-gradient-to-b after:from-white/70 after:to-transparent ${
+      className={cn(
+        "group relative isolate h-full overflow-hidden rounded-[1.75rem] border transition-all duration-500",
         card.href
-          ? "border-white/65 bg-gradient-to-br from-white/[0.24] via-slate-100/[0.11] to-cyan-100/[0.06] shadow-[inset_1px_1px_0_rgba(255,255,255,0.85),inset_-1px_-1px_0_rgba(186,230,253,0.15),0_0_28px_rgba(224,242,254,0.12),0_24px_55px_-24px_rgba(0,0,0,0.78)] ring-1 ring-cyan-100/20 saturate-150 hover:-translate-y-2 hover:border-red-200/70 hover:bg-white/[0.22] hover:shadow-[0_24px_55px_-20px_rgba(239,68,68,0.38)] focus-within:-translate-y-1"
-          : "border-dashed border-white/35 bg-gradient-to-br from-white/[0.12] to-cyan-100/[0.04] shadow-[inset_1px_1px_0_rgba(255,255,255,0.4),0_18px_45px_-28px_rgba(0,0,0,0.7)] saturate-[.85]"
-      }`}
+          ? "border-slate-200 bg-white shadow-sm hover:-translate-y-2 hover:border-red-200 hover:shadow-lg hover:shadow-red-100/60 focus-within:-translate-y-1 dark:border-slate-600 dark:bg-slate-800/90 dark:shadow-lg dark:shadow-black/30 dark:hover:border-red-400/50 dark:hover:bg-slate-800 dark:hover:shadow-red-950/40"
+          : "border-dashed border-slate-300 bg-slate-50 shadow-none dark:border-slate-600 dark:bg-slate-800/50",
+      )}
     >
-      <div className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-red-500/30 blur-3xl transition-all duration-500 group-hover:bg-red-400/50" />
-      <div className="pointer-events-none absolute -bottom-16 -left-12 h-36 w-36 rounded-full bg-rose-300/10 blur-3xl" />
+      <div className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-red-500/10 blur-3xl transition-all duration-500 group-hover:bg-red-400/20 dark:bg-red-500/15 dark:group-hover:bg-red-400/25" />
+      <div className="pointer-events-none absolute -bottom-16 -left-12 h-36 w-36 rounded-full bg-rose-300/10 blur-3xl dark:bg-rose-300/5" />
       <CardContent className="relative flex h-full min-h-56 flex-col items-center justify-center p-7 text-center sm:p-8">
         {!card.href && (
-          <span className="absolute left-4 top-4 rounded-full border border-white/20 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-white/50 backdrop-blur-md">
+          <span className="absolute left-4 top-4 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500 dark:border-white/20 dark:bg-black/20 dark:text-white/50 dark:backdrop-blur-md">
             به‌زودی
           </span>
         )}
 
         <div
-          className={`mb-6 flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_12px_28px_-16px_rgba(185,28,28,0.5)] backdrop-blur-md transition-all duration-500 ${
+          className={cn(
+            "relative z-10 mb-6 flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border shadow-sm transition-transform duration-500",
             card.href
-              ? `bg-gradient-to-br ${HOME_ICON_STYLES[card.id]} group-hover:scale-110 group-hover:-rotate-3`
-              : "border-white/20 bg-white/10 text-white/40"
-          }`}
+              ? cn(HOME_ICON_STYLES[card.id], "group-hover:scale-110 group-hover:-rotate-3")
+              : "border-slate-200 bg-slate-100 text-slate-400 dark:border-white/20 dark:bg-white/10 dark:text-white/40",
+          )}
         >
-          <Icon className="h-8 w-8" />
+          <Icon className="h-8 w-8 shrink-0" strokeWidth={2} />
         </div>
 
-        <h3 className="text-xl font-bold leading-8 text-white">
+        <h3 className="text-xl font-bold leading-8 text-slate-900 dark:text-white">
           {card.title}
         </h3>
-        <div className="mt-3 flex items-center justify-center gap-1 text-sm font-medium text-red-200">
-          <span className={card.href ? "text-white/70" : "text-white/35"}>
+        <div className="mt-3 flex items-center justify-center gap-1 text-sm font-medium text-red-600 dark:text-red-200">
+          <span className={card.href ? "text-slate-500 dark:text-white/70" : "text-slate-400 dark:text-white/35"}>
             {card.description}
           </span>
           {card.href && (
-            <ChevronLeft className="absolute bottom-4 left-4 h-9 w-9 shrink-0 rounded-full border border-white/25 bg-white/10 p-2 text-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_0_14px_rgba(255,255,255,0.08)] backdrop-blur transition-all group-hover:-translate-x-1 group-hover:border-red-200/60 group-hover:bg-red-400/20" />
+            <ChevronLeft className="absolute bottom-4 left-4 h-9 w-9 shrink-0 rounded-full border border-slate-200 bg-slate-50 p-2 text-slate-500 transition-all group-hover:-translate-x-1 group-hover:border-red-200 group-hover:bg-red-50 group-hover:text-red-600 dark:border-white/25 dark:bg-white/10 dark:text-white/80 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_0_14px_rgba(255,255,255,0.08)] dark:backdrop-blur dark:group-hover:border-red-200/60 dark:group-hover:bg-red-400/20 dark:group-hover:text-white/80" />
           )}
         </div>
       </CardContent>
@@ -334,7 +337,7 @@ export default function HomePage() {
         <section
           aria-label="بنرهای صفحه اصلی"
           aria-roledescription="carousel"
-          className="group relative mb-6 overflow-hidden rounded-[1.5rem] border border-white/60 bg-slate-900 shadow-[0_16px_50px_-24px_rgba(15,23,42,0.55)] ring-1 ring-slate-900/5"
+          className="group relative mb-6 overflow-hidden rounded-[1.5rem] border border-slate-200 bg-slate-900 shadow-[0_16px_50px_-24px_rgba(15,23,42,0.55)] ring-1 ring-slate-900/5 dark:border-white/60"
           onMouseEnter={() => setIsCarouselPaused(true)}
           onMouseLeave={() => setIsCarouselPaused(false)}
           onFocus={() => setIsCarouselPaused(true)}
@@ -408,60 +411,60 @@ export default function HomePage() {
       >
         <aside
           dir="rtl"
-          className="order-2 overflow-hidden rounded-[1.75rem] border border-white/65 bg-gradient-to-br from-white/[0.22] via-slate-100/[0.10] to-cyan-100/[0.05] shadow-[inset_1px_1px_0_rgba(255,255,255,0.82),inset_-1px_-1px_0_rgba(186,230,253,0.12),0_0_28px_rgba(224,242,254,0.1),0_24px_55px_-26px_rgba(0,0,0,0.8)] ring-1 ring-cyan-100/20 backdrop-blur-2xl saturate-150 xl:order-1 xl:sticky xl:top-8"
+          className="order-2 overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm dark:border-white/65 dark:bg-gradient-to-br dark:from-white/[0.22] dark:via-slate-100/[0.10] dark:to-cyan-100/[0.05] dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.82),inset_-1px_-1px_0_rgba(186,230,253,0.12),0_0_28px_rgba(224,242,254,0.1),0_24px_55px_-26px_rgba(0,0,0,0.8)] dark:ring-1 dark:ring-cyan-100/20 dark:backdrop-blur-2xl dark:saturate-150 xl:order-1 xl:sticky xl:top-8"
         >
-          <div className="flex items-center justify-between border-b border-white/15 bg-white/[0.04] px-5 py-5">
+          <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-5 py-5 dark:border-white/15 dark:bg-white/[0.04]">
             <div>
-              <h2 className="text-lg font-extrabold text-white">آخرین اخبار</h2>
-              <p className="mt-1 text-xs text-white/45">تازه‌ترین اطلاعیه‌های سازمان</p>
+              <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">آخرین اخبار</h2>
+              <p className="mt-1 text-xs text-slate-500 dark:text-white/45">تازه‌ترین اطلاعیه‌های سازمان</p>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-200/40 bg-red-500/15 text-red-300 shadow-[0_0_22px_rgba(248,113,113,0.25)] backdrop-blur">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-100 bg-red-50 text-red-600 shadow-sm dark:border-red-200/40 dark:bg-red-500/15 dark:text-red-300 dark:shadow-[0_0_22px_rgba(248,113,113,0.25)] dark:backdrop-blur">
               <Megaphone className="h-5 w-5" />
             </div>
           </div>
 
           {newsItems.length === 0 ? (
             <div className="flex min-h-64 flex-col items-center justify-center px-6 py-10 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/20 bg-white/[0.08] text-white/35 shadow-sm backdrop-blur">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-400 shadow-sm dark:border-white/20 dark:bg-white/[0.08] dark:text-white/35 dark:backdrop-blur">
                 <BookOpen className="h-6 w-6" />
               </div>
-              <p className="mt-4 text-sm font-bold text-white/70">
+              <p className="mt-4 text-sm font-bold text-slate-600 dark:text-white/70">
                 خبری منتشر نشده است
               </p>
-              <p className="mt-1 text-xs leading-6 text-white/40">
+              <p className="mt-1 text-xs leading-6 text-slate-400 dark:text-white/40">
                 تازه‌ترین اطلاعیه‌ها در این بخش نمایش داده می‌شوند.
               </p>
             </div>
           ) : (
-            <ul className="max-h-[36rem] divide-y divide-white/10 overflow-y-auto">
+            <ul className="max-h-[36rem] divide-y divide-slate-100 overflow-y-auto dark:divide-white/10">
               {newsItems.map((item) => (
                 <li key={item.id}>
                   <button
                     type="button"
                     onClick={() => setSelectedNews(item)}
-                    className="flex w-full gap-3 px-4 py-4 text-right transition hover:bg-white/[0.06] focus:outline-none focus-visible:bg-white/[0.08]"
+                    className="flex w-full gap-3 px-4 py-4 text-right transition hover:bg-slate-50 focus:outline-none focus-visible:bg-slate-100 dark:hover:bg-white/[0.06] dark:focus-visible:bg-white/[0.08]"
                   >
                     {item.image_url ? (
                       <img
                         src={item.image_url}
                         alt=""
-                        className="h-16 w-16 shrink-0 rounded-xl object-cover ring-1 ring-white/15"
+                        className="h-16 w-16 shrink-0 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-white/15"
                       />
                     ) : (
-                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] text-red-300/80">
+                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-red-50 text-red-500 dark:border-white/15 dark:bg-white/[0.06] dark:text-red-300/80">
                         <Megaphone className="h-5 w-5" />
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <h3 className="line-clamp-2 text-sm font-bold leading-6 text-white">
+                      <h3 className="line-clamp-2 text-sm font-bold leading-6 text-slate-900 dark:text-white">
                         {item.title}
                       </h3>
                       {item.body && (
-                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-white/45">
+                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500 dark:text-white/45">
                           {item.body}
                         </p>
                       )}
-                      <p className="mt-2 text-[11px] text-white/35">
+                      <p className="mt-2 text-[11px] text-slate-400 dark:text-white/35">
                         {formatNewsDate(item.created_at)}
                       </p>
                     </div>

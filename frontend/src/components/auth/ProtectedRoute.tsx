@@ -11,8 +11,8 @@ export default function ProtectedRoute({
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center font-sans">
-        <p className="text-lg text-slate-600">در حال بارگذاری...</p>
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-white via-slate-50 to-red-50 font-sans dark:from-slate-950 dark:via-slate-900 dark:to-red-950/40">
+        <p className="text-lg text-slate-600 dark:text-slate-300">در حال بارگذاری...</p>
       </div>
     );
   }

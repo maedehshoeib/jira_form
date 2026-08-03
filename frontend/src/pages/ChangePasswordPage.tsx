@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import client from "../api/client";
 import { endpoints } from "../api/endpoints";
 import logo from "../assets/logo.png";
+import ThemeToggle from "../components/ThemeToggle";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { useAuth } from "../context/AuthContext";
@@ -54,16 +55,20 @@ export default function ChangePasswordPage() {
   return (
     <div
       dir="rtl"
-      className="flex min-h-screen items-center justify-center bg-gradient-to-br from-white via-slate-50 to-red-50 px-4 font-sans"
+      className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-white via-slate-50 to-red-50 px-4 font-sans dark:from-slate-950 dark:via-slate-900 dark:to-red-950/40"
     >
-      <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-xl sm:p-10">
+      <div className="absolute left-4 top-4 sm:left-6 sm:top-6">
+        <ThemeToggle className="border-red-100 text-red-600 dark:border-slate-600 dark:bg-slate-800/80 dark:text-red-300" />
+      </div>
+
+      <div className="w-full max-w-md rounded-3xl border border-transparent bg-white p-8 shadow-xl dark:border-slate-700 dark:bg-slate-900 sm:p-10">
         <div className="mb-7 flex flex-col items-center text-center">
           <img src={logo} alt="وثوق گستر" className="mb-4 h-16 object-contain" />
-          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-600 dark:bg-red-950/60 dark:text-red-300">
             <KeyRound size={24} />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">تغییر رمز عبور</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-500">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">تغییر رمز عبور</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
             {user?.must_change_password
               ? "برای ادامه، رمز عبور پیش‌فرض خود را تغییر دهید."
               : "برای امنیت حساب، ابتدا رمز عبور فعلی را وارد کنید."}
@@ -71,7 +76,7 @@ export default function ChangePasswordPage() {
         </div>
 
         {error && (
-          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/50 dark:text-red-300">
             {error}
           </div>
         )}

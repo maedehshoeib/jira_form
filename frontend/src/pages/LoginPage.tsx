@@ -4,6 +4,7 @@ import { LogIn } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
 import logo from "../assets/logo.png";
+import ThemeToggle from "../components/ThemeToggle";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 
@@ -46,26 +47,30 @@ export default function LoginPage() {
   return (
     <div
       dir="rtl"
-      className="flex min-h-screen items-center justify-center bg-gradient-to-br from-white via-slate-50 to-red-50 px-4 font-sans"
+      className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-white via-slate-50 to-red-50 px-4 font-sans dark:from-slate-950 dark:via-slate-900 dark:to-red-950/40"
     >
-      <div className="w-full max-w-md rounded-3xl bg-white p-10 shadow-xl">
+      <div className="absolute left-4 top-4 sm:left-6 sm:top-6">
+        <ThemeToggle className="border-red-100 text-red-600 dark:border-slate-600 dark:bg-slate-800/80 dark:text-red-300" />
+      </div>
+
+      <div className="w-full max-w-md rounded-3xl border border-transparent bg-white p-10 shadow-xl dark:border-slate-700 dark:bg-slate-900">
         <div className="mb-8 flex flex-col items-center text-center">
           <img src={logo} alt="وثوق گستر" className="mb-4 h-20 object-contain" />
-          <h1 className="text-2xl font-bold text-red-600">سامانه جامع خدمات</h1>
-          <p className="mt-2 text-sm text-slate-500">
+          <h1 className="text-2xl font-bold text-red-600 dark:text-red-400">سامانه جامع خدمات</h1>
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
             با نام کاربری و رمز عبور سیستم سازمانی وارد شوید
           </p>
         </div>
 
         {error && (
-          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/50 dark:text-red-300">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">
+            <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
               نام کاربری
             </label>
             <Input
@@ -78,7 +83,7 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">
+            <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
               رمز عبور
             </label>
             <Input
@@ -101,7 +106,7 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <p className="mt-6 text-center text-xs text-slate-400">
+        <p className="mt-6 text-center text-xs text-slate-400 dark:text-slate-500">
           در اولین ورود، تغییر رمز عبور پیش‌فرض الزامی است.
         </p>
       </div>

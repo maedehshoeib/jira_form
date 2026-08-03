@@ -7,6 +7,55 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: light;
+  --background: 0 0% 98%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --primary: 0 72% 51%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 0 86% 97%;
+  --accent-foreground: 0 72% 41%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 0 72% 51%;
+  --radius: 1rem;
+  --app-surface: #ffffff;
+  --app-surface-muted: #f8fafc;
+  --app-border: #e2e8f0;
+  --app-text: #1e293b;
+  --app-text-muted: #64748b;
+}
+
+.dark {
+  color-scheme: dark;
+  --background: 222 47% 7%;
+  --foreground: 210 40% 96%;
+  --card: 217 33% 12%;
+  --card-foreground: 210 40% 96%;
+  --primary: 0 72% 55%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 96%;
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 0 40% 18%;
+  --accent-foreground: 0 90% 80%;
+  --border: 217 25% 22%;
+  --input: 217 25% 22%;
+  --ring: 0 72% 55%;
+  --app-surface: #1e293b;
+  --app-surface-muted: #0f172a;
+  --app-border: #334155;
+  --app-text: #e2e8f0;
+  --app-text-muted: #94a3b8;
+}
+
 html {
   direction: rtl;
 }
@@ -19,8 +68,7 @@ body,
 
 body {
   font-family: "Vazirmatn", sans-serif;
-  color: #1f2937;
-
+  color: var(--app-text);
   background:
     radial-gradient(
       circle at top right,
@@ -33,6 +81,22 @@ body {
       transparent 40%
     ),
     #fafafa;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.dark body {
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(220, 38, 38, 0.16),
+      transparent 35%
+    ),
+    radial-gradient(
+      circle at bottom left,
+      rgba(127, 29, 29, 0.22),
+      transparent 40%
+    ),
+    #0b1220;
 }
 
 * {
@@ -73,8 +137,34 @@ button {
     linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(240, 249, 255, 0.95));
 }
 
+.dark .timesheet-scope {
+  --background: 210 40% 8%;
+  --foreground: 210 40% 96%;
+  --card: 215 35% 12%;
+  --card-foreground: 210 40% 96%;
+  --primary: 197 90% 48%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 200 25% 18%;
+  --secondary-foreground: 210 40% 96%;
+  --muted: 210 25% 16%;
+  --muted-foreground: 215 16% 70%;
+  --accent: 31 80% 45%;
+  --accent-foreground: 40 100% 96%;
+  --border: 210 25% 24%;
+  --input: 210 25% 24%;
+  --ring: 197 90% 48%;
+  background:
+    radial-gradient(circle at 10% 10%, rgba(34, 211, 238, 0.12), transparent 40%),
+    radial-gradient(circle at 90% 20%, rgba(251, 146, 60, 0.1), transparent 35%),
+    linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(12, 28, 40, 0.98));
+}
+
 @layer base {
   .timesheet-scope * {
+    border-color: hsl(var(--border));
+  }
+
+  * {
     border-color: hsl(var(--border));
   }
 }
@@ -82,25 +172,123 @@ button {
 /* Select dropdown overlay */
 [data-slot="select-content"] {
   z-index: 9999 !important;
-  background-color: #ffffff !important;
-  color: #1e293b !important;
-  border: 1px solid #e2e8f0 !important;
+  background-color: var(--app-surface) !important;
+  color: var(--app-text) !important;
+  border: 1px solid var(--app-border) !important;
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18) !important;
 }
 
+.dark [data-slot="select-content"] {
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45) !important;
+}
+
 [data-slot="select-viewport"] {
-  background-color: #ffffff !important;
+  background-color: var(--app-surface) !important;
 }
 
 [data-slot="select-item"] {
-  background-color: #ffffff !important;
-  color: #334155 !important;
+  background-color: transparent !important;
+  color: var(--app-text) !important;
 }
 
 [data-slot="select-item"][data-highlighted],
 [data-slot="select-item"][data-state="checked"] {
   background-color: #fef2f2 !important;
   color: #0f172a !important;
+}
+
+.dark [data-slot="select-item"][data-highlighted],
+.dark [data-slot="select-item"][data-state="checked"] {
+  background-color: rgba(220, 38, 38, 0.22) !important;
+  color: #fecaca !important;
+}
+
+/* Soft dark remaps for common light-only utility clusters inside pages */
+.dark .theme-surfaces .bg-white {
+  background-color: rgb(30 41 59);
+}
+
+.dark .theme-surfaces .bg-white\/90,
+.dark .theme-surfaces .bg-white\/80,
+.dark .theme-surfaces .bg-white\/70 {
+  background-color: rgb(30 41 59 / 0.9);
+}
+
+.dark .theme-surfaces .bg-slate-50,
+.dark .theme-surfaces .bg-gray-50 {
+  background-color: rgb(15 23 42);
+}
+
+.dark .theme-surfaces .bg-slate-100,
+.dark .theme-surfaces .bg-gray-100 {
+  background-color: rgb(30 41 59);
+}
+
+.dark .theme-surfaces .text-slate-900,
+.dark .theme-surfaces .text-gray-900 {
+  color: rgb(248 250 252);
+}
+
+.dark .theme-surfaces .text-slate-800,
+.dark .theme-surfaces .text-gray-800 {
+  color: rgb(226 232 240);
+}
+
+.dark .theme-surfaces .text-slate-700,
+.dark .theme-surfaces .text-gray-700 {
+  color: rgb(203 213 225);
+}
+
+.dark .theme-surfaces .text-slate-600,
+.dark .theme-surfaces .text-gray-600 {
+  color: rgb(148 163 184);
+}
+
+.dark .theme-surfaces .text-slate-500,
+.dark .theme-surfaces .text-gray-500 {
+  color: rgb(148 163 184);
+}
+
+.dark .theme-surfaces .text-slate-400,
+.dark .theme-surfaces .text-gray-400 {
+  color: rgb(100 116 139);
+}
+
+.dark .theme-surfaces .border-slate-100,
+.dark .theme-surfaces .border-slate-200,
+.dark .theme-surfaces .border-gray-100,
+.dark .theme-surfaces .border-gray-200 {
+  border-color: rgb(51 65 85);
+}
+
+.dark .theme-surfaces .border-red-100 {
+  border-color: rgb(127 29 29 / 0.55);
+}
+
+.dark .theme-surfaces .bg-red-50,
+.dark .theme-surfaces .bg-red-50\/40,
+.dark .theme-surfaces .bg-red-50\/50 {
+  background-color: rgb(127 29 29 / 0.28);
+}
+
+.dark .theme-surfaces .bg-emerald-50 {
+  background-color: rgb(6 78 59 / 0.35);
+}
+
+.dark .theme-surfaces .bg-amber-50 {
+  background-color: rgb(120 53 15 / 0.35);
+}
+
+.dark .theme-surfaces .text-emerald-700 {
+  color: rgb(110 231 183);
+}
+
+.dark .theme-surfaces .text-amber-700 {
+  color: rgb(252 211 77);
+}
+
+.dark .theme-surfaces .text-red-700 {
+  color: rgb(252 165 165);
 }
 
 @media print {
@@ -110,6 +298,7 @@ button {
 
   body {
     background: #fff !important;
+    color: #111 !important;
   }
 
   .no-print {

@@ -24,6 +24,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.png";
 import { useAuth } from "../../context/AuthContext";
 import { cn } from "../../lib/utils";
+import ThemeToggle from "../ThemeToggle";
 import { Button } from "../ui/button";
 import { chatService } from "../../services/chat.service";
 
@@ -133,7 +134,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
     navigate("/login");
   };
 
-  const usesDarkGlass = location.pathname === "/" || location.pathname.startsWith("/departments/");
+  const isWideLayout =
+    location.pathname === "/" || location.pathname.startsWith("/departments/");
 
   const isActive = (href: string) =>
     href === "/" ? location.pathname === "/" : location.pathname.startsWith(href);
@@ -282,6 +284,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </Link>
         )}
 
+        <ThemeToggle variant="sidebar" className="mb-2" />
         <Button
           variant="ghost"
           onClick={handleLogout}
@@ -297,12 +300,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   return (
     <div
       dir="rtl"
-      className={cn(
-        "min-h-screen font-sans transition-colors duration-500",
-        usesDarkGlass
-          ? "bg-[radial-gradient(circle_at_85%_15%,rgba(185,28,28,0.42),transparent_34%),radial-gradient(circle_at_15%_82%,rgba(127,29,29,0.24),transparent_40%),linear-gradient(135deg,#25232d_0%,#111827_52%,#180d12_100%)] text-white"
-          : "bg-gradient-to-br from-white via-slate-50 to-red-50",
-      )}
+      className="min-h-screen bg-gradient-to-br from-white via-slate-50 to-red-50 font-sans text-slate-900 transition-colors duration-500 dark:from-slate-950 dark:via-slate-900 dark:to-red-950/40 dark:text-slate-100"
     >
       <aside className="no-print fixed inset-y-0 right-0 z-50 hidden w-72 overflow-hidden bg-gradient-to-b from-red-700 via-red-700 to-red-900 shadow-2xl lg:block">
         {sidebar}
@@ -333,27 +331,37 @@ export default function AppShell({ children }: { children: ReactNode }) {
       )}
 
       <div className="lg:mr-72">
-        <div className="no-print sticky top-0 z-40 flex items-center justify-between border-b bg-white/90 px-4 py-3 shadow-sm backdrop-blur-lg lg:hidden">
+        <div className="no-print sticky top-0 z-40 flex items-center justify-between border-b border-slate-200/80 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-lg dark:border-slate-700 dark:bg-slate-900/90 lg:hidden">
           <Link to="/" className="flex items-center gap-2.5">
             <img src={logo} alt="وثوق گستر" className="h-10 w-10 object-contain" />
             <div>
-              <p className="text-sm font-extrabold text-slate-800">سامانه جامع خدمات</p>
-              <p className="text-[11px] text-slate-500">ثبت و پیگیری درخواست‌ها</p>
+              <p className="text-sm font-extrabold text-slate-800 dark:text-slate-100">سامانه جامع خدمات</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">ثبت و پیگیری درخواست‌ها</p>
             </div>
           </Link>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            aria-label="باز کردن منو"
-            onClick={() => setSidebarOpen(true)}
-            className="h-10 w-10 rounded-xl border-red-100 text-red-600"
-          >
-            <Menu size={21} />
-          </Button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle className="border-red-100 text-red-600 dark:border-slate-600 dark:text-red-300" />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label="باز کردن منو"
+              onClick={() => setSidebarOpen(true)}
+              className="h-10 w-10 rounded-xl border-red-100 text-red-600 dark:border-slate-600 dark:text-red-300"
+            >
+              <Menu size={21} />
+            </Button>
+          </div>
         </div>
 
-        <main className={cn("w-full p-4 sm:p-6", usesDarkGlass ? "max-w-none lg:p-6 xl:px-7" : "mx-auto max-w-7xl lg:p-8")}>{children}</main>
+        <main
+          className={cn(
+            "theme-surfaces w-full p-4 sm:p-6",
+            isWideLayout ? "max-w-none lg:p-6 xl:px-7" : "mx-auto max-w-7xl lg:p-8",
+          )}
+        >
+          {children}
+        </main>
       </div>
     </div>
   );
