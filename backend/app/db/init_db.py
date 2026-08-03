@@ -165,6 +165,28 @@ def _migrate_users_db():
                 conn.execute(text(ddl))
 
 
+def _migrate_submissions_db():
+    inspector = inspect(engine)
+    if "submissions" not in inspector.get_table_names():
+        return
+
+    columns = {col["name"] for col in inspector.get_columns("submissions")}
+    migrations = [
+        (
+            "status_updated_at",
+            "ALTER TABLE submissions ADD COLUMN status_updated_at DATETIME",
+        ),
+        (
+            "status_updated_by_id",
+            "ALTER TABLE submissions ADD COLUMN status_updated_by_id INTEGER",
+        ),
+    ]
+    with engine.begin() as conn:
+        for column_name, ddl in migrations:
+            if column_name not in columns:
+                conn.execute(text(ddl))
+
+
 def _seed_departments_from_users():
     """Preserve existing free-text departments while upgrading."""
     db = SessionLocal()
@@ -275,6 +297,7 @@ def init_db():
     pdf_forms_table_existed = "pdf_forms" in inspect(engine).get_table_names()
     Base.metadata.create_all(bind=engine)
     _migrate_users_db()
+    _migrate_submissions_db()
     # New tables can reference columns added by the idempotent migration above.
     Base.metadata.create_all(bind=engine)
     _migrate_site_banner_db()

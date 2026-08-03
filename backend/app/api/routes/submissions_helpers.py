@@ -1,13 +1,19 @@
 import json
 
 from fastapi import Depends, Header, HTTPException
+from sqlalchemy.orm import Session
 
 from app.api.routes.reports_helpers import _format_dt, _verify_api_key
 from app.core.deps import get_optional_user
 from app.models.submission import Submission
 from app.models.user import User
-from app.schemas.submission import SubmissionListItem, SubmissionResponse
+from app.schemas.submission import (
+    SubmissionListItem,
+    SubmissionReferralItem,
+    SubmissionResponse,
+)
 from app.services.portal_service import DEPARTMENTS, FORM_TEMPLATES
+from app.services.task_workflow_service import list_submission_referrals
 
 
 def _parse_submission_data(raw: str) -> dict:
@@ -66,10 +72,59 @@ def _department_and_section_titles(
     return department_id, section_id
 
 
-def _submission_to_list_item(submission: Submission, user: User | None) -> SubmissionListItem:
+def _user_display(user: User | None) -> str:
+    if not user:
+        return "نامشخص"
+    return user.display_name or user.username
+
+
+def _referral_items(
+    db: Session, submission_id: int
+) -> list[SubmissionReferralItem]:
+    referrals = list_submission_referrals(db, submission_id)
+    if not referrals:
+        return []
+    user_ids = {row.from_user_id for row in referrals} | {
+        row.to_user_id for row in referrals
+    }
+    users = {
+        user.id: user
+        for user in db.query(User).filter(User.id.in_(user_ids)).all()
+    }
+    return [
+        SubmissionReferralItem(
+            id=row.id,
+            from_user_id=row.from_user_id,
+            from_user_name=_user_display(users.get(row.from_user_id)),
+            to_user_id=row.to_user_id,
+            to_user_name=_user_display(users.get(row.to_user_id)),
+            note=row.note or "",
+            created_at=_format_dt(row.created_at),
+        )
+        for row in referrals
+    ]
+
+
+def _status_updated_by_name(db: Session, submission: Submission) -> str | None:
+    if not submission.status_updated_by_id:
+        return None
+    user = (
+        db.query(User).filter(User.id == submission.status_updated_by_id).first()
+    )
+    return _user_display(user)
+
+
+def _submission_to_list_item(
+    submission: Submission,
+    user: User | None,
+    *,
+    db: Session | None = None,
+    can_act: bool = False,
+) -> SubmissionListItem:
     department_title, section_title = _department_and_section_titles(
         submission.department_id, submission.section_id
     )
+    referrals = _referral_items(db, submission.id) if db is not None else []
     return SubmissionListItem(
         id=submission.id,
         form_id=submission.form_id,
@@ -85,13 +140,28 @@ def _submission_to_list_item(submission: Submission, user: User | None) -> Submi
         attachment_name=submission.attachment_name,
         report_id=_report_id_from_data(submission.data),
         created_at=_format_dt(submission.created_at),
+        status_updated_by=_status_updated_by_name(db, submission) if db else None,
+        status_updated_at=(
+            _format_dt(submission.status_updated_at)
+            if db and submission.status_updated_at
+            else None
+        ),
+        referrals=referrals,
+        can_act=can_act and submission.status == "submitted",
     )
 
 
-def _submission_to_response(submission: Submission, user: User | None) -> SubmissionResponse:
+def _submission_to_response(
+    submission: Submission,
+    user: User | None,
+    *,
+    db: Session | None = None,
+    can_act: bool = False,
+) -> SubmissionResponse:
     department_title, section_title = _department_and_section_titles(
         submission.department_id, submission.section_id
     )
+    referrals = _referral_items(db, submission.id) if db is not None else []
     return SubmissionResponse(
         id=submission.id,
         form_id=submission.form_id,
@@ -108,6 +178,14 @@ def _submission_to_response(submission: Submission, user: User | None) -> Submis
         report_id=_report_id_from_data(submission.data),
         created_at=_format_dt(submission.created_at),
         data=_parse_submission_data(submission.data),
+        status_updated_by=_status_updated_by_name(db, submission) if db else None,
+        status_updated_at=(
+            _format_dt(submission.status_updated_at)
+            if db and submission.status_updated_at
+            else None
+        ),
+        referrals=referrals,
+        can_act=can_act and submission.status == "submitted",
     )
 
 

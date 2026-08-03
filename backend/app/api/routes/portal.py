@@ -14,24 +14,35 @@ from app.api.routes.submissions_helpers import (
 from app.core.config import settings
 from app.core.deps import get_current_user
 from app.db.session import get_db
-from app.models.submission import Submission
+from app.models.submission import Submission, SubmissionReferral
 from app.models.pdf_form import PdfForm
 from app.models.site_banner import SiteBanner, SiteBannerImage
 from app.models.site_news import SiteNews
 from app.models.user import User
 from app.schemas.admin import SiteBannerResponse, SiteNewsResponse
-from app.schemas.submission import SubmissionListItem, SubmissionResponse
+from app.schemas.submission import (
+    SubmissionListItem,
+    SubmissionResponse,
+    TaskColleague,
+    TaskReferRequest,
+    TaskStatusUpdate,
+)
 from app.schemas.pdf_form import PdfFormResponse
 from app.services.portal_service import DEPARTMENTS, FORM_TEMPLATES
 from app.services.form_access_service import allowed_target_keys, can_access_target
-from app.services.form_duty_service import (
-    list_duty_submissions,
-    user_handles_target,
+from app.services.form_duty_service import user_handles_target
+from app.services.task_workflow_service import (
+    list_colleagues,
+    list_task_submissions,
+    refer_task,
+    set_task_status,
+    user_can_access_task,
 )
 from app.services.report_submission_service import (
     create_report_from_submission,
     is_performance_report_submission,
 )
+
 
 router = APIRouter()
 
@@ -224,11 +235,24 @@ def get_form(
         raise HTTPException(status_code=404, detail="Form not found")
     portal_department_id = department or form.department_id
     section_id = section or form.section_id
+    handles = user_handles_target(
+        db, current_user.id, portal_department_id, section_id, form_id
+    )
+    referred = (
+        db.query(SubmissionReferral.id)
+        .join(Submission, Submission.id == SubmissionReferral.submission_id)
+        .filter(
+            SubmissionReferral.to_user_id == current_user.id,
+            Submission.department_id == portal_department_id,
+            Submission.section_id == section_id,
+            Submission.form_id == form_id,
+        )
+        .first()
+        is not None
+    )
     if not can_access_target(
         db, current_user, portal_department_id, section_id, form_id
-    ) and not user_handles_target(
-        db, current_user.id, portal_department_id, section_id, form_id
-    ):
+    ) and not handles and not referred:
         raise HTTPException(status_code=403, detail="شما به این فرم دسترسی ندارید.")
     return form
 
@@ -354,7 +378,24 @@ def get_submission(
         raise HTTPException(status_code=404, detail="درخواست یافت نشد")
 
     user = db.query(User).filter(User.id == submission.user_id).first()
-    return _submission_to_response(submission, user)
+    return _submission_to_response(submission, user, db=db)
+
+
+@router.get("/tasks/colleagues", response_model=list[TaskColleague])
+def get_task_colleagues(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return [
+        TaskColleague(
+            id=user.id,
+            username=user.username,
+            display_name=user.display_name or user.username,
+            department=user.department or "",
+            job_title=user.job_title or "",
+        )
+        for user in list_colleagues(db, current_user.id)
+    ]
 
 
 @router.get("/tasks", response_model=list[SubmissionListItem])
@@ -367,8 +408,8 @@ def list_tasks(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Submissions routed to the current user via form duty assignments."""
-    submissions = list_duty_submissions(
+    """Submissions routed via form duties or personal referrals."""
+    submissions = list_task_submissions(
         db,
         current_user.id,
         form_id=form_id,
@@ -380,7 +421,14 @@ def list_tasks(
     result = []
     for submission in submissions:
         user = db.query(User).filter(User.id == submission.user_id).first()
-        result.append(_submission_to_list_item(submission, user))
+        result.append(
+            _submission_to_list_item(
+                submission,
+                user,
+                db=db,
+                can_act=user_can_access_task(db, current_user, submission),
+            )
+        )
     return result
 
 
@@ -391,16 +439,65 @@ def get_task(
     current_user: User = Depends(get_current_user),
 ):
     submission = db.query(Submission).filter(Submission.id == submission_id).first()
-    if not submission:
-        raise HTTPException(status_code=404, detail="درخواست یافت نشد")
-    if not user_handles_target(
-        db,
-        current_user.id,
-        submission.department_id,
-        submission.section_id,
-        submission.form_id,
-    ):
+    if not submission or not user_can_access_task(db, current_user, submission):
         raise HTTPException(status_code=404, detail="درخواست یافت نشد")
 
     user = db.query(User).filter(User.id == submission.user_id).first()
-    return _submission_to_response(submission, user)
+    return _submission_to_response(
+        submission,
+        user,
+        db=db,
+        can_act=True,
+    )
+
+
+@router.patch("/tasks/{submission_id}/status", response_model=SubmissionResponse)
+def update_task_status(
+    submission_id: int,
+    body: TaskStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        submission = set_task_status(db, current_user, submission_id, body.status)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    user = db.query(User).filter(User.id == submission.user_id).first()
+    return _submission_to_response(submission, user, db=db, can_act=False)
+
+
+@router.post("/tasks/{submission_id}/refer", response_model=SubmissionResponse)
+def refer_task_endpoint(
+    submission_id: int,
+    body: TaskReferRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        refer_task(
+            db,
+            current_user,
+            submission_id,
+            body.to_user_id,
+            body.note,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    submission = db.query(Submission).filter(Submission.id == submission_id).first()
+    user = db.query(User).filter(User.id == submission.user_id).first()
+    return _submission_to_response(
+        submission,
+        user,
+        db=db,
+        can_act=user_can_access_task(db, current_user, submission),
+    )

@@ -1,0 +1,176 @@
+from datetime import datetime
+
+from sqlalchemy import and_, or_
+from sqlalchemy.orm import Session
+
+from app.models.submission import Submission, SubmissionReferral
+from app.models.user import User
+from app.services.form_duty_service import list_user_duty_assignments, user_handles_target
+
+ALLOWED_TASK_STATUSES = {"approved", "rejected"}
+
+
+def user_is_referral_recipient(db: Session, user_id: int, submission_id: int) -> bool:
+    return (
+        db.query(SubmissionReferral.id)
+        .filter(
+            SubmissionReferral.submission_id == submission_id,
+            SubmissionReferral.to_user_id == user_id,
+        )
+        .first()
+        is not None
+    )
+
+
+def user_can_access_task(db: Session, user: User, submission: Submission) -> bool:
+    if user.is_admin:
+        return True
+    if user_handles_target(
+        db,
+        user.id,
+        submission.department_id,
+        submission.section_id,
+        submission.form_id,
+    ):
+        return True
+    return user_is_referral_recipient(db, user.id, submission.id)
+
+
+def list_task_submissions(
+    db: Session,
+    user_id: int,
+    *,
+    form_id: str | None = None,
+    department_id: str | None = None,
+    section_id: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> list[Submission]:
+    assignments = list_user_duty_assignments(db, user_id)
+    conditions = [
+        and_(
+            Submission.department_id == assignment.portal_department_id,
+            Submission.section_id == assignment.section_id,
+            Submission.form_id == assignment.form_id,
+        )
+        for assignment in assignments
+    ]
+    referred_ids = [
+        row.submission_id
+        for row in db.query(SubmissionReferral.submission_id)
+        .filter(SubmissionReferral.to_user_id == user_id)
+        .all()
+    ]
+    if referred_ids:
+        conditions.append(Submission.id.in_(referred_ids))
+
+    if not conditions:
+        return []
+
+    query = db.query(Submission).filter(or_(*conditions)).order_by(
+        Submission.created_at.desc()
+    )
+    if form_id:
+        query = query.filter(Submission.form_id == form_id)
+    if department_id:
+        query = query.filter(Submission.department_id == department_id)
+    if section_id:
+        query = query.filter(Submission.section_id == section_id)
+    return query.offset(offset).limit(limit).all()
+
+
+def list_submission_referrals(
+    db: Session, submission_id: int
+) -> list[SubmissionReferral]:
+    return (
+        db.query(SubmissionReferral)
+        .filter(SubmissionReferral.submission_id == submission_id)
+        .order_by(SubmissionReferral.created_at.asc(), SubmissionReferral.id.asc())
+        .all()
+    )
+
+
+def set_task_status(
+    db: Session,
+    actor: User,
+    submission_id: int,
+    status: str,
+) -> Submission:
+    if status not in ALLOWED_TASK_STATUSES:
+        raise ValueError("وضعیت نامعتبر است.")
+
+    submission = db.query(Submission).filter(Submission.id == submission_id).first()
+    if not submission:
+        raise LookupError("درخواست یافت نشد")
+    if not user_can_access_task(db, actor, submission):
+        raise PermissionError("شما به این وظیفه دسترسی ندارید.")
+    if submission.status != "submitted":
+        raise ValueError("این درخواست قبلاً تعیین وضعیت شده است.")
+
+    submission.status = status
+    submission.status_updated_at = datetime.utcnow()
+    submission.status_updated_by_id = actor.id
+    db.commit()
+    db.refresh(submission)
+    return submission
+
+
+def refer_task(
+    db: Session,
+    actor: User,
+    submission_id: int,
+    to_user_id: int,
+    note: str = "",
+) -> SubmissionReferral:
+    submission = db.query(Submission).filter(Submission.id == submission_id).first()
+    if not submission:
+        raise LookupError("درخواست یافت نشد")
+    if not user_can_access_task(db, actor, submission):
+        raise PermissionError("شما به این وظیفه دسترسی ندارید.")
+    if submission.status != "submitted":
+        raise ValueError("پس از تایید یا رد، امکان ارجاع وجود ندارد.")
+    if to_user_id == actor.id:
+        raise ValueError("نمی‌توانید درخواست را به خودتان ارجاع دهید.")
+
+    target = (
+        db.query(User)
+        .filter(User.id == to_user_id, User.is_active.is_(True))
+        .first()
+    )
+    if not target:
+        raise ValueError("کاربر مقصد یافت نشد یا غیرفعال است.")
+
+    existing = (
+        db.query(SubmissionReferral)
+        .filter(
+            SubmissionReferral.submission_id == submission.id,
+            SubmissionReferral.to_user_id == to_user_id,
+        )
+        .first()
+    )
+    if existing:
+        raise ValueError("این درخواست قبلاً به این کاربر ارجاع شده است.")
+
+    referral = SubmissionReferral(
+        submission_id=submission.id,
+        from_user_id=actor.id,
+        to_user_id=to_user_id,
+        note=(note or "").strip()[:512],
+    )
+    db.add(referral)
+    db.commit()
+    db.refresh(referral)
+    return referral
+
+
+def list_colleagues(db: Session, exclude_user_id: int) -> list[User]:
+    return (
+        db.query(User)
+        .filter(
+            User.is_active.is_(True),
+            User.id != exclude_user_id,
+            User.is_admin.is_(False),
+        )
+        .order_by(User.display_name.asc(), User.username.asc())
+        .all()
+    )

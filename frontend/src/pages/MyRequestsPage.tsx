@@ -52,8 +52,16 @@ function parseSubmittedAt(value: string) {
 }
 
 function displayStatus(status: string) {
+  if (status === "approved") return "تایید‌شده";
+  if (status === "rejected") return "رد‌شده";
   if (status === "submitted") return "ثبت‌شده";
   return status || "ثبت‌شده";
+}
+
+function statusBadgeClass(status: string) {
+  if (status === "approved") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (status === "rejected") return "border-red-200 bg-red-50 text-red-700";
+  return "border-amber-200 bg-amber-50 text-amber-700";
 }
 
 function displayValue(value: unknown, field?: FormField) {
@@ -424,7 +432,7 @@ export default function MyRequestsPage() {
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600">
                   <FileText size={21} />
                 </div>
-                <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700">
+                <Badge variant="outline" className={statusBadgeClass(request.status)}>
                   {displayStatus(request.status)}
                 </Badge>
               </div>
@@ -459,7 +467,7 @@ export default function MyRequestsPage() {
             <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b bg-white/95 p-6 backdrop-blur">
               <div>
                 <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700">{displayStatus(selected.status)}</Badge>
+                  <Badge variant="outline" className={statusBadgeClass(selected.status)}>{displayStatus(selected.status)}</Badge>
                   <span className="text-xs text-slate-400">شناسه درخواست: {selected.id}</span>
                 </div>
                 <h3 className="text-2xl font-bold text-slate-900">{selected.subject || selected.section_title || selected.form_title}</h3>

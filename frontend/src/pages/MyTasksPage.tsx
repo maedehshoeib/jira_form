@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
+  CheckCircle2,
   ChevronLeft,
   FileText,
+  Forward,
   ListTodo,
   Loader2,
   Paperclip,
@@ -11,6 +13,7 @@ import {
   SlidersHorizontal,
   UserRound,
   X,
+  XCircle,
 } from "lucide-react";
 
 import client from "../api/client";
@@ -20,6 +23,16 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { FormField, FormTemplate } from "../config/portal";
+
+type ReferralItem = {
+  id: number;
+  from_user_id: number;
+  from_user_name: string;
+  to_user_id: number;
+  to_user_name: string;
+  note: string;
+  created_at: string;
+};
 
 type SubmissionListItem = {
   id: number;
@@ -35,10 +48,22 @@ type SubmissionListItem = {
   created_at: string;
   submitted_by?: string;
   submitted_by_username?: string;
+  status_updated_by?: string | null;
+  status_updated_at?: string | null;
+  referrals?: ReferralItem[];
+  can_act?: boolean;
 };
 
 type SubmissionDetail = SubmissionListItem & {
   data: Record<string, unknown>;
+};
+
+type Colleague = {
+  id: number;
+  username: string;
+  display_name: string;
+  department: string;
+  job_title: string;
 };
 
 type TimeRange = "all" | "today" | "7days" | "30days" | "90days";
@@ -52,8 +77,36 @@ function parseSubmittedAt(value: string) {
 }
 
 function displayStatus(status: string) {
+  if (status === "approved") return "تایید‌شده";
+  if (status === "rejected") return "رد‌شده";
   if (status === "submitted") return "ثبت‌شده";
   return status || "ثبت‌شده";
+}
+
+function statusBadgeClass(status: string) {
+  if (status === "approved") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (status === "rejected") return "border-red-200 bg-red-50 text-red-700";
+  return "border-amber-200 bg-amber-50 text-amber-700";
+}
+
+function apiErrorDetail(err: unknown, fallback: string) {
+  if (!err || typeof err !== "object" || !("response" in err)) return fallback;
+  const detail = (err as { response?: { data?: { detail?: unknown } } }).response
+    ?.data?.detail;
+  if (typeof detail === "string" && detail.trim()) return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object" && "msg" in item) {
+          return String((item as { msg: unknown }).msg);
+        }
+        return "";
+      })
+      .filter(Boolean);
+    if (messages.length) return messages.join(" · ");
+  }
+  return fallback;
 }
 
 function displayValue(value: unknown, field?: FormField) {
@@ -123,12 +176,30 @@ export default function MyTasksPage() {
   const [template, setTemplate] = useState<FormTemplate | null>(null);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [sectionFilter, setSectionFilter] = useState("all");
   const [timeRange, setTimeRange] = useState<TimeRange>("all");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
+
+  const [referOpen, setReferOpen] = useState(false);
+  const [colleagues, setColleagues] = useState<Colleague[]>([]);
+  const [colleagueQuery, setColleagueQuery] = useState("");
+  const [selectedColleagueId, setSelectedColleagueId] = useState<number | null>(null);
+  const [referNote, setReferNote] = useState("");
+  const [colleaguesLoading, setColleaguesLoading] = useState(false);
+
+  const syncTask = (updated: SubmissionListItem | SubmissionDetail) => {
+    setTasks((prev) =>
+      prev.map((task) => (task.id === updated.id ? { ...task, ...updated } : task)),
+    );
+    setSelected((prev) =>
+      prev && prev.id === updated.id ? { ...prev, ...updated, data: prev.data } : prev,
+    );
+  };
 
   const loadTasks = async () => {
     setLoading(true);
@@ -255,6 +326,8 @@ export default function MyTasksPage() {
   const openTask = async (task: SubmissionListItem) => {
     setDetailLoading(true);
     setError("");
+    setActionError("");
+    setReferOpen(false);
     try {
       const [detailResponse, templateResponse] = await Promise.all([
         client.get<SubmissionDetail>(`${endpoints.tasks}/${task.id}`),
@@ -273,6 +346,79 @@ export default function MyTasksPage() {
       setDetailLoading(false);
     }
   };
+
+  const updateStatus = async (status: "approved" | "rejected") => {
+    if (!selected) return;
+    const label = status === "approved" ? "تایید" : "رد";
+    if (!window.confirm(`آیا از ${label} این درخواست مطمئن هستید؟`)) return;
+
+    setActionLoading(true);
+    setActionError("");
+    try {
+      const { data } = await client.patch<SubmissionDetail>(
+        `${endpoints.tasks}/${selected.id}/status`,
+        { status },
+      );
+      syncTask(data);
+      setSelected((prev) => (prev ? { ...data, data: prev.data } : data));
+    } catch (err: unknown) {
+      setActionError(apiErrorDetail(err, `انجام ${label} با مشکل مواجه شد.`));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const openReferPanel = async () => {
+    setReferOpen(true);
+    setActionError("");
+    setColleagueQuery("");
+    setSelectedColleagueId(null);
+    setReferNote("");
+    if (colleagues.length > 0) return;
+    setColleaguesLoading(true);
+    try {
+      const { data } = await client.get<Colleague[]>(endpoints.taskColleagues);
+      setColleagues(data);
+    } catch {
+      setActionError("دریافت فهرست همکاران با مشکل مواجه شد.");
+    } finally {
+      setColleaguesLoading(false);
+    }
+  };
+
+  const submitRefer = async () => {
+    if (!selected || selectedColleagueId == null) return;
+    setActionLoading(true);
+    setActionError("");
+    try {
+      const { data } = await client.post<SubmissionDetail>(
+        `${endpoints.tasks}/${selected.id}/refer`,
+        { to_user_id: selectedColleagueId, note: referNote.trim() },
+      );
+      syncTask(data);
+      setSelected((prev) => (prev ? { ...data, data: prev.data } : data));
+      setReferOpen(false);
+    } catch (err: unknown) {
+      setActionError(apiErrorDetail(err, "ارجاع درخواست با مشکل مواجه شد."));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const filteredColleagues = useMemo(() => {
+    const q = colleagueQuery.trim().toLocaleLowerCase("fa");
+    const alreadyReferred = new Set(
+      (selected?.referrals || []).map((item) => item.to_user_id),
+    );
+    return colleagues.filter((user) => {
+      if (alreadyReferred.has(user.id)) return false;
+      if (!q) return true;
+      const hay = [user.display_name, user.username, user.department, user.job_title]
+        .join(" ")
+        .toLocaleLowerCase("fa");
+      return hay.includes(q);
+    });
+  }, [colleagues, colleagueQuery, selected?.referrals]);
 
   const visibleFields = useMemo(() => {
     if (!selected) return [];
@@ -293,7 +439,7 @@ export default function MyTasksPage() {
             <div>
               <h2 className="text-3xl font-extrabold text-slate-900">وظایف من</h2>
               <p className="mt-1 text-sm text-slate-500">
-                درخواست‌هایی که بر اساس مسیریابی وظایف به شما ارجاع شده‌اند
+                درخواست‌هایی که بر اساس مسیریابی وظایف یا ارجاع به شما رسیده‌اند
               </p>
             </div>
           </div>
@@ -418,7 +564,7 @@ export default function MyTasksPage() {
           <ListTodo className="mx-auto mb-4 text-slate-300" size={48} />
           <h3 className="text-xl font-bold text-slate-700">هنوز وظیفه‌ای ندارید</h3>
           <p className="mt-2 text-slate-500">
-            وقتی فرمی به شما مسیریابی شود و ثبت گردد، اینجا نمایش داده می‌شود.
+            وقتی فرمی به شما مسیریابی یا ارجاع شود، اینجا نمایش داده می‌شود.
           </p>
         </div>
       ) : filteredTasks.length === 0 ? (
@@ -444,12 +590,19 @@ export default function MyTasksPage() {
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600">
                   <FileText size={21} />
                 </div>
-                <Badge
-                  variant="outline"
-                  className="border-green-200 bg-green-50 text-green-700"
-                >
-                  {displayStatus(task.status)}
-                </Badge>
+                <div className="flex flex-wrap items-center justify-end gap-1.5">
+                  {(task.referrals?.length ?? 0) > 0 && (
+                    <Badge
+                      variant="outline"
+                      className="border-sky-200 bg-sky-50 text-sky-700"
+                    >
+                      ارجاع‌شده
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className={statusBadgeClass(task.status)}>
+                    {displayStatus(task.status)}
+                  </Badge>
+                </div>
               </div>
               <h3 className="line-clamp-2 text-lg font-bold text-slate-800">
                 {task.subject || task.section_title || task.form_title}
@@ -483,7 +636,10 @@ export default function MyTasksPage() {
       {selected && (
         <div
           className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/45 p-0 backdrop-blur-sm sm:items-center sm:p-6"
-          onMouseDown={() => setSelected(null)}
+          onMouseDown={() => {
+            setSelected(null);
+            setReferOpen(false);
+          }}
         >
           <section
             role="dialog"
@@ -495,12 +651,17 @@ export default function MyTasksPage() {
             <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b bg-white/95 p-6 backdrop-blur">
               <div>
                 <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <Badge
-                    variant="outline"
-                    className="border-green-200 bg-green-50 text-green-700"
-                  >
+                  <Badge variant="outline" className={statusBadgeClass(selected.status)}>
                     {displayStatus(selected.status)}
                   </Badge>
+                  {(selected.referrals?.length ?? 0) > 0 && (
+                    <Badge
+                      variant="outline"
+                      className="border-sky-200 bg-sky-50 text-sky-700"
+                    >
+                      ارجاع‌شده
+                    </Badge>
+                  )}
                   <span className="text-xs text-slate-400">
                     شناسه درخواست: {selected.id}
                   </span>
@@ -515,7 +676,10 @@ export default function MyTasksPage() {
               </div>
               <Button
                 variant="outline"
-                onClick={() => setSelected(null)}
+                onClick={() => {
+                  setSelected(null);
+                  setReferOpen(false);
+                }}
                 className="shrink-0 rounded-xl"
               >
                 بستن
@@ -523,6 +687,123 @@ export default function MyTasksPage() {
             </div>
 
             <div className="space-y-6 p-6 sm:p-8">
+              {actionError && (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {actionError}
+                </div>
+              )}
+
+              {selected.can_act && (
+                <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                  <Button
+                    type="button"
+                    onClick={() => void updateStatus("approved")}
+                    disabled={actionLoading}
+                    className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+                  >
+                    {actionLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4" />
+                    )}
+                    تایید
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void updateStatus("rejected")}
+                    disabled={actionLoading}
+                    className="gap-2 border-red-200 text-red-700 hover:bg-red-50"
+                  >
+                    <XCircle className="h-4 w-4" />
+                    رد
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void openReferPanel()}
+                    disabled={actionLoading}
+                    className="gap-2"
+                  >
+                    <Forward className="h-4 w-4" />
+                    ارجاع
+                  </Button>
+                </div>
+              )}
+
+              {referOpen && selected.can_act && (
+                <div className="space-y-3 rounded-2xl border border-sky-100 bg-sky-50/60 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <h4 className="text-sm font-semibold text-slate-800">ارجاع به همکار</h4>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setReferOpen(false)}
+                      className="h-8 px-2 text-slate-500"
+                    >
+                      <X size={16} />
+                    </Button>
+                  </div>
+                  <Input
+                    value={colleagueQuery}
+                    onChange={(event) => setColleagueQuery(event.target.value)}
+                    placeholder="جستجوی نام همکار..."
+                    className="h-10 rounded-xl bg-white"
+                  />
+                  <div className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-slate-200 bg-white p-2">
+                    {colleaguesLoading ? (
+                      <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-500">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        در حال دریافت...
+                      </div>
+                    ) : filteredColleagues.length === 0 ? (
+                      <p className="px-2 py-6 text-center text-sm text-slate-500">
+                        همکاری یافت نشد.
+                      </p>
+                    ) : (
+                      filteredColleagues.map((user) => (
+                        <button
+                          key={user.id}
+                          type="button"
+                          onClick={() => setSelectedColleagueId(user.id)}
+                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-right text-sm transition ${
+                            selectedColleagueId === user.id
+                              ? "bg-red-50 text-red-700"
+                              : "hover:bg-slate-50"
+                          }`}
+                        >
+                          <span className="font-medium">
+                            {user.display_name || user.username}
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {user.job_title || user.department || user.username}
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                  <Input
+                    value={referNote}
+                    onChange={(event) => setReferNote(event.target.value)}
+                    placeholder="یادداشت ارجاع (اختیاری)"
+                    className="h-10 rounded-xl bg-white"
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => void submitRefer()}
+                    disabled={actionLoading || selectedColleagueId == null}
+                    className="gap-2"
+                  >
+                    {actionLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Forward className="h-4 w-4" />
+                    )}
+                    ثبت ارجاع
+                  </Button>
+                </div>
+              )}
+
               <div className="grid gap-3 rounded-2xl bg-slate-50 p-4 text-sm sm:grid-cols-2">
                 <div>
                   <span className="text-slate-500">تاریخ ثبت:</span>{" "}
@@ -540,6 +821,17 @@ export default function MyTasksPage() {
                     </span>
                   </div>
                 )}
+                {selected.status_updated_by && (
+                  <div>
+                    <span className="text-slate-500">تعیین وضعیت توسط:</span>{" "}
+                    <span className="font-semibold text-slate-700">
+                      {selected.status_updated_by}
+                      {selected.status_updated_at
+                        ? ` (${selected.status_updated_at})`
+                        : ""}
+                    </span>
+                  </div>
+                )}
                 {selected.attachment_name && (
                   <div className="flex items-center gap-2 sm:col-span-2">
                     <Paperclip size={16} className="text-red-500" />
@@ -550,6 +842,28 @@ export default function MyTasksPage() {
                   </div>
                 )}
               </div>
+
+              {(selected.referrals?.length ?? 0) > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold text-slate-700">سوابق ارجاع</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selected.referrals?.map((referral) => (
+                      <div
+                        key={referral.id}
+                        className="rounded-2xl border border-sky-100 bg-sky-50 px-3 py-2 text-xs text-sky-900"
+                      >
+                        <div>
+                          از {referral.from_user_name} ← به {referral.to_user_name}
+                        </div>
+                        {referral.note ? (
+                          <div className="mt-1 text-sky-700">{referral.note}</div>
+                        ) : null}
+                        <div className="mt-1 text-sky-600">{referral.created_at}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-4">
                 {visibleFields.map(({ name, value, field }) => (
