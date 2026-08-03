@@ -28,6 +28,7 @@ from app.schemas.submission import (
     TaskStatusUpdate,
 )
 from app.schemas.pdf_form import PdfFormResponse
+from app.services.pdf_form_service import normalize_pdf_category
 from app.services.portal_service import DEPARTMENTS, FORM_TEMPLATES
 from app.services.form_access_service import allowed_target_keys, can_access_target
 from app.services.form_duty_service import user_handles_target
@@ -54,21 +55,32 @@ def health_check():
 
 @router.get("/pdf-forms", response_model=list[PdfFormResponse])
 def list_pdf_forms(
+    category: str = Query(default="forms"),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return db.query(PdfForm).order_by(PdfForm.created_at.desc(), PdfForm.id.desc()).all()
+    normalized = normalize_pdf_category(category)
+    return (
+        db.query(PdfForm)
+        .filter(PdfForm.category == normalized)
+        .order_by(PdfForm.created_at.desc(), PdfForm.id.desc())
+        .all()
+    )
 
 
 @router.get("/pdf-forms/{form_id}/file")
 def get_pdf_form_file(
     form_id: int,
+    category: str | None = Query(default=None),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    item = db.query(PdfForm).filter(PdfForm.id == form_id).first()
+    query = db.query(PdfForm).filter(PdfForm.id == form_id)
+    if category is not None:
+        query = query.filter(PdfForm.category == normalize_pdf_category(category))
+    item = query.first()
     if not item:
-        raise HTTPException(status_code=404, detail="فرم PDF یافت نشد.")
+        raise HTTPException(status_code=404, detail="فایل PDF یافت نشد.")
     file_path = Path(item.file_path)
     if not file_path.is_file():
         raise HTTPException(status_code=404, detail="فایل PDF یافت نشد.")

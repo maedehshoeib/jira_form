@@ -13,6 +13,7 @@ import ProfilePage from "./pages/ProfilePage";
 import TimeSheetPage from "./pages/TimeSheetPage";
 import InternalChatPage from "./pages/InternalChatPage";
 import PdfFormsPage from "./pages/PdfFormsPage";
+import PdfLibraryPage from "./pages/PdfLibraryPage";
 
 import ReportsHome from "./pages/reports/ReportsHome";
 import PerformanceReports from "./pages/reports/PerformanceReports";
@@ -116,6 +117,33 @@ export default function App() {
         element={
           <ProtectedRoute>
             <PdfFormsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/training"
+        element={
+          <ProtectedRoute>
+            <PdfLibraryPage category="training" />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/guidelines"
+        element={
+          <ProtectedRoute>
+            <PdfLibraryPage category="guidelines" />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/documents"
+        element={
+          <ProtectedRoute>
+            <PdfLibraryPage category="documents" />
           </ProtectedRoute>
         }
       />

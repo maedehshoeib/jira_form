@@ -14,7 +14,7 @@ from app.db.session import get_db
 from app.models.admin_session import AdminSession
 from app.models.department import Department
 from app.models.form_template import DepartmentFormAccess, UserFormAccess
-from app.models.pdf_form import PdfForm
+from app.models.pdf_form import DEFAULT_PDF_CATEGORY, PdfForm
 from app.models.submission import Submission
 from app.models.site_banner import SiteBanner, SiteBannerImage
 from app.models.site_news import SiteNews
@@ -45,52 +45,93 @@ from app.schemas.pdf_form import PdfFormResponse
 from app.services.admin_analytics_service import build_analytics
 from app.services.form_access_service import access_catalog, parse_target_keys
 from app.services.form_duty_service import list_assignments, replace_assignments
+from app.services.pdf_form_service import (
+    delete_pdf_file,
+    normalize_pdf_category,
+    read_pdf_upload,
+    save_pdf_file,
+    validate_pdf_metadata,
+)
 
 router = APIRouter()
 
 
 @router.get("/pdf-forms", response_model=list[PdfFormResponse])
 def list_pdf_forms(
+    category: str = Query(default=DEFAULT_PDF_CATEGORY),
     db: Session = Depends(get_db),
     _: User = Depends(get_admin_user),
 ):
-    return db.query(PdfForm).order_by(PdfForm.created_at.desc(), PdfForm.id.desc()).all()
+    normalized = normalize_pdf_category(category)
+    return (
+        db.query(PdfForm)
+        .filter(PdfForm.category == normalized)
+        .order_by(PdfForm.created_at.desc(), PdfForm.id.desc())
+        .all()
+    )
 
 
 @router.post("/pdf-forms", response_model=PdfFormResponse, status_code=201)
 async def upload_pdf_form(
     title: str = Form(...),
     description: str = Form(default=""),
+    category: str = Form(default=DEFAULT_PDF_CATEGORY),
     pdf: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_admin_user),
 ):
-    normalized_title = title.strip()
-    if not normalized_title:
-        raise HTTPException(status_code=422, detail="عنوان فرم الزامی است.")
-    if len(normalized_title) > 256 or len(description) > 2000:
-        raise HTTPException(status_code=422, detail="عنوان یا توضیحات فرم بیش از حد طولانی است.")
-
-    content = await pdf.read(20 * 1024 * 1024 + 1)
-    if len(content) > 20 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="حجم فایل PDF نباید بیشتر از ۲۰ مگابایت باشد.")
-    if not content.startswith(b"%PDF-"):
-        raise HTTPException(status_code=415, detail="فایل انتخاب‌شده باید با فرمت PDF باشد.")
-
-    forms_dir = (Path(settings.UPLOAD_DIR) / "forms").resolve()
-    forms_dir.mkdir(parents=True, exist_ok=True)
-    new_path = forms_dir / f"{uuid.uuid4().hex}.pdf"
-    new_path.write_bytes(content)
+    normalized_category = normalize_pdf_category(category)
+    normalized_title, normalized_description = validate_pdf_metadata(
+        title, description, normalized_category
+    )
+    content = await read_pdf_upload(pdf)
+    new_path = save_pdf_file(normalized_category, content)
 
     item = PdfForm(
+        category=normalized_category,
         title=normalized_title,
-        description=description.strip(),
+        description=normalized_description,
         file_path=str(new_path),
         file_name=(pdf.filename or f"{normalized_title}.pdf")[:256],
         file_size=len(content),
         uploaded_by=current_user.username,
     )
     db.add(item)
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+@router.put("/pdf-forms/{form_id}", response_model=PdfFormResponse)
+async def update_pdf_form(
+    form_id: int,
+    title: str = Form(...),
+    description: str = Form(default=""),
+    pdf: UploadFile | None = File(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_admin_user),
+):
+    item = db.query(PdfForm).filter(PdfForm.id == form_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="فایل PDF یافت نشد.")
+
+    normalized_title, normalized_description = validate_pdf_metadata(
+        title, description, item.category
+    )
+    item.title = normalized_title
+    item.description = normalized_description
+    item.uploaded_by = current_user.username
+    item.updated_at = datetime.utcnow()
+
+    if pdf is not None and pdf.filename:
+        content = await read_pdf_upload(pdf)
+        old_path = item.file_path
+        new_path = save_pdf_file(item.category, content)
+        item.file_path = str(new_path)
+        item.file_name = (pdf.filename or f"{normalized_title}.pdf")[:256]
+        item.file_size = len(content)
+        delete_pdf_file(old_path, item.category)
+
     db.commit()
     db.refresh(item)
     return item
@@ -104,18 +145,13 @@ def delete_pdf_form(
 ):
     item = db.query(PdfForm).filter(PdfForm.id == form_id).first()
     if not item:
-        raise HTTPException(status_code=404, detail="فرم PDF یافت نشد.")
+        raise HTTPException(status_code=404, detail="فایل PDF یافت نشد.")
 
-    file_path = Path(item.file_path).resolve()
-    forms_dir = (Path(settings.UPLOAD_DIR) / "forms").resolve()
+    category = item.category or DEFAULT_PDF_CATEGORY
+    file_path = item.file_path
     db.delete(item)
     db.commit()
-
-    if file_path.parent == forms_dir and file_path.is_file():
-        try:
-            file_path.unlink()
-        except OSError:
-            pass
+    delete_pdf_file(file_path, category)
 
 
 def _get_banner(db: Session) -> SiteBanner:

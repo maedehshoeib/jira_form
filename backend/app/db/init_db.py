@@ -254,6 +254,35 @@ def _migrate_site_banner_db():
                 conn.execute(text(ddl))
 
 
+def _migrate_pdf_forms_db():
+    inspector = inspect(engine)
+    if "pdf_forms" not in inspector.get_table_names():
+        return
+
+    columns = {col["name"] for col in inspector.get_columns("pdf_forms")}
+    migrations = [
+        (
+            "category",
+            "ALTER TABLE pdf_forms ADD COLUMN category VARCHAR(32) NOT NULL DEFAULT 'forms'",
+        ),
+        (
+            "updated_at",
+            "ALTER TABLE pdf_forms ADD COLUMN updated_at DATETIME",
+        ),
+    ]
+    with engine.begin() as conn:
+        for column_name, ddl in migrations:
+            if column_name not in columns:
+                conn.execute(text(ddl))
+        if "category" not in columns:
+            conn.execute(
+                text(
+                    "UPDATE pdf_forms SET category = 'forms' "
+                    "WHERE category IS NULL OR category = ''"
+                )
+            )
+
+
 def _seed_pdf_forms():
     """Add the bundled meeting-request PDF to new and existing installations."""
     source_path = Path(__file__).resolve().parent.parent / "assets" / "forms" / "meeting-request.pdf"
@@ -276,6 +305,7 @@ def _seed_pdf_forms():
         if not existing:
             db.add(
                 PdfForm(
+                    category="forms",
                     title="فرم درخواست جلسات",
                     description="فرم ثبت و هماهنگی درخواست جلسه",
                     file_path=str(destination),
@@ -301,6 +331,7 @@ def init_db():
     # New tables can reference columns added by the idempotent migration above.
     Base.metadata.create_all(bind=engine)
     _migrate_site_banner_db()
+    _migrate_pdf_forms_db()
 
     db = SessionLocal()
     try:

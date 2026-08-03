@@ -40,12 +40,14 @@ const HOME_CARDS: HomeCard[] = [
     id: "guidelines",
     title: "دستورالعمل",
     description: "آیین‌نامه‌ها و دستورالعمل‌ها",
+    href: "/guidelines",
     icon: FileText,
   },
   {
     id: "training",
     title: "آموزش",
     description: "محتوای آموزشی سامانه",
+    href: "/training",
     icon: GraduationCap,
   },
   {
@@ -59,6 +61,7 @@ const HOME_CARDS: HomeCard[] = [
     id: "documents",
     title: "مستندات",
     description: "اسناد و مستندات",
+    href: "/documents",
     icon: FolderOpen,
   },
   {
