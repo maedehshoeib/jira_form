@@ -19,7 +19,12 @@ from app.core.jalali import (
 )
 from app.models.admin_session import AdminSession
 from app.models.submission import Submission
-from app.models.timesheet import TimesheetAttendance, TimesheetProject, TimesheetTask
+from app.models.timesheet import (
+    TimesheetAttendance,
+    TimesheetProject,
+    TimesheetSubproject,
+    TimesheetTask,
+)
 from app.models.user import User
 from app.schemas.admin import (
     AnalyticsOverview,
@@ -32,6 +37,7 @@ from app.schemas.admin import (
     EmployeeAnalyticsRow,
     FormsAnalytics,
     ProjectAnalyticsRow,
+    SubprojectAnalyticsRow,
 )
 from app.services.portal_service import DEPARTMENTS, FORM_TEMPLATES
 
@@ -146,6 +152,10 @@ def build_analytics(
         item.code: item.title or item.code
         for item in db.query(TimesheetProject).all()
     }
+    subprojects = {
+        item.code: item
+        for item in db.query(TimesheetSubproject).all()
+    }
 
     submissions_in_range = (
         db.query(Submission, User)
@@ -180,6 +190,9 @@ def build_analytics(
     project_minutes: DefaultDict[str, int] = defaultdict(int)
     project_tasks: DefaultDict[str, int] = defaultdict(int)
     project_employees: DefaultDict[str, set[int]] = defaultdict(set)
+    subproject_minutes: DefaultDict[str, int] = defaultdict(int)
+    subproject_tasks: DefaultDict[str, int] = defaultdict(int)
+    subproject_employees: DefaultDict[str, set[int]] = defaultdict(set)
 
     for attendance, user in attendance_rows:
         minutes = _attendance_minutes(
@@ -203,6 +216,10 @@ def build_analytics(
         project_minutes[task.project_code] += task.minutes_spent
         project_tasks[task.project_code] += 1
         project_employees[task.project_code].add(user.id)
+        if task.subproject_code:
+            subproject_minutes[task.subproject_code] += task.minutes_spent
+            subproject_tasks[task.subproject_code] += 1
+            subproject_employees[task.subproject_code].add(user.id)
 
     for submission, user in submissions_in_range:
         if user:
@@ -252,6 +269,21 @@ def build_analytics(
             minutes=project_minutes[code],
             task_count=project_tasks[code],
             employee_count=len(project_employees[code]),
+            subprojects=sorted(
+                [
+                    SubprojectAnalyticsRow(
+                        code=sub.code,
+                        title=sub.title or sub.code,
+                        minutes=subproject_minutes[sub.code],
+                        task_count=subproject_tasks[sub.code],
+                        employee_count=len(subproject_employees[sub.code]),
+                    )
+                    for sub in subprojects.values()
+                    if sub.project_code == code and sub.code in subproject_minutes
+                ],
+                key=lambda row: row.minutes,
+                reverse=True,
+            ),
         )
         for code in project_minutes
     ]

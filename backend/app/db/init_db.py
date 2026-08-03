@@ -283,6 +283,53 @@ def _migrate_pdf_forms_db():
             )
 
 
+def _migrate_timesheet_db():
+    inspector = inspect(engine)
+    table_names = set(inspector.get_table_names())
+
+    if "timesheet_tasks" in table_names:
+        columns = {col["name"] for col in inspector.get_columns("timesheet_tasks")}
+        if "subproject_code" not in columns:
+            with engine.begin() as conn:
+                conn.execute(
+                    text(
+                        "ALTER TABLE timesheet_tasks "
+                        "ADD COLUMN subproject_code VARCHAR(50)"
+                    )
+                )
+                conn.execute(
+                    text(
+                        "CREATE INDEX IF NOT EXISTS ix_timesheet_tasks_subproject_code "
+                        "ON timesheet_tasks (subproject_code)"
+                    )
+                )
+
+    period_migrations = [
+        (
+            "timesheet_projects",
+            [
+                ("start_date", "ALTER TABLE timesheet_projects ADD COLUMN start_date VARCHAR(16)"),
+                ("end_date", "ALTER TABLE timesheet_projects ADD COLUMN end_date VARCHAR(16)"),
+            ],
+        ),
+        (
+            "timesheet_subprojects",
+            [
+                ("start_date", "ALTER TABLE timesheet_subprojects ADD COLUMN start_date VARCHAR(16)"),
+                ("end_date", "ALTER TABLE timesheet_subprojects ADD COLUMN end_date VARCHAR(16)"),
+            ],
+        ),
+    ]
+    for table_name, migrations in period_migrations:
+        if table_name not in table_names:
+            continue
+        columns = {col["name"] for col in inspector.get_columns(table_name)}
+        with engine.begin() as conn:
+            for column_name, ddl in migrations:
+                if column_name not in columns:
+                    conn.execute(text(ddl))
+
+
 def _seed_pdf_forms():
     """Add the bundled meeting-request PDF to new and existing installations."""
     source_path = Path(__file__).resolve().parent.parent / "assets" / "forms" / "meeting-request.pdf"
@@ -332,6 +379,7 @@ def init_db():
     Base.metadata.create_all(bind=engine)
     _migrate_site_banner_db()
     _migrate_pdf_forms_db()
+    _migrate_timesheet_db()
 
     db = SessionLocal()
     try:

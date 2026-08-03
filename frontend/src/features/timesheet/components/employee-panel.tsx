@@ -14,6 +14,7 @@ import {
   Clock3,
   Download,
   Filter,
+  FolderTree,
   Gauge,
   Hourglass,
   ListChecks,
@@ -112,6 +113,24 @@ function formatMinutes(minutes = 0): string {
   return `${hours} ساعت و ${remainder} دقیقه`;
 }
 
+function isWithinPeriod(
+  workDate: string,
+  startDate?: string | null,
+  endDate?: string | null,
+): boolean {
+  if (startDate && workDate < startDate) return false;
+  if (endDate && workDate > endDate) return false;
+  return true;
+}
+
+function formatPeriodLabel(
+  startDate?: string | null,
+  endDate?: string | null,
+): string {
+  if (!startDate && !endDate) return '';
+  return ` (${startDate || '—'} → ${endDate || '—'})`;
+}
+
 function mapErrorToPersian(errorText: string): string {
   const dictionary: Record<string, string> = {
     'Employee must submit check-in first': 'ابتدا باید ورود خود را ثبت کنید.',
@@ -177,6 +196,7 @@ export function EmployeePanel(): JSX.Element {
   const [taskStartTime, setTaskStartTime] = useState<DateObject | null>(null);
   const [taskEndTime, setTaskEndTime] = useState<DateObject | null>(null);
   const [projectCode, setProjectCode] = useState('');
+  const [subprojectCode, setSubprojectCode] = useState('');
   const [taskName, setTaskName] = useState('');
 
   const [summary, setSummary] = useState<DaySummary | null>(null);
@@ -250,6 +270,28 @@ export function EmployeePanel(): JSX.Element {
     (activityPage - 1) * ACTIVITY_PAGE_SIZE,
     activityPage * ACTIVITY_PAGE_SIZE,
   );
+  const selectedProject = useMemo(
+    () => projects.find((project) => project.code === projectCode) || null,
+    [projects, projectCode],
+  );
+  const availableProjects = useMemo(
+    () =>
+      projects.filter((project) =>
+        isWithinPeriod(selectedTaskDate, project.start_date, project.end_date),
+      ),
+    [projects, selectedTaskDate],
+  );
+  const availableSubprojects = useMemo(
+    () =>
+      (selectedProject?.subprojects || []).filter((subproject) =>
+        isWithinPeriod(
+          selectedTaskDate,
+          subproject.start_date,
+          subproject.end_date,
+        ),
+      ),
+    [selectedProject, selectedTaskDate],
+  );
   const coverage = Math.max(
     0,
     Math.min(100, rangeStats.coverage),
@@ -267,12 +309,28 @@ export function EmployeePanel(): JSX.Element {
       try {
         const rows = await fetchProjects();
         setProjects(rows);
-        if (rows.length > 0) setProjectCode(rows[0].code);
+        if (rows.length > 0) {
+          setProjectCode(rows[0].code);
+          setSubprojectCode('');
+        }
       } catch (fetchError) {
         console.error(fetchError);
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if (!availableProjects.some((item) => item.code === projectCode)) {
+      setProjectCode(availableProjects[0]?.code || '');
+      setSubprojectCode('');
+    }
+  }, [availableProjects, projectCode]);
+
+  useEffect(() => {
+    if (!availableSubprojects.some((item) => item.code === subprojectCode)) {
+      setSubprojectCode('');
+    }
+  }, [availableSubprojects, subprojectCode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -436,6 +494,7 @@ export function EmployeePanel(): JSX.Element {
       await saveTask({
         work_date: workDate,
         project_code: projectCode,
+        subproject_code: subprojectCode || null,
         task_name: taskName.trim(),
         start_time: startTime,
         end_time: endTime,
@@ -468,6 +527,7 @@ export function EmployeePanel(): JSX.Element {
     const csvContent = tasks.map((task) => ({
       تاریخ: task.work_date,
       پروژه: task.project_code,
+      زیرپروژه: task.subproject_code || '',
       'ساعت شروع': task.start_time,
       'ساعت پایان': task.end_time,
       'مدت زمان (دقیقه)': task.minutes_spent,
@@ -818,15 +878,50 @@ export function EmployeePanel(): JSX.Element {
                   <select
                     id='timesheet-project'
                     value={projectCode}
-                    onChange={(event) => setProjectCode(event.target.value)}
+                    onChange={(event) => {
+                      setProjectCode(event.target.value);
+                      setSubprojectCode('');
+                    }}
                     className='h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pr-10 pl-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100'
                   >
-                    {projects.length === 0 && (
-                      <option value=''>پروژه‌ای تعریف نشده است</option>
+                    {availableProjects.length === 0 && (
+                      <option value=''>پروژه فعالی برای این تاریخ نیست</option>
                     )}
-                    {projects.map((project) => (
+                    {availableProjects.map((project) => (
                       <option key={project.code} value={project.code}>
                         {project.title} — {project.code}
+                        {formatPeriodLabel(project.start_date, project.end_date)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className='space-y-2'>
+                <Label htmlFor='timesheet-subproject' className='font-bold text-slate-700'>
+                  زیرپروژه
+                </Label>
+                <div className='relative'>
+                  <FolderTree className='pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400' />
+                  <select
+                    id='timesheet-subproject'
+                    value={subprojectCode}
+                    onChange={(event) => setSubprojectCode(event.target.value)}
+                    disabled={!availableSubprojects.length}
+                    className='h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pr-10 pl-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400'
+                  >
+                    <option value=''>
+                      {availableSubprojects.length
+                        ? 'بدون زیرپروژه'
+                        : 'زیرپروژه فعالی برای این تاریخ نیست'}
+                    </option>
+                    {availableSubprojects.map((subproject) => (
+                      <option key={subproject.code} value={subproject.code}>
+                        {subproject.title} — {subproject.code}
+                        {formatPeriodLabel(
+                          subproject.start_date,
+                          subproject.end_date,
+                        )}
                       </option>
                     ))}
                   </select>
@@ -854,7 +949,7 @@ export function EmployeePanel(): JSX.Element {
               <Button
                 size='lg'
                 onClick={handleAddTask}
-                disabled={taskBusy || projects.length === 0}
+                disabled={taskBusy || availableProjects.length === 0}
                 className='h-12 w-full gap-2 bg-sky-600 text-base shadow-lg shadow-sky-100 hover:bg-sky-700'
               >
                 {taskBusy ? (
@@ -918,6 +1013,11 @@ export function EmployeePanel(): JSX.Element {
                             <span className='inline-flex rounded-lg bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-700'>
                               {task.project_code}
                             </span>
+                            {task.subproject_code && (
+                              <span className='mr-2 inline-flex rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700'>
+                                {task.subproject_code}
+                              </span>
+                            )}
                             <span className='mr-2 inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500'>
                               {task.work_date}
                             </span>

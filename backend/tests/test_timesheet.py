@@ -108,5 +108,102 @@ class TimesheetTaskIntervalTests(unittest.TestCase):
         self.assertTrue(summary['is_currently_checked_in'])
 
 
+    def test_task_accepts_matching_subproject(self):
+        from app.models.timesheet import TimesheetSubproject
+
+        self.db.add(
+            TimesheetSubproject(
+                code='SUB-1', project_code='GENERAL', title='Sub'
+            )
+        )
+        self.db.commit()
+        self.attendance('1405/05/10', '09:00', '11:00')
+        payload = TaskPayload(
+            work_date='1405/05/10',
+            project_code='GENERAL',
+            subproject_code='SUB-1',
+            task_name='sub work',
+            start_time='09:00',
+            end_time='10:00',
+        )
+        result = add_task(payload, self.user, self.db)
+        self.assertEqual(result['minutes_spent'], 60)
+
+    def test_task_rejects_subproject_from_other_project(self):
+        from app.models.timesheet import TimesheetProject, TimesheetSubproject
+
+        self.db.add(TimesheetProject(code='OTHER', title='Other'))
+        self.db.add(
+            TimesheetSubproject(code='SUB-2', project_code='OTHER', title='Sub')
+        )
+        self.db.commit()
+        self.attendance('1405/05/10', '09:00', '11:00')
+        self.assert_rejected(
+            TaskPayload(
+                work_date='1405/05/10',
+                project_code='GENERAL',
+                subproject_code='SUB-2',
+                task_name='bad sub',
+                start_time='09:00',
+                end_time='10:00',
+            )
+        )
+
+    def test_task_rejects_project_outside_period(self):
+        from app.models.timesheet import TimesheetProject
+
+        self.db.add(
+            TimesheetProject(
+                code='PRJ-RANGE',
+                title='Ranged',
+                start_date='1405/05/01',
+                end_date='1405/05/05',
+            )
+        )
+        self.db.commit()
+        self.attendance('1405/05/10', '09:00', '11:00')
+        with self.assertRaises(HTTPException) as raised:
+            add_task(
+                TaskPayload(
+                    work_date='1405/05/10',
+                    project_code='PRJ-RANGE',
+                    task_name='late work',
+                    start_time='09:00',
+                    end_time='10:00',
+                ),
+                self.user,
+                self.db,
+            )
+        self.assertEqual(raised.exception.status_code, 400)
+        self.assertIn('1405/05/01', raised.exception.detail)
+        self.assertIn('1405/05/05', raised.exception.detail)
+
+    def test_task_accepts_project_inside_period(self):
+        from app.models.timesheet import TimesheetProject
+
+        self.db.add(
+            TimesheetProject(
+                code='PRJ-OK',
+                title='Ok',
+                start_date='1405/05/01',
+                end_date='1405/05/15',
+            )
+        )
+        self.db.commit()
+        self.attendance('1405/05/10', '09:00', '11:00')
+        result = add_task(
+            TaskPayload(
+                work_date='1405/05/10',
+                project_code='PRJ-OK',
+                task_name='in range',
+                start_time='09:00',
+                end_time='10:00',
+            ),
+            self.user,
+            self.db,
+        )
+        self.assertEqual(result['minutes_spent'], 60)
+
+
 if __name__ == '__main__':
     unittest.main()

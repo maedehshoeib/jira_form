@@ -121,12 +121,21 @@ class EmployeeAnalyticsRow(BaseModel):
     form_count: int
 
 
+class SubprojectAnalyticsRow(BaseModel):
+    code: str
+    title: str
+    minutes: int
+    task_count: int
+    employee_count: int
+
+
 class ProjectAnalyticsRow(BaseModel):
     code: str
     title: str
     minutes: int
     task_count: int
     employee_count: int
+    subprojects: list[SubprojectAnalyticsRow] = []
 
 
 class DepartmentAnalyticsRow(BaseModel):

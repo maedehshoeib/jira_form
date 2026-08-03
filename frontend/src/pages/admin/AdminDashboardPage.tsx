@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import DateObject from "react-date-object";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
@@ -240,7 +240,9 @@ export default function AdminDashboardPage() {
     const normalized = query.trim().toLocaleLowerCase("fa");
     if (!normalized) return data.projects;
     return data.projects.filter((row) =>
-      [row.code, row.title].some((value) => value.toLocaleLowerCase("fa").includes(normalized)),
+      [row.code, row.title, ...(row.subprojects || []).flatMap((sub) => [sub.code, sub.title])].some(
+        (value) => value.toLocaleLowerCase("fa").includes(normalized),
+      ),
     );
   }, [data, query]);
 
@@ -606,13 +608,13 @@ export default function AdminDashboardPage() {
                 </section>
                 <section className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm xl:col-span-3">
                   <div className="border-b border-slate-100 p-5">
-                    <h3 className="font-bold text-slate-800">جزئیات پروژه‌ها</h3>
+                    <h3 className="font-bold text-slate-800">جزئیات پروژه‌ها و زیرپروژه‌ها</h3>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">
                       <thead className="bg-slate-50 text-slate-500">
                         <tr>
-                          <th className="px-5 py-3 text-right">پروژه</th>
+                          <th className="px-5 py-3 text-right">پروژه / زیرپروژه</th>
                           <th className="px-5 py-3 text-right">کد</th>
                           <th className="px-5 py-3 text-right">زمان صرف‌شده</th>
                           <th className="px-5 py-3 text-right">تعداد تسک</th>
@@ -621,15 +623,31 @@ export default function AdminDashboardPage() {
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {filteredProjects.map((row) => (
-                          <tr key={row.code} className="hover:bg-slate-50">
-                            <td className="px-5 py-4 font-semibold text-slate-800">{row.title}</td>
-                            <td className="px-5 py-4 font-mono text-xs text-violet-700" dir="ltr">
-                              {row.code}
-                            </td>
-                            <td className="px-5 py-4 font-bold text-red-700">{formatMinutes(row.minutes)}</td>
-                            <td className="px-5 py-4">{number(row.task_count)}</td>
-                            <td className="px-5 py-4">{number(row.employee_count)}</td>
-                          </tr>
+                          <Fragment key={row.code}>
+                            <tr className="hover:bg-slate-50">
+                              <td className="px-5 py-4 font-semibold text-slate-800">{row.title}</td>
+                              <td className="px-5 py-4 font-mono text-xs text-violet-700" dir="ltr">
+                                {row.code}
+                              </td>
+                              <td className="px-5 py-4 font-bold text-red-700">{formatMinutes(row.minutes)}</td>
+                              <td className="px-5 py-4">{number(row.task_count)}</td>
+                              <td className="px-5 py-4">{number(row.employee_count)}</td>
+                            </tr>
+                            {(row.subprojects || []).map((sub) => (
+                              <tr key={`${row.code}-${sub.code}`} className="bg-slate-50/60 hover:bg-slate-50">
+                                <td className="px-5 py-3 pr-10 text-slate-600">
+                                  <span className="text-xs text-slate-400">↳ </span>
+                                  {sub.title}
+                                </td>
+                                <td className="px-5 py-3 font-mono text-xs text-sky-700" dir="ltr">
+                                  {sub.code}
+                                </td>
+                                <td className="px-5 py-3 font-semibold text-slate-700">{formatMinutes(sub.minutes)}</td>
+                                <td className="px-5 py-3">{number(sub.task_count)}</td>
+                                <td className="px-5 py-3">{number(sub.employee_count)}</td>
+                              </tr>
+                            ))}
+                          </Fragment>
                         ))}
                       </tbody>
                     </table>

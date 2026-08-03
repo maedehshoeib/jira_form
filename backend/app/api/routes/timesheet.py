@@ -12,6 +12,9 @@ from app.db.session import get_db
 from app.models.timesheet import (
     TimesheetAttendance,
     TimesheetProject,
+    TimesheetProjectUser,
+    TimesheetSubproject,
+    TimesheetSubprojectUser,
     TimesheetTask,
 )
 from app.models.user import User
@@ -19,6 +22,7 @@ from app.schemas.timesheet import (
     CheckInPayload,
     CheckOutPayload,
     ProjectPayload,
+    SubprojectPayload,
     TaskPayload,
     normalize_digits,
 )
@@ -71,12 +75,231 @@ def _serialize_task(item: TimesheetTask) -> dict:
         "id": item.id,
         "work_date": item.work_date,
         "project_code": item.project_code,
+        "subproject_code": item.subproject_code,
         "task_name": item.task_name,
         "start_time": item.start_time,
         "end_time": item.end_time,
         "minutes_spent": item.minutes_spent,
         "created_at": item.created_at.isoformat() if item.created_at else None,
     }
+
+
+def _serialize_subproject(
+    item: TimesheetSubproject, *, user_ids: list[int] | None = None
+) -> dict:
+    return {
+        "code": item.code,
+        "title": item.title or item.code,
+        "project_code": item.project_code,
+        "start_date": item.start_date,
+        "end_date": item.end_date,
+        "is_active": item.is_active,
+        "user_ids": user_ids if user_ids is not None else [],
+        "created_at": item.created_at.isoformat() if item.created_at else None,
+    }
+
+
+def _serialize_project(
+    item: TimesheetProject,
+    *,
+    user_ids: list[int] | None = None,
+    subprojects: list[dict] | None = None,
+) -> dict:
+    return {
+        "code": item.code,
+        "title": item.title or item.code,
+        "start_date": item.start_date,
+        "end_date": item.end_date,
+        "is_active": item.is_active,
+        "user_ids": user_ids if user_ids is not None else [],
+        "subprojects": subprojects if subprojects is not None else [],
+        "created_at": item.created_at.isoformat() if item.created_at else None,
+    }
+
+
+def _date_in_period(work_date: str, start_date: str | None, end_date: str | None) -> bool:
+    """Return True when the work date is inside an optional Jalali period."""
+    if start_date and work_date < start_date:
+        return False
+    if end_date and work_date > end_date:
+        return False
+    return True
+
+
+def _period_error(label: str, code: str, start_date: str | None, end_date: str | None) -> str:
+    if start_date and end_date:
+        return (
+            f"{label} «{code}» فقط از تاریخ {start_date} تا {end_date} "
+            "قابل استفاده است."
+        )
+    if start_date:
+        return f"{label} «{code}» فقط از تاریخ {start_date} به بعد قابل استفاده است."
+    if end_date:
+        return f"{label} «{code}» فقط تا تاریخ {end_date} قابل استفاده است."
+    return f"{label} «{code}» در این تاریخ قابل استفاده نیست."
+
+
+def _ensure_within_period(
+    *,
+    label: str,
+    code: str,
+    work_date: str,
+    start_date: str | None,
+    end_date: str | None,
+) -> None:
+    if not start_date and not end_date:
+        return
+    if not _date_in_period(work_date, start_date, end_date):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=_period_error(label, code, start_date, end_date),
+        )
+
+
+def _project_assignees(db: Session) -> dict[str, list[int]]:
+    grouped: dict[str, list[int]] = {}
+    for row in db.query(TimesheetProjectUser).all():
+        grouped.setdefault(row.project_code, []).append(row.user_id)
+    for code, ids in grouped.items():
+        grouped[code] = sorted(set(ids))
+    return grouped
+
+
+def _subproject_assignees(db: Session) -> dict[str, list[int]]:
+    grouped: dict[str, list[int]] = {}
+    for row in db.query(TimesheetSubprojectUser).all():
+        grouped.setdefault(row.subproject_code, []).append(row.user_id)
+    for code, ids in grouped.items():
+        grouped[code] = sorted(set(ids))
+    return grouped
+
+
+def _user_can_access_project(
+    *, project_code: str, user_id: int, assignees: dict[str, list[int]]
+) -> bool:
+    assigned = assignees.get(project_code)
+    if not assigned:
+        # Unassigned catalog entries stay open (legacy / GENERAL).
+        return True
+    return user_id in assigned
+
+
+def _user_can_access_subproject(
+    *,
+    subproject_code: str,
+    user_id: int,
+    assignees: dict[str, list[int]],
+) -> bool:
+    assigned = assignees.get(subproject_code)
+    if not assigned:
+        return True
+    return user_id in assigned
+
+
+def _resolve_active_users(db: Session, user_ids: list[int]) -> list[User]:
+    if not user_ids:
+        return []
+    users = (
+        db.query(User)
+        .filter(User.id.in_(user_ids), User.is_active.is_(True), User.is_admin.is_(False))
+        .all()
+    )
+    found = {user.id for user in users}
+    missing = [item for item in user_ids if item not in found]
+    if missing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="یک یا چند کاربر انتخاب‌شده معتبر نیست.",
+        )
+    return users
+
+
+def _require_assignees(code: str, user_ids: list[int]) -> None:
+    if code == "GENERAL":
+        return
+    if not user_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="حداقل یک کاربر باید برای پروژه/زیرپروژه انتخاب شود.",
+        )
+
+
+def _set_project_assignees(db: Session, project_code: str, user_ids: list[int]) -> None:
+    db.query(TimesheetProjectUser).filter(
+        TimesheetProjectUser.project_code == project_code
+    ).delete(synchronize_session=False)
+    for user_id in user_ids:
+        db.add(TimesheetProjectUser(project_code=project_code, user_id=user_id))
+
+
+def _set_subproject_assignees(
+    db: Session, subproject_code: str, user_ids: list[int]
+) -> None:
+    db.query(TimesheetSubprojectUser).filter(
+        TimesheetSubprojectUser.subproject_code == subproject_code
+    ).delete(synchronize_session=False)
+    for user_id in user_ids:
+        db.add(
+            TimesheetSubprojectUser(subproject_code=subproject_code, user_id=user_id)
+        )
+
+
+def _assert_code_available(
+    db: Session, code: str, *, ignore_project: str | None = None, ignore_sub: str | None = None
+) -> None:
+    project = db.get(TimesheetProject, code)
+    if project and project.code != ignore_project:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="این کد پروژه قبلاً ثبت شده است.",
+        )
+    subproject = db.get(TimesheetSubproject, code)
+    if subproject and subproject.code != ignore_sub:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="این کد زیرپروژه قبلاً ثبت شده است.",
+        )
+
+
+def _ensure_subproject_within_project(
+    project: TimesheetProject, payload: SubprojectPayload
+) -> None:
+    if project.start_date and payload.start_date < project.start_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="تاریخ شروع زیرپروژه نمی‌تواند قبل از تاریخ شروع پروژه باشد.",
+        )
+    if project.end_date and payload.end_date > project.end_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="تاریخ پایان زیرپروژه نمی‌تواند بعد از تاریخ پایان پروژه باشد.",
+        )
+
+
+def _subprojects_by_project(
+    db: Session,
+    *,
+    active_only: bool = False,
+    user_id: int | None = None,
+) -> dict[str, list[dict]]:
+    query = db.query(TimesheetSubproject).order_by(
+        TimesheetSubproject.project_code, TimesheetSubproject.code
+    )
+    if active_only:
+        query = query.filter(TimesheetSubproject.is_active.is_(True))
+    sub_assignees = _subproject_assignees(db)
+    grouped: dict[str, list[dict]] = {}
+    for item in query.all():
+        if user_id is not None and not _user_can_access_subproject(
+            subproject_code=item.code,
+            user_id=user_id,
+            assignees=sub_assignees,
+        ):
+            continue
+        grouped.setdefault(item.project_code, []).append(
+            _serialize_subproject(item, user_ids=sub_assignees.get(item.code, []))
+        )
+    return grouped
 
 
 def _require_timesheet_admin(user: User = Depends(get_current_user)) -> User:
@@ -134,7 +357,7 @@ def _day_summary(db: Session, user_id: int, work_date: str) -> dict:
 
 @router.get("/projects")
 def list_projects(
-    _: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     projects = (
@@ -143,12 +366,24 @@ def list_projects(
         .order_by(TimesheetProject.code)
         .all()
     )
-    return {
-        "projects": [
-            {"code": item.code, "title": item.title or item.code}
-            for item in projects
-        ]
-    }
+    project_assignees = _project_assignees(db)
+    subprojects = _subprojects_by_project(db, active_only=True, user_id=user.id)
+    visible = []
+    for item in projects:
+        if not _user_can_access_project(
+            project_code=item.code,
+            user_id=user.id,
+            assignees=project_assignees,
+        ):
+            continue
+        visible.append(
+            _serialize_project(
+                item,
+                user_ids=project_assignees.get(item.code, []),
+                subprojects=subprojects.get(item.code, []),
+            )
+        )
+    return {"projects": visible}
 
 
 @router.post("/attendance/check-in")
@@ -222,6 +457,55 @@ def add_task(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="پروژه انتخاب‌شده معتبر یا فعال نیست.",
         )
+    project_assignees = _project_assignees(db)
+    if not _user_can_access_project(
+        project_code=project.code,
+        user_id=user.id,
+        assignees=project_assignees,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="شما به این پروژه دسترسی ندارید.",
+        )
+    _ensure_within_period(
+        label="پروژه",
+        code=project.code,
+        work_date=payload.work_date,
+        start_date=project.start_date,
+        end_date=project.end_date,
+    )
+
+    subproject_code = payload.subproject_code
+    if subproject_code:
+        subproject = db.get(TimesheetSubproject, subproject_code)
+        if (
+            not subproject
+            or not subproject.is_active
+            or subproject.project_code != payload.project_code
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="زیرپروژه انتخاب‌شده معتبر یا متعلق به این پروژه نیست.",
+            )
+        sub_assignees = _subproject_assignees(db)
+        if not _user_can_access_subproject(
+            subproject_code=subproject.code,
+            user_id=user.id,
+            assignees=sub_assignees,
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="شما به این زیرپروژه دسترسی ندارید.",
+            )
+        _ensure_within_period(
+            label="زیرپروژه",
+            code=subproject.code,
+            work_date=payload.work_date,
+            start_date=subproject.start_date,
+            end_date=subproject.end_date,
+        )
+    else:
+        subproject_code = None
 
     start, end = _minutes(payload.start_time), _minutes(payload.end_time)
     overlap = (
@@ -268,6 +552,7 @@ def add_task(
         user_id=user.id,
         work_date=payload.work_date,
         project_code=payload.project_code,
+        subproject_code=subproject_code,
         task_name=payload.task_name,
         start_time=payload.start_time,
         end_time=payload.end_time,
@@ -514,14 +799,15 @@ def admin_projects(
     db: Session = Depends(get_db),
 ):
     projects = db.query(TimesheetProject).order_by(TimesheetProject.code).all()
+    project_assignees = _project_assignees(db)
+    subprojects = _subprojects_by_project(db)
     return {
         "projects": [
-            {
-                "code": item.code,
-                "title": item.title or item.code,
-                "is_active": item.is_active,
-                "created_at": item.created_at.isoformat() if item.created_at else None,
-            }
+            _serialize_project(
+                item,
+                user_ids=project_assignees.get(item.code, []),
+                subprojects=subprojects.get(item.code, []),
+            )
             for item in projects
         ]
     }
@@ -533,19 +819,220 @@ def create_project(
     _: User = Depends(_require_timesheet_admin),
     db: Session = Depends(get_db),
 ):
-    if db.get(TimesheetProject, payload.code):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="این کد پروژه قبلاً ثبت شده است.",
-        )
-    project = TimesheetProject(code=payload.code, title=payload.title)
+    _assert_code_available(db, payload.code)
+    _require_assignees(payload.code, payload.user_ids)
+    users = _resolve_active_users(db, payload.user_ids)
+    project = TimesheetProject(
+        code=payload.code,
+        title=payload.title,
+        start_date=payload.start_date,
+        end_date=payload.end_date,
+    )
     db.add(project)
+    db.flush()
+    _set_project_assignees(db, project.code, [user.id for user in users])
     db.commit()
     db.refresh(project)
+    return _serialize_project(
+        project,
+        user_ids=[user.id for user in users],
+        subprojects=[],
+    )
+
+
+@router.put("/admin/projects/{project_code}")
+def update_project(
+    project_code: str,
+    payload: ProjectPayload,
+    _: User = Depends(_require_timesheet_admin),
+    db: Session = Depends(get_db),
+):
+    old_code = normalize_digits(project_code).upper()
+    project = db.get(TimesheetProject, old_code)
+    if not project:
+        raise HTTPException(status_code=404, detail="پروژه پیدا نشد.")
+    if old_code == "GENERAL" and payload.code != "GENERAL":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="کد پروژه GENERAL قابل تغییر نیست.",
+        )
+    _assert_code_available(
+        db, payload.code, ignore_project=old_code, ignore_sub=None
+    )
+    _require_assignees(payload.code, payload.user_ids)
+    users = _resolve_active_users(db, payload.user_ids)
+    user_ids = [user.id for user in users]
+
+    if payload.code != old_code:
+        renamed = TimesheetProject(
+            code=payload.code,
+            title=payload.title,
+            start_date=payload.start_date,
+            end_date=payload.end_date,
+            is_active=project.is_active,
+            created_at=project.created_at,
+        )
+        db.add(renamed)
+        db.flush()
+        db.query(TimesheetTask).filter(
+            TimesheetTask.project_code == old_code
+        ).update(
+            {TimesheetTask.project_code: payload.code},
+            synchronize_session=False,
+        )
+        db.query(TimesheetSubproject).filter(
+            TimesheetSubproject.project_code == old_code
+        ).update(
+            {TimesheetSubproject.project_code: payload.code},
+            synchronize_session=False,
+        )
+        db.query(TimesheetProjectUser).filter(
+            TimesheetProjectUser.project_code == old_code
+        ).delete(synchronize_session=False)
+        _set_project_assignees(db, payload.code, user_ids)
+        db.delete(project)
+        project = renamed
+    else:
+        project.title = payload.title
+        project.start_date = payload.start_date
+        project.end_date = payload.end_date
+        _set_project_assignees(db, project.code, user_ids)
+
+    db.commit()
+    db.refresh(project)
+    return _serialize_project(
+        project,
+        user_ids=user_ids,
+        subprojects=_subprojects_by_project(db).get(project.code, []),
+    )
+
+
+@router.post("/admin/projects/{project_code}/subprojects")
+def create_subproject(
+    project_code: str,
+    payload: SubprojectPayload,
+    _: User = Depends(_require_timesheet_admin),
+    db: Session = Depends(get_db),
+):
+    parent_code = normalize_digits(project_code).upper()
+    project = db.get(TimesheetProject, parent_code)
+    if not project:
+        raise HTTPException(status_code=404, detail="پروژه پیدا نشد.")
+    _assert_code_available(db, payload.code)
+    _require_assignees(payload.code, payload.user_ids)
+    _ensure_subproject_within_project(project, payload)
+    users = _resolve_active_users(db, payload.user_ids)
+    # Subproject assignees must be a subset of parent assignees when parent is restricted.
+    parent_assignees = _project_assignees(db).get(parent_code, [])
+    if parent_assignees:
+        invalid = [user.id for user in users if user.id not in parent_assignees]
+        if invalid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="کاربران زیرپروژه باید از میان کاربران اختصاص‌یافته به پروژه انتخاب شوند.",
+            )
+    subproject = TimesheetSubproject(
+        code=payload.code,
+        project_code=parent_code,
+        title=payload.title,
+        start_date=payload.start_date,
+        end_date=payload.end_date,
+    )
+    db.add(subproject)
+    db.flush()
+    _set_subproject_assignees(db, subproject.code, [user.id for user in users])
+    db.commit()
+    db.refresh(subproject)
+    return _serialize_subproject(subproject, user_ids=[user.id for user in users])
+
+
+@router.put("/admin/subprojects/{subproject_code}")
+def update_subproject(
+    subproject_code: str,
+    payload: SubprojectPayload,
+    _: User = Depends(_require_timesheet_admin),
+    db: Session = Depends(get_db),
+):
+    old_code = normalize_digits(subproject_code).upper()
+    subproject = db.get(TimesheetSubproject, old_code)
+    if not subproject:
+        raise HTTPException(status_code=404, detail="زیرپروژه پیدا نشد.")
+    project = db.get(TimesheetProject, subproject.project_code)
+    if not project:
+        raise HTTPException(status_code=404, detail="پروژه پیدا نشد.")
+    _assert_code_available(db, payload.code, ignore_sub=old_code)
+    _require_assignees(payload.code, payload.user_ids)
+    _ensure_subproject_within_project(project, payload)
+    users = _resolve_active_users(db, payload.user_ids)
+    parent_assignees = _project_assignees(db).get(project.code, [])
+    if parent_assignees:
+        invalid = [user.id for user in users if user.id not in parent_assignees]
+        if invalid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="کاربران زیرپروژه باید از میان کاربران اختصاص‌یافته به پروژه انتخاب شوند.",
+            )
+    user_ids = [user.id for user in users]
+
+    if payload.code != old_code:
+        renamed = TimesheetSubproject(
+            code=payload.code,
+            project_code=subproject.project_code,
+            title=payload.title,
+            start_date=payload.start_date,
+            end_date=payload.end_date,
+            is_active=subproject.is_active,
+            created_at=subproject.created_at,
+        )
+        db.add(renamed)
+        db.flush()
+        db.query(TimesheetTask).filter(
+            TimesheetTask.subproject_code == old_code
+        ).update(
+            {TimesheetTask.subproject_code: payload.code},
+            synchronize_session=False,
+        )
+        db.query(TimesheetSubprojectUser).filter(
+            TimesheetSubprojectUser.subproject_code == old_code
+        ).delete(synchronize_session=False)
+        _set_subproject_assignees(db, payload.code, user_ids)
+        db.delete(subproject)
+        subproject = renamed
+    else:
+        subproject.title = payload.title
+        subproject.start_date = payload.start_date
+        subproject.end_date = payload.end_date
+        _set_subproject_assignees(db, subproject.code, user_ids)
+
+    db.commit()
+    db.refresh(subproject)
+    return _serialize_subproject(subproject, user_ids=user_ids)
+
+
+@router.delete("/admin/subprojects/{subproject_code}")
+def delete_subproject(
+    subproject_code: str,
+    _: User = Depends(_require_timesheet_admin),
+    db: Session = Depends(get_db),
+):
+    code = normalize_digits(subproject_code).upper()
+    subproject = db.get(TimesheetSubproject, code)
+    if not subproject:
+        raise HTTPException(status_code=404, detail="زیرپروژه پیدا نشد.")
+    cleared = (
+        db.query(TimesheetTask)
+        .filter(TimesheetTask.subproject_code == code)
+        .update({TimesheetTask.subproject_code: None})
+    )
+    db.query(TimesheetSubprojectUser).filter(
+        TimesheetSubprojectUser.subproject_code == code
+    ).delete(synchronize_session=False)
+    db.delete(subproject)
+    db.commit()
     return {
-        "code": project.code,
-        "title": project.title or project.code,
-        "is_active": project.is_active,
+        "message": "زیرپروژه حذف شد.",
+        "subproject_code": code,
+        "cleared_tasks": cleared,
     }
 
 
@@ -569,6 +1056,25 @@ def delete_project(
         general = TimesheetProject(code="GENERAL", title="عمومی")
         db.add(general)
         db.flush()
+    subproject_codes = [
+        item.code
+        for item in db.query(TimesheetSubproject)
+        .filter(TimesheetSubproject.project_code == code)
+        .all()
+    ]
+    if subproject_codes:
+        db.query(TimesheetTask).filter(
+            TimesheetTask.subproject_code.in_(subproject_codes)
+        ).update({TimesheetTask.subproject_code: None}, synchronize_session=False)
+        db.query(TimesheetSubprojectUser).filter(
+            TimesheetSubprojectUser.subproject_code.in_(subproject_codes)
+        ).delete(synchronize_session=False)
+        db.query(TimesheetSubproject).filter(
+            TimesheetSubproject.project_code == code
+        ).delete(synchronize_session=False)
+    db.query(TimesheetProjectUser).filter(
+        TimesheetProjectUser.project_code == code
+    ).delete(synchronize_session=False)
     reassigned = (
         db.query(TimesheetTask)
         .filter(TimesheetTask.project_code == code)

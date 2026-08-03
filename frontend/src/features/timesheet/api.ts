@@ -21,10 +21,22 @@ export type AttendanceSegment = {
   check_out_time: string | null;
 };
 
+export type SubprojectItem = {
+  code: string;
+  title: string;
+  project_code?: string;
+  start_date?: string | null;
+  end_date?: string | null;
+  user_ids?: number[];
+  is_active?: boolean;
+  created_at?: string;
+};
+
 export type TaskItem = {
   id: number;
   work_date: string;
   project_code: string;
+  subproject_code?: string | null;
   task_name: string;
   start_time: string;
   end_time: string;
@@ -35,8 +47,12 @@ export type TaskItem = {
 export type ProjectItem = {
   code: string;
   title: string;
+  start_date?: string | null;
+  end_date?: string | null;
+  user_ids?: number[];
   is_active?: boolean;
   created_at?: string;
+  subprojects?: SubprojectItem[];
 };
 
 export type DayTimeline = {
@@ -77,6 +93,7 @@ export type AdminTaskRecord = {
   job_title: string;
   work_date: string;
   project_code: string;
+  subproject_code?: string | null;
   task_name: string;
   start_time: string;
   end_time: string;
@@ -124,6 +141,7 @@ export async function saveCheckOut(payload: {
 export async function saveTask(payload: {
   work_date: string;
   project_code: string;
+  subproject_code?: string | null;
   task_name: string;
   start_time: string;
   end_time: string;
@@ -196,8 +214,71 @@ export async function fetchAdminProjects(): Promise<ProjectItem[]> {
 export async function adminCreateProject(payload: {
   code: string;
   title?: string;
+  start_date: string;
+  end_date: string;
+  user_ids: number[];
 }): Promise<ProjectItem> {
   const { data } = await client.post<ProjectItem>(`${base}/admin/projects`, payload);
+  return data;
+}
+
+export async function adminUpdateProject(
+  projectCode: string,
+  payload: {
+    code: string;
+    title?: string;
+    start_date: string;
+    end_date: string;
+    user_ids: number[];
+  },
+): Promise<ProjectItem> {
+  const { data } = await client.put<ProjectItem>(
+    `${base}/admin/projects/${encodeURIComponent(projectCode)}`,
+    payload,
+  );
+  return data;
+}
+
+export async function adminCreateSubproject(
+  projectCode: string,
+  payload: {
+    code: string;
+    title?: string;
+    start_date: string;
+    end_date: string;
+    user_ids: number[];
+  },
+): Promise<SubprojectItem> {
+  const { data } = await client.post<SubprojectItem>(
+    `${base}/admin/projects/${encodeURIComponent(projectCode)}/subprojects`,
+    payload,
+  );
+  return data;
+}
+
+export async function adminUpdateSubproject(
+  subprojectCode: string,
+  payload: {
+    code: string;
+    title?: string;
+    start_date: string;
+    end_date: string;
+    user_ids: number[];
+  },
+): Promise<SubprojectItem> {
+  const { data } = await client.put<SubprojectItem>(
+    `${base}/admin/subprojects/${encodeURIComponent(subprojectCode)}`,
+    payload,
+  );
+  return data;
+}
+
+export async function adminDeleteSubproject(
+  subprojectCode: string,
+): Promise<{ message: string; subproject_code: string; cleared_tasks: number }> {
+  const { data } = await client.delete(
+    `${base}/admin/subprojects/${encodeURIComponent(subprojectCode)}`,
+  );
   return data;
 }
 

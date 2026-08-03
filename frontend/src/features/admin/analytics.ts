@@ -29,12 +29,21 @@ export type EmployeeAnalyticsRow = {
   form_count: number;
 };
 
+export type SubprojectAnalyticsRow = {
+  code: string;
+  title: string;
+  minutes: number;
+  task_count: number;
+  employee_count: number;
+};
+
 export type ProjectAnalyticsRow = {
   code: string;
   title: string;
   minutes: number;
   task_count: number;
   employee_count: number;
+  subprojects?: SubprojectAnalyticsRow[];
 };
 
 export type DepartmentAnalyticsRow = {

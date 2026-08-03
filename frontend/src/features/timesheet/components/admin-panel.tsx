@@ -26,11 +26,17 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import {
   adminCreateProject,
+  adminCreateSubproject,
   adminDeleteProject,
+  adminDeleteSubproject,
+  adminUpdateProject,
+  adminUpdateSubproject,
   fetchAdminProjects,
   fetchAdminRangeRecords,
   type AdminRangeRecords,
   type ProjectItem,
+  type SubprojectItem,
+  type TimesheetEmployee,
 } from '@/features/timesheet/api';
 import { Button } from '@/features/timesheet/components/ui/button';
 import { Input } from '@/features/timesheet/components/ui/input';
@@ -48,6 +54,16 @@ function jalaliToday(): DateObject {
 
 function asDate(value: DateObject): string {
   return value.format('YYYY/MM/DD');
+}
+
+function parseJalali(value?: string | null): DateObject | null {
+  if (!value) return null;
+  return new DateObject({
+    date: value,
+    format: 'YYYY/MM/DD',
+    calendar: persian,
+    locale: persian_fa,
+  });
 }
 
 function formatMinutes(minutes: number): string {
@@ -205,6 +221,19 @@ export function AdminPanel(): JSX.Element {
   const [projectCode, setProjectCode] = useState('');
   const [projectTitle, setProjectTitle] = useState('');
   const [projectListSearch, setProjectListSearch] = useState('');
+  const [selectedManageProject, setSelectedManageProject] = useState('');
+  const [editingProjectCode, setEditingProjectCode] = useState<string | null>(null);
+  const [subprojectCode, setSubprojectCode] = useState('');
+  const [subprojectTitle, setSubprojectTitle] = useState('');
+  const [editingSubprojectCode, setEditingSubprojectCode] = useState<string | null>(null);
+  const [projectStartDate, setProjectStartDate] = useState<DateObject | null>(null);
+  const [projectEndDate, setProjectEndDate] = useState<DateObject | null>(null);
+  const [subprojectStartDate, setSubprojectStartDate] = useState<DateObject | null>(null);
+  const [subprojectEndDate, setSubprojectEndDate] = useState<DateObject | null>(null);
+  const [projectUserIds, setProjectUserIds] = useState<number[]>([]);
+  const [subprojectUserIds, setSubprojectUserIds] = useState<number[]>([]);
+  const [projectUserSearch, setProjectUserSearch] = useState('');
+  const [subprojectUserSearch, setSubprojectUserSearch] = useState('');
   const fullName = user?.display_name || user?.username || 'مدیر سیستم';
 
   const applyPreset = (nextPreset: PeriodPreset) => {
@@ -242,7 +271,12 @@ export function AdminPanel(): JSX.Element {
 
   useEffect(() => {
     void loadRecords();
-    void fetchAdminProjects().then(setProjects).catch(() => undefined);
+    void fetchAdminProjects()
+      .then((next) => {
+        setProjects(next);
+        if (next.length) setSelectedManageProject(next[0].code);
+      })
+      .catch(() => undefined);
   }, []);
 
   const availableEmployees = useMemo(() => {
@@ -255,7 +289,7 @@ export function AdminPanel(): JSX.Element {
     return (records?.tasks || []).filter((row) => {
       if (selectedProject !== 'all' && row.project_code !== selectedProject) return false;
       if (!normalizedQuery) return true;
-      return [row.full_name, row.username, row.department, row.project_code, row.task_name, row.work_date]
+      return [row.full_name, row.username, row.department, row.project_code, row.subproject_code || '', row.task_name, row.work_date]
         .some((value) => value.toLocaleLowerCase('fa').includes(normalizedQuery));
     });
   }, [records, selectedProject, query]);
@@ -350,9 +384,96 @@ export function AdminPanel(): JSX.Element {
   }, [filteredAttendance, filteredTasks]);
 
   const maxProjectMinutes = Math.max(projectRows[0]?.minutes || 0, 1);
-  const filteredProjectList = projects.filter((item) =>
-    `${item.code} ${item.title}`.toLocaleLowerCase('fa').includes(projectListSearch.trim().toLocaleLowerCase('fa')),
+  const filteredProjectList = projects.filter((item) => {
+    const haystack = [
+      item.code,
+      item.title,
+      ...(item.subprojects || []).flatMap((sub) => [sub.code, sub.title]),
+    ]
+      .join(' ')
+      .toLocaleLowerCase('fa');
+    return haystack.includes(projectListSearch.trim().toLocaleLowerCase('fa'));
+  });
+  const manageProject =
+    projects.find((item) => item.code === selectedManageProject) || null;
+  const directoryEmployees: TimesheetEmployee[] = records?.employees || [];
+  const projectAssigneeOptions = useMemo(() => {
+    const normalized = projectUserSearch.trim().toLocaleLowerCase('fa');
+    if (!normalized) return directoryEmployees;
+    return directoryEmployees.filter((employee) =>
+      [employee.full_name, employee.username, employee.department, employee.job_title]
+        .some((value) => value.toLocaleLowerCase('fa').includes(normalized)),
+    );
+  }, [directoryEmployees, projectUserSearch]);
+  const subprojectAssigneePool = useMemo(
+    () =>
+      manageProject?.user_ids?.length
+        ? directoryEmployees.filter((employee) =>
+            manageProject.user_ids?.includes(Number(employee.employee_id)),
+          )
+        : directoryEmployees,
+    [directoryEmployees, manageProject],
   );
+  const subprojectAssigneeOptions = useMemo(() => {
+    const normalized = subprojectUserSearch.trim().toLocaleLowerCase('fa');
+    if (!normalized) return subprojectAssigneePool;
+    return subprojectAssigneePool.filter((employee) =>
+      [employee.full_name, employee.username, employee.department, employee.job_title]
+        .some((value) => value.toLocaleLowerCase('fa').includes(normalized)),
+    );
+  }, [subprojectAssigneePool, subprojectUserSearch]);
+
+  const resetProjectForm = () => {
+    setEditingProjectCode(null);
+    setProjectCode('');
+    setProjectTitle('');
+    setProjectStartDate(null);
+    setProjectEndDate(null);
+    setProjectUserIds([]);
+  };
+
+  const resetSubprojectForm = () => {
+    setEditingSubprojectCode(null);
+    setSubprojectCode('');
+    setSubprojectTitle('');
+    setSubprojectStartDate(null);
+    setSubprojectEndDate(null);
+    setSubprojectUserIds([]);
+  };
+
+  const fillProjectForm = (project: ProjectItem) => {
+    setEditingProjectCode(project.code);
+    setSelectedManageProject(project.code);
+    setProjectCode(project.code);
+    setProjectTitle(project.title || '');
+    setProjectStartDate(parseJalali(project.start_date));
+    setProjectEndDate(parseJalali(project.end_date));
+    setProjectUserIds(project.user_ids || []);
+    resetSubprojectForm();
+  };
+
+  const fillSubprojectForm = (subproject: SubprojectItem, parentCode: string) => {
+    setSelectedManageProject(parentCode);
+    setEditingSubprojectCode(subproject.code);
+    setSubprojectCode(subproject.code);
+    setSubprojectTitle(subproject.title || '');
+    setSubprojectStartDate(parseJalali(subproject.start_date));
+    setSubprojectEndDate(parseJalali(subproject.end_date));
+    setSubprojectUserIds(subproject.user_ids || []);
+  };
+
+  const toggleUserId = (
+    current: number[],
+    employeeId: string,
+    setter: (value: number[]) => void,
+  ) => {
+    const id = Number(employeeId);
+    setter(
+      current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id],
+    );
+  };
 
   const activeRowCount = reportTab === 'employees'
     ? visibleEmployeeRows.length
@@ -385,9 +506,9 @@ export function AdminPanel(): JSX.Element {
   }, [page, pageCount]);
 
   const exportCsv = () => {
-    const header = ['تاریخ', 'کارمند', 'واحد', 'پروژه', 'شرح فعالیت', 'شروع', 'پایان', 'مدت (دقیقه)'];
+    const header = ['تاریخ', 'کارمند', 'واحد', 'پروژه', 'زیرپروژه', 'شرح فعالیت', 'شروع', 'پایان', 'مدت (دقیقه)'];
     const rows = filteredTasks.map((row) => [
-      row.work_date, row.full_name, row.department, row.project_code, row.task_name, row.start_time, row.end_time, row.minutes_spent,
+      row.work_date, row.full_name, row.department, row.project_code, row.subproject_code || '', row.task_name, row.start_time, row.end_time, row.minutes_spent,
     ]);
     const csv = `\uFEFF${[header, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\n')}`;
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
@@ -400,23 +521,106 @@ export function AdminPanel(): JSX.Element {
 
   const createProject = async () => {
     if (!projectCode.trim()) return;
+    if (!projectStartDate || !projectEndDate) {
+      setError('بازه زمانی پروژه (از تاریخ / تا تاریخ) را مشخص کنید.');
+      return;
+    }
+    if (projectCode.trim().toUpperCase() !== 'GENERAL' && !projectUserIds.length) {
+      setError('حداقل یک کاربر را برای پروژه انتخاب کنید.');
+      return;
+    }
+    const start = asDate(projectStartDate);
+    const end = asDate(projectEndDate);
+    if (start > end) {
+      setError('تاریخ پایان پروژه نمی‌تواند قبل از تاریخ شروع باشد.');
+      return;
+    }
+    const payload = {
+      code: projectCode.trim(),
+      title: projectTitle.trim() || undefined,
+      start_date: start,
+      end_date: end,
+      user_ids: projectUserIds,
+    };
     try {
-      await adminCreateProject({ code: projectCode.trim(), title: projectTitle.trim() || undefined });
-      setProjectCode('');
-      setProjectTitle('');
+      if (editingProjectCode) {
+        await adminUpdateProject(editingProjectCode, payload);
+      } else {
+        await adminCreateProject(payload);
+      }
+      resetProjectForm();
+      const next = await fetchAdminProjects();
+      setProjects(next);
+      if (next.length) {
+        setSelectedManageProject(
+          next.find((item) => item.code === payload.code)?.code || next[0].code,
+        );
+      }
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || 'ذخیره پروژه با خطا روبه‌رو شد.');
+    }
+  };
+
+  const createSubproject = async () => {
+    if (!selectedManageProject || !subprojectCode.trim()) return;
+    if (!subprojectStartDate || !subprojectEndDate) {
+      setError('بازه زمانی زیرپروژه (از تاریخ / تا تاریخ) را مشخص کنید.');
+      return;
+    }
+    if (!subprojectUserIds.length) {
+      setError('حداقل یک کاربر را برای زیرپروژه انتخاب کنید.');
+      return;
+    }
+    const start = asDate(subprojectStartDate);
+    const end = asDate(subprojectEndDate);
+    if (start > end) {
+      setError('تاریخ پایان زیرپروژه نمی‌تواند قبل از تاریخ شروع باشد.');
+      return;
+    }
+    const payload = {
+      code: subprojectCode.trim(),
+      title: subprojectTitle.trim() || undefined,
+      start_date: start,
+      end_date: end,
+      user_ids: subprojectUserIds,
+    };
+    try {
+      if (editingSubprojectCode) {
+        await adminUpdateSubproject(editingSubprojectCode, payload);
+      } else {
+        await adminCreateSubproject(selectedManageProject, payload);
+      }
+      resetSubprojectForm();
       setProjects(await fetchAdminProjects());
     } catch (err: any) {
-      setError(err?.response?.data?.detail || 'ایجاد پروژه با خطا روبه‌رو شد.');
+      setError(err?.response?.data?.detail || 'ذخیره زیرپروژه با خطا روبه‌رو شد.');
     }
   };
 
   const deleteProject = async (project: ProjectItem) => {
-    if (!window.confirm(`پروژه ${project.code} حذف شود؟`)) return;
+    if (!window.confirm(`پروژه ${project.code} و زیرپروژه‌های آن حذف شود؟`)) return;
     try {
       await adminDeleteProject(project.code);
-      setProjects(await fetchAdminProjects());
+      const next = await fetchAdminProjects();
+      setProjects(next);
+      if (selectedManageProject === project.code || editingProjectCode === project.code) {
+        setSelectedManageProject(next[0]?.code || '');
+        resetProjectForm();
+        resetSubprojectForm();
+      }
     } catch (err: any) {
       setError(err?.response?.data?.detail || 'حذف پروژه با خطا روبه‌رو شد.');
+    }
+  };
+
+  const deleteSubproject = async (code: string) => {
+    if (!window.confirm(`زیرپروژه ${code} حذف شود؟`)) return;
+    try {
+      await adminDeleteSubproject(code);
+      setProjects(await fetchAdminProjects());
+      if (editingSubprojectCode === code) resetSubprojectForm();
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || 'حذف زیرپروژه با خطا روبه‌رو شد.');
     }
   };
 
@@ -518,25 +722,248 @@ export function AdminPanel(): JSX.Element {
 
         {showProjects && (
           <section className='no-print rounded-2xl border border-slate-200 bg-white p-5'>
-            <div className='grid gap-5 lg:grid-cols-[360px_1fr]'>
-              <div>
-                <h2 className='font-black'>افزودن پروژه</h2>
-                <div className='mt-3 space-y-2'>
-                  <Input value={projectCode} onChange={(event) => setProjectCode(event.target.value.toUpperCase())} placeholder='کد پروژه، مثال PRJ-001' />
-                  <Input value={projectTitle} onChange={(event) => setProjectTitle(event.target.value)} placeholder='عنوان پروژه' />
-                  <Button onClick={() => void createProject()} className='w-full'>ایجاد پروژه</Button>
+            <div className='grid gap-5 xl:grid-cols-[380px_1fr]'>
+              <div className='space-y-5'>
+                <div>
+                  <div className='flex items-center justify-between gap-2'>
+                    <h2 className='font-black'>{editingProjectCode ? 'ویرایش پروژه' : 'افزودن پروژه'}</h2>
+                    {editingProjectCode && (
+                      <Button size='sm' variant='outline' onClick={resetProjectForm}>جدید</Button>
+                    )}
+                  </div>
+                  <div className='mt-3 space-y-2'>
+                    <Input
+                      value={projectCode}
+                      onChange={(event) => setProjectCode(event.target.value.toUpperCase())}
+                      placeholder='کد پروژه، مثال PRJ-001'
+                      disabled={editingProjectCode === 'GENERAL'}
+                    />
+                    <Input value={projectTitle} onChange={(event) => setProjectTitle(event.target.value)} placeholder='عنوان پروژه' />
+                    <div className='grid grid-cols-2 gap-2'>
+                      <label>
+                        <span className='mb-1.5 block text-xs font-bold text-slate-500'>از تاریخ</span>
+                        <JalaliDateTimePicker
+                          value={projectStartDate}
+                          onChange={(value: any) => setProjectStartDate(Array.isArray(value) ? value[0] : value)}
+                          format='YYYY/MM/DD'
+                          placeholder='شروع دوره'
+                        />
+                      </label>
+                      <label>
+                        <span className='mb-1.5 block text-xs font-bold text-slate-500'>تا تاریخ</span>
+                        <JalaliDateTimePicker
+                          value={projectEndDate}
+                          onChange={(value: any) => setProjectEndDate(Array.isArray(value) ? value[0] : value)}
+                          format='YYYY/MM/DD'
+                          placeholder='پایان دوره'
+                        />
+                      </label>
+                    </div>
+                    <div>
+                      <div className='mb-1.5 flex items-center justify-between'>
+                        <span className='text-xs font-bold text-slate-500'>کاربران مجاز</span>
+                        <span className='text-[10px] text-slate-400'>{numberFormatter.format(projectUserIds.length)} نفر</span>
+                      </div>
+                      <div className='relative mb-2'>
+                        <Search className='pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400' />
+                        <Input
+                          value={projectUserSearch}
+                          onChange={(event) => setProjectUserSearch(event.target.value)}
+                          className='h-9 pr-8 text-xs'
+                          placeholder='جستجوی کارمند...'
+                        />
+                      </div>
+                      <div className='max-h-36 space-y-1 overflow-auto rounded-xl border border-slate-200 p-2'>
+                        {!directoryEmployees.length && (
+                          <p className='p-2 text-xs text-slate-400'>ابتدا گزارش را بارگذاری کنید تا فهرست کارکنان آماده شود.</p>
+                        )}
+                        {directoryEmployees.length > 0 && !projectAssigneeOptions.length && (
+                          <p className='p-2 text-xs text-slate-400'>کارمندی با این جستجو پیدا نشد.</p>
+                        )}
+                        {projectAssigneeOptions.map((employee) => {
+                          const checked = projectUserIds.includes(Number(employee.employee_id));
+                          return (
+                            <label key={employee.employee_id} className='flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-slate-50'>
+                              <input
+                                type='checkbox'
+                                checked={checked}
+                                onChange={() => toggleUserId(projectUserIds, employee.employee_id, setProjectUserIds)}
+                              />
+                              <span className='font-bold text-slate-700'>{employee.full_name}</span>
+                              <span className='text-slate-400'>{employee.department}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <Button onClick={() => void createProject()} className='w-full'>
+                      {editingProjectCode ? 'ذخیره تغییرات پروژه' : 'ایجاد پروژه'}
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <div className='flex items-center justify-between gap-2'>
+                    <h2 className='font-black'>{editingSubprojectCode ? 'ویرایش زیرپروژه' : 'افزودن زیرپروژه'}</h2>
+                    {editingSubprojectCode && (
+                      <Button size='sm' variant='outline' onClick={resetSubprojectForm}>جدید</Button>
+                    )}
+                  </div>
+                  <p className='mt-1 text-xs text-slate-400'>زیرپروژه به پروژه انتخاب‌شده در لیست اضافه می‌شود.</p>
+                  <div className='mt-3 space-y-2'>
+                    <select
+                      value={selectedManageProject}
+                      onChange={(event) => setSelectedManageProject(event.target.value)}
+                      className='h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-cyan-500'
+                      disabled={Boolean(editingSubprojectCode)}
+                    >
+                      {!projects.length && <option value=''>پروژه‌ای موجود نیست</option>}
+                      {projects.map((project) => (
+                        <option key={project.code} value={project.code}>
+                          {project.title || project.code} — {project.code}
+                        </option>
+                      ))}
+                    </select>
+                    <Input value={subprojectCode} onChange={(event) => setSubprojectCode(event.target.value.toUpperCase())} placeholder='کد زیرپروژه، مثال SUB-001' />
+                    <Input value={subprojectTitle} onChange={(event) => setSubprojectTitle(event.target.value)} placeholder='عنوان زیرپروژه' />
+                    <div className='grid grid-cols-2 gap-2'>
+                      <label>
+                        <span className='mb-1.5 block text-xs font-bold text-slate-500'>از تاریخ</span>
+                        <JalaliDateTimePicker
+                          value={subprojectStartDate}
+                          onChange={(value: any) => setSubprojectStartDate(Array.isArray(value) ? value[0] : value)}
+                          format='YYYY/MM/DD'
+                          placeholder='شروع دوره'
+                        />
+                      </label>
+                      <label>
+                        <span className='mb-1.5 block text-xs font-bold text-slate-500'>تا تاریخ</span>
+                        <JalaliDateTimePicker
+                          value={subprojectEndDate}
+                          onChange={(value: any) => setSubprojectEndDate(Array.isArray(value) ? value[0] : value)}
+                          format='YYYY/MM/DD'
+                          placeholder='پایان دوره'
+                        />
+                      </label>
+                    </div>
+                    <div>
+                      <div className='mb-1.5 flex items-center justify-between'>
+                        <span className='text-xs font-bold text-slate-500'>کاربران مجاز زیرپروژه</span>
+                        <span className='text-[10px] text-slate-400'>{numberFormatter.format(subprojectUserIds.length)} نفر</span>
+                      </div>
+                      <div className='relative mb-2'>
+                        <Search className='pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400' />
+                        <Input
+                          value={subprojectUserSearch}
+                          onChange={(event) => setSubprojectUserSearch(event.target.value)}
+                          className='h-9 pr-8 text-xs'
+                          placeholder='جستجوی کارمند...'
+                        />
+                      </div>
+                      <div className='max-h-36 space-y-1 overflow-auto rounded-xl border border-slate-200 p-2'>
+                        {!subprojectAssigneePool.length && (
+                          <p className='p-2 text-xs text-slate-400'>کاربری برای انتخاب موجود نیست.</p>
+                        )}
+                        {subprojectAssigneePool.length > 0 && !subprojectAssigneeOptions.length && (
+                          <p className='p-2 text-xs text-slate-400'>کارمندی با این جستجو پیدا نشد.</p>
+                        )}
+                        {subprojectAssigneeOptions.map((employee) => {
+                          const checked = subprojectUserIds.includes(Number(employee.employee_id));
+                          return (
+                            <label key={employee.employee_id} className='flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-slate-50'>
+                              <input
+                                type='checkbox'
+                                checked={checked}
+                                onChange={() => toggleUserId(subprojectUserIds, employee.employee_id, setSubprojectUserIds)}
+                              />
+                              <span className='font-bold text-slate-700'>{employee.full_name}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <Button onClick={() => void createSubproject()} disabled={!selectedManageProject} className='w-full'>
+                      {editingSubprojectCode ? 'ذخیره تغییرات زیرپروژه' : 'ایجاد زیرپروژه'}
+                    </Button>
+                  </div>
                 </div>
               </div>
               <div>
-                <Input value={projectListSearch} onChange={(event) => setProjectListSearch(event.target.value)} placeholder='جستجو در پروژه‌ها' />
-                <div className='mt-2 max-h-44 overflow-auto rounded-xl border border-slate-200'>
+                <Input value={projectListSearch} onChange={(event) => setProjectListSearch(event.target.value)} placeholder='جستجو در پروژه‌ها و زیرپروژه‌ها' />
+                <div className='mt-2 max-h-[34rem] overflow-auto rounded-xl border border-slate-200'>
                   {filteredProjectList.map((project) => (
-                    <div key={project.code} className='flex items-center justify-between border-b border-slate-100 px-3 py-2 last:border-0'>
-                      <div><b className='text-sm'>{project.title}</b><span className='mr-2 font-mono text-xs text-slate-400'>{project.code}</span></div>
-                      <Button size='sm' variant='outline' disabled={project.code === 'GENERAL'} onClick={() => void deleteProject(project)} className='text-rose-600'>حذف</Button>
+                    <div
+                      key={project.code}
+                      className={`border-b border-slate-100 last:border-0 ${selectedManageProject === project.code ? 'bg-cyan-50/50' : ''}`}
+                    >
+                      <div className='flex items-center justify-between gap-3 px-3 py-2'>
+                        <button
+                          type='button'
+                          onClick={() => fillProjectForm(project)}
+                          className='min-w-0 flex-1 text-right'
+                        >
+                          <b className='text-sm'>{project.title}</b>
+                          <span className='mr-2 font-mono text-xs text-slate-400'>{project.code}</span>
+                          <span className='mr-2 text-[10px] font-bold text-slate-400'>
+                            {numberFormatter.format(project.subprojects?.length || 0)} زیرپروژه
+                          </span>
+                          <span className='mr-2 text-[10px] font-bold text-violet-600'>
+                            {numberFormatter.format(project.user_ids?.length || 0)} کاربر
+                          </span>
+                          {(project.start_date || project.end_date) && (
+                            <div className='mt-1 text-[10px] font-semibold text-cyan-700' dir='ltr'>
+                              {project.start_date || '—'} → {project.end_date || '—'}
+                            </div>
+                          )}
+                        </button>
+                        <div className='flex shrink-0 gap-1'>
+                          <Button size='sm' variant='outline' onClick={() => fillProjectForm(project)}>ویرایش</Button>
+                          <Button size='sm' variant='outline' disabled={project.code === 'GENERAL'} onClick={() => void deleteProject(project)} className='text-rose-600'>حذف</Button>
+                        </div>
+                      </div>
+                      {(project.subprojects || []).length > 0 && (
+                        <div className='space-y-1 border-t border-slate-50 bg-slate-50/70 px-3 py-2'>
+                          {(project.subprojects || []).map((subproject) => (
+                            <div key={subproject.code} className='flex items-center justify-between gap-3 rounded-lg bg-white px-2.5 py-1.5'>
+                              <button
+                                type='button'
+                                className='min-w-0 flex-1 text-right'
+                                onClick={() => fillSubprojectForm(subproject, project.code)}
+                              >
+                                <span className='text-xs font-bold text-slate-700'>{subproject.title}</span>
+                                <span className='mr-2 font-mono text-[10px] text-sky-700'>{subproject.code}</span>
+                                <span className='mr-2 text-[10px] text-violet-600'>
+                                  {numberFormatter.format(subproject.user_ids?.length || 0)} کاربر
+                                </span>
+                                {(subproject.start_date || subproject.end_date) && (
+                                  <div className='mt-0.5 text-[10px] font-semibold text-sky-600' dir='ltr'>
+                                    {subproject.start_date || '—'} → {subproject.end_date || '—'}
+                                  </div>
+                                )}
+                              </button>
+                              <div className='flex shrink-0 gap-1'>
+                                <Button size='sm' variant='outline' onClick={() => fillSubprojectForm(subproject, project.code)} className='h-7 px-2 text-[11px]'>ویرایش</Button>
+                                <Button size='sm' variant='outline' onClick={() => void deleteSubproject(subproject.code)} className='h-7 px-2 text-[11px] text-rose-600'>حذف</Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
+                  {!filteredProjectList.length && (
+                    <div className='p-6 text-center text-sm text-slate-400'>پروژه‌ای پیدا نشد.</div>
+                  )}
                 </div>
+                {manageProject && (
+                  <p className='mt-3 text-xs text-slate-500'>
+                    پروژه انتخاب‌شده برای زیرپروژه: <b>{manageProject.title || manageProject.code}</b>
+                    {manageProject.start_date && manageProject.end_date && (
+                      <span className='mr-2 text-cyan-700' dir='ltr'>
+                        ({manageProject.start_date} → {manageProject.end_date})
+                      </span>
+                    )}
+                  </p>
+                )}
               </div>
             </div>
           </section>
@@ -626,9 +1053,9 @@ export function AdminPanel(): JSX.Element {
               </table>
             )}
             {reportTab === 'tasks' && (
-              <table className='w-full min-w-[900px] text-sm'>
-                <thead><tr className='bg-slate-50/70 text-xs text-slate-500'><th className='p-3 text-right'>تاریخ</th><th className='p-3 text-right'>کارمند</th><th className='p-3 text-right'>واحد</th><th className='p-3 text-right'>پروژه</th><th className='p-3 text-right'>شرح فعالیت</th><th className='p-3 text-right'>بازه زمانی</th><th className='p-3 text-right'>مدت</th></tr></thead>
-                <tbody>{pagedTasks.map((row) => <tr key={row.id} className='border-t border-slate-100 hover:bg-slate-50/60'><td className='p-3 font-mono text-xs'>{row.work_date}</td><td className='p-3 font-bold'>{row.full_name}</td><td className='p-3 text-slate-500'>{row.department}</td><td className='p-3 font-mono text-xs text-violet-700'>{row.project_code}</td><td className='max-w-sm truncate p-3'>{row.task_name}</td><td className='p-3 font-mono text-xs'>{row.start_time} – {row.end_time}</td><td className='p-3 font-bold text-cyan-700'>{formatMinutes(row.minutes_spent)}</td></tr>)}</tbody>
+              <table className='w-full min-w-[980px] text-sm'>
+                <thead><tr className='bg-slate-50/70 text-xs text-slate-500'><th className='p-3 text-right'>تاریخ</th><th className='p-3 text-right'>کارمند</th><th className='p-3 text-right'>واحد</th><th className='p-3 text-right'>پروژه</th><th className='p-3 text-right'>زیرپروژه</th><th className='p-3 text-right'>شرح فعالیت</th><th className='p-3 text-right'>بازه زمانی</th><th className='p-3 text-right'>مدت</th></tr></thead>
+                <tbody>{pagedTasks.map((row) => <tr key={row.id} className='border-t border-slate-100 hover:bg-slate-50/60'><td className='p-3 font-mono text-xs'>{row.work_date}</td><td className='p-3 font-bold'>{row.full_name}</td><td className='p-3 text-slate-500'>{row.department}</td><td className='p-3 font-mono text-xs text-violet-700'>{row.project_code}</td><td className='p-3 font-mono text-xs text-sky-700'>{row.subproject_code || '—'}</td><td className='max-w-sm truncate p-3'>{row.task_name}</td><td className='p-3 font-mono text-xs'>{row.start_time} – {row.end_time}</td><td className='p-3 font-bold text-cyan-700'>{formatMinutes(row.minutes_spent)}</td></tr>)}</tbody>
               </table>
             )}
             {reportTab === 'attendance' && (
