@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_admin_user
 from app.core.config import settings
+from app.core.jalali import default_analytics_range, normalize_digits
 from app.core.security import hash_password
 from app.db.session import get_db
 from app.models.admin_session import AdminSession
@@ -23,6 +24,7 @@ from app.schemas.admin import (
     AdminUserCreate,
     AdminUserResponse,
     AdminUserUpdate,
+    AnalyticsResponse,
     ChartItem,
     DashboardRecentRequest,
     DashboardResponse,
@@ -37,6 +39,7 @@ from app.schemas.admin import (
     SiteNewsResponse,
 )
 from app.schemas.pdf_form import PdfFormResponse
+from app.services.admin_analytics_service import build_analytics
 from app.services.form_access_service import access_catalog, parse_target_keys
 
 router = APIRouter()
@@ -475,6 +478,23 @@ def _expire_old_admin_sessions(db: Session, user_id: int) -> None:
         session.logged_out_at = datetime.utcnow()
     if expired:
         db.commit()
+
+
+@router.get("/analytics", response_model=AnalyticsResponse)
+def analytics(
+    start_date: str | None = Query(default=None, max_length=16),
+    end_date: str | None = Query(default=None, max_length=16),
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    _expire_old_admin_sessions(db, admin.id)
+    default_start, default_end = default_analytics_range(6)
+    start = normalize_digits(start_date) if start_date else default_start
+    end = normalize_digits(end_date) if end_date else default_end
+    try:
+        return build_analytics(db, admin=admin, start_date=start, end_date=end)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/dashboard", response_model=DashboardResponse)

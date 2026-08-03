@@ -1,51 +1,69 @@
 import { useEffect, useMemo, useState } from "react";
+import DateObject from "react-date-object";
+import persian from "react-date-object/calendars/persian";
+import persian_fa from "react-date-object/locales/persian_fa";
 import {
   Activity,
   BarChart3,
+  BriefcaseBusiness,
+  Building2,
   CalendarClock,
+  Clock3,
   FileText,
   Loader2,
   MonitorSmartphone,
+  Search,
+  Target,
+  TimerReset,
   Users,
 } from "lucide-react";
 
-import client from "../../api/client";
-import { endpoints } from "../../api/endpoints";
 import AppShell from "../../components/layout/AppShell";
+import {
+  fetchAdminAnalytics,
+  type AnalyticsResponse,
+  type ChartItem,
+  type DailyTimesheetPoint,
+} from "../../features/admin/analytics";
+import { JalaliDateTimePicker } from "../../features/timesheet/components/jalali-date-time-picker";
 
-type ChartItem = { label: string; value: number };
-type DashboardData = {
-  total_users: number;
-  active_users: number;
-  total_requests: number;
-  requests_today: number;
-  active_admin_devices: number;
-  requests_by_status: ChartItem[];
-  requests_by_department: ChartItem[];
-  requests_by_month: ChartItem[];
-  recent_requests: {
-    id: number;
-    subject: string;
-    status: string;
-    form_id: string;
-    submitted_by: string;
-    created_at: string;
-  }[];
-};
+type AnalyticsTab = "overview" | "employees" | "projects" | "departments" | "forms";
+type PeriodPreset = "today" | "week" | "month" | "custom";
 
-const number = (value: number) => value.toLocaleString("fa-IR");
+const numberFmt = new Intl.NumberFormat("fa-IR");
+
+const number = (value: number) => numberFmt.format(value);
 const dateTime = (value: string) =>
   new Intl.DateTimeFormat("fa-IR", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
 
+function jalaliToday(): DateObject {
+  return new DateObject({ calendar: persian, locale: persian_fa });
+}
+
+function asDate(value: DateObject): string {
+  return value.format("YYYY/MM/DD");
+}
+
+function formatMinutes(minutes: number): string {
+  const safe = Math.max(0, Math.round(minutes));
+  const hours = Math.floor(safe / 60);
+  const remainder = safe % 60;
+  if (!hours) return `${number(remainder)} دقیقه`;
+  if (!remainder) return `${number(hours)} ساعت`;
+  return `${number(hours)} س ${number(remainder)} د`;
+}
+
 function HorizontalChart({
   items,
   color = "bg-red-500",
+  valueFormatter = number,
 }: {
   items: ChartItem[];
   color?: string;
+  valueFormatter?: (value: number) => string;
 }) {
   const max = Math.max(...items.map((item) => item.value), 1);
   if (!items.length) {
@@ -57,7 +75,7 @@ function HorizontalChart({
         <div key={item.label}>
           <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
             <span className="truncate text-slate-600">{item.label}</span>
-            <span className="font-bold text-slate-800">{number(item.value)}</span>
+            <span className="shrink-0 font-bold text-slate-800">{valueFormatter(item.value)}</span>
           </div>
           <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
             <div
@@ -71,28 +89,184 @@ function HorizontalChart({
   );
 }
 
+function TimesheetTrendChart({ data }: { data: DailyTimesheetPoint[] }) {
+  const visible = data.slice(-14);
+  const max = Math.max(...visible.flatMap((item) => [item.attendance_minutes, item.task_minutes]), 60);
+  const width = 720;
+  const height = 210;
+  const padding = 22;
+  const x = (index: number) =>
+    visible.length <= 1 ? width / 2 : padding + index * ((width - padding * 2) / (visible.length - 1));
+  const y = (value: number) => height - padding - (value / max) * (height - padding * 2);
+  const taskPoints = visible.map((item, index) => `${x(index)},${y(item.task_minutes)}`).join(" ");
+  const attendancePoints = visible
+    .map((item, index) => `${x(index)},${y(item.attendance_minutes)}`)
+    .join(" ");
+
+  if (!visible.length) {
+    return <div className="grid h-64 place-items-center text-sm text-slate-400">برای این بازه داده‌ای ثبت نشده است.</div>;
+  }
+
+  return (
+    <div className="mt-4">
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-56 w-full overflow-visible" role="img" aria-label="روند حضور و کار">
+        {[0.25, 0.5, 0.75, 1].map((ratio) => (
+          <line
+            key={ratio}
+            x1={padding}
+            x2={width - padding}
+            y1={y(max * ratio)}
+            y2={y(max * ratio)}
+            stroke="#e2e8f0"
+            strokeDasharray="4 6"
+          />
+        ))}
+        <polyline points={attendancePoints} fill="none" stroke="#cbd5e1" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        <polyline points={taskPoints} fill="none" stroke="#dc2626" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+        {visible.map((item, index) => (
+          <g key={item.date}>
+            <circle cx={x(index)} cy={y(item.task_minutes)} r="4" fill="#fff" stroke="#dc2626" strokeWidth="3">
+              <title>{`${item.date}: ${formatMinutes(item.task_minutes)}`}</title>
+            </circle>
+            {(visible.length <= 8 || index % 2 === 0) && (
+              <text x={x(index)} y={height + 2} textAnchor="middle" className="fill-slate-400 text-[10px]">
+                {item.date.slice(5)}
+              </text>
+            )}
+          </g>
+        ))}
+      </svg>
+      <div className="flex flex-wrap items-center gap-5 text-xs font-semibold text-slate-500">
+        <span className="flex items-center gap-2">
+          <i className="h-2.5 w-2.5 rounded-full bg-red-600" />
+          زمان تسک‌ها
+        </span>
+        <span className="flex items-center gap-2">
+          <i className="h-2.5 w-2.5 rounded-full bg-slate-300" />
+          زمان حضور
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function KpiCard({
+  label,
+  value,
+  detail,
+  icon: Icon,
+  color,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  icon: typeof Users;
+  color: string;
+}) {
+  return (
+    <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+      <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-2xl ${color}`}>
+        <Icon size={21} />
+      </div>
+      <p className="text-sm text-slate-500">{label}</p>
+      <p className="mt-1 text-2xl font-extrabold text-slate-900 sm:text-3xl">{value}</p>
+      <p className="mt-2 text-xs text-slate-400">{detail}</p>
+    </section>
+  );
+}
+
 export default function AdminDashboardPage() {
-  const [data, setData] = useState<DashboardData | null>(null);
+  const [startDate, setStartDate] = useState(() => new DateObject(jalaliToday()).subtract(6, "days"));
+  const [endDate, setEndDate] = useState(() => jalaliToday());
+  const [preset, setPreset] = useState<PeriodPreset>("week");
+  const [tab, setTab] = useState<AnalyticsTab>("overview");
+  const [data, setData] = useState<AnalyticsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const [hideInactiveEmployees, setHideInactiveEmployees] = useState(true);
+
+  const applyPreset = (next: PeriodPreset) => {
+    setPreset(next);
+    if (next === "custom") return;
+    const nextEnd = jalaliToday();
+    const days = next === "today" ? 0 : next === "week" ? 6 : 29;
+    const nextStart = new DateObject(nextEnd).subtract(days, "days");
+    setEndDate(nextEnd);
+    setStartDate(nextStart);
+    void loadAnalytics(nextStart, nextEnd);
+  };
+
+  const loadAnalytics = async (start = startDate, end = endDate) => {
+    const startStr = asDate(start);
+    const endStr = asDate(end);
+    if (startStr > endStr) {
+      setError("تاریخ شروع نمی‌تواند بعد از تاریخ پایان باشد.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetchAdminAnalytics({ startDate: startStr, endDate: endStr });
+      setData(response);
+    } catch {
+      setError("دریافت اطلاعات داشبورد تحلیلی با مشکل مواجه شد.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    client
-      .get<DashboardData>(endpoints.adminDashboard)
-      .then((response) => setData(response.data))
-      .catch(() => setError("دریافت اطلاعات داشبورد با مشکل مواجه شد."));
+    void loadAnalytics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const peak = useMemo(
-    () => Math.max(...(data?.requests_by_month.map((item) => item.value) || [1]), 1),
-    [data]
-  );
+  const filteredEmployees = useMemo(() => {
+    if (!data) return [];
+    const normalized = query.trim().toLocaleLowerCase("fa");
+    return data.employees.filter((row) => {
+      if (hideInactiveEmployees && !row.attendance_minutes && !row.task_minutes && !row.form_count) {
+        return false;
+      }
+      if (!normalized) return true;
+      return [row.full_name, row.username, row.department, row.job_title].some((value) =>
+        value.toLocaleLowerCase("fa").includes(normalized),
+      );
+    });
+  }, [data, query, hideInactiveEmployees]);
 
-  if (!data && !error) {
+  const filteredProjects = useMemo(() => {
+    if (!data) return [];
+    const normalized = query.trim().toLocaleLowerCase("fa");
+    if (!normalized) return data.projects;
+    return data.projects.filter((row) =>
+      [row.code, row.title].some((value) => value.toLocaleLowerCase("fa").includes(normalized)),
+    );
+  }, [data, query]);
+
+  const filteredDepartments = useMemo(() => {
+    if (!data) return [];
+    const normalized = query.trim().toLocaleLowerCase("fa");
+    if (!normalized) return data.departments;
+    return data.departments.filter((row) => row.name.toLocaleLowerCase("fa").includes(normalized));
+  }, [data, query]);
+
+  const formPeak = Math.max(...(data?.forms.monthly_trend.map((item) => item.value) || [1]), 1);
+  const topEmployeeChart: ChartItem[] = filteredEmployees.slice(0, 8).map((row) => ({
+    label: row.full_name,
+    value: row.task_minutes,
+  }));
+  const topProjectChart: ChartItem[] = (data?.projects || []).slice(0, 8).map((row) => ({
+    label: row.title || row.code,
+    value: row.minutes,
+  }));
+
+  if (loading && !data) {
     return (
       <AppShell>
         <div className="flex min-h-[60vh] items-center justify-center gap-3 text-slate-500">
           <Loader2 className="animate-spin text-red-600" />
-          در حال آماده‌سازی داشبورد...
+          در حال آماده‌سازی داشبورد تحلیلی...
         </div>
       </AppShell>
     );
@@ -100,87 +274,563 @@ export default function AdminDashboardPage() {
 
   return (
     <AppShell>
-      <div className="mb-8">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-600">
             <BarChart3 size={25} />
           </div>
           <div>
-            <h2 className="text-3xl font-extrabold text-slate-900">داشبورد مدیریت</h2>
-            <p className="mt-1 text-sm text-slate-500">نمای کلی کاربران، درخواست‌ها و وضعیت سامانه</p>
+            <h2 className="text-3xl font-extrabold text-slate-900">داشبورد تحلیلی</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              تحلیل عملکرد کارکنان، پروژه‌ها، واحدها و درخواست‌های فرم
+            </p>
           </div>
         </div>
+        {data && (
+          <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500" dir="ltr">
+            {data.start_date} → {data.end_date}
+          </p>
+        )}
       </div>
 
-      {error && <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>}
+      <section className="mb-6 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm font-bold text-slate-800">بازه زمانی تحلیل</p>
+          <div className="flex rounded-xl bg-slate-100 p-1">
+            {(
+              [
+                ["today", "امروز"],
+                ["week", "۷ روز"],
+                ["month", "۳۰ روز"],
+                ["custom", "دلخواه"],
+              ] as Array<[PeriodPreset, string]>
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => applyPreset(value)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                  preset === value ? "bg-white text-red-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          <label>
+            <span className="mb-1.5 block text-xs font-bold text-slate-500">از تاریخ</span>
+            <JalaliDateTimePicker
+              value={startDate}
+              onChange={(value: any) => {
+                if (value && !Array.isArray(value)) {
+                  setStartDate(value);
+                  setPreset("custom");
+                }
+              }}
+              format="YYYY/MM/DD"
+              placeholder="تاریخ شروع"
+            />
+          </label>
+          <label>
+            <span className="mb-1.5 block text-xs font-bold text-slate-500">تا تاریخ</span>
+            <JalaliDateTimePicker
+              value={endDate}
+              onChange={(value: any) => {
+                if (value && !Array.isArray(value)) {
+                  setEndDate(value);
+                  setPreset("custom");
+                }
+              }}
+              format="YYYY/MM/DD"
+              placeholder="تاریخ پایان"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => void loadAnalytics()}
+            disabled={loading}
+            className="mt-auto flex h-10 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 text-sm font-bold text-white transition hover:bg-red-700 disabled:opacity-60"
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BarChart3 className="h-4 w-4" />}
+            {loading ? "در حال دریافت" : "اعمال فیلتر"}
+          </button>
+        </div>
+      </section>
+
+      {error && <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>}
+
       {data && (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            {[
-              { label: "کل کاربران", value: data.total_users, detail: `${number(data.active_users)} کاربر فعال`, icon: Users, color: "bg-blue-50 text-blue-600" },
-              { label: "کل درخواست‌ها", value: data.total_requests, detail: "از ابتدای فعالیت", icon: FileText, color: "bg-red-50 text-red-600" },
-              { label: "درخواست‌های امروز", value: data.requests_today, detail: "ثبت‌شده امروز", icon: CalendarClock, color: "bg-amber-50 text-amber-600" },
-              { label: "نرخ فعالیت کاربران", value: data.total_users ? Math.round((data.active_users / data.total_users) * 100) : 0, suffix: "٪", detail: "کاربران دارای دسترسی", icon: Activity, color: "bg-emerald-50 text-emerald-600" },
-              { label: "دستگاه‌های مدیر", value: data.active_admin_devices, detail: "حداکثر ۴ دستگاه", icon: MonitorSmartphone, color: "bg-violet-50 text-violet-600" },
-            ].map(({ label, value, suffix, detail, icon: Icon, color }) => (
-              <section key={label} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-                <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-2xl ${color}`}><Icon size={21} /></div>
-                <p className="text-sm text-slate-500">{label}</p>
-                <p className="mt-1 text-3xl font-extrabold text-slate-900">{number(value)}{suffix}</p>
-                <p className="mt-2 text-xs text-slate-400">{detail}</p>
-              </section>
+          <div className="mb-6 flex flex-wrap gap-2 rounded-2xl bg-slate-100 p-1.5">
+            {(
+              [
+                ["overview", "نمای کلی"],
+                ["employees", "کارکنان"],
+                ["projects", "پروژه‌ها"],
+                ["departments", "واحدها"],
+                ["forms", "فرم‌ها"],
+              ] as Array<[AnalyticsTab, string]>
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setTab(value)}
+                className={`rounded-xl px-4 py-2.5 text-sm font-bold transition ${
+                  tab === value ? "bg-white text-red-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {label}
+              </button>
             ))}
           </div>
 
-          <div className="mt-6 grid gap-6 xl:grid-cols-3">
-            <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm xl:col-span-2">
-              <h3 className="mb-6 font-bold text-slate-800">روند درخواست‌ها در ۶ ماه گذشته</h3>
-              <div className="flex h-64 items-end gap-3 border-b border-slate-100 px-2 pt-6">
-                {data.requests_by_month.map((item) => (
-                  <div key={item.label} className="flex h-full flex-1 flex-col items-center justify-end gap-2">
-                    <span className="text-xs font-bold text-slate-600">{number(item.value)}</span>
-                    <div
-                      className="w-full max-w-16 rounded-t-xl bg-gradient-to-t from-red-600 to-red-400 transition-all"
-                      style={{ height: `${Math.max((item.value / peak) * 78, item.value ? 8 : 2)}%` }}
-                      title={`${item.label}: ${item.value}`}
-                    />
-                    <span className="whitespace-nowrap text-[11px] text-slate-400" dir="ltr">{item.label}</span>
+          {tab === "overview" && (
+            <div className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <KpiCard
+                  label="کل کاربران"
+                  value={number(data.overview.total_users)}
+                  detail={`${number(data.overview.active_users)} کاربر فعال`}
+                  icon={Users}
+                  color="bg-blue-50 text-blue-600"
+                />
+                <KpiCard
+                  label="درخواست‌های بازه"
+                  value={number(data.overview.requests_in_range)}
+                  detail={`امروز: ${number(data.overview.requests_today)} | کل: ${number(data.overview.total_requests)}`}
+                  icon={FileText}
+                  color="bg-red-50 text-red-600"
+                />
+                <KpiCard
+                  label="زمان ثبت‌شده"
+                  value={formatMinutes(data.overview.task_minutes)}
+                  detail={`${number(data.overview.task_count)} تسک | حضور ${formatMinutes(data.overview.attendance_minutes)}`}
+                  icon={Clock3}
+                  color="bg-amber-50 text-amber-600"
+                />
+                <KpiCard
+                  label="نرخ ثبت زمان"
+                  value={`${number(Math.round(data.overview.efficiency_percent))}٪`}
+                  detail={`${number(data.overview.active_employees)} کارمند فعال در تایم‌شیت`}
+                  icon={Activity}
+                  color="bg-emerald-50 text-emerald-600"
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <KpiCard
+                  label="پروژه‌های فعال"
+                  value={number(data.overview.project_count)}
+                  detail="با فعالیت ثبت‌شده در بازه"
+                  icon={BriefcaseBusiness}
+                  color="bg-violet-50 text-violet-600"
+                />
+                <KpiCard
+                  label="واحدهای سازمانی"
+                  value={number(data.overview.department_count)}
+                  detail="در گزارش ترکیبی"
+                  icon={Building2}
+                  color="bg-sky-50 text-sky-600"
+                />
+                <KpiCard
+                  label="حضور باز"
+                  value={number(data.overview.open_check_ins)}
+                  detail="بدون ثبت خروج"
+                  icon={TimerReset}
+                  color="bg-orange-50 text-orange-600"
+                />
+                <KpiCard
+                  label="دستگاه‌های مدیر"
+                  value={number(data.overview.active_admin_devices)}
+                  detail="نشست‌های فعال"
+                  icon={MonitorSmartphone}
+                  color="bg-slate-100 text-slate-600"
+                />
+              </div>
+
+              <div className="grid gap-6 xl:grid-cols-3">
+                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm xl:col-span-2">
+                  <h3 className="mb-2 font-bold text-slate-800">روند حضور و زمان ثبت‌شده</h3>
+                  <p className="mb-2 text-xs text-slate-400">مقایسه روزانه زمان حضور و تسک‌ها</p>
+                  <TimesheetTrendChart data={data.timesheet_daily_trend} />
+                </section>
+                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+                  <h3 className="mb-6 font-bold text-slate-800">درخواست‌ها بر اساس وضعیت</h3>
+                  <HorizontalChart items={data.forms.by_status} color="bg-emerald-500" />
+                </section>
+              </div>
+
+              <div className="grid gap-6 xl:grid-cols-2">
+                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+                  <h3 className="mb-6 font-bold text-slate-800">سهم زمان پروژه‌ها</h3>
+                  <HorizontalChart items={topProjectChart} color="bg-violet-500" valueFormatter={formatMinutes} />
+                </section>
+                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+                  <h3 className="mb-6 font-bold text-slate-800">بیشترین درخواست‌ها بر اساس واحد سازمانی</h3>
+                  <HorizontalChart items={data.forms.by_org_department.slice(0, 8)} />
+                </section>
+              </div>
+
+              <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+                <h3 className="mb-6 font-bold text-slate-800">روند درخواست‌ها در ۶ ماه گذشته</h3>
+                <div className="flex h-64 items-end gap-3 border-b border-slate-100 px-2 pt-6">
+                  {data.forms.monthly_trend.map((item) => (
+                    <div key={item.label} className="flex h-full flex-1 flex-col items-center justify-end gap-2">
+                      <span className="text-xs font-bold text-slate-600">{number(item.value)}</span>
+                      <div
+                        className="w-full max-w-16 rounded-t-xl bg-gradient-to-t from-red-600 to-red-400 transition-all"
+                        style={{ height: `${Math.max((item.value / formPeak) * 78, item.value ? 8 : 2)}%` }}
+                        title={`${item.label}: ${item.value}`}
+                      />
+                      <span className="whitespace-nowrap text-[11px] text-slate-400" dir="ltr">
+                        {item.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+          )}
+
+          {tab === "employees" && (
+            <div className="space-y-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <label className="relative block sm:w-80">
+                  <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white pr-10 pl-3 text-sm outline-none focus:border-red-400 focus:ring-4 focus:ring-red-50"
+                    placeholder="جستجوی کارمند..."
+                  />
+                </label>
+                <label className="flex items-center gap-2 text-sm text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={hideInactiveEmployees}
+                    onChange={(event) => setHideInactiveEmployees(event.target.checked)}
+                    className="rounded border-slate-300 text-red-600 focus:ring-red-500"
+                  />
+                  فقط کارکنان دارای فعالیت در بازه
+                </label>
+              </div>
+
+              <div className="grid gap-6 xl:grid-cols-5">
+                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm xl:col-span-2">
+                  <h3 className="mb-6 font-bold text-slate-800">بیشترین زمان ثبت‌شده</h3>
+                  <HorizontalChart items={topEmployeeChart} color="bg-red-500" valueFormatter={formatMinutes} />
+                </section>
+                <section className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm xl:col-span-3">
+                  <div className="border-b border-slate-100 p-5">
+                    <h3 className="font-bold text-slate-800">جدول عملکرد کارکنان</h3>
+                    <p className="mt-1 text-xs text-slate-400">{number(filteredEmployees.length)} نفر</p>
                   </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-slate-50 text-slate-500">
+                        <tr>
+                          <th className="px-4 py-3 text-right">کارمند</th>
+                          <th className="px-4 py-3 text-right">واحد</th>
+                          <th className="px-4 py-3 text-right">روز فعال</th>
+                          <th className="px-4 py-3 text-right">حضور</th>
+                          <th className="px-4 py-3 text-right">زمان تسک</th>
+                          <th className="px-4 py-3 text-right">تسک‌ها</th>
+                          <th className="px-4 py-3 text-right">فرم‌ها</th>
+                          <th className="px-4 py-3 text-right">نرخ ثبت</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredEmployees.map((row) => (
+                          <tr key={row.employee_id} className="hover:bg-slate-50">
+                            <td className="px-4 py-3">
+                              <p className="font-semibold text-slate-800">{row.full_name}</p>
+                              <p className="text-[11px] text-slate-400">{row.job_title || row.username}</p>
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 text-slate-600">{row.department}</td>
+                            <td className="px-4 py-3">{number(row.active_days)}</td>
+                            <td className="px-4 py-3">{formatMinutes(row.attendance_minutes)}</td>
+                            <td className="px-4 py-3 font-bold text-red-700">{formatMinutes(row.task_minutes)}</td>
+                            <td className="px-4 py-3">{number(row.task_count)}</td>
+                            <td className="px-4 py-3">{number(row.form_count)}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <div className="h-1.5 w-14 overflow-hidden rounded-full bg-slate-100">
+                                  <div
+                                    className="h-full rounded-full bg-red-500"
+                                    style={{ width: `${Math.min(100, row.efficiency_percent)}%` }}
+                                  />
+                                </div>
+                                <span className="font-bold">{number(Math.round(row.efficiency_percent))}٪</span>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {!filteredEmployees.length && (
+                      <p className="p-10 text-center text-sm text-slate-400">کارمندی مطابق فیلتر یافت نشد.</p>
+                    )}
+                  </div>
+                </section>
+              </div>
+            </div>
+          )}
+
+          {tab === "projects" && (
+            <div className="space-y-6">
+              <label className="relative block sm:w-80">
+                <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white pr-10 pl-3 text-sm outline-none focus:border-red-400 focus:ring-4 focus:ring-red-50"
+                  placeholder="جستجوی پروژه..."
+                />
+              </label>
+              <div className="grid gap-6 xl:grid-cols-5">
+                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm xl:col-span-2">
+                  <div className="mb-2 flex items-center gap-2">
+                    <Target className="h-5 w-5 text-violet-500" />
+                    <h3 className="font-bold text-slate-800">توزیع زمان پروژه‌ها</h3>
+                  </div>
+                  <p className="mb-6 text-xs text-slate-400">بر اساس مجموع دقایق تسک‌های ثبت‌شده</p>
+                  <HorizontalChart
+                    items={filteredProjects.slice(0, 10).map((row) => ({
+                      label: row.title || row.code,
+                      value: row.minutes,
+                    }))}
+                    color="bg-violet-500"
+                    valueFormatter={formatMinutes}
+                  />
+                </section>
+                <section className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm xl:col-span-3">
+                  <div className="border-b border-slate-100 p-5">
+                    <h3 className="font-bold text-slate-800">جزئیات پروژه‌ها</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-slate-50 text-slate-500">
+                        <tr>
+                          <th className="px-5 py-3 text-right">پروژه</th>
+                          <th className="px-5 py-3 text-right">کد</th>
+                          <th className="px-5 py-3 text-right">زمان صرف‌شده</th>
+                          <th className="px-5 py-3 text-right">تعداد تسک</th>
+                          <th className="px-5 py-3 text-right">کارکنان</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredProjects.map((row) => (
+                          <tr key={row.code} className="hover:bg-slate-50">
+                            <td className="px-5 py-4 font-semibold text-slate-800">{row.title}</td>
+                            <td className="px-5 py-4 font-mono text-xs text-violet-700" dir="ltr">
+                              {row.code}
+                            </td>
+                            <td className="px-5 py-4 font-bold text-red-700">{formatMinutes(row.minutes)}</td>
+                            <td className="px-5 py-4">{number(row.task_count)}</td>
+                            <td className="px-5 py-4">{number(row.employee_count)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {!filteredProjects.length && (
+                      <p className="p-10 text-center text-sm text-slate-400">پروژه‌ای با فعالیت در این بازه نیست.</p>
+                    )}
+                  </div>
+                </section>
+              </div>
+            </div>
+          )}
+
+          {tab === "departments" && (
+            <div className="space-y-6">
+              <label className="relative block sm:w-80">
+                <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white pr-10 pl-3 text-sm outline-none focus:border-red-400 focus:ring-4 focus:ring-red-50"
+                  placeholder="جستجوی واحد..."
+                />
+              </label>
+
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {filteredDepartments.map((row) => (
+                  <article key={row.name} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                    <div className="mb-4 flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="font-extrabold text-slate-900">{row.name}</h3>
+                        <p className="mt-1 text-xs text-slate-400">
+                          {number(row.active_employees)} فعال از {number(row.employee_count)} نفر
+                        </p>
+                      </div>
+                      <span className="rounded-xl bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700">
+                        {number(Math.round(row.efficiency_percent))}٪
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="rounded-2xl bg-slate-50 p-3">
+                        <p className="text-[11px] text-slate-400">حضور</p>
+                        <p className="mt-1 font-bold text-slate-800">{formatMinutes(row.attendance_minutes)}</p>
+                      </div>
+                      <div className="rounded-2xl bg-slate-50 p-3">
+                        <p className="text-[11px] text-slate-400">زمان تسک</p>
+                        <p className="mt-1 font-bold text-red-700">{formatMinutes(row.task_minutes)}</p>
+                      </div>
+                      <div className="rounded-2xl bg-slate-50 p-3">
+                        <p className="text-[11px] text-slate-400">تسک‌ها</p>
+                        <p className="mt-1 font-bold text-slate-800">{number(row.task_count)}</p>
+                      </div>
+                      <div className="rounded-2xl bg-slate-50 p-3">
+                        <p className="text-[11px] text-slate-400">فرم‌ها</p>
+                        <p className="mt-1 font-bold text-slate-800">{number(row.form_count)}</p>
+                      </div>
+                    </div>
+                  </article>
                 ))}
               </div>
-            </section>
-            <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-              <h3 className="mb-6 font-bold text-slate-800">درخواست‌ها بر اساس وضعیت</h3>
-              <HorizontalChart items={data.requests_by_status} color="bg-emerald-500" />
-            </section>
-          </div>
 
-          <div className="mt-6 grid gap-6 xl:grid-cols-5">
-            <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm xl:col-span-2">
-              <h3 className="mb-6 font-bold text-slate-800">واحدهای پرتکرار</h3>
-              <HorizontalChart items={data.requests_by_department} />
-            </section>
-            <section className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm xl:col-span-3">
-              <div className="border-b border-slate-100 p-6">
-                <h3 className="font-bold text-slate-800">آخرین درخواست‌ها</h3>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-slate-50 text-slate-500"><tr><th className="px-5 py-3 text-right">درخواست</th><th className="px-5 py-3 text-right">کاربر</th><th className="px-5 py-3 text-right">زمان</th></tr></thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {data.recent_requests.map((request) => (
-                      <tr key={request.id} className="hover:bg-slate-50">
-                        <td className="px-5 py-4"><p className="max-w-xs truncate font-semibold text-slate-700">{request.subject || request.form_id}</p><p className="mt-1 text-xs text-slate-400">شناسه #{number(request.id)}</p></td>
-                        <td className="whitespace-nowrap px-5 py-4 text-slate-600">{request.submitted_by}</td>
-                        <td className="whitespace-nowrap px-5 py-4 text-xs text-slate-500">{dateTime(request.created_at)}</td>
+              <section className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm">
+                <div className="border-b border-slate-100 p-5">
+                  <h3 className="font-bold text-slate-800">جدول مقایسه‌ای واحدها</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-slate-50 text-slate-500">
+                      <tr>
+                        <th className="px-5 py-3 text-right">واحد</th>
+                        <th className="px-5 py-3 text-right">کارکنان</th>
+                        <th className="px-5 py-3 text-right">حضور</th>
+                        <th className="px-5 py-3 text-right">زمان تسک</th>
+                        <th className="px-5 py-3 text-right">ثبت‌نشده</th>
+                        <th className="px-5 py-3 text-right">تسک‌ها</th>
+                        <th className="px-5 py-3 text-right">فرم‌ها</th>
+                        <th className="px-5 py-3 text-right">نرخ ثبت</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {!data.recent_requests.length && <p className="p-10 text-center text-sm text-slate-400">درخواستی وجود ندارد.</p>}
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredDepartments.map((row) => (
+                        <tr key={row.name} className="hover:bg-slate-50">
+                          <td className="px-5 py-4 font-semibold text-slate-800">{row.name}</td>
+                          <td className="px-5 py-4">
+                            {number(row.active_employees)}/{number(row.employee_count)}
+                          </td>
+                          <td className="px-5 py-4">{formatMinutes(row.attendance_minutes)}</td>
+                          <td className="px-5 py-4 font-bold text-red-700">{formatMinutes(row.task_minutes)}</td>
+                          <td className="px-5 py-4 text-slate-500">{formatMinutes(row.untracked_minutes)}</td>
+                          <td className="px-5 py-4">{number(row.task_count)}</td>
+                          <td className="px-5 py-4 font-bold">{number(row.form_count)}</td>
+                          <td className="px-5 py-4">{number(Math.round(row.efficiency_percent))}٪</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {!filteredDepartments.length && (
+                    <p className="p-10 text-center text-sm text-slate-400">واحدی برای نمایش نیست.</p>
+                  )}
+                </div>
+              </section>
+            </div>
+          )}
+
+          {tab === "forms" && (
+            <div className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <KpiCard
+                  label="درخواست‌های بازه"
+                  value={number(data.overview.requests_in_range)}
+                  detail="ثبت‌شده در بازه انتخابی"
+                  icon={FileText}
+                  color="bg-red-50 text-red-600"
+                />
+                <KpiCard
+                  label="کل درخواست‌ها"
+                  value={number(data.overview.total_requests)}
+                  detail="از ابتدای فعالیت سامانه"
+                  icon={CalendarClock}
+                  color="bg-amber-50 text-amber-600"
+                />
+                <KpiCard
+                  label="امروز"
+                  value={number(data.overview.requests_today)}
+                  detail="ثبت‌شده امروز"
+                  icon={Activity}
+                  color="bg-emerald-50 text-emerald-600"
+                />
+                <KpiCard
+                  label="ثبت‌کنندگان برتر"
+                  value={number(data.forms.top_submitters.length)}
+                  detail="در فهرست ۱۰ نفر اول"
+                  icon={Users}
+                  color="bg-blue-50 text-blue-600"
+                />
               </div>
-            </section>
-          </div>
+
+              <div className="grid gap-6 xl:grid-cols-3">
+                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+                  <h3 className="mb-6 font-bold text-slate-800">بر اساس واحد سازمانی</h3>
+                  <HorizontalChart items={data.forms.by_org_department} />
+                </section>
+                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+                  <h3 className="mb-6 font-bold text-slate-800">بر اساس معاونت پرتال</h3>
+                  <HorizontalChart items={data.forms.by_portal_department} color="bg-violet-500" />
+                </section>
+                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+                  <h3 className="mb-6 font-bold text-slate-800">وضعیت درخواست‌ها</h3>
+                  <HorizontalChart items={data.forms.by_status} color="bg-emerald-500" />
+                </section>
+              </div>
+
+              <div className="grid gap-6 xl:grid-cols-5">
+                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm xl:col-span-2">
+                  <h3 className="mb-6 font-bold text-slate-800">انواع فرم پرتکرار</h3>
+                  <HorizontalChart items={data.forms.by_form} color="bg-amber-500" />
+                </section>
+                <section className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm xl:col-span-3">
+                  <div className="border-b border-slate-100 p-6">
+                    <h3 className="font-bold text-slate-800">آخرین درخواست‌ها</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-slate-50 text-slate-500">
+                        <tr>
+                          <th className="px-5 py-3 text-right">درخواست</th>
+                          <th className="px-5 py-3 text-right">کاربر</th>
+                          <th className="px-5 py-3 text-right">وضعیت</th>
+                          <th className="px-5 py-3 text-right">زمان</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {data.forms.recent_requests.map((request) => (
+                          <tr key={request.id} className="hover:bg-slate-50">
+                            <td className="px-5 py-4">
+                              <p className="max-w-xs truncate font-semibold text-slate-700">
+                                {request.subject || request.form_id}
+                              </p>
+                              <p className="mt-1 text-xs text-slate-400">شناسه #{number(request.id)}</p>
+                            </td>
+                            <td className="whitespace-nowrap px-5 py-4 text-slate-600">{request.submitted_by}</td>
+                            <td className="whitespace-nowrap px-5 py-4 text-slate-500">{request.status}</td>
+                            <td className="whitespace-nowrap px-5 py-4 text-xs text-slate-500">
+                              {dateTime(request.created_at)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {!data.forms.recent_requests.length && (
+                      <p className="p-10 text-center text-sm text-slate-400">درخواستی وجود ندارد.</p>
+                    )}
+                  </div>
+                </section>
+              </div>
+
+              <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+                <h3 className="mb-6 font-bold text-slate-800">ثبت‌کنندگان پرتکرار</h3>
+                <HorizontalChart items={data.forms.top_submitters} color="bg-sky-500" />
+              </section>
+            </div>
+          )}
         </>
       )}
     </AppShell>

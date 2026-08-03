@@ -95,6 +95,92 @@ class DashboardResponse(BaseModel):
     recent_requests: list[DashboardRecentRequest]
 
 
+class DailyTimesheetPoint(BaseModel):
+    date: str
+    attendance_minutes: int
+    task_minutes: int
+
+
+class DailyFormPoint(BaseModel):
+    date: str
+    count: int
+
+
+class EmployeeAnalyticsRow(BaseModel):
+    employee_id: str
+    username: str
+    full_name: str
+    department: str
+    job_title: str
+    attendance_minutes: int
+    task_minutes: int
+    untracked_minutes: int
+    efficiency_percent: float
+    task_count: int
+    active_days: int
+    form_count: int
+
+
+class ProjectAnalyticsRow(BaseModel):
+    code: str
+    title: str
+    minutes: int
+    task_count: int
+    employee_count: int
+
+
+class DepartmentAnalyticsRow(BaseModel):
+    name: str
+    employee_count: int
+    attendance_minutes: int
+    task_minutes: int
+    untracked_minutes: int
+    efficiency_percent: float
+    task_count: int
+    form_count: int
+    active_employees: int
+
+
+class AnalyticsOverview(BaseModel):
+    total_users: int
+    active_users: int
+    total_requests: int
+    requests_in_range: int
+    requests_today: int
+    active_admin_devices: int
+    attendance_minutes: int
+    task_minutes: int
+    untracked_minutes: int
+    efficiency_percent: float
+    task_count: int
+    active_employees: int
+    open_check_ins: int
+    project_count: int
+    department_count: int
+
+
+class FormsAnalytics(BaseModel):
+    by_status: list[ChartItem]
+    by_org_department: list[ChartItem]
+    by_portal_department: list[ChartItem]
+    by_form: list[ChartItem]
+    daily_trend: list[DailyFormPoint]
+    monthly_trend: list[ChartItem]
+    top_submitters: list[ChartItem]
+    recent_requests: list[DashboardRecentRequest]
+
+
+class AnalyticsResponse(BaseModel):
+    start_date: str
+    end_date: str
+    overview: AnalyticsOverview
+    forms: FormsAnalytics
+    employees: list[EmployeeAnalyticsRow]
+    projects: list[ProjectAnalyticsRow]
+    departments: list[DepartmentAnalyticsRow]
+    timesheet_daily_trend: list[DailyTimesheetPoint]
+
+
 class SiteBannerImageResponse(BaseModel):
     id: int
     image_url: str

@@ -19,6 +19,7 @@ export const endpoints = {
   jiraUsers: "/jira/users",
   jiraRequestTypes: "/jira/request-types",
   adminDashboard: "/admin/dashboard",
+  adminAnalytics: "/admin/analytics",
   adminUsers: "/admin/users",
   adminDepartments: "/admin/departments",
   adminFormAccessCatalog: "/admin/form-access/catalog",
