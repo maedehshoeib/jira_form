@@ -44,3 +44,26 @@ class UserFormAccess(Base):
     portal_department_id: Mapped[str] = mapped_column(String(64))
     section_id: Mapped[str] = mapped_column(String(64), default="")
     form_id: Mapped[str] = mapped_column(String(64))
+
+
+class FormDutyAssignment(Base):
+    """Maps a portal form target to an employee who handles submitted requests."""
+
+    __tablename__ = "form_duty_assignments"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "portal_department_id",
+            "section_id",
+            "form_id",
+            name="uq_form_duty_assignment_target",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    portal_department_id: Mapped[str] = mapped_column(String(64))
+    section_id: Mapped[str] = mapped_column(String(64), default="")
+    form_id: Mapped[str] = mapped_column(String(64))

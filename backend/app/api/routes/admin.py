@@ -34,6 +34,9 @@ from app.schemas.admin import (
     FormAccessResponse,
     FormAccessSelection,
     FormAccessTarget,
+    FormDutyEdge,
+    FormDutyResponse,
+    FormDutySelection,
     SiteBannerResponse,
     SiteBannerUpdate,
     SiteNewsResponse,
@@ -41,6 +44,7 @@ from app.schemas.admin import (
 from app.schemas.pdf_form import PdfFormResponse
 from app.services.admin_analytics_service import build_analytics
 from app.services.form_access_service import access_catalog, parse_target_keys
+from app.services.form_duty_service import list_assignments, replace_assignments
 
 router = APIRouter()
 
@@ -695,6 +699,46 @@ def delete_department(
 @router.get("/form-access/catalog", response_model=list[FormAccessTarget])
 def get_form_access_catalog(_: User = Depends(get_admin_user)):
     return [FormAccessTarget(**target.__dict__) for target in access_catalog()]
+
+
+def _duty_edge_response(edge) -> FormDutyEdge:
+    return FormDutyEdge(
+        user_id=edge.user_id,
+        username=edge.username,
+        display_name=edge.display_name,
+        target_key=edge.target_key,
+        portal_department_id=edge.portal_department_id,
+        portal_department_title=edge.portal_department_title,
+        section_id=edge.section_id,
+        section_title=edge.section_title,
+        form_id=edge.form_id,
+    )
+
+
+@router.get("/form-duties", response_model=FormDutyResponse)
+def get_form_duties(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    return FormDutyResponse(
+        assignments=[_duty_edge_response(edge) for edge in list_assignments(db)]
+    )
+
+
+@router.put("/form-duties", response_model=FormDutyResponse)
+def update_form_duties(
+    body: FormDutySelection,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    try:
+        edges = replace_assignments(
+            db,
+            [(item.user_id, item.target_key.strip()) for item in body.assignments],
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return FormDutyResponse(assignments=[_duty_edge_response(edge) for edge in edges])
 
 
 @router.get(

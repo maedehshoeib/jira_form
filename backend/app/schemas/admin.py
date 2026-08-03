@@ -246,3 +246,28 @@ class FormAccessSelection(BaseModel):
 class FormAccessResponse(BaseModel):
     configured: bool
     targets: list[str]
+
+
+class FormDutyEdge(BaseModel):
+    user_id: int
+    username: str = ""
+    display_name: str = ""
+    target_key: str
+    portal_department_id: str = ""
+    portal_department_title: str = ""
+    section_id: str = ""
+    section_title: str = ""
+    form_id: str = ""
+
+
+class FormDutyEdgeInput(BaseModel):
+    user_id: int
+    target_key: str = Field(min_length=1, max_length=256)
+
+
+class FormDutySelection(BaseModel):
+    assignments: list[FormDutyEdgeInput] = Field(default_factory=list)
+
+
+class FormDutyResponse(BaseModel):
+    assignments: list[FormDutyEdge]

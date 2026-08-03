@@ -11,6 +11,7 @@ import {
   Volume2,
   VolumeX,
   BarChart3,
+  GitBranch,
   History,
   Megaphone,
   Users,
@@ -43,6 +44,7 @@ const adminNavigationItems: NavigationItem[] = [
   { label: "داشبورد", href: "/admin/dashboard", icon: BarChart3 },
   { label: "مدیریت بنر و اخبار", href: "/admin/banner", icon: Megaphone },
   { label: "مدیریت کاربران", href: "/admin/users", icon: Users },
+  { label: "مسیریابی وظایف", href: "/admin/duties", icon: GitBranch },
   { label: "دستگاه‌ها و ورودها", href: "/admin/sessions", icon: History },
 ];
 

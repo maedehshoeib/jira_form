@@ -24,6 +24,10 @@ from app.schemas.submission import SubmissionListItem, SubmissionResponse
 from app.schemas.pdf_form import PdfFormResponse
 from app.services.portal_service import DEPARTMENTS, FORM_TEMPLATES
 from app.services.form_access_service import allowed_target_keys, can_access_target
+from app.services.form_duty_service import (
+    list_duty_submissions,
+    user_handles_target,
+)
 from app.services.report_submission_service import (
     create_report_from_submission,
     is_performance_report_submission,
@@ -222,6 +226,8 @@ def get_form(
     section_id = section or form.section_id
     if not can_access_target(
         db, current_user, portal_department_id, section_id, form_id
+    ) and not user_handles_target(
+        db, current_user.id, portal_department_id, section_id, form_id
     ):
         raise HTTPException(status_code=403, detail="شما به این فرم دسترسی ندارید.")
     return form
@@ -345,6 +351,55 @@ def get_submission(
         raise HTTPException(status_code=404, detail="درخواست یافت نشد")
     if auth is not None and not auth.is_admin and submission.user_id != auth.id:
         # Return 404 so request identifiers belonging to other employees are not exposed.
+        raise HTTPException(status_code=404, detail="درخواست یافت نشد")
+
+    user = db.query(User).filter(User.id == submission.user_id).first()
+    return _submission_to_response(submission, user)
+
+
+@router.get("/tasks", response_model=list[SubmissionListItem])
+def list_tasks(
+    form_id: str | None = Query(default=None),
+    department_id: str | None = Query(default=None),
+    section_id: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Submissions routed to the current user via form duty assignments."""
+    submissions = list_duty_submissions(
+        db,
+        current_user.id,
+        form_id=form_id,
+        department_id=department_id,
+        section_id=section_id,
+        limit=limit,
+        offset=offset,
+    )
+    result = []
+    for submission in submissions:
+        user = db.query(User).filter(User.id == submission.user_id).first()
+        result.append(_submission_to_list_item(submission, user))
+    return result
+
+
+@router.get("/tasks/{submission_id}", response_model=SubmissionResponse)
+def get_task(
+    submission_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    submission = db.query(Submission).filter(Submission.id == submission_id).first()
+    if not submission:
+        raise HTTPException(status_code=404, detail="درخواست یافت نشد")
+    if not user_handles_target(
+        db,
+        current_user.id,
+        submission.department_id,
+        submission.section_id,
+        submission.form_id,
+    ):
         raise HTTPException(status_code=404, detail="درخواست یافت نشد")
 
     user = db.query(User).filter(User.id == submission.user_id).first()

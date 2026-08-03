@@ -15,7 +15,7 @@ from app.models import (  # noqa: F401
     chat,
     contract,
     department,
-    form_template,
+    form_template,  # FormDutyAssignment + form access tables
     pdf_form,
     report,
     site_banner,

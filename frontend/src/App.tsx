@@ -21,6 +21,7 @@ import ContractReportForm from "./pages/contracts/ContractReportForm";
 import ContractList from "./pages/contracts/ContractList";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
+import AdminDutiesPage from "./pages/admin/AdminDutiesPage";
 import AdminSessionsPage from "./pages/admin/AdminSessionsPage";
 import AdminBannerPage from "./pages/admin/AdminBannerPage";
 
@@ -187,6 +188,15 @@ export default function App() {
         element={
           <ProtectedRoute>
             <AdminRoute><AdminUsersPage /></AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/duties"
+        element={
+          <ProtectedRoute>
+            <AdminRoute><AdminDutiesPage /></AdminRoute>
           </ProtectedRoute>
         }
       />
