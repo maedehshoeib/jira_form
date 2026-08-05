@@ -418,6 +418,37 @@ def get_submission(
     return _submission_to_response(submission, user, db=db)
 
 
+def _serve_submission_attachment(submission: Submission) -> FileResponse:
+    if not submission.attachment_path:
+        raise HTTPException(status_code=404, detail="پیوست یافت نشد")
+    file_path = Path(submission.attachment_path)
+    if not file_path.is_file():
+        raise HTTPException(status_code=404, detail="فایل پیوست موجود نیست")
+    return FileResponse(
+        path=file_path,
+        filename=submission.attachment_name or file_path.name,
+        media_type="application/octet-stream",
+    )
+
+
+@router.get("/submissions/{submission_id}/attachment")
+def download_submission_attachment(
+    submission_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    submission = db.query(Submission).filter(Submission.id == submission_id).first()
+    if not submission:
+        raise HTTPException(status_code=404, detail="درخواست یافت نشد")
+    if (
+        not current_user.is_admin
+        and submission.user_id != current_user.id
+        and not user_can_access_task(db, current_user, submission)
+    ):
+        raise HTTPException(status_code=404, detail="درخواست یافت نشد")
+    return _serve_submission_attachment(submission)
+
+
 @router.get("/tasks/colleagues", response_model=list[TaskColleague])
 def get_task_colleagues(
     db: Session = Depends(get_db),
@@ -497,6 +528,18 @@ def get_task(
         db=db,
         can_act=True,
     )
+
+
+@router.get("/tasks/{submission_id}/attachment")
+def download_task_attachment(
+    submission_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    submission = db.query(Submission).filter(Submission.id == submission_id).first()
+    if not submission or not user_can_access_task(db, current_user, submission):
+        raise HTTPException(status_code=404, detail="پیوست یافت نشد")
+    return _serve_submission_attachment(submission)
 
 
 @router.patch("/tasks/{submission_id}/status", response_model=SubmissionResponse)

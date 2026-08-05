@@ -23,7 +23,7 @@ import AppShell from "../components/layout/AppShell";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { FormField, FormTemplate } from "../config/portal";
+import { API_BASE, FormField, FormTemplate } from "../config/portal";
 import { formatPersianDateTime } from "../lib/persianDate";
 import UserDisplayName from "../components/UserDisplayName";
 
@@ -451,6 +451,31 @@ export default function MyTasksPage() {
       setActionError(apiErrorDetail(err, "ارجاع درخواست با مشکل مواجه شد."));
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const downloadAttachment = async () => {
+    if (!selected?.attachment_name) return;
+    const token = localStorage.getItem("access_token");
+    try {
+      const res = await fetch(`${API_BASE}/tasks/${selected.id}/attachment`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        setActionError("دانلود پیوست با مشکل مواجه شد.");
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = selected.attachment_name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      setActionError("دانلود پیوست با مشکل مواجه شد.");
     }
   };
 
@@ -948,9 +973,13 @@ export default function MyTasksPage() {
                   <div className="flex items-center gap-2 sm:col-span-2">
                     <Paperclip size={16} className="text-red-500" />
                     <span className="text-slate-500">پیوست:</span>
-                    <span className="font-semibold text-slate-700">
+                    <button
+                      type="button"
+                      onClick={() => void downloadAttachment()}
+                      className="font-semibold text-red-600 underline-offset-2 hover:underline"
+                    >
                       {selected.attachment_name}
-                    </span>
+                    </button>
                   </div>
                 )}
               </div>

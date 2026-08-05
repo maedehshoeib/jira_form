@@ -18,7 +18,7 @@ import AppShell from "../components/layout/AppShell";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { FormField, FormTemplate } from "../config/portal";
+import { API_BASE, FormField, FormTemplate } from "../config/portal";
 import { useAuth } from "../context/AuthContext";
 import { formatPersianDateTime } from "../lib/persianDate";
 
@@ -482,7 +482,37 @@ export default function MyRequestsPage() {
                 <div><span className="text-slate-500">تاریخ ثبت:</span> <span className="font-semibold text-slate-700">{formatPersianDateTime(selected.created_at)}</span></div>
                 <div><span className="text-slate-500">نوع فرم:</span> <span className="font-semibold text-slate-700">{selected.form_title}</span></div>
                 {selected.attachment_name && (
-                  <div className="flex items-center gap-2 sm:col-span-2"><Paperclip size={16} className="text-red-500" /><span className="text-slate-500">پیوست:</span><span className="font-semibold text-slate-700">{selected.attachment_name}</span></div>
+                  <div className="flex items-center gap-2 sm:col-span-2">
+                    <Paperclip size={16} className="text-red-500" />
+                    <span className="text-slate-500">پیوست:</span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const token = localStorage.getItem("access_token");
+                        const res = await fetch(
+                          `${API_BASE}/submissions/${selected.id}/attachment`,
+                          {
+                            headers: token
+                              ? { Authorization: `Bearer ${token}` }
+                              : {},
+                          },
+                        );
+                        if (!res.ok) return;
+                        const blob = await res.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const link = document.createElement("a");
+                        link.href = url;
+                        link.download = selected.attachment_name!;
+                        document.body.appendChild(link);
+                        link.click();
+                        link.remove();
+                        window.URL.revokeObjectURL(url);
+                      }}
+                      className="font-semibold text-red-600 underline-offset-2 hover:underline"
+                    >
+                      {selected.attachment_name}
+                    </button>
+                  </div>
                 )}
               </div>
 

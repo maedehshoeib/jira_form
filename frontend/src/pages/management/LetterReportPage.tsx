@@ -13,6 +13,7 @@ import {
 import client from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import AppShell from "../../components/layout/AppShell";
+import { API_BASE } from "../../config/portal";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -108,6 +109,33 @@ export default function LetterReportPage() {
         .includes(query),
     );
   }, [items, search]);
+
+  const downloadAttachment = async (item: LetterReportItem) => {
+    const submissionId = item.recipients[0]?.submission_id;
+    if (!submissionId || !item.attachment_name) return;
+    const token = localStorage.getItem("access_token");
+    try {
+      const res = await fetch(
+        `${API_BASE}/submissions/${submissionId}/attachment`,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+      );
+      if (!res.ok) {
+        setError("دانلود پیوست با مشکل مواجه شد.");
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = item.attachment_name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      setError("دانلود پیوست با مشکل مواجه شد.");
+    }
+  };
 
   if (allowed === false) {
     return <Navigate to="/" replace />;
@@ -205,10 +233,14 @@ export default function LetterReportPage() {
                         <span>ارسال‌کننده: {item.sent_by}</span>
                         <span>تاریخ: {item.created_at}</span>
                         {item.attachment_name && (
-                          <span className="inline-flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => void downloadAttachment(item)}
+                            className="inline-flex items-center gap-1 font-semibold text-red-600 hover:underline"
+                          >
                             <Paperclip size={12} />
                             {item.attachment_name}
-                          </span>
+                          </button>
                         )}
                       </div>
                     </div>
