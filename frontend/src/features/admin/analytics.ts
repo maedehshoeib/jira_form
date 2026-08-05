@@ -43,6 +43,7 @@ export type ProjectAnalyticsRow = {
   minutes: number;
   task_count: number;
   employee_count: number;
+  is_active?: boolean;
   subprojects?: SubprojectAnalyticsRow[];
 };
 
@@ -94,6 +95,30 @@ export type FormsAnalytics = {
   }[];
 };
 
+export type AnalyticsFilterEmployee = {
+  employee_id: string;
+  full_name: string;
+  department: string;
+};
+
+export type AnalyticsFilterProject = {
+  code: string;
+  title: string;
+  is_active: boolean;
+};
+
+export type AnalyticsFilterForm = {
+  id: string;
+  title: string;
+};
+
+export type AnalyticsFilterOptions = {
+  departments: string[];
+  employees: AnalyticsFilterEmployee[];
+  projects: AnalyticsFilterProject[];
+  forms: AnalyticsFilterForm[];
+};
+
 export type AnalyticsResponse = {
   start_date: string;
   end_date: string;
@@ -103,16 +128,29 @@ export type AnalyticsResponse = {
   projects: ProjectAnalyticsRow[];
   departments: DepartmentAnalyticsRow[];
   timesheet_daily_trend: DailyTimesheetPoint[];
+  filter_options: AnalyticsFilterOptions;
 };
+
+export type AnalyticsProjectStatus = "active" | "inactive";
 
 export async function fetchAdminAnalytics(params: {
   startDate: string;
   endDate: string;
+  department?: string;
+  employeeId?: string;
+  projectCode?: string;
+  projectStatus?: AnalyticsProjectStatus;
+  formId?: string;
 }): Promise<AnalyticsResponse> {
   const { data } = await client.get<AnalyticsResponse>(endpoints.adminAnalytics, {
     params: {
       start_date: params.startDate,
       end_date: params.endDate,
+      department: params.department,
+      employee_id: params.employeeId,
+      project_code: params.projectCode,
+      project_status: params.projectStatus,
+      form_id: params.formId,
     },
   });
   return data;

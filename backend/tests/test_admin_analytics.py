@@ -62,46 +62,79 @@ class AdminAnalyticsServiceTests(unittest.TestCase):
             job_title="Developer",
             is_active=True,
         )
+        self.employee_hr = User(
+            username="hr.user",
+            must_change_password=False,
+            display_name="Sara",
+            department="منابع انسانی",
+            job_title="HR",
+            is_active=True,
+        )
         self.db.add_all(
             [
                 self.admin,
                 self.employee,
-                TimesheetProject(code="PRJ-1", title="Portal"),
+                self.employee_hr,
+                TimesheetProject(code="PRJ-1", title="Portal", is_active=True),
+                TimesheetProject(code="PRJ-2", title="Legacy", is_active=False),
             ]
         )
         self.db.commit()
         self.db.refresh(self.admin)
         self.db.refresh(self.employee)
+        self.db.refresh(self.employee_hr)
 
-        self.db.add(
-            TimesheetAttendance(
-                user_id=self.employee.id,
-                work_date="1405/05/10",
-                check_in_time="09:00",
-                check_out_time="17:00",
-            )
-        )
-        self.db.add(
-            TimesheetTask(
-                user_id=self.employee.id,
-                work_date="1405/05/10",
-                project_code="PRJ-1",
-                task_name="Build dashboard",
-                start_time="09:30",
-                end_time="12:30",
-                minutes_spent=180,
-            )
-        )
-        self.db.add(
-            Submission(
-                form_id="common-form",
-                department_id="it",
-                section_id="it-support",
-                user_id=self.employee.id,
-                subject="Need access",
-                status="submitted",
-                created_at=datetime(2026, 8, 1, 10, 0, 0),
-            )
+        self.db.add_all(
+            [
+                TimesheetAttendance(
+                    user_id=self.employee.id,
+                    work_date="1405/05/10",
+                    check_in_time="09:00",
+                    check_out_time="17:00",
+                ),
+                TimesheetAttendance(
+                    user_id=self.employee_hr.id,
+                    work_date="1405/05/10",
+                    check_in_time="08:00",
+                    check_out_time="16:00",
+                ),
+                TimesheetTask(
+                    user_id=self.employee.id,
+                    work_date="1405/05/10",
+                    project_code="PRJ-1",
+                    task_name="Build dashboard",
+                    start_time="09:30",
+                    end_time="12:30",
+                    minutes_spent=180,
+                ),
+                TimesheetTask(
+                    user_id=self.employee_hr.id,
+                    work_date="1405/05/10",
+                    project_code="PRJ-2",
+                    task_name="Archive docs",
+                    start_time="09:00",
+                    end_time="10:00",
+                    minutes_spent=60,
+                ),
+                Submission(
+                    form_id="common-form",
+                    department_id="it",
+                    section_id="it-support",
+                    user_id=self.employee.id,
+                    subject="Need access",
+                    status="submitted",
+                    created_at=datetime(2026, 8, 1, 10, 0, 0),
+                ),
+                Submission(
+                    form_id="hr-form",
+                    department_id="hr",
+                    section_id="new-hire",
+                    user_id=self.employee_hr.id,
+                    subject="Hire request",
+                    status="submitted",
+                    created_at=datetime(2026, 8, 1, 11, 0, 0),
+                ),
+            ]
         )
         self.db.commit()
 
@@ -115,12 +148,13 @@ class AdminAnalyticsServiceTests(unittest.TestCase):
             start_date="1405/05/01",
             end_date="1405/05/12",
         )
-        self.assertEqual(result.overview.task_count, 1)
-        self.assertEqual(result.overview.task_minutes, 180)
-        self.assertEqual(result.overview.attendance_minutes, 480)
-        self.assertEqual(result.overview.requests_in_range, 1)
+        self.assertEqual(result.overview.task_count, 2)
+        self.assertEqual(result.overview.task_minutes, 240)
+        self.assertEqual(result.overview.attendance_minutes, 960)
+        self.assertEqual(result.overview.requests_in_range, 2)
         self.assertEqual(result.projects[0].code, "PRJ-1")
         self.assertEqual(result.projects[0].minutes, 180)
+        self.assertTrue(result.projects[0].is_active)
         employee = next(row for row in result.employees if row.username == "employee")
         self.assertEqual(employee.task_count, 1)
         self.assertEqual(employee.form_count, 1)
@@ -131,8 +165,12 @@ class AdminAnalyticsServiceTests(unittest.TestCase):
         )
         self.assertTrue(
             any("فناوری اطلاعات" in item.label for item in result.forms.by_portal_department)
-            or any(item.value == 1 for item in result.forms.by_portal_department)
+            or any(item.value >= 1 for item in result.forms.by_portal_department)
         )
+        self.assertEqual(len(result.filter_options.employees), 2)
+        self.assertEqual(len(result.filter_options.projects), 2)
+        self.assertTrue(result.filter_options.forms)
+        self.assertIn("فناوری اطلاعات", result.filter_options.departments)
 
     def test_rejects_inverted_range(self):
         with self.assertRaises(ValueError):
@@ -142,6 +180,86 @@ class AdminAnalyticsServiceTests(unittest.TestCase):
                 start_date="1405/05/12",
                 end_date="1405/05/01",
             )
+
+    def test_filter_by_department(self):
+        result = build_analytics(
+            self.db,
+            admin=self.admin,
+            start_date="1405/05/01",
+            end_date="1405/05/12",
+            department="فناوری اطلاعات",
+        )
+        self.assertEqual(result.overview.task_count, 1)
+        self.assertEqual(result.overview.task_minutes, 180)
+        self.assertEqual(result.overview.requests_in_range, 1)
+        self.assertEqual(len(result.departments), 1)
+        self.assertEqual(result.departments[0].name, "فناوری اطلاعات")
+        self.assertTrue(all(row.department == "فناوری اطلاعات" for row in result.employees))
+        self.assertEqual(len(result.filter_options.employees), 2)
+
+    def test_filter_by_employee(self):
+        result = build_analytics(
+            self.db,
+            admin=self.admin,
+            start_date="1405/05/01",
+            end_date="1405/05/12",
+            employee_id=str(self.employee_hr.id),
+        )
+        self.assertEqual(result.overview.task_minutes, 60)
+        self.assertEqual(result.overview.requests_in_range, 1)
+        self.assertEqual(len(result.employees), 1)
+        self.assertEqual(result.employees[0].username, "hr.user")
+
+    def test_filter_by_project_code(self):
+        result = build_analytics(
+            self.db,
+            admin=self.admin,
+            start_date="1405/05/01",
+            end_date="1405/05/12",
+            project_code="PRJ-1",
+        )
+        self.assertEqual(result.overview.task_count, 1)
+        self.assertEqual(result.overview.task_minutes, 180)
+        self.assertEqual(len(result.projects), 1)
+        self.assertEqual(result.projects[0].code, "PRJ-1")
+        self.assertEqual(len(result.filter_options.projects), 2)
+
+    def test_filter_by_project_status(self):
+        inactive = build_analytics(
+            self.db,
+            admin=self.admin,
+            start_date="1405/05/01",
+            end_date="1405/05/12",
+            project_status="inactive",
+        )
+        self.assertEqual(len(inactive.projects), 1)
+        self.assertEqual(inactive.projects[0].code, "PRJ-2")
+        self.assertFalse(inactive.projects[0].is_active)
+        self.assertEqual(inactive.overview.task_minutes, 60)
+
+        active = build_analytics(
+            self.db,
+            admin=self.admin,
+            start_date="1405/05/01",
+            end_date="1405/05/12",
+            project_status="active",
+        )
+        self.assertEqual(len(active.projects), 1)
+        self.assertEqual(active.projects[0].code, "PRJ-1")
+        self.assertTrue(active.projects[0].is_active)
+
+    def test_filter_by_form_id(self):
+        result = build_analytics(
+            self.db,
+            admin=self.admin,
+            start_date="1405/05/01",
+            end_date="1405/05/12",
+            form_id="hr-form",
+        )
+        self.assertEqual(result.overview.requests_in_range, 1)
+        self.assertEqual(len(result.forms.by_form), 1)
+        self.assertTrue(all(item.form_id == "hr-form" for item in result.forms.recent_requests))
+        self.assertTrue(result.filter_options.forms)
 
 
 if __name__ == "__main__":

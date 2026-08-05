@@ -6,7 +6,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from functools import lru_cache
-from typing import DefaultDict
+from typing import DefaultDict, Literal
 
 from sqlalchemy.orm import Session
 
@@ -27,6 +27,10 @@ from app.models.timesheet import (
 )
 from app.models.user import User
 from app.schemas.admin import (
+    AnalyticsFilterEmployee,
+    AnalyticsFilterForm,
+    AnalyticsFilterOptions,
+    AnalyticsFilterProject,
     AnalyticsOverview,
     AnalyticsResponse,
     ChartItem,
@@ -40,6 +44,8 @@ from app.schemas.admin import (
     SubprojectAnalyticsRow,
 )
 from app.services.portal_service import DEPARTMENTS, FORM_TEMPLATES
+
+ProjectStatusFilter = Literal["active", "inactive"]
 
 
 @lru_cache(maxsize=1)
@@ -102,31 +108,103 @@ def _org_department(user: User | None) -> str:
     return (user.department or "").strip() or "بدون واحد"
 
 
+def _user_matches_department(user: User | None, department: str | None) -> bool:
+    if not department:
+        return True
+    return _org_department(user) == department.strip()
+
+
+def _user_matches_employee(user: User | None, employee_id: str | None) -> bool:
+    if not employee_id:
+        return True
+    if not user:
+        return False
+    return str(user.id) == str(employee_id).strip()
+
+
 def build_analytics(
     db: Session,
     *,
     admin: User,
     start_date: str,
     end_date: str,
+    department: str | None = None,
+    employee_id: str | None = None,
+    project_code: str | None = None,
+    project_status: ProjectStatusFilter | None = None,
+    form_id: str | None = None,
 ) -> AnalyticsResponse:
     start = normalize_digits(start_date)
     end = normalize_digits(end_date)
     if start > end:
         raise ValueError("تاریخ شروع باید قبل از تاریخ پایان باشد.")
 
+    department_filter = (department or "").strip() or None
+    employee_filter = (employee_id or "").strip() or None
+    project_filter = (project_code or "").strip() or None
+    form_filter = (form_id or "").strip() or None
+    if project_status not in (None, "active", "inactive"):
+        raise ValueError("وضعیت پروژه نامعتبر است.")
+
     form_start, form_end = jalali_range_to_datetimes(start, end)
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     today_jalali = jalali_today()
     now_time = _local_now_time()
 
-    users = (
+    all_users = (
         db.query(User)
         .filter(User.is_admin.is_(False))
         .order_by(User.display_name, User.username)
         .all()
     )
+    project_models = db.query(TimesheetProject).order_by(TimesheetProject.code).all()
+    project_active_map = {item.code: bool(item.is_active) for item in project_models}
+    projects = {item.code: item.title or item.code for item in project_models}
+    subprojects = {
+        item.code: item for item in db.query(TimesheetSubproject).all()
+    }
+
+    filter_options = AnalyticsFilterOptions(
+        departments=sorted({_org_department(user) for user in all_users}),
+        employees=[
+            AnalyticsFilterEmployee(
+                employee_id=str(user.id),
+                full_name=user.display_name or user.username,
+                department=_org_department(user),
+            )
+            for user in all_users
+        ],
+        projects=[
+            AnalyticsFilterProject(
+                code=item.code,
+                title=item.title or item.code,
+                is_active=bool(item.is_active),
+            )
+            for item in project_models
+        ],
+        forms=[
+            AnalyticsFilterForm(id=template.id, title=template.title)
+            for template in sorted(FORM_TEMPLATES.values(), key=lambda item: item.title)
+        ],
+    )
+
+    users = [
+        user
+        for user in all_users
+        if _user_matches_department(user, department_filter)
+        and _user_matches_employee(user, employee_filter)
+    ]
+    allowed_user_ids = {user.id for user in users}
     total_users = len(users)
     active_users = sum(1 for user in users if user.is_active)
+
+    def project_allowed(code: str) -> bool:
+        if project_filter and code != project_filter:
+            return False
+        if project_status is None:
+            return True
+        is_active = project_active_map.get(code, True)
+        return is_active if project_status == "active" else not is_active
 
     attendance_rows = (
         db.query(TimesheetAttendance, User)
@@ -138,6 +216,12 @@ def build_analytics(
         )
         .all()
     )
+    attendance_rows = [
+        (attendance, user)
+        for attendance, user in attendance_rows
+        if user.id in allowed_user_ids
+    ]
+
     task_rows = (
         db.query(TimesheetTask, User)
         .join(User, User.id == TimesheetTask.user_id)
@@ -148,14 +232,11 @@ def build_analytics(
         )
         .all()
     )
-    projects = {
-        item.code: item.title or item.code
-        for item in db.query(TimesheetProject).all()
-    }
-    subprojects = {
-        item.code: item
-        for item in db.query(TimesheetSubproject).all()
-    }
+    task_rows = [
+        (task, user)
+        for task, user in task_rows
+        if user.id in allowed_user_ids and project_allowed(task.project_code)
+    ]
 
     submissions_in_range = (
         db.query(Submission, User)
@@ -166,10 +247,47 @@ def build_analytics(
         )
         .all()
     )
-    all_time_requests = db.query(Submission).count()
-    requests_today = (
-        db.query(Submission).filter(Submission.created_at >= today_start).count()
-    )
+    submissions_in_range = [
+        (submission, user)
+        for submission, user in submissions_in_range
+        if _user_matches_department(user, department_filter)
+        and _user_matches_employee(user, employee_filter)
+        and (not form_filter or submission.form_id == form_filter)
+    ]
+
+    def _submission_matches(submission: Submission, user: User | None) -> bool:
+        return (
+            _user_matches_department(user, department_filter)
+            and _user_matches_employee(user, employee_filter)
+            and (not form_filter or submission.form_id == form_filter)
+        )
+
+    if department_filter or employee_filter or form_filter:
+        all_time_requests = sum(
+            1
+            for submission, user in (
+                db.query(Submission, User)
+                .outerjoin(User, User.id == Submission.user_id)
+                .all()
+            )
+            if _submission_matches(submission, user)
+        )
+        requests_today = sum(
+            1
+            for submission, user in (
+                db.query(Submission, User)
+                .outerjoin(User, User.id == Submission.user_id)
+                .filter(Submission.created_at >= today_start)
+                .all()
+            )
+            if _submission_matches(submission, user)
+        )
+    else:
+        all_time_requests = db.query(Submission).count()
+        requests_today = (
+            db.query(Submission).filter(Submission.created_at >= today_start).count()
+        )
+
     active_admin_devices = (
         db.query(AdminSession.device_id)
         .filter(AdminSession.user_id == admin.id, AdminSession.is_active.is_(True))
@@ -194,7 +312,15 @@ def build_analytics(
     subproject_tasks: DefaultDict[str, int] = defaultdict(int)
     subproject_employees: DefaultDict[str, set[int]] = defaultdict(set)
 
+    # When filtering by project, attendance is only meaningful for people who
+    # worked that project; still count their full attendance in-range.
+    project_scoped_user_ids: set[int] | None = None
+    if project_filter or project_status is not None:
+        project_scoped_user_ids = {user.id for _, user in task_rows}
+
     for attendance, user in attendance_rows:
+        if project_scoped_user_ids is not None and user.id not in project_scoped_user_ids:
+            continue
         minutes = _attendance_minutes(
             attendance.check_in_time,
             attendance.check_out_time,
@@ -233,15 +359,23 @@ def build_analytics(
         if employee_attendance[user_id] or employee_task_minutes[user_id]
     }
 
+    directory_users = users
+    if project_scoped_user_ids is not None and (project_filter or project_status is not None):
+        # Keep employees who have form activity under form/person/unit filters even
+        # when a project filter excludes their timesheet work.
+        form_user_ids = {user.id for user in users if employee_form_count[user.id]}
+        visible_ids = project_scoped_user_ids | form_user_ids
+        if project_filter or project_status is not None:
+            if not form_filter and not department_filter and not employee_filter:
+                directory_users = [user for user in users if user.id in project_scoped_user_ids]
+            else:
+                directory_users = [user for user in users if user.id in visible_ids]
+
     employees: list[EmployeeAnalyticsRow] = []
-    for user in users:
+    for user in directory_users:
         attendance = employee_attendance[user.id]
         tracked = employee_task_minutes[user.id]
         form_count = employee_form_count[user.id]
-        if not attendance and not tracked and not form_count:
-            # Still include employees with zero activity so the directory is complete
-            # when admins want to see who has no timesheet/forms in range.
-            pass
         employees.append(
             EmployeeAnalyticsRow(
                 employee_id=str(user.id),
@@ -262,6 +396,14 @@ def build_analytics(
         )
     employees.sort(key=lambda row: (row.task_minutes, row.form_count), reverse=True)
 
+    project_codes = set(project_minutes.keys())
+    if project_filter and project_filter not in project_codes and project_allowed(project_filter):
+        project_codes.add(project_filter)
+    if project_status is not None:
+        project_codes = {code for code in project_codes if project_allowed(code)}
+    elif project_filter:
+        project_codes = {code for code in project_codes if code == project_filter}
+
     project_rows = [
         ProjectAnalyticsRow(
             code=code,
@@ -269,6 +411,7 @@ def build_analytics(
             minutes=project_minutes[code],
             task_count=project_tasks[code],
             employee_count=len(project_employees[code]),
+            is_active=project_active_map.get(code, True),
             subprojects=sorted(
                 [
                     SubprojectAnalyticsRow(
@@ -285,7 +428,8 @@ def build_analytics(
                 reverse=True,
             ),
         )
-        for code in project_minutes
+        for code in project_codes
+        if project_minutes[code] or (project_filter and code == project_filter)
     ]
     project_rows.sort(key=lambda row: row.minutes, reverse=True)
 
@@ -296,7 +440,7 @@ def build_analytics(
     dept_employees: DefaultDict[str, set[int]] = defaultdict(set)
     dept_active: DefaultDict[str, set[int]] = defaultdict(set)
 
-    for user in users:
+    for user in directory_users:
         name = _org_department(user)
         dept_employees[name].add(user.id)
         if user.id in active_employee_ids:
@@ -308,10 +452,14 @@ def build_analytics(
     for submission, user in submissions_in_range:
         name = _org_department(user)
         dept_forms[name] += 1
-        if user:
+        if user and user.id in {u.id for u in directory_users}:
+            dept_employees[name].add(user.id)
+        elif user and not (project_filter or project_status is not None):
             dept_employees[name].add(user.id)
 
     department_names = set(dept_employees) | set(dept_forms)
+    if department_filter:
+        department_names = {name for name in department_names if name == department_filter}
     department_rows = [
         DepartmentAnalyticsRow(
             name=name,
@@ -335,7 +483,6 @@ def build_analytics(
         reverse=True,
     )
 
-    # Forms breakdowns
     status_counts: DefaultDict[str, int] = defaultdict(int)
     org_dept_forms: DefaultDict[str, int] = defaultdict(int)
     portal_dept_forms: DefaultDict[str, int] = defaultdict(int)
@@ -354,7 +501,6 @@ def build_analytics(
         submitter_counts[submitter_name] += 1
         daily_form_counts[gregorian_to_jalali(submission.created_at.date())] += 1
 
-    # Monthly trend for last 6 Gregorian months (forms, all-time window relative to now)
     month_start = today_start.replace(day=1)
     months: list[tuple[str, datetime]] = []
     cursor = month_start
@@ -369,23 +515,36 @@ def build_analytics(
             if index + 1 < len(months)
             else (month_start + timedelta(days=32)).replace(day=1)
         )
-        count = (
-            db.query(Submission)
+        month_rows = (
+            db.query(Submission, User)
+            .outerjoin(User, User.id == Submission.user_id)
             .filter(
                 Submission.created_at >= month_begin,
                 Submission.created_at < month_end,
             )
-            .count()
+            .all()
+        )
+        count = sum(
+            1
+            for submission, user in month_rows
+            if _user_matches_department(user, department_filter)
+            and _user_matches_employee(user, employee_filter)
+            and (not form_filter or submission.form_id == form_filter)
         )
         monthly_items.append(ChartItem(label=label, value=count))
 
-    recent_rows = (
+    recent_query = (
         db.query(Submission, User)
         .outerjoin(User, User.id == Submission.user_id)
         .order_by(Submission.created_at.desc())
-        .limit(12)
-        .all()
     )
+    recent_rows = [
+        (submission, user)
+        for submission, user in recent_query.limit(200).all()
+        if _user_matches_department(user, department_filter)
+        and _user_matches_employee(user, employee_filter)
+        and (not form_filter or submission.form_id == form_filter)
+    ][:12]
 
     def chart_from_counts(counts: dict[str, int], limit: int | None = None) -> list[ChartItem]:
         items = [
@@ -461,4 +620,5 @@ def build_analytics(
             )
             for day in timesheet_dates
         ],
+        filter_options=filter_options,
     )

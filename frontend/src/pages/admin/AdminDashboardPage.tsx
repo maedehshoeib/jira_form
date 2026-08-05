@@ -8,8 +8,10 @@ import {
   BriefcaseBusiness,
   Building2,
   CalendarClock,
+  ChevronDown,
   Clock3,
   FileText,
+  Hash,
   Loader2,
   MonitorSmartphone,
   Search,
@@ -17,10 +19,12 @@ import {
   TimerReset,
   Users,
 } from "lucide-react";
+import type { ReactNode } from "react";
 
 import AppShell from "../../components/layout/AppShell";
 import {
   fetchAdminAnalytics,
+  type AnalyticsProjectStatus,
   type AnalyticsResponse,
   type ChartItem,
   type DailyTimesheetPoint,
@@ -29,6 +33,7 @@ import { JalaliDateTimePicker } from "../../features/timesheet/components/jalali
 
 type AnalyticsTab = "overview" | "employees" | "projects" | "departments" | "forms";
 type PeriodPreset = "today" | "week" | "month" | "custom";
+type ProjectStatusFilter = "all" | AnalyticsProjectStatus;
 
 const numberFmt = new Intl.NumberFormat("fa-IR");
 
@@ -54,6 +59,37 @@ function formatMinutes(minutes: number): string {
   if (!hours) return `${number(remainder)} دقیقه`;
   if (!remainder) return `${number(hours)} ساعت`;
   return `${number(hours)} س ${number(remainder)} د`;
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  children,
+  icon,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  children: ReactNode;
+  icon: ReactNode;
+}) {
+  return (
+    <label className="block min-w-0">
+      <span className="mb-1.5 block text-xs font-bold text-slate-500">{label}</span>
+      <span className="relative block">
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">{icon}</span>
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white pr-10 pl-9 text-sm font-medium text-slate-700 outline-none transition focus:border-red-400 focus:ring-4 focus:ring-red-50"
+        >
+          {children}
+        </select>
+        <ChevronDown className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      </span>
+    </label>
+  );
 }
 
 function HorizontalChart({
@@ -185,6 +221,11 @@ export default function AdminDashboardPage() {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [hideInactiveEmployees, setHideInactiveEmployees] = useState(true);
+  const [selectedDepartment, setSelectedDepartment] = useState("all");
+  const [selectedEmployee, setSelectedEmployee] = useState("all");
+  const [selectedProject, setSelectedProject] = useState("all");
+  const [selectedProjectStatus, setSelectedProjectStatus] = useState<ProjectStatusFilter>("all");
+  const [selectedForm, setSelectedForm] = useState("all");
 
   const applyPreset = (next: PeriodPreset) => {
     setPreset(next);
@@ -207,7 +248,15 @@ export default function AdminDashboardPage() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetchAdminAnalytics({ startDate: startStr, endDate: endStr });
+      const response = await fetchAdminAnalytics({
+        startDate: startStr,
+        endDate: endStr,
+        department: selectedDepartment === "all" ? undefined : selectedDepartment,
+        employeeId: selectedEmployee === "all" ? undefined : selectedEmployee,
+        projectCode: selectedProject === "all" ? undefined : selectedProject,
+        projectStatus: selectedProjectStatus === "all" ? undefined : selectedProjectStatus,
+        formId: selectedForm === "all" ? undefined : selectedForm,
+      });
       setData(response);
     } catch {
       setError("دریافت اطلاعات داشبورد تحلیلی با مشکل مواجه شد.");
@@ -220,6 +269,16 @@ export default function AdminDashboardPage() {
     void loadAnalytics();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const filterOptions = data?.filter_options;
+  const availableEmployees = useMemo(() => {
+    const rows = filterOptions?.employees || [];
+    return selectedDepartment === "all"
+      ? rows
+      : rows.filter((item) => item.department === selectedDepartment);
+  }, [filterOptions, selectedDepartment]);
+
+  const projectOptions = filterOptions?.projects || [];
 
   const filteredEmployees = useMemo(() => {
     if (!data) return [];
@@ -297,7 +356,7 @@ export default function AdminDashboardPage() {
 
       <section className="mb-6 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm font-bold text-slate-800">بازه زمانی تحلیل</p>
+          <p className="text-sm font-bold text-slate-800">فیلتر تحلیل</p>
           <div className="flex rounded-xl bg-slate-100 p-1">
             {(
               [
@@ -358,6 +417,86 @@ export default function AdminDashboardPage() {
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BarChart3 className="h-4 w-4" />}
             {loading ? "در حال دریافت" : "اعمال فیلتر"}
           </button>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+          <SelectField
+            label="واحد"
+            value={selectedDepartment}
+            onChange={(value) => {
+              setSelectedDepartment(value);
+              setSelectedEmployee("all");
+            }}
+            icon={<Building2 className="h-4 w-4" />}
+          >
+            <option value="all">همه واحدها</option>
+            {(filterOptions?.departments || []).map((department) => (
+              <option key={department} value={department}>
+                {department}
+              </option>
+            ))}
+          </SelectField>
+          <SelectField
+            label="شخص"
+            value={selectedEmployee}
+            onChange={setSelectedEmployee}
+            icon={<Users className="h-4 w-4" />}
+          >
+            <option value="all">همه کارکنان</option>
+            {availableEmployees.map((employee) => (
+              <option key={employee.employee_id} value={employee.employee_id}>
+                {employee.full_name}
+              </option>
+            ))}
+          </SelectField>
+          <SelectField
+            label="پروژه"
+            value={selectedProject}
+            onChange={setSelectedProject}
+            icon={<BriefcaseBusiness className="h-4 w-4" />}
+          >
+            <option value="all">همه پروژه‌ها</option>
+            {projectOptions.map((project) => (
+              <option key={project.code} value={project.code}>
+                {project.title || project.code}
+              </option>
+            ))}
+          </SelectField>
+          <SelectField
+            label="کد پروژه"
+            value={selectedProject}
+            onChange={setSelectedProject}
+            icon={<Hash className="h-4 w-4" />}
+          >
+            <option value="all">همه کدها</option>
+            {projectOptions.map((project) => (
+              <option key={`code-${project.code}`} value={project.code}>
+                {project.code}
+              </option>
+            ))}
+          </SelectField>
+          <SelectField
+            label="وضعیت پروژه"
+            value={selectedProjectStatus}
+            onChange={(value) => setSelectedProjectStatus(value as ProjectStatusFilter)}
+            icon={<Target className="h-4 w-4" />}
+          >
+            <option value="all">همه وضعیت‌ها</option>
+            <option value="active">فعال</option>
+            <option value="inactive">غیرفعال</option>
+          </SelectField>
+          <SelectField
+            label="فرم‌ها"
+            value={selectedForm}
+            onChange={setSelectedForm}
+            icon={<FileText className="h-4 w-4" />}
+          >
+            <option value="all">همه فرم‌ها</option>
+            {(filterOptions?.forms || []).map((form) => (
+              <option key={form.id} value={form.id}>
+                {form.title}
+              </option>
+            ))}
+          </SelectField>
         </div>
       </section>
 
@@ -616,6 +755,7 @@ export default function AdminDashboardPage() {
                         <tr>
                           <th className="px-5 py-3 text-right">پروژه / زیرپروژه</th>
                           <th className="px-5 py-3 text-right">کد</th>
+                          <th className="px-5 py-3 text-right">وضعیت</th>
                           <th className="px-5 py-3 text-right">زمان صرف‌شده</th>
                           <th className="px-5 py-3 text-right">تعداد تسک</th>
                           <th className="px-5 py-3 text-right">کارکنان</th>
@@ -628,6 +768,17 @@ export default function AdminDashboardPage() {
                               <td className="px-5 py-4 font-semibold text-slate-800">{row.title}</td>
                               <td className="px-5 py-4 font-mono text-xs text-violet-700" dir="ltr">
                                 {row.code}
+                              </td>
+                              <td className="px-5 py-4">
+                                <span
+                                  className={`rounded-lg px-2 py-1 text-[11px] font-bold ${
+                                    row.is_active === false
+                                      ? "bg-slate-100 text-slate-500"
+                                      : "bg-emerald-50 text-emerald-700"
+                                  }`}
+                                >
+                                  {row.is_active === false ? "غیرفعال" : "فعال"}
+                                </span>
                               </td>
                               <td className="px-5 py-4 font-bold text-red-700">{formatMinutes(row.minutes)}</td>
                               <td className="px-5 py-4">{number(row.task_count)}</td>
@@ -642,6 +793,7 @@ export default function AdminDashboardPage() {
                                 <td className="px-5 py-3 font-mono text-xs text-sky-700" dir="ltr">
                                   {sub.code}
                                 </td>
+                                <td className="px-5 py-3 text-slate-400">—</td>
                                 <td className="px-5 py-3 font-semibold text-slate-700">{formatMinutes(sub.minutes)}</td>
                                 <td className="px-5 py-3">{number(sub.task_count)}</td>
                                 <td className="px-5 py-3">{number(sub.employee_count)}</td>

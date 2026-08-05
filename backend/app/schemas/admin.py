@@ -135,6 +135,7 @@ class ProjectAnalyticsRow(BaseModel):
     minutes: int
     task_count: int
     employee_count: int
+    is_active: bool = True
     subprojects: list[SubprojectAnalyticsRow] = []
 
 
@@ -179,6 +180,30 @@ class FormsAnalytics(BaseModel):
     recent_requests: list[DashboardRecentRequest]
 
 
+class AnalyticsFilterEmployee(BaseModel):
+    employee_id: str
+    full_name: str
+    department: str
+
+
+class AnalyticsFilterProject(BaseModel):
+    code: str
+    title: str
+    is_active: bool = True
+
+
+class AnalyticsFilterForm(BaseModel):
+    id: str
+    title: str
+
+
+class AnalyticsFilterOptions(BaseModel):
+    departments: list[str] = []
+    employees: list[AnalyticsFilterEmployee] = []
+    projects: list[AnalyticsFilterProject] = []
+    forms: list[AnalyticsFilterForm] = []
+
+
 class AnalyticsResponse(BaseModel):
     start_date: str
     end_date: str
@@ -188,6 +213,7 @@ class AnalyticsResponse(BaseModel):
     projects: list[ProjectAnalyticsRow]
     departments: list[DepartmentAnalyticsRow]
     timesheet_daily_trend: list[DailyTimesheetPoint]
+    filter_options: AnalyticsFilterOptions = AnalyticsFilterOptions()
 
 
 class SiteBannerImageResponse(BaseModel):
