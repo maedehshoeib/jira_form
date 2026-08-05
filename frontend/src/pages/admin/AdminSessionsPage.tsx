@@ -6,6 +6,7 @@ import { endpoints } from "../../api/endpoints";
 import AppShell from "../../components/layout/AppShell";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
+import { formatPersianDateTime } from "../../lib/persianDate";
 
 type AdminSession = {
   id: number;
@@ -20,9 +21,7 @@ type AdminSession = {
 };
 
 const formatDate = (value: string | null) =>
-  value
-    ? new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value))
-    : "—";
+  value ? formatPersianDateTime(value) : "—";
 
 export default function AdminSessionsPage() {
   const [sessions, setSessions] = useState<AdminSession[]>([]);

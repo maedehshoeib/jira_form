@@ -56,22 +56,49 @@ export function isPersianDateAfter(date: string, reference: string): boolean {
   return a.toUnix() > b.toUnix();
 }
 
-const BACKEND_DATETIME = /^(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})$/;
+const BACKEND_DATETIME =
+  /^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})(?:[ T](\d{1,2}):(\d{1,2})(?::\d{1,2})?)?/;
+const ISO_DATETIME = /^\d{4}-\d{2}-\d{2}T/;
 
-export function formatPersianDateTime(value: string): string {
-  if (!value.trim()) return "";
+/** Convert any Gregorian datetime (backend slash format or ISO) to Jalali `YYYY/MM/DD HH:mm`. */
+export function formatPersianDateTime(value: string | null | undefined): string {
+  if (!value?.trim()) return "";
 
   try {
-    const match = value.trim().match(BACKEND_DATETIME);
-    if (!match) return value;
+    const trimmed = toLatinDigits(value.trim());
+    let date: Date;
 
-    const [, year, month, day, hour, minute] = match.map(Number);
-    const localDate = new Date(year, month - 1, day, hour, minute);
+    if (ISO_DATETIME.test(trimmed) || trimmed.endsWith("Z")) {
+      date = new Date(trimmed);
+    } else {
+      const match = trimmed.match(BACKEND_DATETIME);
+      if (!match) {
+        date = new Date(trimmed);
+      } else {
+        const [, year, month, day, hour = "0", minute = "0"] = match;
+        date = new Date(
+          Number(year),
+          Number(month) - 1,
+          Number(day),
+          Number(hour),
+          Number(minute)
+        );
+      }
+    }
 
-    return new DateObject(localDate)
-      .convert(persian, persian_fa)
-      .format("YYYY/MM/DD HH:mm");
+    if (Number.isNaN(date.getTime())) return value;
+
+    return toLatinDigits(
+      new DateObject(date).convert(persian, persian_fa).format("YYYY/MM/DD HH:mm")
+    );
   } catch {
     return value;
   }
+}
+
+/** Convert a Gregorian date-only value to Jalali `YYYY/MM/DD`. */
+export function formatPersianDate(value: string | null | undefined): string {
+  const formatted = formatPersianDateTime(value);
+  if (!formatted) return "";
+  return formatted.split(" ")[0] ?? formatted;
 }

@@ -1,3 +1,5 @@
+import { formatPersianDateTime } from "./persianDate";
+
 export type PerformanceTableSection = {
   columns: { key: string; title: string }[];
   rows: Record<string, string>[];
@@ -87,7 +89,7 @@ export function exportPerformanceReportToExcel(
   const lines: string[] = [
     "عنوان گزارش," + escapeCsv(report.title),
     "ثبت کننده," + escapeCsv(report.created_by),
-    "تاریخ ثبت," + escapeCsv(report.created_at),
+    "تاریخ ثبت," + escapeCsv(formatPersianDateTime(report.created_at)),
     "وضعیت," + escapeCsv(report.status),
     ...tableSection("مشخصات کلی گزارش", generalSpecs),
     ...textSection("مهم‌ترین دستاوردهای دوره", data.achievements || ""),

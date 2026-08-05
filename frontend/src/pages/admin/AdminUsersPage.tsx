@@ -20,6 +20,7 @@ import UserAvatar from "../../components/UserAvatar";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import { formatPersianDateTime } from "../../lib/persianDate";
 
 type ManagedUser = {
   id: number;
@@ -91,12 +92,7 @@ const targetKey = (target: AccessTarget) =>
   `${target.portal_department_id}:${target.section_id}:${target.form_id}`;
 
 const formatDate = (value: string | null) =>
-  value
-    ? new Intl.DateTimeFormat("fa-IR", {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }).format(new Date(value))
-    : "هرگز";
+  value ? formatPersianDateTime(value) : "هرگز";
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<ManagedUser[]>([]);

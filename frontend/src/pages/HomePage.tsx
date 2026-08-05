@@ -25,6 +25,7 @@ import { Card, CardContent } from "../components/ui/card";
 import { API_BASE, Department } from "../config/portal";
 import { SiteBanner } from "../features/banner";
 import { SiteNews } from "../features/news";
+import { formatPersianDateTime } from "../lib/persianDate";
 import { cn } from "../lib/utils";
 
 type HomeCard = {
@@ -136,11 +137,7 @@ const HOME_ICON_STYLES: Record<string, string> = {
   timesheet: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-400/40 dark:bg-blue-500/20 dark:text-blue-200",
 };
 
-const formatNewsDate = (value: string) =>
-  new Intl.DateTimeFormat("fa-IR", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
+const formatNewsDate = (value: string) => formatPersianDateTime(value);
 
 function NewsDetailModal({
   news,

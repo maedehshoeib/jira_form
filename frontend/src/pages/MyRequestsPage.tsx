@@ -20,6 +20,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { FormField, FormTemplate } from "../config/portal";
 import { useAuth } from "../context/AuthContext";
+import { formatPersianDateTime } from "../lib/persianDate";
 
 type SubmissionListItem = {
   id: number;
@@ -447,7 +448,7 @@ export default function MyRequestsPage() {
                 </p>
               )}
               <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4 text-xs text-slate-500">
-                <span className="flex items-center gap-1.5"><CalendarDays size={14} />{request.created_at}</span>
+                <span className="flex items-center gap-1.5"><CalendarDays size={14} />{formatPersianDateTime(request.created_at)}</span>
                 <span className="flex items-center gap-1 font-medium text-red-600">مشاهده جزئیات <ChevronLeft size={15} /></span>
               </div>
             </button>
@@ -478,7 +479,7 @@ export default function MyRequestsPage() {
 
             <div className="space-y-6 p-6 sm:p-8">
               <div className="grid gap-3 rounded-2xl bg-slate-50 p-4 text-sm sm:grid-cols-2">
-                <div><span className="text-slate-500">تاریخ ثبت:</span> <span className="font-semibold text-slate-700">{selected.created_at}</span></div>
+                <div><span className="text-slate-500">تاریخ ثبت:</span> <span className="font-semibold text-slate-700">{formatPersianDateTime(selected.created_at)}</span></div>
                 <div><span className="text-slate-500">نوع فرم:</span> <span className="font-semibold text-slate-700">{selected.form_title}</span></div>
                 {selected.attachment_name && (
                   <div className="flex items-center gap-2 sm:col-span-2"><Paperclip size={16} className="text-red-500" /><span className="text-slate-500">پیوست:</span><span className="font-semibold text-slate-700">{selected.attachment_name}</span></div>

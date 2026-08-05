@@ -24,6 +24,7 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { FormField, FormTemplate } from "../config/portal";
+import { formatPersianDateTime } from "../lib/persianDate";
 
 type ReferralItem = {
   id: number;
@@ -701,7 +702,7 @@ export default function MyTasksPage() {
               <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4 text-xs text-slate-500">
                 <span className="flex items-center gap-1.5">
                   <CalendarDays size={14} />
-                  {task.created_at}
+                  {formatPersianDateTime(task.created_at)}
                 </span>
                 <span className="flex items-center gap-1 font-medium text-red-600">
                   مشاهده جزئیات <ChevronLeft size={15} />
@@ -913,7 +914,9 @@ export default function MyTasksPage() {
               <div className="grid gap-3 rounded-2xl bg-slate-50 p-4 text-sm sm:grid-cols-2">
                 <div>
                   <span className="text-slate-500">تاریخ ثبت:</span>{" "}
-                  <span className="font-semibold text-slate-700">{selected.created_at}</span>
+                  <span className="font-semibold text-slate-700">
+                    {formatPersianDateTime(selected.created_at)}
+                  </span>
                 </div>
                 <div>
                   <span className="text-slate-500">نوع فرم:</span>{" "}
@@ -933,7 +936,7 @@ export default function MyTasksPage() {
                     <span className="font-semibold text-slate-700">
                       {selected.status_updated_by}
                       {selected.status_updated_at
-                        ? ` (${selected.status_updated_at})`
+                        ? ` (${formatPersianDateTime(selected.status_updated_at)})`
                         : ""}
                     </span>
                   </div>
@@ -964,7 +967,9 @@ export default function MyTasksPage() {
                         {referral.note ? (
                           <div className="mt-1 text-sky-700">{referral.note}</div>
                         ) : null}
-                        <div className="mt-1 text-sky-600">{referral.created_at}</div>
+                        <div className="mt-1 text-sky-600">
+                          {formatPersianDateTime(referral.created_at)}
+                        </div>
                       </div>
                     ))}
                   </div>

@@ -18,12 +18,9 @@ import AppShell from "../../components/layout/AppShell";
 import { Button } from "../../components/ui/button";
 import { emptyBanner, SiteBanner } from "../../features/banner";
 import { SiteNews } from "../../features/news";
+import { formatPersianDateTime } from "../../lib/persianDate";
 
-const formatNewsDate = (value: string) =>
-  new Intl.DateTimeFormat("fa-IR", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
+const formatNewsDate = (value: string) => formatPersianDateTime(value);
 
 type NewsDraft = {
   title: string;

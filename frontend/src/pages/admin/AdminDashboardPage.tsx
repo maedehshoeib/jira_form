@@ -30,6 +30,7 @@ import {
   type DailyTimesheetPoint,
 } from "../../features/admin/analytics";
 import { JalaliDateTimePicker } from "../../features/timesheet/components/jalali-date-time-picker";
+import { formatPersianDateTime } from "../../lib/persianDate";
 
 type AnalyticsTab = "overview" | "employees" | "projects" | "departments" | "forms";
 type PeriodPreset = "today" | "week" | "month" | "custom";
@@ -38,11 +39,7 @@ type ProjectStatusFilter = "all" | AnalyticsProjectStatus;
 const numberFmt = new Intl.NumberFormat("fa-IR");
 
 const number = (value: number) => numberFmt.format(value);
-const dateTime = (value: string) =>
-  new Intl.DateTimeFormat("fa-IR", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
+const dateTime = (value: string) => formatPersianDateTime(value);
 
 function jalaliToday(): DateObject {
   return new DateObject({ calendar: persian, locale: persian_fa });

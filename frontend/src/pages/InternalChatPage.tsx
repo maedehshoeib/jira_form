@@ -38,6 +38,7 @@ import {
 import AppShell from "../components/layout/AppShell";
 import UserAvatar from "../components/UserAvatar";
 import { useAuth } from "../context/AuthContext";
+import { formatPersianDateTime } from "../lib/persianDate";
 import {
   ChatMessage,
   ChatUser,
@@ -59,20 +60,24 @@ function initials(name: string) {
 }
 
 function formatTime(value: string) {
-  return new Intl.DateTimeFormat("fa-IR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(`${value.endsWith("Z") ? value : `${value}Z`}`));
+  const formatted = formatPersianDateTime(
+    value.endsWith("Z") ? value : `${value}Z`
+  );
+  const parts = formatted.split(" ");
+  return parts[1] || formatted;
 }
 
 function formatListTime(value: string) {
-  const date = new Date(`${value.endsWith("Z") ? value : `${value}Z`}`);
+  const iso = value.endsWith("Z") ? value : `${value}Z`;
+  const date = new Date(iso);
   const today = new Date();
   if (date.toDateString() === today.toDateString()) return formatTime(value);
-  return new Intl.DateTimeFormat("fa-IR", {
-    month: "short",
-    day: "numeric",
-  }).format(date);
+  const formatted = formatPersianDateTime(iso);
+  // Show MM/DD portion of Jalali date for conversation list
+  const datePart = formatted.split(" ")[0] || formatted;
+  const segments = datePart.split("/");
+  if (segments.length === 3) return `${segments[1]}/${segments[2]}`;
+  return datePart;
 }
 
 function fileSize(value: number) {
