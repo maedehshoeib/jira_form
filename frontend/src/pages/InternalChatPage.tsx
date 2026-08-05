@@ -48,6 +48,13 @@ import {
 
 const REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 
+const COMPOSER_EMOJIS = [
+  "😀", "😁", "😂", "🤣", "😊", "😍", "😘", "😎", "🤔", "😮",
+  "😢", "😭", "😡", "👍", "👎", "👏", "🙏", "🔥", "💯", "✨",
+  "🎉", "❤️", "💙", "💚", "💛", "🧡", "✅", "❌", "⭐", "🚀",
+  "💪", "🤝", "👀", "😅", "😴", "🤗", "🥳", "😇", "🤩", "😏",
+];
+
 function initials(name: string) {
   return (
     name
@@ -162,10 +169,13 @@ export default function InternalChatPage() {
   const [editing, setEditing] = useState<ChatMessage | null>(null);
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [reactionMessageId, setReactionMessageId] = useState<number | null>(null);
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [typingText, setTypingText] = useState("");
   const [error, setError] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
   const activeIdRef = useRef<number | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const typingTimerRef = useRef(0);
@@ -237,6 +247,7 @@ export default function InternalChatPage() {
     setTypingText("");
     setMessageSearch("");
     setShowMessageSearch(false);
+    setEmojiPickerOpen(false);
     if (activeId) void loadMessages(activeId, false, "");
   }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -380,6 +391,7 @@ export default function InternalChatPage() {
       setAttachment(null);
       setReplyingTo(null);
       setEditing(null);
+      setEmojiPickerOpen(false);
       setError("");
       await loadConversations(true);
     } catch (requestError) {
@@ -395,6 +407,40 @@ export default function InternalChatPage() {
       void send();
     }
   };
+
+  const insertEmoji = (emoji: string) => {
+    const textarea = composerRef.current;
+    if (!textarea) {
+      setDraft((current) => `${current}${emoji}`);
+      notifyTyping();
+      return;
+    }
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const next = `${draft.slice(0, start)}${emoji}${draft.slice(end)}`;
+    if (next.length > 5000) return;
+    setDraft(next);
+    notifyTyping();
+    requestAnimationFrame(() => {
+      const cursor = start + emoji.length;
+      textarea.focus();
+      textarea.setSelectionRange(cursor, cursor);
+    });
+  };
+
+  useEffect(() => {
+    if (!emojiPickerOpen) return;
+    const close = (event: MouseEvent) => {
+      if (
+        emojiPickerRef.current &&
+        !emojiPickerRef.current.contains(event.target as Node)
+      ) {
+        setEmojiPickerOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [emojiPickerOpen]);
 
   const notifyTyping = () => {
     const now = Date.now();
@@ -547,7 +593,7 @@ export default function InternalChatPage() {
                       activeId === conversation.id
                         ? "bg-red-50"
                         : conversation.unread_count > 0
-                          ? "border border-amber-200 bg-amber-50 hover:bg-amber-100"
+                          ? "border-2 border-orange-500 bg-orange-200 hover:bg-orange-300"
                           : "hover:bg-slate-50"
                     }`}
                   >
@@ -572,7 +618,7 @@ export default function InternalChatPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1">
-                        <p className={`truncate text-sm font-bold ${conversation.unread_count > 0 ? "text-amber-950" : "text-slate-800"}`}>
+                        <p className={`truncate text-sm font-extrabold ${conversation.unread_count > 0 ? "text-orange-950" : "text-slate-800"}`}>
                           {conversation.title}
                         </p>
                         {conversation.is_pinned && (
@@ -589,7 +635,7 @@ export default function InternalChatPage() {
                             : ""}
                         </span>
                       </div>
-                      <p className={`mt-1 truncate text-xs ${conversation.unread_count > 0 ? "font-semibold text-amber-800" : "text-slate-500"}`}>
+                      <p className={`mt-1 truncate text-xs ${conversation.unread_count > 0 ? "font-bold text-orange-900" : "text-slate-500"}`}>
                         {conversation.last_message?.deleted_at
                           ? "پیام حذف شده"
                           : conversation.last_message?.attachment
@@ -1078,20 +1124,54 @@ export default function InternalChatPage() {
                           </button>
                         </>
                       )}
-                      <textarea
-                        value={draft}
-                        onChange={(event) => {
-                          setDraft(event.target.value);
-                          notifyTyping();
-                        }}
-                        onKeyDown={handleComposerKey}
-                        rows={1}
-                        maxLength={5000}
-                        placeholder={
-                          editing ? "متن جدید پیام..." : "پیام خود را بنویسید..."
-                        }
-                        className="max-h-32 min-h-[46px] flex-1 resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 outline-none transition focus:border-red-300 focus:bg-white focus:ring-2 focus:ring-red-100"
-                      />
+                      <div ref={emojiPickerRef} className="relative min-w-0 flex-1">
+                        {emojiPickerOpen && (
+                          <div className="absolute bottom-full left-0 right-0 z-20 mb-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+                            <div className="grid grid-cols-8 gap-1 sm:grid-cols-10">
+                              {COMPOSER_EMOJIS.map((emoji) => (
+                                <button
+                                  key={emoji}
+                                  type="button"
+                                  onClick={() => insertEmoji(emoji)}
+                                  className="rounded-xl p-1.5 text-xl transition hover:bg-orange-50"
+                                  title={emoji}
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <div className="flex items-end gap-1">
+                          <textarea
+                            ref={composerRef}
+                            value={draft}
+                            onChange={(event) => {
+                              setDraft(event.target.value);
+                              notifyTyping();
+                            }}
+                            onKeyDown={handleComposerKey}
+                            rows={1}
+                            maxLength={5000}
+                            placeholder={
+                              editing ? "متن جدید پیام..." : "پیام خود را بنویسید..."
+                            }
+                            className="max-h-32 min-h-[46px] flex-1 resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 outline-none transition focus:border-red-300 focus:bg-white focus:ring-2 focus:ring-red-100"
+                          />
+                          <button
+                            type="button"
+                            title="ایموجی"
+                            onClick={() => setEmojiPickerOpen((open) => !open)}
+                            className={`mb-1 rounded-xl p-2.5 transition ${
+                              emojiPickerOpen
+                                ? "bg-orange-100 text-orange-600"
+                                : "text-slate-500 hover:bg-slate-100 hover:text-orange-600"
+                            }`}
+                          >
+                            <Smile size={20} />
+                          </button>
+                        </div>
+                      </div>
                       <button
                         type="submit"
                         disabled={
@@ -1425,9 +1505,19 @@ function ConversationInfoModal({
 }) {
   const [addOpen, setAddOpen] = useState(false);
   const [title, setTitle] = useState(conversation.title);
+  const [previewAvatar, setPreviewAvatar] = useState<{
+    name: string;
+    url: string;
+  } | null>(null);
   const availableUsers = users.filter(
     (item) => !conversation.members.some((member) => member.id === item.id),
   );
+  const otherMember =
+    conversation.kind === "direct"
+      ? conversation.members.find((member) => member.id !== currentUserId) ||
+        conversation.members[0]
+      : null;
+  const headerAvatarUrl = otherMember?.avatar_url || "";
 
   const rename = async () => {
     if (!title.trim() || title.trim() === conversation.title) return;
@@ -1439,17 +1529,49 @@ function ConversationInfoModal({
     }
   };
 
+  const openAvatarPreview = (name: string, avatarUrl?: string | null) => {
+    if (!avatarUrl) return;
+    const url = avatarUrl.startsWith("/avatars/")
+      ? `/api/v1${avatarUrl}`
+      : avatarUrl;
+    setPreviewAvatar({ name, url });
+  };
+
   return (
     <Modal title="جزئیات گفتگو" onClose={onClose}>
       <div className="max-h-[70vh] overflow-y-auto p-5">
         <div className="mb-5 flex flex-col items-center">
-          <span className="flex h-20 w-20 items-center justify-center rounded-3xl bg-red-600 text-2xl font-bold text-white">
-            {conversation.kind === "group" ? (
+          {conversation.kind === "group" ? (
+            <span className="flex h-20 w-20 items-center justify-center rounded-3xl bg-red-600 text-2xl font-bold text-white">
               <Users size={30} />
-            ) : (
-              initials(conversation.title)
-            )}
-          </span>
+            </span>
+          ) : (
+            <button
+              type="button"
+              disabled={!headerAvatarUrl}
+              onClick={() =>
+                openAvatarPreview(
+                  otherMember?.display_name ||
+                    otherMember?.username ||
+                    conversation.title,
+                  headerAvatarUrl,
+                )
+              }
+              className={`rounded-3xl ${headerAvatarUrl ? "cursor-zoom-in" : "cursor-default"}`}
+              title={headerAvatarUrl ? "مشاهده تصویر پروفایل" : undefined}
+            >
+              <UserAvatar
+                name={
+                  otherMember?.display_name ||
+                  otherMember?.username ||
+                  conversation.title
+                }
+                avatarUrl={headerAvatarUrl || null}
+                className="h-20 w-20 rounded-3xl text-2xl"
+                fallbackClassName="bg-red-600 text-white"
+              />
+            </button>
+          )}
           {conversation.kind === "group" &&
           conversation.role === "owner" ? (
             <div className="mt-3 flex w-full max-w-xs gap-2">
@@ -1470,6 +1592,9 @@ function ConversationInfoModal({
             <p className="mt-3 font-extrabold text-slate-800">
               {conversation.title}
             </p>
+          )}
+          {conversation.kind === "direct" && otherMember?.job_title && (
+            <p className="mt-1 text-sm text-slate-500">{otherMember.job_title}</p>
           )}
         </div>
         <div className="mb-5 grid grid-cols-3 gap-2">
@@ -1557,11 +1682,24 @@ function ConversationInfoModal({
                   key={member.id}
                   className="flex items-center gap-3 rounded-2xl p-2.5 hover:bg-slate-50"
                 >
-                  <UserAvatar
-                    name={member.display_name || member.username}
-                    avatarUrl={member.avatar_url}
-                    className="h-9 w-9 rounded-xl"
-                  />
+                  <button
+                    type="button"
+                    disabled={!member.avatar_url}
+                    onClick={() =>
+                      openAvatarPreview(
+                        member.display_name || member.username,
+                        member.avatar_url,
+                      )
+                    }
+                    className={member.avatar_url ? "cursor-zoom-in" : "cursor-default"}
+                    title={member.avatar_url ? "مشاهده تصویر پروفایل" : undefined}
+                  >
+                    <UserAvatar
+                      name={member.display_name || member.username}
+                      avatarUrl={member.avatar_url}
+                      className="h-9 w-9 rounded-xl"
+                    />
+                  </button>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-bold">
                       {member.display_name || member.username}
@@ -1606,6 +1744,33 @@ function ConversationInfoModal({
           </>
         )}
       </div>
+      {previewAvatar && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="بستن تصویر"
+            onClick={() => setPreviewAvatar(null)}
+            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+          />
+          <div className="relative z-10 flex max-h-[85vh] w-full max-w-md flex-col items-center">
+            <img
+              src={previewAvatar.url}
+              alt={previewAvatar.name}
+              className="max-h-[70vh] w-full rounded-3xl object-contain shadow-2xl"
+            />
+            <p className="mt-3 text-sm font-bold text-white">
+              {previewAvatar.name}
+            </p>
+            <button
+              type="button"
+              onClick={() => setPreviewAvatar(null)}
+              className="mt-3 rounded-xl bg-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/25"
+            >
+              بستن
+            </button>
+          </div>
+        </div>
+      )}
     </Modal>
   );
 }
