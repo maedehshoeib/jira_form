@@ -57,6 +57,17 @@ def _form_title(form_id: str) -> str:
 def _department_and_section_titles(
     department_id: str, section_id: str
 ) -> tuple[str, str]:
+    from app.services.portal_service import (
+        MANAGEMENT_LETTER_SECTION,
+        MANAGEMENT_WORKFLOW_ID,
+    )
+
+    if department_id == MANAGEMENT_WORKFLOW_ID:
+        section_title = (
+            "ارسال نامه" if section_id == MANAGEMENT_LETTER_SECTION else section_id
+        )
+        return "گردش کار مدیریت", section_title or "گردش کار مدیریت"
+
     for department in DEPARTMENTS:
         if department.id != department_id:
             continue

@@ -17,7 +17,12 @@ export default function DepartmentPage() {
   const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
-    if (!departmentId || departmentId === "contract-archive") return;
+    if (
+      !departmentId ||
+      departmentId === "contract-archive" ||
+      departmentId === "management-workflow"
+    )
+      return;
     setLoadError(false);
 
     const token = localStorage.getItem("access_token");
@@ -71,6 +76,10 @@ export default function DepartmentPage() {
 
   if (departmentId === "contract-archive") {
     return <Navigate to="/contracts-archive" replace />;
+  }
+
+  if (departmentId === "management-workflow") {
+    return <Navigate to="/management-workflow" replace />;
   }
 
   if (loadError) {

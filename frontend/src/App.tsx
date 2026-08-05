@@ -25,6 +25,9 @@ import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminDutiesPage from "./pages/admin/AdminDutiesPage";
 import AdminSessionsPage from "./pages/admin/AdminSessionsPage";
 import AdminBannerPage from "./pages/admin/AdminBannerPage";
+import ManagementWorkflowHome from "./pages/management/ManagementWorkflowHome";
+import SendLetterPage from "./pages/management/SendLetterPage";
+import LetterReportPage from "./pages/management/LetterReportPage";
 
 export default function App() {
   return (
@@ -144,6 +147,33 @@ export default function App() {
         element={
           <ProtectedRoute>
             <PdfLibraryPage category="documents" />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/management-workflow"
+        element={
+          <ProtectedRoute>
+            <ManagementWorkflowHome />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/management-workflow/send"
+        element={
+          <ProtectedRoute>
+            <SendLetterPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/management-workflow/report"
+        element={
+          <ProtectedRoute>
+            <LetterReportPage />
           </ProtectedRoute>
         }
       />

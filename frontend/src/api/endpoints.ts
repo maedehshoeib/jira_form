@@ -32,4 +32,8 @@ export const endpoints = {
   adminNews: "/admin/news",
   adminPdfForms: "/admin/pdf-forms",
   news: "/news",
+  managementLetters: "/management-letters",
+  managementLetterRecipients: "/management-letters/recipients",
+  managementLetterReport: "/management-letters/report",
+  managementLetterAccess: "/management-letters/access",
 };

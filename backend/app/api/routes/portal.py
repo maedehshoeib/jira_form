@@ -31,9 +31,18 @@ from app.schemas.submission import (
 )
 from app.schemas.pdf_form import PdfFormResponse
 from app.services.pdf_form_service import normalize_pdf_category
-from app.services.portal_service import DEPARTMENTS, FORM_TEMPLATES
-from app.services.form_access_service import allowed_target_keys, can_access_target
+from app.services.form_access_service import (
+    RESTRICTED_PORTAL_DEPARTMENTS,
+    allowed_target_keys,
+    can_access_target,
+)
 from app.services.form_duty_service import user_handles_target
+from app.services.portal_service import (
+    DEPARTMENTS,
+    FORM_TEMPLATES,
+    MANAGEMENT_LETTER_FORM_ID,
+    MANAGEMENT_WORKFLOW_ID,
+)
 from app.services.task_workflow_service import (
     list_colleagues,
     list_pending_task_ids,
@@ -208,7 +217,13 @@ def get_departments(
 ):
     allowed = allowed_target_keys(db, current_user)
     if allowed is None:
-        return DEPARTMENTS
+        if current_user.is_admin:
+            return DEPARTMENTS
+        return [
+            department
+            for department in DEPARTMENTS
+            if department.id not in RESTRICTED_PORTAL_DEPARTMENTS
+        ]
     result = []
     for department in DEPARTMENTS:
         if department.sections:
@@ -250,6 +265,8 @@ def get_form(
         raise HTTPException(status_code=404, detail="Form not found")
     portal_department_id = department or form.department_id
     section_id = section or form.section_id
+    if form_id == MANAGEMENT_LETTER_FORM_ID:
+        portal_department_id = MANAGEMENT_WORKFLOW_ID
     handles = user_handles_target(
         db, current_user.id, portal_department_id, section_id, form_id
     )
@@ -282,6 +299,11 @@ async def create_submission(
     form_id = str(form.get("form_id", "common-form"))
     department_id = str(form.get("department_id", ""))
     section_id = str(form.get("section_id", ""))
+    if form_id == MANAGEMENT_LETTER_FORM_ID:
+        raise HTTPException(
+            status_code=400,
+            detail="برای ارسال نامه از بخش گردش کار مدیریت استفاده کنید.",
+        )
     if form_id not in FORM_TEMPLATES or not can_access_target(
         db, current_user, department_id, section_id, form_id
     ):

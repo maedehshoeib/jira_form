@@ -936,6 +936,7 @@ def create_user(
         is_active=body.is_active,
         must_change_password=body.must_change_password,
         is_admin=body.is_admin,
+        is_letter_recipient=body.is_letter_recipient,
     )
     db.add(user)
     db.commit()

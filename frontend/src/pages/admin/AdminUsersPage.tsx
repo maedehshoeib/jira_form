@@ -39,6 +39,7 @@ type ManagedUser = {
   is_birthday?: boolean;
   is_active: boolean;
   is_admin: boolean;
+  is_letter_recipient: boolean;
   must_change_password: boolean;
   created_at: string;
   last_login: string | null;
@@ -71,6 +72,7 @@ type UserForm = {
   extension: string;
   is_active: boolean;
   is_admin: boolean;
+  is_letter_recipient: boolean;
   must_change_password: boolean;
 };
 
@@ -89,6 +91,7 @@ const emptyForm: UserForm = {
   extension: "",
   is_active: true,
   is_admin: false,
+  is_letter_recipient: false,
   must_change_password: true,
 };
 
@@ -222,6 +225,7 @@ export default function AdminUsersPage() {
       extension: user.extension,
       is_active: user.is_active,
       is_admin: user.is_admin,
+      is_letter_recipient: user.is_letter_recipient,
       must_change_password: user.must_change_password,
     });
     setEditing(user);
@@ -693,14 +697,21 @@ export default function AdminUsersPage() {
                               {formatDate(user.last_login)}
                             </td>
                             <td className="px-5 py-4">
-                              {user.is_active ? (
-                                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                                  <UserCheck className="ml-1" size={13} />
-                                  فعال
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline">غیرفعال</Badge>
-                              )}
+                              <div className="flex flex-wrap gap-2">
+                                {user.is_active ? (
+                                  <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                                    <UserCheck className="ml-1" size={13} />
+                                    فعال
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline">غیرفعال</Badge>
+                                )}
+                                {user.is_letter_recipient && (
+                                  <Badge className="bg-indigo-100 text-indigo-700 hover:bg-indigo-100">
+                                    گیرنده نامه
+                                  </Badge>
+                                )}
+                              </div>
                             </td>
                             <td className="px-5 py-4">
                               <div className="flex justify-end gap-2">
@@ -899,6 +910,22 @@ export default function AdminUsersPage() {
                 />
                 حساب مدیر سیستم
               </label>
+              <label className="flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4 text-sm font-semibold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={form.is_letter_recipient}
+                  onChange={(event) =>
+                    update("is_letter_recipient", event.target.checked)
+                  }
+                  className="h-4 w-4 accent-indigo-600"
+                />
+                <span>
+                  <span className="block">دریافت‌کننده نامه مدیریت</span>
+                  <span className="mt-1 block text-xs font-medium text-slate-500">
+                    در فهرست گیرندگان «ارسال نامه» در گردش کار مدیریت نمایش داده می‌شود
+                  </span>
+                </span>
+              </label>
               <label className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4 text-sm font-semibold text-slate-700">
                 <input
                   type="checkbox"
@@ -946,7 +973,9 @@ export default function AdminUsersPage() {
                   دسترسی فرم‌ها: {accessEditor.title}
                 </h3>
                 <p className="mt-1 text-xs text-slate-500">
-                  دسترسی اختصاصی کاربر بر تنظیمات واحد سازمانی اولویت دارد.
+                  دسترسی اختصاصی کاربر بر تنظیمات واحد سازمانی اولویت دارد. کارت
+                  «گردش کار مدیریت» فقط برای مدیر و کسانی که اینجا انتخاب شوند
+                  نمایش داده می‌شود.
                 </p>
               </div>
               <Button

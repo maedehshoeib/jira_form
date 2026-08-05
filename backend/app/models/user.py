@@ -21,6 +21,7 @@ class User(Base):
         ForeignKey("departments.id", ondelete="SET NULL"), nullable=True, index=True
     )
     form_access_configured: Mapped[bool] = mapped_column(default=False)
+    is_letter_recipient: Mapped[bool] = mapped_column(default=False, index=True)
     job_title: Mapped[str] = mapped_column(String(512), default="")
     extension: Mapped[str] = mapped_column(String(32), default="")
     avatar_url: Mapped[str] = mapped_column(String(512), default="")

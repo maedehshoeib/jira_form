@@ -162,6 +162,10 @@ def _migrate_users_db():
             "birth_date",
             "ALTER TABLE users ADD COLUMN birth_date DATE",
         ),
+        (
+            "is_letter_recipient",
+            "ALTER TABLE users ADD COLUMN is_letter_recipient BOOLEAN NOT NULL DEFAULT 0",
+        ),
     ]
     with engine.begin() as conn:
         for column_name, ddl in migrations:

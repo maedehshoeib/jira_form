@@ -341,6 +341,7 @@ DEPARTMENTS = [
         ),
     ]),
     Department(id="contract-archive", title="ارشیو قراردادها", sections=[]),
+    Department(id="management-workflow", title="گردش کار مدیریت", sections=[]),
 ]
 
 DEPARTMENTS[0].sections.append(
@@ -351,6 +352,10 @@ DEPARTMENTS[0].sections.append(
     )
 )
 
+MANAGEMENT_WORKFLOW_ID = "management-workflow"
+MANAGEMENT_LETTER_SECTION = "send-letter"
+MANAGEMENT_LETTER_FORM_ID = "management-letter-form"
+
 FORM_TEMPLATES = {
     "software-development-form": FormTemplate(
         id="software-development-form",
@@ -358,6 +363,13 @@ FORM_TEMPLATES = {
         department_id="it",
         section_id="software-development",
         fields=SOFTWARE_DEVELOPMENT_FIELDS,
+    ),
+    MANAGEMENT_LETTER_FORM_ID: FormTemplate(
+        id=MANAGEMENT_LETTER_FORM_ID,
+        title="ارسال نامه",
+        department_id=MANAGEMENT_WORKFLOW_ID,
+        section_id=MANAGEMENT_LETTER_SECTION,
+        fields=COMMON_FIELDS,
     ),
     "common-form": FormTemplate(id="common-form", title="فرم عمومی درخواست", department_id="", section_id="", fields=COMMON_FIELDS),
     "software-support-form": FormTemplate(id="software-support-form", title="درخواست پشتیبانی نرم افزار", department_id="it", section_id="software-support", fields=IT_SUPPORT_FIELDS),

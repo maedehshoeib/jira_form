@@ -19,6 +19,7 @@ class AdminUserResponse(BaseModel):
     birth_date: date | None = None
     is_active: bool
     is_admin: bool
+    is_letter_recipient: bool = False
     must_change_password: bool
     created_at: datetime
     last_login: datetime | None
@@ -44,6 +45,7 @@ class AdminUserCreate(BaseModel):
     extension: str = Field(default="", max_length=32)
     is_active: bool = True
     is_admin: bool = False
+    is_letter_recipient: bool = False
     must_change_password: bool = True
 
 
@@ -59,6 +61,7 @@ class AdminUserUpdate(BaseModel):
     extension: str | None = Field(default=None, max_length=32)
     is_active: bool | None = None
     is_admin: bool | None = None
+    is_letter_recipient: bool | None = None
     must_change_password: bool | None = None
 
 

@@ -10,6 +10,7 @@ from app.api.routes.admin import router as admin_router
 from app.api.routes.chat import router as chat_router
 from app.api.routes.contracts import router as contracts_router
 from app.api.routes.jira import router as jira_router
+from app.api.routes.management_letters import router as management_letters_router
 from app.api.routes.portal import router as portal_router
 from app.api.routes.reports import router as reports_router
 from app.api.routes.timesheet import router as timesheet_router
@@ -32,6 +33,9 @@ app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(admin_router, prefix="/api/v1/admin", tags=["admin"])
 app.include_router(chat_router, prefix="/api/v1/chat", tags=["chat"])
 app.include_router(portal_router, prefix="/api/v1", tags=["portal"])
+app.include_router(
+    management_letters_router, prefix="/api/v1", tags=["management-letters"]
+)
 app.include_router(reports_router, prefix="/api/v1/reports", tags=["reports"])
 app.include_router(contracts_router, prefix="/api/v1/contracts", tags=["contracts"])
 app.include_router(jira_router, prefix="/api/v1/jira", tags=["jira"])

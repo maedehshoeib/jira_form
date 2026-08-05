@@ -4,7 +4,11 @@ from sqlalchemy.orm import Session
 
 from app.models.form_template import DepartmentFormAccess, UserFormAccess
 from app.models.user import User
-from app.services.portal_service import DEPARTMENTS
+from app.services.portal_service import DEPARTMENTS, MANAGEMENT_WORKFLOW_ID
+
+
+# Visible only to admins or users/departments explicitly granted access.
+RESTRICTED_PORTAL_DEPARTMENTS = frozenset({MANAGEMENT_WORKFLOW_ID})
 
 
 @dataclass(frozen=True)
@@ -35,7 +39,7 @@ def access_catalog() -> list[AccessTarget]:
                 for section in department.sections
             )
         else:
-            # Standalone home-page applications (currently the contract archive).
+            # Standalone home-page applications (contract archive, management workflow).
             targets.append(
                 AccessTarget(
                     portal_department_id=department.id,
@@ -50,6 +54,10 @@ def access_catalog() -> list[AccessTarget]:
 
 def target_key(portal_department_id: str, section_id: str, form_id: str) -> str:
     return f"{portal_department_id}:{section_id}:{form_id}"
+
+
+def restricted_department_key(portal_department_id: str) -> str:
+    return target_key(portal_department_id, "", portal_department_id)
 
 
 def parse_target_keys(keys: list[str]) -> list[AccessTarget]:
@@ -85,6 +93,19 @@ def allowed_target_keys(db: Session, user: User) -> set[str] | None:
     }
 
 
+def can_access_restricted_department(
+    db: Session, user: User, portal_department_id: str
+) -> bool:
+    if portal_department_id not in RESTRICTED_PORTAL_DEPARTMENTS:
+        return True
+    if user.is_admin:
+        return True
+    allowed = allowed_target_keys(db, user)
+    if allowed is None:
+        return False
+    return restricted_department_key(portal_department_id) in allowed
+
+
 def can_access_target(
     db: Session,
     user: User,
@@ -92,6 +113,8 @@ def can_access_target(
     section_id: str,
     form_id: str,
 ) -> bool:
+    if portal_department_id in RESTRICTED_PORTAL_DEPARTMENTS:
+        return can_access_restricted_department(db, user, portal_department_id)
     allowed = allowed_target_keys(db, user)
     return allowed is None or target_key(
         portal_department_id, section_id, form_id
