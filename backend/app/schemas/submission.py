@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -71,6 +72,8 @@ class TaskColleague(BaseModel):
     display_name: str
     department: str
     job_title: str
+    birth_date: date | None = None
+    is_birthday: bool = False
 
 
 class TaskPendingNotification(BaseModel):

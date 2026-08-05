@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
+from app.core.birthday import user_display_name
 from app.models.form_template import FormDutyAssignment
 from app.models.submission import Submission
 from app.models.user import User
@@ -50,7 +51,7 @@ def list_assignments(db: Session) -> list[DutyEdge]:
             DutyEdge(
                 user_id=user.id,
                 username=user.username,
-                display_name=user.display_name or user.username,
+                display_name=user_display_name(user) or user.username,
                 portal_department_id=assignment.portal_department_id,
                 portal_department_title=(
                     target.portal_department_title if target else assignment.portal_department_id

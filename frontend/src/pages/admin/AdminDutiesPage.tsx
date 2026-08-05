@@ -30,6 +30,7 @@ import {
   formTargetKey,
   saveFormDuties,
 } from "../../features/admin/formDuties";
+import { formatUserDisplayName } from "../../lib/userDisplay";
 
 type ManagedUser = {
   id: number;
@@ -38,6 +39,8 @@ type ManagedUser = {
   department: string;
   job_title: string;
   avatar_url: string;
+  birth_date?: string | null;
+  is_birthday?: boolean;
   is_active: boolean;
   is_admin: boolean;
 };
@@ -441,13 +444,13 @@ export default function AdminDutiesPage() {
                         className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm"
                       >
                         <UserAvatar
-                          name={user.display_name || user.username}
+                          name={formatUserDisplayName(user)}
                           avatarUrl={user.avatar_url}
                           className="h-9 w-9 rounded-xl"
                         />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium text-slate-900">
-                            {user.display_name || user.username}
+                            {formatUserDisplayName(user)}
                           </p>
                           <p className="truncate text-xs text-slate-500">
                             {user.job_title || user.department || user.username}
@@ -468,7 +471,7 @@ export default function AdminDutiesPage() {
                           onPointerDown={(event) => beginDragFromUser(event, user.id)}
                           className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-red-500 bg-red-50 text-red-600 transition hover:bg-red-100"
                           title="کشیدن برای اتصال"
-                          aria-label={`اتصال وظایف برای ${user.display_name || user.username}`}
+                          aria-label={`اتصال وظایف برای ${formatUserDisplayName(user)}`}
                         >
                           <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
                         </button>
@@ -665,7 +668,7 @@ export default function AdminDutiesPage() {
                       {form?.section_title || edge.target_key}
                     </span>
                     <span className="text-slate-400">←</span>
-                    <span>{user?.display_name || user?.username || edge.user_id}</span>
+                    <span>{formatUserDisplayName(user, String(edge.user_id))}</span>
                     <X className="h-3 w-3" />
                   </button>
                 );

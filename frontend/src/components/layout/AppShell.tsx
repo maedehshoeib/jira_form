@@ -24,6 +24,7 @@ import logo from "../../assets/logo.png";
 import client from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../context/AuthContext";
+import { formatUserDisplayName } from "../../lib/userDisplay";
 import { cn } from "../../lib/utils";
 import ThemeToggle from "../ThemeToggle";
 import { Button } from "../ui/button";
@@ -336,14 +337,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
           >
             <div className="flex items-center gap-3">
               <UserAvatar
-                name={user.display_name || user.username}
+                name={formatUserDisplayName(user)}
                 avatarUrl={user.avatar_url}
                 className="h-11 w-11 rounded-xl shadow-sm"
                 fallbackClassName="bg-white text-red-600"
               />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-bold text-white">
-                  {user.display_name || user.username}
+                  {formatUserDisplayName(user)}
                 </p>
                 <p className="mt-0.5 truncate text-xs text-red-100/70">{user.username}</p>
               </div>

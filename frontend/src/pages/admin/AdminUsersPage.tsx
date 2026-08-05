@@ -21,6 +21,7 @@ import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { formatPersianDateTime } from "../../lib/persianDate";
+import { formatUserDisplayName } from "../../lib/userDisplay";
 
 type ManagedUser = {
   id: number;
@@ -33,6 +34,8 @@ type ManagedUser = {
   job_title: string;
   extension: string;
   avatar_url: string;
+  birth_date?: string | null;
+  is_birthday?: boolean;
   is_active: boolean;
   is_admin: boolean;
   must_change_password: boolean;
@@ -254,7 +257,7 @@ export default function AdminUsersPage() {
   const removeUser = async (user: ManagedUser) => {
     if (
       !window.confirm(
-        `دسترسی کاربر «${user.display_name || user.username}» حذف شود؟ سوابق درخواست‌های او حفظ خواهد شد.`,
+        `دسترسی کاربر «${formatUserDisplayName(user)}» حذف شود؟ سوابق درخواست‌های او حفظ خواهد شد.`,
       )
     )
       return;
@@ -662,13 +665,13 @@ export default function AdminUsersPage() {
                             <td className="px-5 py-4">
                               <div className="flex items-center gap-3">
                                 <UserAvatar
-                                  name={user.display_name || user.username}
+                                  name={formatUserDisplayName(user)}
                                   avatarUrl={user.avatar_url}
                                   className="h-11 w-11 rounded-xl"
                                 />
                                 <div>
                                   <p className="font-bold text-slate-800">
-                                    {user.display_name || "بدون نام"}
+                                    {formatUserDisplayName(user, "بدون نام")}
                                   </p>
                                   <p className="mt-1 text-xs text-slate-500" dir="ltr">
                                     {user.username}
@@ -707,7 +710,7 @@ export default function AdminUsersPage() {
                                     void openAccess({
                                       kind: "user",
                                       id: user.id,
-                                      title: user.display_name || user.username,
+                                      title: formatUserDisplayName(user),
                                     })
                                   }
                                   className="h-9 w-9 rounded-xl text-emerald-600"

@@ -2,6 +2,10 @@ import axios from "axios";
 import { BriefcaseBusiness, Camera, KeyRound, Save, UserRound } from "lucide-react";
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { DateObject } from "react-multi-date-picker";
+import gregorian from "react-date-object/calendars/gregorian";
+import persian from "react-date-object/calendars/persian";
+import persianFa from "react-date-object/locales/persian_fa";
 
 import client from "../api/client";
 import { endpoints } from "../api/endpoints";
@@ -12,11 +16,38 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { useAuth } from "../context/AuthContext";
+import { JalaliDateTimePicker } from "../features/timesheet/components/jalali-date-time-picker";
+import { formatUserDisplayName } from "../lib/userDisplay";
+
+function isoToJalali(iso: string | null | undefined): DateObject | null {
+  if (!iso) return null;
+  try {
+    return new DateObject({
+      date: iso.slice(0, 10),
+      format: "YYYY-MM-DD",
+      calendar: gregorian,
+    }).convert(persian, persianFa);
+  } catch {
+    return null;
+  }
+}
+
+function jalaliToIso(value: DateObject | DateObject[] | null): string | null {
+  if (!value || Array.isArray(value)) return null;
+  try {
+    return value.convert(gregorian).format("YYYY-MM-DD");
+  } catch {
+    return null;
+  }
+}
 
 export default function ProfilePage() {
   const { user, updateUser } = useAuth();
   const [displayName, setDisplayName] = useState(user?.display_name || "");
   const [email, setEmail] = useState(user?.email || "");
+  const [birthDate, setBirthDate] = useState<DateObject | null>(() =>
+    isoToJalali(user?.birth_date)
+  );
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -25,6 +56,7 @@ export default function ProfilePage() {
   useEffect(() => {
     setDisplayName(user?.display_name || "");
     setEmail(user?.email || "");
+    setBirthDate(isoToJalali(user?.birth_date));
   }, [user]);
 
   if (!user) return null;
@@ -61,6 +93,7 @@ export default function ProfilePage() {
       const { data } = await client.put(endpoints.profile, {
         display_name: displayName,
         email,
+        birth_date: jalaliToIso(birthDate),
       });
       updateUser(data);
       setMessage("اطلاعات پروفایل با موفقیت ذخیره شد.");
@@ -107,7 +140,7 @@ export default function ProfilePage() {
             <CardContent>
               <div className="mb-6 flex items-center gap-4 rounded-2xl bg-slate-50 p-4">
                 <UserAvatar
-                  name={user.display_name || user.username}
+                  name={formatUserDisplayName(user)}
                   avatarUrl={user.avatar_url}
                   className="h-20 w-20 rounded-2xl"
                 />
@@ -160,6 +193,33 @@ export default function ProfilePage() {
                     required
                     className="h-11 rounded-xl text-left"
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label>تاریخ تولد</Label>
+                  <JalaliDateTimePicker
+                    value={birthDate}
+                    onChange={(value) =>
+                      setBirthDate(
+                        value && !Array.isArray(value) ? (value as DateObject) : null
+                      )
+                    }
+                    placeholder="انتخاب تاریخ تولد"
+                    format="YYYY/MM/DD"
+                  />
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-slate-400">
+                      در روز تولد، کنار نام شما کیک 🎂 نمایش داده می‌شود.
+                    </p>
+                    {birthDate && (
+                      <button
+                        type="button"
+                        className="shrink-0 text-xs text-slate-500 underline-offset-2 hover:underline"
+                        onClick={() => setBirthDate(null)}
+                      >
+                        پاک کردن
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <Button
                   type="submit"

@@ -8,6 +8,8 @@ export type ChatUser = {
   job_title: string;
   extension: string;
   avatar_url: string;
+  birth_date?: string | null;
+  is_birthday?: boolean;
   role?: "owner" | "member";
   last_read_message_id?: number | null;
 };

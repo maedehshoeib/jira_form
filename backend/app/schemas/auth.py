@@ -1,4 +1,8 @@
-from pydantic import BaseModel, EmailStr, Field, model_validator
+from datetime import date
+
+from pydantic import BaseModel, EmailStr, Field, computed_field, model_validator
+
+from app.core.birthday import is_birthday_today
 
 
 class LoginRequest(BaseModel):
@@ -19,8 +23,14 @@ class UserResponse(BaseModel):
     job_title: str
     extension: str
     avatar_url: str
+    birth_date: date | None = None
     must_change_password: bool
     is_admin: bool
+
+    @computed_field
+    @property
+    def is_birthday(self) -> bool:
+        return is_birthday_today(self.birth_date)
 
     class Config:
         from_attributes = True
@@ -35,6 +45,7 @@ class TokenResponse(BaseModel):
 class ProfileUpdateRequest(BaseModel):
     display_name: str = Field(min_length=1, max_length=256)
     email: EmailStr
+    birth_date: date | None = None
 
 
 class ChangePasswordRequest(BaseModel):

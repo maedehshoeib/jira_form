@@ -21,6 +21,8 @@ export type AuthUser = {
   job_title: string;
   extension: string;
   avatar_url: string;
+  birth_date?: string | null;
+  is_birthday?: boolean;
   must_change_password: boolean;
   is_admin: boolean;
 };

@@ -1,3 +1,5 @@
+from datetime import date
+
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -9,6 +11,8 @@ class ChatUserResponse(BaseModel):
     job_title: str
     extension: str
     avatar_url: str
+    birth_date: date | None = None
+    is_birthday: bool = False
 
 
 class ConversationCreate(BaseModel):

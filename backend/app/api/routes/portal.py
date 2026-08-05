@@ -11,6 +11,7 @@ from app.api.routes.submissions_helpers import (
     _submission_to_response,
     require_api_key_or_user,
 )
+from app.core.birthday import is_birthday_today
 from app.core.config import settings
 from app.core.deps import get_current_user
 from app.db.session import get_db
@@ -407,6 +408,8 @@ def get_task_colleagues(
             display_name=user.display_name or user.username,
             department=user.department or "",
             job_title=user.job_title or "",
+            birth_date=user.birth_date,
+            is_birthday=is_birthday_today(user.birth_date),
         )
         for user in list_colleagues(db, current_user.id)
     ]

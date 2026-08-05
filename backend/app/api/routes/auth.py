@@ -197,6 +197,7 @@ def update_profile(
 ):
     current_user.display_name = body.display_name.strip()
     current_user.email = str(body.email).strip().lower()
+    current_user.birth_date = body.birth_date
     db.commit()
     db.refresh(current_user)
     return UserResponse.model_validate(current_user)

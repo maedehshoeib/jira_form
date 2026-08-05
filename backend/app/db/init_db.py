@@ -158,6 +158,10 @@ def _migrate_users_db():
             "avatar_url",
             "ALTER TABLE users ADD COLUMN avatar_url VARCHAR(512) NOT NULL DEFAULT ''",
         ),
+        (
+            "birth_date",
+            "ALTER TABLE users ADD COLUMN birth_date DATE",
+        ),
     ]
     with engine.begin() as conn:
         for column_name, ddl in migrations:

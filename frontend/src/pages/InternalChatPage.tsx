@@ -39,6 +39,7 @@ import AppShell from "../components/layout/AppShell";
 import UserAvatar from "../components/UserAvatar";
 import { useAuth } from "../context/AuthContext";
 import { formatPersianDateTime } from "../lib/persianDate";
+import { formatUserDisplayName } from "../lib/userDisplay";
 import {
   ChatMessage,
   ChatUser,
@@ -799,7 +800,7 @@ export default function InternalChatPage() {
                           >
                             {!mine && (
                               <UserAvatar
-                                name={message.sender.display_name || message.sender.username}
+                                name={formatUserDisplayName(message.sender)}
                                 avatarUrl={message.sender.avatar_url}
                                 className="h-8 w-8 rounded-lg"
                               />
@@ -815,8 +816,7 @@ export default function InternalChatPage() {
                             >
                               {!mine && active.kind === "group" && (
                                 <p className="mb-1 text-xs font-bold text-red-600">
-                                  {message.sender.display_name ||
-                                    message.sender.username}
+                                  {formatUserDisplayName(message.sender)}
                                 </p>
                               )}
                               {message.is_forwarded && !message.deleted_at && (
@@ -1074,10 +1074,7 @@ export default function InternalChatPage() {
                               ? "ویرایش پیام"
                               : attachment
                                 ? "فایل پیوست"
-                                : `پاسخ به ${
-                                    replyingTo?.sender.display_name ||
-                                    replyingTo?.sender.username
-                                  }`}
+                                : `پاسخ به ${formatUserDisplayName(replyingTo?.sender)}`}
                           </p>
                           <p className="mt-0.5 truncate text-slate-500">
                             {attachment?.name ||
@@ -1354,12 +1351,12 @@ function NewConversationModal({
               className="flex w-full items-center gap-3 rounded-2xl p-2.5 text-right hover:bg-slate-50"
             >
               <UserAvatar
-                name={item.display_name || item.username}
+                name={formatUserDisplayName(item)}
                 avatarUrl={item.avatar_url}
               />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-bold text-slate-800">
-                  {item.display_name || item.username}
+                  {formatUserDisplayName(item)}
                 </span>
                 <span className="mt-0.5 block truncate text-xs text-slate-500">
                   {[item.job_title, item.department].filter(Boolean).join(" • ")}
@@ -1671,7 +1668,7 @@ function ConversationInfoModal({
                     className="flex w-full items-center gap-2 rounded-xl p-2 text-right text-sm hover:bg-slate-50"
                   >
                     <Plus size={15} className="text-red-600" />
-                    {item.display_name || item.username}
+                    {formatUserDisplayName(item)}
                   </button>
                 ))}
               </div>
@@ -1687,7 +1684,7 @@ function ConversationInfoModal({
                     disabled={!member.avatar_url}
                     onClick={() =>
                       openAvatarPreview(
-                        member.display_name || member.username,
+                        formatUserDisplayName(member),
                         member.avatar_url,
                       )
                     }
@@ -1695,14 +1692,14 @@ function ConversationInfoModal({
                     title={member.avatar_url ? "مشاهده تصویر پروفایل" : undefined}
                   >
                     <UserAvatar
-                      name={member.display_name || member.username}
+                      name={formatUserDisplayName(member)}
                       avatarUrl={member.avatar_url}
                       className="h-9 w-9 rounded-xl"
                     />
                   </button>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-bold">
-                      {member.display_name || member.username}
+                      {formatUserDisplayName(member)}
                       {member.id === currentUserId ? " (شما)" : ""}
                     </span>
                     <span className="block truncate text-xs text-slate-400">
@@ -1719,7 +1716,7 @@ function ConversationInfoModal({
                         onClick={async () => {
                           if (
                             !window.confirm(
-                              `${member.display_name || member.username} از گروه حذف شود؟`,
+                              `${formatUserDisplayName(member)} از گروه حذف شود؟`,
                             )
                           )
                             return;

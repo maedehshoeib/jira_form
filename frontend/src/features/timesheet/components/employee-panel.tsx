@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { formatUserDisplayName } from '@/lib/userDisplay';
 
 import {
   fetchMyRangeRecords,
@@ -190,7 +191,7 @@ export function EmployeePanel(): JSX.Element {
   const { user } = useAuth();
   const navigate = useNavigate();
   const initialDate = useMemo(() => today(), []);
-  const fullName = user?.display_name || user?.username || 'کاربر';
+  const fullName = formatUserDisplayName(user, 'کاربر');
 
   const [taskDate, setTaskDate] = useState<DateObject | null>(initialDate);
   const [taskStartTime, setTaskStartTime] = useState<DateObject | null>(null);

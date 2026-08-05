@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { formatUserDisplayName } from '@/lib/userDisplay';
 import {
   adminCreateAttendance,
   adminCreateProject,
@@ -274,7 +275,7 @@ export function AdminPanel(): JSX.Element {
   const [editorTaskEnd, setEditorTaskEnd] = useState<DateObject | null>(null);
   const [editorBusy, setEditorBusy] = useState(false);
   const [status, setStatus] = useState('');
-  const fullName = user?.display_name || user?.username || 'مدیر سیستم';
+  const fullName = formatUserDisplayName(user, 'مدیر سیستم');
 
   const applyPreset = (nextPreset: PeriodPreset) => {
     setPreset(nextPreset);

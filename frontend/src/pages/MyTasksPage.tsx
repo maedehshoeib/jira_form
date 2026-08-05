@@ -25,6 +25,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { FormField, FormTemplate } from "../config/portal";
 import { formatPersianDateTime } from "../lib/persianDate";
+import { formatUserDisplayName } from "../lib/userDisplay";
 
 type ReferralItem = {
   id: number;
@@ -66,6 +67,8 @@ type Colleague = {
   display_name: string;
   department: string;
   job_title: string;
+  birth_date?: string | null;
+  is_birthday?: boolean;
 };
 
 type TimeRange = "all" | "today" | "7days" | "30days" | "90days";
@@ -880,7 +883,7 @@ export default function MyTasksPage() {
                           }`}
                         >
                           <span className="font-medium">
-                            {user.display_name || user.username}
+                            {formatUserDisplayName(user)}
                           </span>
                           <span className="text-xs text-slate-500">
                             {user.job_title || user.department || user.username}

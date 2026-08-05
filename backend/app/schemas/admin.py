@@ -1,6 +1,8 @@
-from datetime import datetime
+from datetime import date, datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
+
+from app.core.birthday import is_birthday_today
 
 
 class AdminUserResponse(BaseModel):
@@ -14,11 +16,17 @@ class AdminUserResponse(BaseModel):
     job_title: str
     extension: str
     avatar_url: str
+    birth_date: date | None = None
     is_active: bool
     is_admin: bool
     must_change_password: bool
     created_at: datetime
     last_login: datetime | None
+
+    @computed_field
+    @property
+    def is_birthday(self) -> bool:
+        return is_birthday_today(self.birth_date)
 
     class Config:
         from_attributes = True

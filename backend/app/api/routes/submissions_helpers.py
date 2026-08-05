@@ -75,7 +75,9 @@ def _department_and_section_titles(
 def _user_display(user: User | None) -> str:
     if not user:
         return "نامشخص"
-    return user.display_name or user.username
+    from app.core.birthday import user_display_name
+
+    return user_display_name(user) or "نامشخص"
 
 
 def _referral_items(

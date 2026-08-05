@@ -23,6 +23,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.birthday import is_birthday_today, user_display_name
 from app.core.config import settings
 from app.core.deps import get_current_user
 from app.core.security import decode_access_token
@@ -116,6 +117,8 @@ def _user_dict(user: User) -> dict:
         "job_title": user.job_title,
         "extension": user.extension,
         "avatar_url": user.avatar_url,
+        "birth_date": user.birth_date.isoformat() if user.birth_date else None,
+        "is_birthday": is_birthday_today(user.birth_date),
     }
 
 
@@ -135,7 +138,7 @@ def _reaction_dicts(db: Session, message_ids: list[int]) -> dict[int, list[dict]
             reaction.emoji, {"emoji": reaction.emoji, "user_ids": [], "users": []}
         )
         bucket["user_ids"].append(user.id)
-        bucket["users"].append(user.display_name or user.username)
+        bucket["users"].append(user_display_name(user))
     return {key: list(value.values()) for key, value in result.items()}
 
 
@@ -152,11 +155,7 @@ def _message_dict(
         reply = {
             "id": reply_message.id,
             "body": "پیام حذف شده" if reply_message.deleted_at else reply_message.body,
-            "sender_name": (
-                (reply_sender.display_name or reply_sender.username)
-                if reply_sender
-                else ""
-            ),
+            "sender_name": user_display_name(reply_sender) if reply_sender else "",
             "has_attachment": bool(
                 reply_message.attachment_path and not reply_message.deleted_at
             ),
@@ -270,7 +269,7 @@ def _conversation_dict(
     title = (
         conversation.title
         if conversation.kind == "group"
-        else (other.display_name or other.username if other else "گفتگوی شخصی")
+        else (user_display_name(other) if other else "گفتگوی شخصی")
     )
     return {
         "id": conversation.id,
@@ -869,7 +868,7 @@ async def chat_socket(websocket: WebSocket, token: str = Query(default="")):
                             "type": "typing",
                             "conversation_id": conversation_id,
                             "user_id": user_id,
-                            "user_name": user.display_name or user.username,
+                            "user_name": user_display_name(user),
                         },
                     )
             finally:
