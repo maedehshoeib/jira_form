@@ -15,6 +15,7 @@ import {
   Clock3,
   Download,
   Filter,
+  FolderTree,
   Pencil,
   Plus,
   Printer,
@@ -236,6 +237,7 @@ export function AdminPanel(): JSX.Element {
   const [selectedEmployee, setSelectedEmployee] = useState('all');
   const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [selectedProject, setSelectedProject] = useState('all');
+  const [selectedSubproject, setSelectedSubproject] = useState('all');
   const [records, setRecords] = useState<AdminRangeRecords | null>(null);
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -324,15 +326,52 @@ export function AdminPanel(): JSX.Element {
     return selectedDepartment === 'all' ? rows : rows.filter((item) => item.department === selectedDepartment);
   }, [records, selectedDepartment]);
 
+  const availableFilterSubprojects = useMemo(() => {
+    const source =
+      selectedProject === 'all'
+        ? projects
+        : projects.filter((project) => project.code === selectedProject);
+    const seen = new Set<string>();
+    const rows: SubprojectItem[] = [];
+    source.forEach((project) => {
+      (project.subprojects || []).forEach((subproject) => {
+        if (seen.has(subproject.code)) return;
+        seen.add(subproject.code);
+        rows.push(subproject);
+      });
+    });
+    return rows.sort((a, b) =>
+      (a.title || a.code).localeCompare(b.title || b.code, 'fa'),
+    );
+  }, [projects, selectedProject]);
+
+  useEffect(() => {
+    if (
+      selectedSubproject !== 'all' &&
+      selectedSubproject !== 'none' &&
+      !availableFilterSubprojects.some((item) => item.code === selectedSubproject)
+    ) {
+      setSelectedSubproject('all');
+    }
+  }, [availableFilterSubprojects, selectedSubproject]);
+
   const filteredTasks = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('fa');
     return (records?.tasks || []).filter((row) => {
       if (selectedProject !== 'all' && row.project_code !== selectedProject) return false;
+      if (selectedSubproject === 'none' && row.subproject_code) return false;
+      if (
+        selectedSubproject !== 'all' &&
+        selectedSubproject !== 'none' &&
+        row.subproject_code !== selectedSubproject
+      ) {
+        return false;
+      }
       if (!normalizedQuery) return true;
       return [row.full_name, row.username, row.department, row.project_code, row.subproject_code || '', row.task_name, row.work_date]
         .some((value) => value.toLocaleLowerCase('fa').includes(normalizedQuery));
     });
-  }, [records, selectedProject, query]);
+  }, [records, selectedProject, selectedSubproject, query]);
 
   const filteredAttendance = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('fa');
@@ -534,6 +573,7 @@ export function AdminPanel(): JSX.Element {
     reportTab,
     query,
     selectedProject,
+    selectedSubproject,
     selectedEmployee,
     selectedDepartment,
     records?.start_date,
@@ -1138,7 +1178,7 @@ export function AdminPanel(): JSX.Element {
               ))}
             </div>
           </div>
-          <div className='grid gap-3 md:grid-cols-2 xl:grid-cols-6'>
+          <div className='grid gap-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7'>
             <label>
               <span className='mb-1.5 block text-xs font-bold text-slate-500'>از تاریخ</span>
               <JalaliDateTimePicker value={startDate} onChange={(value: any) => { setStartDate(value); setPreset('custom'); }} format='YYYY/MM/DD' placeholder='تاریخ شروع' />
@@ -1155,9 +1195,31 @@ export function AdminPanel(): JSX.Element {
               <option value='all'>همه کارکنان</option>
               {availableEmployees.map((employee) => <option key={employee.employee_id} value={employee.employee_id}>{employee.full_name}</option>)}
             </SelectField>
-            <SelectField label='پروژه' value={selectedProject} onChange={setSelectedProject} icon={<BriefcaseBusiness className='h-4 w-4' />}>
+            <SelectField
+              label='پروژه'
+              value={selectedProject}
+              onChange={(value) => {
+                setSelectedProject(value);
+                setSelectedSubproject('all');
+              }}
+              icon={<BriefcaseBusiness className='h-4 w-4' />}
+            >
               <option value='all'>همه پروژه‌ها</option>
               {projects.map((project) => <option key={project.code} value={project.code}>{project.title || project.code}</option>)}
+            </SelectField>
+            <SelectField
+              label='زیرپروژه'
+              value={selectedSubproject}
+              onChange={setSelectedSubproject}
+              icon={<FolderTree className='h-4 w-4' />}
+            >
+              <option value='all'>همه زیرپروژه‌ها</option>
+              <option value='none'>بدون زیرپروژه</option>
+              {availableFilterSubprojects.map((subproject) => (
+                <option key={subproject.code} value={subproject.code}>
+                  {subproject.title || subproject.code}
+                </option>
+              ))}
             </SelectField>
             <Button onClick={() => void loadRecords()} disabled={loading} className='mt-auto h-11 gap-2 bg-cyan-700 text-white hover:bg-cyan-800'>
               {loading ? <Activity className='h-4 w-4 animate-spin' /> : <BarChart3 className='h-4 w-4' />}
