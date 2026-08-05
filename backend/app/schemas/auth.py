@@ -1,8 +1,27 @@
 from datetime import date
+from typing import Annotated
 
-from pydantic import BaseModel, EmailStr, Field, computed_field, model_validator
+from pydantic import BaseModel, BeforeValidator, EmailStr, Field, computed_field, model_validator
 
 from app.core.birthday import is_birthday_today
+
+_PERSIAN_DIGITS = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+
+
+def _parse_optional_date(value: object) -> date | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().translate(_PERSIAN_DIGITS)
+        if not normalized:
+            return None
+        return date.fromisoformat(normalized[:10])
+    raise TypeError("Invalid birth date")
+
+
+OptionalBirthDate = Annotated[date | None, BeforeValidator(_parse_optional_date)]
 
 
 class LoginRequest(BaseModel):
@@ -45,7 +64,7 @@ class TokenResponse(BaseModel):
 class ProfileUpdateRequest(BaseModel):
     display_name: str = Field(min_length=1, max_length=256)
     email: EmailStr
-    birth_date: date | None = None
+    birth_date: OptionalBirthDate = None
 
 
 class ChangePasswordRequest(BaseModel):

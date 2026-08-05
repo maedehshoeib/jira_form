@@ -25,7 +25,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { FormField, FormTemplate } from "../config/portal";
 import { formatPersianDateTime } from "../lib/persianDate";
-import { formatUserDisplayName } from "../lib/userDisplay";
+import UserDisplayName from "../components/UserDisplayName";
 
 type ReferralItem = {
   id: number;
@@ -883,7 +883,7 @@ export default function MyTasksPage() {
                           }`}
                         >
                           <span className="font-medium">
-                            {formatUserDisplayName(user)}
+                            <UserDisplayName user={user} />
                           </span>
                           <span className="text-xs text-slate-500">
                             {user.job_title || user.department || user.username}

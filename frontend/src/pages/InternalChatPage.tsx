@@ -37,6 +37,7 @@ import {
 
 import AppShell from "../components/layout/AppShell";
 import UserAvatar from "../components/UserAvatar";
+import UserDisplayName, { BirthdayBadge } from "../components/UserDisplayName";
 import { useAuth } from "../context/AuthContext";
 import { formatPersianDateTime } from "../lib/persianDate";
 import { formatUserDisplayName } from "../lib/userDisplay";
@@ -107,6 +108,30 @@ function errorText(error: unknown) {
   return "ارتباط با سرور برقرار نشد. دوباره تلاش کنید.";
 }
 
+function conversationPeer(
+  conversation: Conversation,
+  currentUserId?: number
+): ChatUser | undefined {
+  if (conversation.kind !== "direct") return undefined;
+  return conversation.members.find((member) => member.id !== currentUserId);
+}
+
+function ConversationTitle({
+  conversation,
+  currentUserId,
+  className,
+}: {
+  conversation: Conversation;
+  currentUserId?: number;
+  className?: string;
+}) {
+  const peer = conversationPeer(conversation, currentUserId);
+  if (peer) {
+    return <UserDisplayName user={peer} className={className} />;
+  }
+  return <span className={className}>{conversation.title}</span>;
+}
+
 type ModalProps = {
   title: string;
   children: React.ReactNode;
@@ -171,7 +196,10 @@ export default function InternalChatPage() {
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [reactionMessageId, setReactionMessageId] = useState<number | null>(null);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
-  const [typingText, setTypingText] = useState("");
+  const [typingUser, setTypingUser] = useState<{
+    name: string;
+    isBirthday?: boolean;
+  } | null>(null);
   const [error, setError] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -245,7 +273,7 @@ export default function InternalChatPage() {
     setMessages([]);
     setReplyingTo(null);
     setEditing(null);
-    setTypingText("");
+    setTypingUser(null);
     setMessageSearch("");
     setShowMessageSearch(false);
     setEmojiPickerOpen(false);
@@ -307,12 +335,16 @@ export default function InternalChatPage() {
             const typingPayload = payload as typeof payload & {
               user_id?: number;
               user_name?: string;
+              is_birthday?: boolean;
             };
             if (typingPayload.user_id !== user?.id) {
-              setTypingText(`${typingPayload.user_name || "همکار شما"} در حال نوشتن است...`);
+              setTypingUser({
+                name: typingPayload.user_name || "همکار شما",
+                isBirthday: Boolean(typingPayload.is_birthday),
+              });
               window.clearTimeout(typingTimerRef.current);
               typingTimerRef.current = window.setTimeout(
-                () => setTypingText(""),
+                () => setTypingUser(null),
                 2200,
               );
             }
@@ -620,7 +652,10 @@ export default function InternalChatPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1">
                         <p className={`truncate text-sm font-extrabold ${conversation.unread_count > 0 ? "text-orange-950" : "text-slate-800"}`}>
-                          {conversation.title}
+                          <ConversationTitle
+                            conversation={conversation}
+                            currentUserId={user?.id}
+                          />
                         </p>
                         {conversation.is_pinned && (
                           <Pin size={12} className="text-red-500" />
@@ -698,15 +733,29 @@ export default function InternalChatPage() {
                     )}
                     <div className="min-w-0">
                       <p className="truncate font-bold text-slate-800">
-                        {active.title}
+                        <ConversationTitle
+                          conversation={active}
+                          currentUserId={user?.id}
+                        />
                       </p>
                       <p className="mt-0.5 truncate text-xs text-slate-500">
-                        {typingText ||
-                          (active.kind === "group"
-                          ? `${active.members.length.toLocaleString("fa-IR")} عضو`
-                          : active.members.find(
-                              (member) => member.id !== user?.id,
-                            )?.job_title || "همکار سازمانی")}
+                        {typingUser ? (
+                          <span className="inline-flex items-center gap-1">
+                            <span className="inline-flex items-center gap-1 font-medium text-slate-600">
+                              {typingUser.name}
+                              {typingUser.isBirthday ? (
+                                <BirthdayBadge className="h-3.5 w-3.5" />
+                              ) : null}
+                            </span>
+                            در حال نوشتن است...
+                          </span>
+                        ) : active.kind === "group" ? (
+                          `${active.members.length.toLocaleString("fa-IR")} عضو`
+                        ) : (
+                          active.members.find(
+                            (member) => member.id !== user?.id,
+                          )?.job_title || "همکار سازمانی"
+                        )}
                       </p>
                     </div>
                   </button>
@@ -816,7 +865,10 @@ export default function InternalChatPage() {
                             >
                               {!mine && active.kind === "group" && (
                                 <p className="mb-1 text-xs font-bold text-red-600">
-                                  {formatUserDisplayName(message.sender)}
+                                  <UserDisplayName
+                                    user={message.sender}
+                                    badgeClassName="h-4 w-4"
+                                  />
                                 </p>
                               )}
                               {message.is_forwarded && !message.deleted_at && (
@@ -1074,7 +1126,15 @@ export default function InternalChatPage() {
                               ? "ویرایش پیام"
                               : attachment
                                 ? "فایل پیوست"
-                                : `پاسخ به ${formatUserDisplayName(replyingTo?.sender)}`}
+                                : (
+                                    <span className="inline-flex items-center gap-1">
+                                      پاسخ به
+                                      <UserDisplayName
+                                        user={replyingTo?.sender}
+                                        badgeClassName="h-3.5 w-3.5"
+                                      />
+                                    </span>
+                                  )}
                           </p>
                           <p className="mt-0.5 truncate text-slate-500">
                             {attachment?.name ||
@@ -1356,7 +1416,7 @@ function NewConversationModal({
               />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-bold text-slate-800">
-                  {formatUserDisplayName(item)}
+                  <UserDisplayName user={item} />
                 </span>
                 <span className="mt-0.5 block truncate text-xs text-slate-500">
                   {[item.job_title, item.department].filter(Boolean).join(" • ")}
@@ -1668,7 +1728,7 @@ function ConversationInfoModal({
                     className="flex w-full items-center gap-2 rounded-xl p-2 text-right text-sm hover:bg-slate-50"
                   >
                     <Plus size={15} className="text-red-600" />
-                    {formatUserDisplayName(item)}
+                    <UserDisplayName user={item} />
                   </button>
                 ))}
               </div>
@@ -1699,7 +1759,7 @@ function ConversationInfoModal({
                   </button>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-bold">
-                      {formatUserDisplayName(member)}
+                      <UserDisplayName user={member} />
                       {member.id === currentUserId ? " (شما)" : ""}
                     </span>
                     <span className="block truncate text-xs text-slate-400">

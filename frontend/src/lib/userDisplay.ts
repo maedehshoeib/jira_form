@@ -16,13 +16,16 @@ export function isBirthdayToday(birthDate?: string | null): boolean {
   return now.getMonth() + 1 === month && now.getDate() === day;
 }
 
+export function hasUserBirthday(user: UserNameFields | null | undefined): boolean {
+  if (!user) return false;
+  return user.is_birthday ?? isBirthdayToday(user.birth_date);
+}
+
+/** Plain display name (no birthday marker — use UserDisplayName / BirthdayBadge in UI). */
 export function formatUserDisplayName(
   user: UserNameFields | null | undefined,
   fallback = ""
 ): string {
   if (!user) return fallback;
-  const name = (user.display_name || user.username || fallback).trim();
-  if (!name) return fallback;
-  const birthday = user.is_birthday ?? isBirthdayToday(user.birth_date);
-  return birthday ? `${name} 🎂` : name;
+  return (user.display_name || user.username || fallback).trim() || fallback;
 }

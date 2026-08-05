@@ -22,6 +22,7 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { formatPersianDateTime } from "../../lib/persianDate";
 import { formatUserDisplayName } from "../../lib/userDisplay";
+import UserDisplayName from "../../components/UserDisplayName";
 
 type ManagedUser = {
   id: number;
@@ -671,7 +672,7 @@ export default function AdminUsersPage() {
                                 />
                                 <div>
                                   <p className="font-bold text-slate-800">
-                                    {formatUserDisplayName(user, "بدون نام")}
+                                    <UserDisplayName user={user} fallback="بدون نام" />
                                   </p>
                                   <p className="mt-1 text-xs text-slate-500" dir="ltr">
                                     {user.username}

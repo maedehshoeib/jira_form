@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { formatUserDisplayName } from '@/lib/userDisplay';
+import UserDisplayName from '@/components/UserDisplayName';
 
 import {
   fetchMyRangeRecords,
@@ -191,7 +191,6 @@ export function EmployeePanel(): JSX.Element {
   const { user } = useAuth();
   const navigate = useNavigate();
   const initialDate = useMemo(() => today(), []);
-  const fullName = formatUserDisplayName(user, 'کاربر');
 
   const [taskDate, setTaskDate] = useState<DateObject | null>(initialDate);
   const [taskStartTime, setTaskStartTime] = useState<DateObject | null>(null);
@@ -597,7 +596,11 @@ export function EmployeePanel(): JSX.Element {
                   خوش آمدید
                 </div>
                 <h1 className='text-2xl font-extrabold sm:text-3xl'>
-                  {fullName}
+                  <UserDisplayName
+                    user={user}
+                    fallback='کاربر'
+                    badgeClassName='h-7 w-7 bg-amber-300/20 text-amber-200 ring-amber-200/30'
+                  />
                 </h1>
                 <p className='mt-2 text-sm leading-6 text-slate-300'>
                   حضور امروز را ثبت کنید و فعالیت‌های روزانه‌تان را منظم پیش ببرید.

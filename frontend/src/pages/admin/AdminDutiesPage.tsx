@@ -31,6 +31,7 @@ import {
   saveFormDuties,
 } from "../../features/admin/formDuties";
 import { formatUserDisplayName } from "../../lib/userDisplay";
+import UserDisplayName from "../../components/UserDisplayName";
 
 type ManagedUser = {
   id: number;
@@ -450,7 +451,7 @@ export default function AdminDutiesPage() {
                         />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium text-slate-900">
-                            {formatUserDisplayName(user)}
+                            <UserDisplayName user={user} />
                           </p>
                           <p className="truncate text-xs text-slate-500">
                             {user.job_title || user.department || user.username}
@@ -668,7 +669,9 @@ export default function AdminDutiesPage() {
                       {form?.section_title || edge.target_key}
                     </span>
                     <span className="text-slate-400">←</span>
-                    <span>{formatUserDisplayName(user, String(edge.user_id))}</span>
+                    <span>
+                      <UserDisplayName user={user} fallback={String(edge.user_id)} />
+                    </span>
                     <X className="h-3 w-3" />
                   </button>
                 );

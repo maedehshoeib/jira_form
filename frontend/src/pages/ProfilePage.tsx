@@ -4,6 +4,7 @@ import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { DateObject } from "react-multi-date-picker";
 import gregorian from "react-date-object/calendars/gregorian";
+import gregorianEn from "react-date-object/locales/gregorian_en";
 import persian from "react-date-object/calendars/persian";
 import persianFa from "react-date-object/locales/persian_fa";
 
@@ -17,15 +18,18 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { useAuth } from "../context/AuthContext";
 import { JalaliDateTimePicker } from "../features/timesheet/components/jalali-date-time-picker";
+import { toLatinDigits } from "../lib/persianDate";
 import { formatUserDisplayName } from "../lib/userDisplay";
+import { BirthdayBadge } from "../components/UserDisplayName";
 
 function isoToJalali(iso: string | null | undefined): DateObject | null {
   if (!iso) return null;
   try {
     return new DateObject({
-      date: iso.slice(0, 10),
+      date: toLatinDigits(iso.slice(0, 10)),
       format: "YYYY-MM-DD",
       calendar: gregorian,
+      locale: gregorianEn,
     }).convert(persian, persianFa);
   } catch {
     return null;
@@ -35,10 +39,36 @@ function isoToJalali(iso: string | null | undefined): DateObject | null {
 function jalaliToIso(value: DateObject | DateObject[] | null): string | null {
   if (!value || Array.isArray(value)) return null;
   try {
-    return value.convert(gregorian).format("YYYY-MM-DD");
+    const gregorianDate = new DateObject(value).convert(gregorian, gregorianEn);
+    const year = gregorianDate.year;
+    const month = String(gregorianDate.month.number).padStart(2, "0");
+    const day = String(gregorianDate.day).padStart(2, "0");
+    const iso = toLatinDigits(`${year}-${month}-${day}`);
+    return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso : null;
   } catch {
     return null;
   }
+}
+
+function profileErrorMessage(detail: unknown): string {
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => {
+        if (!item || typeof item !== "object") return null;
+        const entry = item as { loc?: unknown[]; msg?: string };
+        const field = Array.isArray(entry.loc)
+          ? String(entry.loc[entry.loc.length - 1] || "")
+          : "";
+        if (field === "birth_date") return "تاریخ تولد معتبر نیست.";
+        if (field === "email") return "ایمیل معتبر نیست.";
+        if (field === "display_name") return "نام نمایشی معتبر نیست.";
+        return entry.msg || null;
+      })
+      .filter(Boolean);
+    if (messages.length) return messages.join(" ");
+  }
+  return "ذخیره اطلاعات انجام نشد. لطفاً مقادیر را بررسی کنید.";
 }
 
 export default function ProfilePage() {
@@ -101,11 +131,7 @@ export default function ProfilePage() {
       const detail = axios.isAxiosError(requestError)
         ? requestError.response?.data?.detail
         : null;
-      setError(
-        typeof detail === "string"
-          ? detail
-          : "ذخیره اطلاعات انجام نشد. لطفاً مقادیر را بررسی کنید."
-      );
+      setError(profileErrorMessage(detail));
     } finally {
       setLoading(false);
     }
@@ -208,7 +234,9 @@ export default function ProfilePage() {
                   />
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-xs text-slate-400">
-                      در روز تولد، کنار نام شما کیک 🎂 نمایش داده می‌شود.
+                      در روز تولد، کنار نام شما نشان تولد{" "}
+                      <BirthdayBadge className="mx-0.5 inline-flex h-4 w-4 align-middle" />{" "}
+                      نمایش داده می‌شود.
                     </p>
                     {birthDate && (
                       <button

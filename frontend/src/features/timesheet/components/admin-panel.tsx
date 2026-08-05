@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { formatUserDisplayName } from '@/lib/userDisplay';
+import UserDisplayName from '@/components/UserDisplayName';
 import {
   adminCreateAttendance,
   adminCreateProject,
@@ -275,7 +275,6 @@ export function AdminPanel(): JSX.Element {
   const [editorTaskEnd, setEditorTaskEnd] = useState<DateObject | null>(null);
   const [editorBusy, setEditorBusy] = useState(false);
   const [status, setStatus] = useState('');
-  const fullName = formatUserDisplayName(user, 'مدیر سیستم');
 
   const applyPreset = (nextPreset: PeriodPreset) => {
     setPreset(nextPreset);
@@ -864,7 +863,9 @@ export function AdminPanel(): JSX.Element {
           </div>
           <div className='flex items-center gap-2'>
             <div className='hidden rounded-xl bg-slate-50 px-3 py-2 text-left sm:block dark:bg-slate-800'>
-              <p className='text-xs font-bold text-slate-700 dark:text-slate-200'>{fullName}</p>
+              <p className='text-xs font-bold text-slate-700 dark:text-slate-200'>
+                <UserDisplayName user={user} fallback='مدیر سیستم' badgeClassName='h-4 w-4' />
+              </p>
               <p className='text-[10px] text-slate-400 dark:text-slate-500'>مدیر تایم‌شیت</p>
             </div>
             <Button variant='outline' size='sm' onClick={() => navigate('/')} className='gap-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'>

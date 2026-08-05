@@ -21,7 +21,6 @@ def is_birthday_today(birth_date: date | None) -> bool:
 
 
 def user_display_name(user) -> str:
-    name = (getattr(user, "display_name", None) or getattr(user, "username", "") or "").strip()
-    if name and is_birthday_today(getattr(user, "birth_date", None)):
-        return f"{name} 🎂"
-    return name
+    return (
+        getattr(user, "display_name", None) or getattr(user, "username", "") or ""
+    ).strip()

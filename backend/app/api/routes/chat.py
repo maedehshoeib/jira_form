@@ -869,6 +869,7 @@ async def chat_socket(websocket: WebSocket, token: str = Query(default="")):
                             "conversation_id": conversation_id,
                             "user_id": user_id,
                             "user_name": user_display_name(user),
+                            "is_birthday": is_birthday_today(user.birth_date),
                         },
                     )
             finally:

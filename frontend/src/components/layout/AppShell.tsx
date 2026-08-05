@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import UserAvatar from "../UserAvatar";
+import UserDisplayName from "../UserDisplayName";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import logo from "../../assets/logo.png";
@@ -344,7 +345,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
               />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-bold text-white">
-                  {formatUserDisplayName(user)}
+                  <UserDisplayName
+                    user={user}
+                    className="max-w-full"
+                    badgeClassName="h-4 w-4 bg-amber-300/25 text-amber-200 ring-amber-200/40"
+                  />
                 </p>
                 <p className="mt-0.5 truncate text-xs text-red-100/70">{user.username}</p>
               </div>
