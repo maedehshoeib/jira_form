@@ -549,10 +549,10 @@ export function EmployeePanel(): JSX.Element {
 
   return (
     <div
-      className='min-h-screen bg-[#f5f7fb] pb-12 text-slate-800'
+      className='min-h-screen bg-[#f5f7fb] pb-12 text-slate-800 dark:bg-transparent dark:text-slate-100'
       dir='rtl'
     >
-      <header className='border-b border-slate-200/80 bg-white/90 shadow-sm backdrop-blur'>
+      <header className='border-b border-slate-200/80 bg-white/90 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-900/90'>
         <div className='mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8'>
           <div className='flex min-w-0 items-center gap-3'>
             <img
@@ -560,12 +560,12 @@ export function EmployeePanel(): JSX.Element {
               alt='توسعه اعتماد گستر وثوق'
               className='h-11 w-auto object-contain sm:h-14'
             />
-            <div className='hidden h-9 w-px bg-slate-200 sm:block' />
+            <div className='hidden h-9 w-px bg-slate-200 dark:bg-slate-700 sm:block' />
             <div className='min-w-0'>
-              <p className='truncate text-sm font-bold text-slate-900 sm:text-base'>
+              <p className='truncate text-sm font-bold text-slate-900 sm:text-base dark:text-slate-50'>
                 سامانه ثبت کارکرد
               </p>
-              <p className='hidden text-xs text-slate-500 sm:block'>
+              <p className='hidden text-xs text-slate-500 sm:block dark:text-slate-400'>
                 مدیریت حضور و فعالیت‌های روزانه
               </p>
             </div>
@@ -574,7 +574,7 @@ export function EmployeePanel(): JSX.Element {
           <Button
             variant='outline'
             onClick={() => navigate('/')}
-            className='h-10 shrink-0 gap-2 border-slate-200 bg-white text-slate-700 shadow-none hover:bg-slate-50'
+            className='h-10 shrink-0 gap-2 border-slate-200 bg-white text-slate-700 shadow-none hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'
             aria-label='بازگشت به صفحه اصلی'
           >
             <span>بازگشت</span>
@@ -663,7 +663,7 @@ export function EmployeePanel(): JSX.Element {
           </div>
         )}
 
-        <section className='rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5'>
+        <section className='rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-800/90'>
           <div className='flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between'>
             <div>
               <div className='flex items-center gap-2'>
@@ -793,7 +793,7 @@ export function EmployeePanel(): JSX.Element {
         </section>
 
         <section className='grid items-start gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]'>
-          <div className='rounded-3xl border border-slate-200 bg-white shadow-sm'>
+          <div className='rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800/90'>
             <div className='flex items-start gap-3 border-b border-slate-100 p-5 sm:p-6'>
               <span className='flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700'>
                 <Plus className='h-5 w-5' />
@@ -882,7 +882,7 @@ export function EmployeePanel(): JSX.Element {
                       setProjectCode(event.target.value);
                       setSubprojectCode('');
                     }}
-                    className='h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pr-10 pl-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100'
+                    className='h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pr-10 pl-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:focus:border-sky-400 dark:focus:ring-sky-500/20'
                   >
                     {availableProjects.length === 0 && (
                       <option value=''>پروژه فعالی برای این تاریخ نیست</option>
@@ -908,7 +908,7 @@ export function EmployeePanel(): JSX.Element {
                     value={subprojectCode}
                     onChange={(event) => setSubprojectCode(event.target.value)}
                     disabled={!availableSubprojects.length}
-                    className='h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pr-10 pl-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400'
+                    className='h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pr-10 pl-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:focus:border-sky-400 dark:focus:ring-sky-500/20 dark:disabled:bg-slate-800 dark:disabled:text-slate-500'
                   >
                     <option value=''>
                       {availableSubprojects.length
@@ -942,7 +942,7 @@ export function EmployeePanel(): JSX.Element {
                   placeholder='برای مثال: بررسی درخواست‌ها و تکمیل گزارش هفتگی...'
                   value={taskName}
                   onChange={(event) => setTaskName(event.target.value)}
-                  className='min-h-[118px] resize-none border-slate-200 bg-slate-50/60 leading-7 focus:bg-white'
+                  className='min-h-[118px] resize-none border-slate-200 bg-slate-50/60 leading-7 focus:bg-white dark:border-slate-600 dark:bg-slate-900/60 dark:focus:bg-slate-900'
                 />
               </div>
 
@@ -962,7 +962,7 @@ export function EmployeePanel(): JSX.Element {
             </div>
           </div>
 
-          <div className='overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm'>
+          <div className='overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800/90'>
             <div className='flex flex-col gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6'>
               <div className='flex items-start gap-3'>
                 <span className='flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-100 text-violet-700'>
@@ -1099,7 +1099,7 @@ export function EmployeePanel(): JSX.Element {
           </div>
         </section>
 
-        <section className='overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm'>
+        <section className='overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800/90'>
           <div className='flex items-start gap-3 border-b border-slate-100 p-5 sm:p-6'>
             <span className='flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700'>
               <ArrowUpLeft className='h-5 w-5' />

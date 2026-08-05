@@ -134,7 +134,7 @@ function SelectField({
           value={value}
           disabled={disabled}
           onChange={(event) => onChange(event.target.value)}
-          className='h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pr-10 pl-9 text-sm font-medium text-slate-700 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500'
+          className='h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pr-10 pl-9 text-sm font-medium text-slate-700 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:focus:border-cyan-400 dark:focus:ring-cyan-500/20 dark:disabled:bg-slate-800 dark:disabled:text-slate-500'
         >
           {children}
         </select>
@@ -158,18 +158,18 @@ function MetricCard({
   tone: 'cyan' | 'violet' | 'amber' | 'emerald';
 }): JSX.Element {
   const tones = {
-    cyan: 'bg-cyan-50 text-cyan-700 ring-cyan-100',
-    violet: 'bg-violet-50 text-violet-700 ring-violet-100',
-    amber: 'bg-amber-50 text-amber-700 ring-amber-100',
-    emerald: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+    cyan: 'bg-cyan-50 text-cyan-700 ring-cyan-100 dark:bg-cyan-500/15 dark:text-cyan-300 dark:ring-cyan-400/30',
+    violet: 'bg-violet-50 text-violet-700 ring-violet-100 dark:bg-violet-500/15 dark:text-violet-300 dark:ring-violet-400/30',
+    amber: 'bg-amber-50 text-amber-700 ring-amber-100 dark:bg-amber-500/15 dark:text-amber-300 dark:ring-amber-400/30',
+    emerald: 'bg-emerald-50 text-emerald-700 ring-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-400/30',
   };
   return (
-    <article className='rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_30px_rgba(15,23,42,0.04)]'>
+    <article className='rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_30px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-800/90 dark:shadow-black/20'>
       <div className='flex items-start justify-between gap-3'>
         <div>
-          <p className='text-xs font-semibold text-slate-500'>{label}</p>
-          <p className='mt-2 text-2xl font-black tracking-tight text-slate-900'>{value}</p>
-          <p className='mt-1 text-[11px] text-slate-400'>{hint}</p>
+          <p className='text-xs font-semibold text-slate-500 dark:text-slate-400'>{label}</p>
+          <p className='mt-2 text-2xl font-black tracking-tight text-slate-900 dark:text-slate-50'>{value}</p>
+          <p className='mt-1 text-[11px] text-slate-400 dark:text-slate-500'>{hint}</p>
         </div>
         <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ring-1 ${tones[tone]}`}>{icon}</span>
       </div>
@@ -200,26 +200,26 @@ function TrendChart({
     <div className='mt-4'>
       <svg viewBox={`0 0 ${width} ${height}`} className='h-56 w-full overflow-visible' role='img' aria-label='روند حضور و کار ثبت‌شده'>
         {[0.25, 0.5, 0.75, 1].map((ratio) => (
-          <line key={ratio} x1={padding} x2={width - padding} y1={y(max * ratio)} y2={y(max * ratio)} stroke='#e2e8f0' strokeDasharray='4 6' />
+          <line key={ratio} x1={padding} x2={width - padding} y1={y(max * ratio)} y2={y(max * ratio)} className='stroke-slate-200 dark:stroke-slate-700' strokeDasharray='4 6' />
         ))}
-        <polyline points={attendancePoints} fill='none' stroke='#cbd5e1' strokeWidth='3' strokeLinecap='round' strokeLinejoin='round' />
-        <polyline points={taskPoints} fill='none' stroke='#0891b2' strokeWidth='4' strokeLinecap='round' strokeLinejoin='round' />
+        <polyline points={attendancePoints} fill='none' className='stroke-slate-300 dark:stroke-slate-500' strokeWidth='3' strokeLinecap='round' strokeLinejoin='round' />
+        <polyline points={taskPoints} fill='none' className='stroke-cyan-600 dark:stroke-cyan-400' strokeWidth='4' strokeLinecap='round' strokeLinejoin='round' />
         {visible.map((item, index) => (
           <g key={item.date}>
-            <circle cx={x(index)} cy={y(item.tasks)} r='4' fill='#fff' stroke='#0891b2' strokeWidth='3'>
+            <circle cx={x(index)} cy={y(item.tasks)} r='4' className='fill-white stroke-cyan-600 dark:fill-slate-900 dark:stroke-cyan-400' strokeWidth='3'>
               <title>{`${item.date}: ${formatMinutes(item.tasks)}`}</title>
             </circle>
             {(visible.length <= 8 || index % 2 === 0) && (
-              <text x={x(index)} y={height + 2} textAnchor='middle' className='fill-slate-400 text-[10px]'>
+              <text x={x(index)} y={height + 2} textAnchor='middle' className='fill-slate-400 text-[10px] dark:fill-slate-500'>
                 {item.date.slice(5)}
               </text>
             )}
           </g>
         ))}
       </svg>
-      <div className='flex flex-wrap items-center gap-5 text-xs font-semibold text-slate-500'>
-        <span className='flex items-center gap-2'><i className='h-2.5 w-2.5 rounded-full bg-cyan-600' />زمان تسک‌ها</span>
-        <span className='flex items-center gap-2'><i className='h-2.5 w-2.5 rounded-full bg-slate-300' />زمان حضور</span>
+      <div className='flex flex-wrap items-center gap-5 text-xs font-semibold text-slate-500 dark:text-slate-400'>
+        <span className='flex items-center gap-2'><i className='h-2.5 w-2.5 rounded-full bg-cyan-600 dark:bg-cyan-400' />زمان تسک‌ها</span>
+        <span className='flex items-center gap-2'><i className='h-2.5 w-2.5 rounded-full bg-slate-300 dark:bg-slate-500' />زمان حضور</span>
       </div>
     </div>
   );
@@ -850,23 +850,23 @@ export function AdminPanel(): JSX.Element {
   };
 
   return (
-    <div className='min-h-screen bg-[#f5f7fb] font-sans text-slate-900' dir='rtl'>
-      <header className='no-print border-b border-slate-200/80 bg-white/90 backdrop-blur'>
+    <div className='min-h-screen bg-[#f5f7fb] font-sans text-slate-900 dark:bg-transparent dark:text-slate-100' dir='rtl'>
+      <header className='no-print border-b border-slate-200/80 bg-white/90 backdrop-blur dark:border-slate-700 dark:bg-slate-900/90'>
         <div className='mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-4 sm:px-7'>
           <div className='flex items-center gap-5'>
             <Logo />
-            <span className='hidden h-8 w-px bg-slate-200 sm:block' />
+            <span className='hidden h-8 w-px bg-slate-200 dark:bg-slate-700 sm:block' />
             <div className='hidden sm:block'>
-              <p className='text-sm font-black text-slate-800'>مرکز کنترل تایم‌شیت</p>
-              <p className='text-[11px] text-slate-400'>گزارش مدیریتی حضور و عملکرد</p>
+              <p className='text-sm font-black text-slate-800 dark:text-slate-100'>مرکز کنترل تایم‌شیت</p>
+              <p className='text-[11px] text-slate-400 dark:text-slate-500'>گزارش مدیریتی حضور و عملکرد</p>
             </div>
           </div>
           <div className='flex items-center gap-2'>
-            <div className='hidden rounded-xl bg-slate-50 px-3 py-2 text-left sm:block'>
-              <p className='text-xs font-bold text-slate-700'>{fullName}</p>
-              <p className='text-[10px] text-slate-400'>مدیر تایم‌شیت</p>
+            <div className='hidden rounded-xl bg-slate-50 px-3 py-2 text-left sm:block dark:bg-slate-800'>
+              <p className='text-xs font-bold text-slate-700 dark:text-slate-200'>{fullName}</p>
+              <p className='text-[10px] text-slate-400 dark:text-slate-500'>مدیر تایم‌شیت</p>
             </div>
-            <Button variant='outline' size='sm' onClick={() => navigate('/')} className='gap-2'>
+            <Button variant='outline' size='sm' onClick={() => navigate('/')} className='gap-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'>
               <ArrowRight className='h-4 w-4' /> بازگشت
             </Button>
           </div>
@@ -876,26 +876,26 @@ export function AdminPanel(): JSX.Element {
       <main id='timesheet-report' className='mx-auto max-w-[1500px] space-y-5 px-4 py-6 sm:px-7'>
         <section className='flex flex-col justify-between gap-4 lg:flex-row lg:items-end'>
           <div>
-            <div className='mb-2 flex items-center gap-2 text-xs font-bold text-cyan-700'>
+            <div className='mb-2 flex items-center gap-2 text-xs font-bold text-cyan-700 dark:text-cyan-300'>
               <Sparkles className='h-4 w-4' /> نمای مدیریتی
             </div>
-            <h1 className='text-2xl font-black tracking-tight text-slate-950 sm:text-3xl'>گزارش جامع زمان و عملکرد</h1>
-            <p className='mt-2 text-sm text-slate-500'>وضعیت کارکنان را ببینید و در صورت نیاز ورود/خروج یا فعالیت‌ها را ثبت و ویرایش کنید.</p>
+            <h1 className='text-2xl font-black tracking-tight text-slate-950 sm:text-3xl dark:text-white'>گزارش جامع زمان و عملکرد</h1>
+            <p className='mt-2 text-sm text-slate-500 dark:text-slate-400'>وضعیت کارکنان را ببینید و در صورت نیاز ورود/خروج یا فعالیت‌ها را ثبت و ویرایش کنید.</p>
           </div>
           <div className='no-print flex flex-wrap gap-2'>
-            <Button variant='outline' onClick={() => openAttendanceEditor()} className='gap-2 bg-white'>
+            <Button variant='outline' onClick={() => openAttendanceEditor()} className='gap-2 bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'>
               <Clock3 className='h-4 w-4' /> ثبت تردد
             </Button>
-            <Button variant='outline' onClick={() => openTaskEditor()} className='gap-2 bg-white'>
+            <Button variant='outline' onClick={() => openTaskEditor()} className='gap-2 bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'>
               <Plus className='h-4 w-4' /> افزودن فعالیت
             </Button>
-            <Button variant='outline' onClick={() => setShowProjects((value) => !value)} className='gap-2 bg-white'>
+            <Button variant='outline' onClick={() => setShowProjects((value) => !value)} className='gap-2 bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'>
               <BriefcaseBusiness className='h-4 w-4' /> مدیریت پروژه‌ها
             </Button>
-            <Button variant='outline' onClick={() => window.print()} className='gap-2 bg-white'>
+            <Button variant='outline' onClick={() => window.print()} className='gap-2 bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'>
               <Printer className='h-4 w-4' /> چاپ
             </Button>
-            <Button variant='outline' onClick={exportCsv} className='gap-2 bg-white'>
+            <Button variant='outline' onClick={exportCsv} className='gap-2 bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'>
               <Download className='h-4 w-4' /> خروجی CSV
             </Button>
           </div>
@@ -913,23 +913,23 @@ export function AdminPanel(): JSX.Element {
               role='dialog'
               aria-modal='true'
               aria-label={editorMode === 'attendance' ? 'ویرایش تردد' : 'ویرایش فعالیت'}
-              className='max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl'
+              className='max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl dark:bg-slate-900 dark:text-slate-100'
               onMouseDown={(event) => event.stopPropagation()}
             >
-              <div className='sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur'>
+              <div className='sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/95'>
                 <div>
-                  <h2 className='text-lg font-black text-slate-900'>
+                  <h2 className='text-lg font-black text-slate-900 dark:text-white'>
                     {editorMode === 'attendance'
                       ? (editingAttendanceId ? 'ویرایش تردد' : 'ثبت ورود / خروج')
                       : (editingTaskId ? 'ویرایش فعالیت' : 'افزودن فعالیت')}
                   </h2>
-                  <p className='mt-1 text-xs text-slate-500'>
+                  <p className='mt-1 text-xs text-slate-500 dark:text-slate-400'>
                     {editorMode === 'attendance'
                       ? 'ورود و خروج کارمند را ثبت یا اصلاح کنید.'
                       : 'فعالیت باید داخل یکی از بازه‌های حضور همان روز باشد.'}
                   </p>
                 </div>
-                <Button variant='outline' size='sm' onClick={closeEditor} className='shrink-0 gap-1 rounded-xl'>
+                <Button variant='outline' size='sm' onClick={closeEditor} className='shrink-0 gap-1 rounded-xl dark:border-slate-600 dark:bg-slate-800'>
                   <X className='h-4 w-4' /> بستن
                 </Button>
               </div>
@@ -1083,13 +1083,13 @@ export function AdminPanel(): JSX.Element {
                 )}
               </div>
 
-              <div className='sticky bottom-0 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 bg-white/95 px-5 py-4 backdrop-blur'>
+              <div className='sticky bottom-0 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 bg-white/95 px-5 py-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/95'>
                 {editorMode === 'attendance' && editorCheckOut && (
-                  <Button variant='outline' onClick={() => setEditorCheckOut(null)} className='rounded-xl'>
+                  <Button variant='outline' onClick={() => setEditorCheckOut(null)} className='rounded-xl dark:border-slate-600 dark:bg-slate-800'>
                     پاک کردن خروج
                   </Button>
                 )}
-                <Button variant='outline' onClick={closeEditor} className='rounded-xl'>
+                <Button variant='outline' onClick={closeEditor} className='rounded-xl dark:border-slate-600 dark:bg-slate-800'>
                   انصراف
                 </Button>
                 {editorMode === 'attendance' ? (
@@ -1116,10 +1116,10 @@ export function AdminPanel(): JSX.Element {
           </div>
         )}
 
-        <section className='no-print rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.04)]'>
+        <section className='no-print rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-800/90 dark:shadow-black/20'>
           <div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
-            <div className='flex items-center gap-2 text-sm font-black text-slate-800'><Filter className='h-4 w-4 text-cyan-600' /> فیلتر گزارش</div>
-            <div className='flex rounded-xl bg-slate-100 p-1'>
+            <div className='flex items-center gap-2 text-sm font-black text-slate-800 dark:text-slate-100'><Filter className='h-4 w-4 text-cyan-600 dark:text-cyan-400' /> فیلتر گزارش</div>
+            <div className='flex rounded-xl bg-slate-100 p-1 dark:bg-slate-900/80'>
               {([
                 ['today', 'امروز'],
                 ['week', '۷ روز'],
@@ -1129,7 +1129,7 @@ export function AdminPanel(): JSX.Element {
                 <button
                   key={value}
                   onClick={() => applyPreset(value)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${preset === value ? 'bg-white text-cyan-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${preset === value ? 'bg-white text-cyan-700 shadow-sm dark:bg-slate-700 dark:text-cyan-300' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
                 >
                   {label}
                 </button>
@@ -1165,7 +1165,7 @@ export function AdminPanel(): JSX.Element {
         </section>
 
         {showProjects && (
-          <section className='no-print rounded-2xl border border-slate-200 bg-white p-5'>
+          <section className='no-print rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800/90'>
             <div className='grid gap-5 xl:grid-cols-[380px_1fr]'>
               <div className='space-y-5'>
                 <div>
@@ -1422,21 +1422,21 @@ export function AdminPanel(): JSX.Element {
         </section>
 
         <section className='grid gap-5 xl:grid-cols-[1.55fr_1fr]'>
-          <article className='rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_10px_35px_rgba(15,23,42,0.035)]'>
+          <article className='rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_10px_35px_rgba(15,23,42,0.035)] dark:border-slate-700 dark:bg-slate-800/90 dark:shadow-black/20'>
             <div className='flex flex-wrap items-start justify-between gap-3'>
               <div>
-                <h2 className='text-base font-black'>روند زمان ثبت‌شده</h2>
+                <h2 className='text-base font-black dark:text-slate-50'>روند زمان ثبت‌شده</h2>
                 <p className='mt-1 text-xs text-slate-400'>مقایسه زمان حضور و فعالیت روزانه</p>
               </div>
-              <span className='rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-500'>{asDate(startDate)} تا {asDate(endDate)}</span>
+              <span className='rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-500 dark:bg-slate-900 dark:text-slate-400'>{asDate(startDate)} تا {asDate(endDate)}</span>
             </div>
             <TrendChart data={dailyTrend} />
           </article>
 
-          <article className='rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_10px_35px_rgba(15,23,42,0.035)]'>
+          <article className='rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_10px_35px_rgba(15,23,42,0.035)] dark:border-slate-700 dark:bg-slate-800/90 dark:shadow-black/20'>
             <div className='flex items-start justify-between'>
               <div>
-                <h2 className='text-base font-black'>سهم پروژه‌ها</h2>
+                <h2 className='text-base font-black dark:text-slate-50'>سهم پروژه‌ها</h2>
                 <p className='mt-1 text-xs text-slate-400'>بر اساس زمان فعالیت ثبت‌شده</p>
               </div>
               <BriefcaseBusiness className='h-5 w-5 text-violet-500' />
@@ -1458,39 +1458,39 @@ export function AdminPanel(): JSX.Element {
           </article>
         </section>
 
-        <section className='rounded-2xl border border-slate-200 bg-white shadow-[0_10px_35px_rgba(15,23,42,0.035)]'>
-          <div className='flex flex-col justify-between gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center'>
-            <div className='flex rounded-xl bg-slate-100 p-1'>
+        <section className='rounded-2xl border border-slate-200 bg-white shadow-[0_10px_35px_rgba(15,23,42,0.035)] dark:border-slate-700 dark:bg-slate-800/90 dark:shadow-black/20'>
+          <div className='flex flex-col justify-between gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center dark:border-slate-700'>
+            <div className='flex rounded-xl bg-slate-100 p-1 dark:bg-slate-900/80'>
               {([
                 ['employees', 'کارکنان', visibleEmployeeRows.length],
                 ['tasks', 'فعالیت‌ها', filteredTasks.length],
                 ['attendance', 'ترددها', filteredAttendance.length],
               ] as Array<[ReportTab, string, number]>).map(([value, label, count]) => (
-                <button key={value} onClick={() => setReportTab(value)} className={`rounded-lg px-3 py-2 text-xs font-bold transition ${reportTab === value ? 'bg-white text-cyan-700 shadow-sm' : 'text-slate-500'}`}>
+                <button key={value} onClick={() => setReportTab(value)} className={`rounded-lg px-3 py-2 text-xs font-bold transition ${reportTab === value ? 'bg-white text-cyan-700 shadow-sm dark:bg-slate-700 dark:text-cyan-300' : 'text-slate-500 dark:text-slate-400'}`}>
                   {label} <span className='mr-1 text-[10px] text-slate-400'>{numberFormatter.format(count)}</span>
                 </button>
               ))}
             </div>
             <label className='no-print relative block sm:w-72'>
               <Search className='absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400' />
-              <Input value={query} onChange={(event) => setQuery(event.target.value)} className='pr-9' placeholder='جستجو در گزارش...' />
+              <Input value={query} onChange={(event) => setQuery(event.target.value)} className='pr-9 dark:border-slate-600 dark:bg-slate-900' placeholder='جستجو در گزارش...' />
             </label>
           </div>
           <div className='overflow-x-auto'>
             {reportTab === 'employees' && (
               <table className='w-full min-w-[850px] text-sm'>
-                <thead><tr className='bg-slate-50/70 text-xs text-slate-500'><th className='p-3 text-right'>کارمند</th><th className='p-3 text-right'>واحد</th><th className='p-3 text-right'>روز فعال</th><th className='p-3 text-right'>حضور</th><th className='p-3 text-right'>زمان ثبت‌شده</th><th className='p-3 text-right'>ثبت‌نشده</th><th className='p-3 text-right'>نرخ ثبت</th><th className='p-3 text-right'>وضعیت</th></tr></thead>
+                <thead><tr className='bg-slate-50/70 text-xs text-slate-500 dark:bg-slate-900/60 dark:text-slate-400'><th className='p-3 text-right'>کارمند</th><th className='p-3 text-right'>واحد</th><th className='p-3 text-right'>روز فعال</th><th className='p-3 text-right'>حضور</th><th className='p-3 text-right'>زمان ثبت‌شده</th><th className='p-3 text-right'>ثبت‌نشده</th><th className='p-3 text-right'>نرخ ثبت</th><th className='p-3 text-right'>وضعیت</th></tr></thead>
                 <tbody>
                   {pagedEmployees.map((row) => (
-                    <tr key={row.employee_id} className='border-t border-slate-100 hover:bg-slate-50/60'>
-                      <td className='p-3'><div className='font-bold text-slate-800'>{row.full_name}</div><div className='text-[10px] text-slate-400'>{row.job_title || row.username}</div></td>
-                      <td className='p-3 text-slate-600'>{row.department}</td>
+                    <tr key={row.employee_id} className='border-t border-slate-100 hover:bg-slate-50/60 dark:border-slate-700 dark:hover:bg-slate-900/50'>
+                      <td className='p-3'><div className='font-bold text-slate-800 dark:text-slate-100'>{row.full_name}</div><div className='text-[10px] text-slate-400'>{row.job_title || row.username}</div></td>
+                      <td className='p-3 text-slate-600 dark:text-slate-300'>{row.department}</td>
                       <td className='p-3'>{numberFormatter.format(row.activeDays)}</td>
                       <td className='p-3'>{formatMinutes(row.attendance)}</td>
-                      <td className='p-3 font-bold text-cyan-700'>{formatMinutes(row.tracked)}</td>
+                      <td className='p-3 font-bold text-cyan-700 dark:text-cyan-300'>{formatMinutes(row.tracked)}</td>
                       <td className='p-3 text-slate-500'>{formatMinutes(row.untracked)}</td>
-                      <td className='p-3'><div className='flex items-center gap-2'><div className='h-1.5 w-16 overflow-hidden rounded-full bg-slate-100'><div className='h-full rounded-full bg-cyan-500' style={{ width: `${Math.min(100, row.efficiency)}%` }} /></div><b>{numberFormatter.format(row.efficiency)}٪</b></div></td>
-                      <td className='p-3'><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${row.attendance === 0 ? 'bg-slate-100 text-slate-500' : row.efficiency >= 70 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{row.attendance === 0 ? 'بدون رکورد' : row.efficiency >= 70 ? 'مطلوب' : 'نیازمند بررسی'}</span></td>
+                      <td className='p-3'><div className='flex items-center gap-2'><div className='h-1.5 w-16 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700'><div className='h-full rounded-full bg-cyan-500' style={{ width: `${Math.min(100, row.efficiency)}%` }} /></div><b>{numberFormatter.format(row.efficiency)}٪</b></div></td>
+                      <td className='p-3'><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${row.attendance === 0 ? 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300' : row.efficiency >= 70 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'}`}>{row.attendance === 0 ? 'بدون رکورد' : row.efficiency >= 70 ? 'مطلوب' : 'نیازمند بررسی'}</span></td>
                     </tr>
                   ))}
                 </tbody>

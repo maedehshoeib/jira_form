@@ -153,10 +153,197 @@ button {
   --border: 210 25% 24%;
   --input: 210 25% 24%;
   --ring: 197 90% 48%;
+  color: hsl(var(--foreground));
   background:
     radial-gradient(circle at 10% 10%, rgba(34, 211, 238, 0.12), transparent 40%),
     radial-gradient(circle at 90% 20%, rgba(251, 146, 60, 0.1), transparent 35%),
     linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(12, 28, 40, 0.98));
+}
+
+/* Remap light-only utilities used heavily by timesheet panels */
+.dark .timesheet-scope .bg-\[\#f5f7fb\],
+.dark .timesheet-scope .bg-white {
+  background-color: rgb(30 41 59);
+}
+
+.dark .timesheet-scope .bg-white\/90,
+.dark .timesheet-scope .bg-white\/95,
+.dark .timesheet-scope .bg-white\/80 {
+  background-color: rgb(15 23 42 / 0.92);
+}
+
+.dark .timesheet-scope .bg-slate-50,
+.dark .timesheet-scope .bg-slate-50\/60,
+.dark .timesheet-scope .bg-slate-50\/70,
+.dark .timesheet-scope .hover\:bg-slate-50:hover,
+.dark .timesheet-scope .hover\:bg-slate-50\/60:hover {
+  background-color: rgb(15 23 42);
+}
+
+.dark .timesheet-scope .bg-slate-100,
+.dark .timesheet-scope .bg-slate-100\/80 {
+  background-color: rgb(51 65 85 / 0.55);
+}
+
+.dark .timesheet-scope .bg-slate-200 {
+  background-color: rgb(51 65 85);
+}
+
+.dark .timesheet-scope .bg-slate-300 {
+  background-color: rgb(71 85 105);
+}
+
+.dark .timesheet-scope .text-slate-950,
+.dark .timesheet-scope .text-slate-900,
+.dark .timesheet-scope .text-slate-800 {
+  color: rgb(248 250 252);
+}
+
+.dark .timesheet-scope .text-slate-700 {
+  color: rgb(226 232 240);
+}
+
+.dark .timesheet-scope .text-slate-600 {
+  color: rgb(203 213 225);
+}
+
+.dark .timesheet-scope .text-slate-500 {
+  color: rgb(148 163 184);
+}
+
+.dark .timesheet-scope .text-slate-400 {
+  color: rgb(148 163 184);
+}
+
+.dark .timesheet-scope .border-slate-100,
+.dark .timesheet-scope .border-slate-200,
+.dark .timesheet-scope .border-slate-200\/80 {
+  border-color: rgb(51 65 85);
+}
+
+.dark .timesheet-scope .text-cyan-700,
+.dark .timesheet-scope .text-cyan-800 {
+  color: rgb(103 232 249);
+}
+
+.dark .timesheet-scope .text-sky-700 {
+  color: rgb(125 211 252);
+}
+
+.dark .timesheet-scope .bg-cyan-50 {
+  background-color: rgb(8 51 68 / 0.55);
+}
+
+.dark .timesheet-scope .bg-violet-50 {
+  background-color: rgb(46 16 101 / 0.45);
+}
+
+.dark .timesheet-scope .bg-amber-50 {
+  background-color: rgb(120 53 15 / 0.4);
+}
+
+.dark .timesheet-scope .bg-emerald-50 {
+  background-color: rgb(6 78 59 / 0.4);
+}
+
+.dark .timesheet-scope .bg-rose-50 {
+  background-color: rgb(136 19 55 / 0.35);
+}
+
+.dark .timesheet-scope .text-cyan-700.ring-cyan-100,
+.dark .timesheet-scope .ring-cyan-100 {
+  --tw-ring-color: rgb(8 145 178 / 0.35);
+}
+
+.dark .timesheet-scope .text-violet-700 {
+  color: rgb(196 181 253);
+}
+
+.dark .timesheet-scope .text-amber-700 {
+  color: rgb(252 211 77);
+}
+
+.dark .timesheet-scope .text-emerald-700 {
+  color: rgb(110 231 183);
+}
+
+.dark .timesheet-scope .text-rose-700 {
+  color: rgb(251 113 133);
+}
+
+.dark .timesheet-scope .border-rose-200 {
+  border-color: rgb(159 18 57 / 0.55);
+}
+
+.dark .timesheet-scope .border-emerald-200 {
+  border-color: rgb(6 95 70 / 0.55);
+}
+
+.dark .timesheet-scope .ring-violet-100 {
+  --tw-ring-color: rgb(139 92 246 / 0.35);
+}
+
+.dark .timesheet-scope .ring-amber-100 {
+  --tw-ring-color: rgb(245 158 11 / 0.35);
+}
+
+.dark .timesheet-scope .ring-emerald-100 {
+  --tw-ring-color: rgb(16 185 129 / 0.35);
+}
+
+.dark .timesheet-scope .focus\:ring-cyan-100:focus,
+.dark .timesheet-scope .focus\:ring-sky-100:focus {
+  --tw-ring-color: rgb(34 211 238 / 0.25);
+}
+
+.dark .timesheet-scope .fill-slate-400 {
+  fill: rgb(148 163 184);
+}
+
+.dark .timesheet-scope input,
+.dark .timesheet-scope textarea,
+.dark .timesheet-scope select {
+  color: hsl(var(--foreground));
+}
+
+.dark .timesheet-scope input::placeholder,
+.dark .timesheet-scope textarea::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+/* Date picker calendar portals render outside timesheet-scope */
+.dark .rmdp-wrapper,
+.dark .rmdp-calendar {
+  background: rgb(30 41 59) !important;
+  color: rgb(226 232 240) !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45) !important;
+}
+
+.dark .rmdp-day,
+.dark .rmdp-week-day,
+.dark .rmdp-header-values {
+  color: rgb(226 232 240) !important;
+}
+
+.dark .rmdp-day.rmdp-deactive,
+.dark .rmdp-day.rmdp-disabled {
+  color: rgb(100 116 139) !important;
+}
+
+.dark .rmdp-day:not(.rmdp-disabled):not(.rmdp-day-hidden) span:hover {
+  background: rgb(51 65 85) !important;
+  color: rgb(248 250 252) !important;
+}
+
+.dark .rmdp-arrow {
+  border-color: rgb(148 163 184) !important;
+}
+
+.dark .rmdp-time-picker input,
+.dark .rmdp-input {
+  background: rgb(15 23 42) !important;
+  color: rgb(248 250 252) !important;
+  border-color: rgb(51 65 85) !important;
 }
 
 @layer base {

@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 export default function TimeSheetPage(): JSX.Element {
   const { user } = useAuth();
   return (
-    <div className="timesheet-scope">
+    <div className="timesheet-scope theme-surfaces">
       {user?.is_admin ? <AdminPanel /> : <EmployeePanel />}
     </div>
   );
