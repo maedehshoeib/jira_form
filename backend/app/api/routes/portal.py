@@ -24,6 +24,7 @@ from app.schemas.submission import (
     SubmissionListItem,
     SubmissionResponse,
     TaskColleague,
+    TaskPendingNotification,
     TaskReferRequest,
     TaskStatusUpdate,
 )
@@ -34,6 +35,7 @@ from app.services.form_access_service import allowed_target_keys, can_access_tar
 from app.services.form_duty_service import user_handles_target
 from app.services.task_workflow_service import (
     list_colleagues,
+    list_pending_task_ids,
     list_task_submissions,
     refer_task,
     set_task_status,
@@ -410,6 +412,15 @@ def get_task_colleagues(
     ]
 
 
+@router.get("/tasks/pending-count", response_model=TaskPendingNotification)
+def get_pending_task_count(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    ids = list_pending_task_ids(db, current_user.id)
+    return TaskPendingNotification(count=len(ids), ids=ids)
+
+
 @router.get("/tasks", response_model=list[SubmissionListItem])
 def list_tasks(
     form_id: str | None = Query(default=None),
@@ -480,7 +491,7 @@ def update_task_status(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     user = db.query(User).filter(User.id == submission.user_id).first()
-    return _submission_to_response(submission, user, db=db, can_act=False)
+    return _submission_to_response(submission, user, db=db, can_act=True)
 
 
 @router.post("/tasks/{submission_id}/refer", response_model=SubmissionResponse)

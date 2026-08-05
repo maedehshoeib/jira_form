@@ -9,6 +9,7 @@ import {
   Loader2,
   Paperclip,
   RefreshCw,
+  RotateCcw,
   Search,
   SlidersHorizontal,
   UserRound,
@@ -68,6 +69,14 @@ type Colleague = {
 
 type TimeRange = "all" | "today" | "7days" | "30days" | "90days";
 type SortOrder = "newest" | "oldest";
+type StatusTab = "pending" | "rejected" | "approved" | "referred";
+
+const STATUS_TABS: { id: StatusTab; label: string }[] = [
+  { id: "pending", label: "اقدام نشده" },
+  { id: "rejected", label: "رد شده" },
+  { id: "approved", label: "انجام شده" },
+  { id: "referred", label: "ارجاع شده" },
+];
 
 function parseSubmittedAt(value: string) {
   const match = value.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{1,2})$/);
@@ -77,16 +86,29 @@ function parseSubmittedAt(value: string) {
 }
 
 function displayStatus(status: string) {
-  if (status === "approved") return "تایید‌شده";
+  if (status === "approved") return "انجام‌شده";
   if (status === "rejected") return "رد‌شده";
-  if (status === "submitted") return "ثبت‌شده";
-  return status || "ثبت‌شده";
+  if (status === "submitted") return "اقدام‌نشده";
+  return status || "اقدام‌نشده";
 }
 
 function statusBadgeClass(status: string) {
   if (status === "approved") return "border-emerald-200 bg-emerald-50 text-emerald-700";
   if (status === "rejected") return "border-red-200 bg-red-50 text-red-700";
   return "border-amber-200 bg-amber-50 text-amber-700";
+}
+
+function matchesStatusTab(task: SubmissionListItem, tab: StatusTab) {
+  if (tab === "pending") return task.status === "submitted";
+  if (tab === "rejected") return task.status === "rejected";
+  if (tab === "approved") return task.status === "approved";
+  return (task.referrals?.length ?? 0) > 0;
+}
+
+function statusActionLabel(status: "approved" | "rejected" | "submitted") {
+  if (status === "approved") return "تایید / انجام‌شده";
+  if (status === "rejected") return "رد";
+  return "بازگشت به اقدام‌نشده";
 }
 
 function apiErrorDetail(err: unknown, fallback: string) {
@@ -184,6 +206,7 @@ export default function MyTasksPage() {
   const [sectionFilter, setSectionFilter] = useState("all");
   const [timeRange, setTimeRange] = useState<TimeRange>("all");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
+  const [statusTab, setStatusTab] = useState<StatusTab>("pending");
 
   const [referOpen, setReferOpen] = useState(false);
   const [colleagues, setColleagues] = useState<Colleague[]>([]);
@@ -219,6 +242,7 @@ export default function MyTasksPage() {
       }
 
       setTasks(allTasks);
+      window.dispatchEvent(new Event("tasks:refresh-notifications"));
     } catch {
       setError("دریافت وظایف با مشکل مواجه شد. لطفاً دوباره تلاش کنید.");
     } finally {
@@ -259,6 +283,22 @@ export default function MyTasksPage() {
     );
   }, [tasks, departmentFilter]);
 
+  const tabCounts = useMemo(() => {
+    const counts: Record<StatusTab, number> = {
+      pending: 0,
+      rejected: 0,
+      approved: 0,
+      referred: 0,
+    };
+    tasks.forEach((task) => {
+      if (task.status === "submitted") counts.pending += 1;
+      if (task.status === "rejected") counts.rejected += 1;
+      if (task.status === "approved") counts.approved += 1;
+      if ((task.referrals?.length ?? 0) > 0) counts.referred += 1;
+    });
+    return counts;
+  }, [tasks]);
+
   const filteredTasks = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLocaleLowerCase("fa");
     const now = new Date();
@@ -273,6 +313,8 @@ export default function MyTasksPage() {
 
     return tasks
       .filter((task) => {
+        if (!matchesStatusTab(task, statusTab)) return false;
+
         const searchableText = [
           task.id,
           task.subject,
@@ -306,7 +348,7 @@ export default function MyTasksPage() {
         const bTime = parseSubmittedAt(b.created_at)?.getTime() ?? 0;
         return sortOrder === "newest" ? bTime - aTime : aTime - bTime;
       });
-  }, [tasks, searchQuery, departmentFilter, sectionFilter, timeRange, sortOrder]);
+  }, [tasks, statusTab, searchQuery, departmentFilter, sectionFilter, timeRange, sortOrder]);
 
   const hasActiveFilters =
     searchQuery !== "" ||
@@ -347,10 +389,10 @@ export default function MyTasksPage() {
     }
   };
 
-  const updateStatus = async (status: "approved" | "rejected") => {
-    if (!selected) return;
-    const label = status === "approved" ? "تایید" : "رد";
-    if (!window.confirm(`آیا از ${label} این درخواست مطمئن هستید؟`)) return;
+  const updateStatus = async (status: "approved" | "rejected" | "submitted") => {
+    if (!selected || selected.status === status) return;
+    const label = statusActionLabel(status);
+    if (!window.confirm(`آیا از تغییر وضعیت به «${label}» مطمئن هستید؟`)) return;
 
     setActionLoading(true);
     setActionError("");
@@ -361,8 +403,10 @@ export default function MyTasksPage() {
       );
       syncTask(data);
       setSelected((prev) => (prev ? { ...data, data: prev.data } : data));
+      if (status !== "submitted") setReferOpen(false);
+      window.dispatchEvent(new Event("tasks:refresh-notifications"));
     } catch (err: unknown) {
-      setActionError(apiErrorDetail(err, `انجام ${label} با مشکل مواجه شد.`));
+      setActionError(apiErrorDetail(err, `تغییر وضعیت با مشکل مواجه شد.`));
     } finally {
       setActionLoading(false);
     }
@@ -398,6 +442,7 @@ export default function MyTasksPage() {
       syncTask(data);
       setSelected((prev) => (prev ? { ...data, data: prev.data } : data));
       setReferOpen(false);
+      window.dispatchEvent(new Event("tasks:refresh-notifications"));
     } catch (err: unknown) {
       setActionError(apiErrorDetail(err, "ارجاع درخواست با مشکل مواجه شد."));
     } finally {
@@ -456,8 +501,38 @@ export default function MyTasksPage() {
       </div>
 
       {error && (
-        <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">
+        <div className="mb-5 rounded-3xl border border-red-200 bg-red-50 p-4 text-red-700">
           {error}
+        </div>
+      )}
+
+      {!loading && tasks.length > 0 && (
+        <div className="mb-6 grid gap-2 rounded-3xl border border-slate-100 bg-white p-2 shadow-md sm:grid-cols-2 lg:grid-cols-4">
+          {STATUS_TABS.map((tab) => {
+            const active = statusTab === tab.id;
+            const count = tabCounts[tab.id];
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setStatusTab(tab.id)}
+                className={`flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-bold transition ${
+                  active
+                    ? "bg-red-600 text-white shadow-md shadow-red-600/20"
+                    : "text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                <span>{tab.label}</span>
+                <span
+                  className={`min-w-7 rounded-full px-2 py-0.5 text-center text-xs font-extrabold ${
+                    active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  {count.toLocaleString("fa-IR")}
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -570,8 +645,12 @@ export default function MyTasksPage() {
       ) : filteredTasks.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-14 text-center shadow-sm">
           <Search className="mx-auto mb-4 text-slate-300" size={48} />
-          <h3 className="text-xl font-bold text-slate-700">وظیفه‌ای با این مشخصات پیدا نشد</h3>
-          <p className="mt-2 text-slate-500">عبارت جستجو یا فیلترها را تغییر دهید.</p>
+          <h3 className="text-xl font-bold text-slate-700">
+            در این بخش وظیفه‌ای نیست
+          </h3>
+          <p className="mt-2 text-slate-500">
+            عبارت جستجو، فیلترها یا زبانه وضعیت را تغییر دهید.
+          </p>
           <Button variant="outline" onClick={resetFilters} className="mt-5 rounded-xl px-5">
             پاک کردن فیلترها
           </Button>
@@ -694,44 +773,71 @@ export default function MyTasksPage() {
               )}
 
               {selected.can_act && (
-                <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <Button
-                    type="button"
-                    onClick={() => void updateStatus("approved")}
-                    disabled={actionLoading}
-                    className="gap-2 bg-emerald-600 hover:bg-emerald-700"
-                  >
-                    {actionLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="h-4 w-4" />
+                <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                  <p className="text-xs font-semibold text-slate-500">
+                    تغییر وضعیت درخواست
+                    {selected.status !== "submitted" ? " (در صورت اشتباه قابل اصلاح است)" : ""}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      onClick={() => void updateStatus("approved")}
+                      disabled={actionLoading || selected.status === "approved"}
+                      className={`gap-2 ${
+                        selected.status === "approved"
+                          ? "bg-emerald-700 hover:bg-emerald-700"
+                          : "bg-emerald-600 hover:bg-emerald-700"
+                      }`}
+                    >
+                      {actionLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="h-4 w-4" />
+                      )}
+                      {selected.status === "approved" ? "انجام‌شده" : "تایید"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => void updateStatus("rejected")}
+                      disabled={actionLoading || selected.status === "rejected"}
+                      className={`gap-2 ${
+                        selected.status === "rejected"
+                          ? "border-red-300 bg-red-100 text-red-800"
+                          : "border-red-200 text-red-700 hover:bg-red-50"
+                      }`}
+                    >
+                      <XCircle className="h-4 w-4" />
+                      {selected.status === "rejected" ? "رد شده" : "رد"}
+                    </Button>
+                    {selected.status !== "submitted" && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void updateStatus("submitted")}
+                        disabled={actionLoading}
+                        className="gap-2 border-amber-200 text-amber-800 hover:bg-amber-50"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                        بازگشت به اقدام‌نشده
+                      </Button>
                     )}
-                    تایید
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => void updateStatus("rejected")}
-                    disabled={actionLoading}
-                    className="gap-2 border-red-200 text-red-700 hover:bg-red-50"
-                  >
-                    <XCircle className="h-4 w-4" />
-                    رد
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => void openReferPanel()}
-                    disabled={actionLoading}
-                    className="gap-2"
-                  >
-                    <Forward className="h-4 w-4" />
-                    ارجاع
-                  </Button>
+                    {selected.status === "submitted" && (
+                      <Button
+                        type="button"
+                        onClick={() => void openReferPanel()}
+                        disabled={actionLoading}
+                        className="gap-2 bg-sky-600 font-bold text-white hover:bg-sky-700"
+                      >
+                        <Forward className="h-4 w-4" />
+                        ارجاع
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )}
 
-              {referOpen && selected.can_act && (
+              {referOpen && selected.can_act && selected.status === "submitted" && (
                 <div className="space-y-3 rounded-2xl border border-sky-100 bg-sky-50/60 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <h4 className="text-sm font-semibold text-slate-800">ارجاع به همکار</h4>

@@ -147,7 +147,7 @@ def _submission_to_list_item(
             else None
         ),
         referrals=referrals,
-        can_act=can_act and submission.status == "submitted",
+        can_act=can_act,
     )
 
 
@@ -185,7 +185,7 @@ def _submission_to_response(
             else None
         ),
         referrals=referrals,
-        can_act=can_act and submission.status == "submitted",
+        can_act=can_act,
     )
 
 

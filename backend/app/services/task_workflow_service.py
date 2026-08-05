@@ -7,7 +7,7 @@ from app.models.submission import Submission, SubmissionReferral
 from app.models.user import User
 from app.services.form_duty_service import list_user_duty_assignments, user_handles_target
 
-ALLOWED_TASK_STATUSES = {"approved", "rejected"}
+ALLOWED_TASK_STATUSES = {"approved", "rejected", "submitted"}
 
 
 def user_is_referral_recipient(db: Session, user_id: int, submission_id: int) -> bool:
@@ -36,16 +36,7 @@ def user_can_access_task(db: Session, user: User, submission: Submission) -> boo
     return user_is_referral_recipient(db, user.id, submission.id)
 
 
-def list_task_submissions(
-    db: Session,
-    user_id: int,
-    *,
-    form_id: str | None = None,
-    department_id: str | None = None,
-    section_id: str | None = None,
-    limit: int = 100,
-    offset: int = 0,
-) -> list[Submission]:
+def _task_access_conditions(db: Session, user_id: int):
     assignments = list_user_duty_assignments(db, user_id)
     conditions = [
         and_(
@@ -63,7 +54,20 @@ def list_task_submissions(
     ]
     if referred_ids:
         conditions.append(Submission.id.in_(referred_ids))
+    return conditions
 
+
+def list_task_submissions(
+    db: Session,
+    user_id: int,
+    *,
+    form_id: str | None = None,
+    department_id: str | None = None,
+    section_id: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> list[Submission]:
+    conditions = _task_access_conditions(db, user_id)
     if not conditions:
         return []
 
@@ -77,6 +81,20 @@ def list_task_submissions(
     if section_id:
         query = query.filter(Submission.section_id == section_id)
     return query.offset(offset).limit(limit).all()
+
+
+def list_pending_task_ids(db: Session, user_id: int) -> list[int]:
+    """IDs of tasks the user can still act on (status=submitted)."""
+    conditions = _task_access_conditions(db, user_id)
+    if not conditions:
+        return []
+    rows = (
+        db.query(Submission.id)
+        .filter(or_(*conditions), Submission.status == "submitted")
+        .order_by(Submission.created_at.desc())
+        .all()
+    )
+    return [row.id for row in rows]
 
 
 def list_submission_referrals(
@@ -104,8 +122,8 @@ def set_task_status(
         raise LookupError("درخواست یافت نشد")
     if not user_can_access_task(db, actor, submission):
         raise PermissionError("شما به این وظیفه دسترسی ندارید.")
-    if submission.status != "submitted":
-        raise ValueError("این درخواست قبلاً تعیین وضعیت شده است.")
+    if submission.status == status:
+        return submission
 
     submission.status = status
     submission.status_updated_at = datetime.utcnow()

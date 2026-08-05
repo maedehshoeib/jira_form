@@ -15,13 +15,14 @@ import {
   History,
   Megaphone,
   Users,
-  UserRound,
   X,
 } from "lucide-react";
 import UserAvatar from "../UserAvatar";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import logo from "../../assets/logo.png";
+import client from "../../api/client";
+import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../context/AuthContext";
 import { cn } from "../../lib/utils";
 import ThemeToggle from "../ThemeToggle";
@@ -32,6 +33,11 @@ type NavigationItem = {
   label: string;
   href: string;
   icon: typeof Home;
+};
+
+type TaskPendingNotification = {
+  count: number;
+  ids: number[];
 };
 
 const navigationItems: NavigationItem[] = [
@@ -49,42 +55,55 @@ const adminNavigationItems: NavigationItem[] = [
   { label: "دستگاه‌ها و ورودها", href: "/admin/sessions", icon: History },
 ];
 
+function playTone(muted: boolean) {
+  if (muted) return;
+  try {
+    const AudioContextClass = window.AudioContext ||
+      (window as typeof window & { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext;
+    if (!AudioContextClass) return;
+    const context = new AudioContextClass();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(740, context.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(980, context.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.0001, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.16, context.currentTime + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.22);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.23);
+    oscillator.onended = () => void context.close();
+  } catch {
+    // Browsers may block audio until the user has interacted with the page.
+  }
+}
+
 export default function AppShell({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
+  const [taskPendingCount, setTaskPendingCount] = useState(0);
   const [chatSoundMuted, setChatSoundMuted] = useState(
     () => localStorage.getItem("chat_notification_sound_muted") === "true",
   );
+  const [taskSoundMuted, setTaskSoundMuted] = useState(
+    () => localStorage.getItem("tasks_notification_sound_muted") === "true",
+  );
   const knownUnreadRef = useRef<Map<number, number> | null>(null);
+  const knownPendingTaskIdsRef = useRef<Set<number> | null>(null);
 
-  const playNotificationSound = useCallback(() => {
-    if (chatSoundMuted) return;
-    try {
-      const AudioContextClass = window.AudioContext ||
-        (window as typeof window & { webkitAudioContext?: typeof AudioContext })
-          .webkitAudioContext;
-      if (!AudioContextClass) return;
-      const context = new AudioContextClass();
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      oscillator.type = "sine";
-      oscillator.frequency.setValueAtTime(740, context.currentTime);
-      oscillator.frequency.exponentialRampToValueAtTime(980, context.currentTime + 0.12);
-      gain.gain.setValueAtTime(0.0001, context.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.16, context.currentTime + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.22);
-      oscillator.connect(gain);
-      gain.connect(context.destination);
-      oscillator.start();
-      oscillator.stop(context.currentTime + 0.23);
-      oscillator.onended = () => void context.close();
-    } catch {
-      // Browsers may block audio until the user has interacted with the page.
-    }
+  const playChatNotificationSound = useCallback(() => {
+    playTone(chatSoundMuted);
   }, [chatSoundMuted]);
+
+  const playTaskNotificationSound = useCallback(() => {
+    playTone(taskSoundMuted);
+  }, [taskSoundMuted]);
 
   const refreshChatNotifications = useCallback(async () => {
     try {
@@ -102,31 +121,63 @@ export default function AppShell({ children }: { children: ReactNode }) {
       setChatUnreadCount(
         conversations.reduce((total, conversation) => total + conversation.unread_count, 0),
       );
-      if (hasNewMessage) playNotificationSound();
+      if (hasNewMessage) playChatNotificationSound();
     } catch {
       // Keep navigation usable if chat notifications are temporarily unavailable.
     }
-  }, [playNotificationSound]);
+  }, [playChatNotificationSound]);
+
+  const refreshTaskNotifications = useCallback(async () => {
+    try {
+      const { data } = await client.get<TaskPendingNotification>(endpoints.taskPendingCount);
+      const nextIds = new Set(data.ids);
+      const previous = knownPendingTaskIdsRef.current;
+      const hasNewTask =
+        previous !== null && data.ids.some((id) => !previous.has(id));
+      knownPendingTaskIdsRef.current = nextIds;
+      setTaskPendingCount(data.count);
+      if (hasNewTask) playTaskNotificationSound();
+    } catch {
+      // Keep navigation usable if task notifications are temporarily unavailable.
+    }
+  }, [playTaskNotificationSound]);
 
   useEffect(() => {
     setSidebarOpen(false);
   }, [location.pathname]);
+
   useEffect(() => {
     void refreshChatNotifications();
     const timer = window.setInterval(() => void refreshChatNotifications(), 8000);
     window.addEventListener("chat:refresh-notifications", refreshChatNotifications);
-    window.addEventListener("chat:new-message", playNotificationSound);
+    window.addEventListener("chat:new-message", playChatNotificationSound);
     return () => {
       window.clearInterval(timer);
       window.removeEventListener("chat:refresh-notifications", refreshChatNotifications);
-      window.removeEventListener("chat:new-message", playNotificationSound);
+      window.removeEventListener("chat:new-message", playChatNotificationSound);
     };
-  }, [playNotificationSound, refreshChatNotifications]);
+  }, [playChatNotificationSound, refreshChatNotifications]);
+
+  useEffect(() => {
+    void refreshTaskNotifications();
+    const timer = window.setInterval(() => void refreshTaskNotifications(), 8000);
+    window.addEventListener("tasks:refresh-notifications", refreshTaskNotifications);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("tasks:refresh-notifications", refreshTaskNotifications);
+    };
+  }, [refreshTaskNotifications]);
 
   const toggleChatSound = () => {
     const next = !chatSoundMuted;
     setChatSoundMuted(next);
     localStorage.setItem("chat_notification_sound_muted", String(next));
+  };
+
+  const toggleTaskSound = () => {
+    const next = !taskSoundMuted;
+    setTaskSoundMuted(next);
+    localStorage.setItem("tasks_notification_sound_muted", String(next));
   };
 
   const handleLogout = () => {
@@ -139,6 +190,40 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   const isActive = (href: string) =>
     href === "/" ? location.pathname === "/" : location.pathname.startsWith(href);
+
+  const renderCountBadge = (count: number, active: boolean) => (
+    <span className={cn(
+      "min-w-6 rounded-full px-1.5 py-0.5 text-center text-xs font-extrabold",
+      active ? "bg-red-600 text-white" : "bg-white text-red-700",
+    )}>
+      {count > 99 ? "+۹۹" : count.toLocaleString("fa-IR")}
+    </span>
+  );
+
+  const renderSoundToggle = (
+    muted: boolean,
+    active: boolean,
+    onToggle: () => void,
+    enableLabel: string,
+    disableLabel: string,
+  ) => (
+    <button
+      type="button"
+      title={muted ? enableLabel : disableLabel}
+      aria-label={muted ? enableLabel : disableLabel}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onToggle();
+      }}
+      className={cn(
+        "rounded-lg p-1 transition-colors",
+        active ? "hover:bg-red-100" : "hover:bg-white/15",
+      )}
+    >
+      {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+    </button>
+  );
 
   const sidebar = (
     <div className="flex h-full flex-col">
@@ -183,32 +268,26 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 <Icon size={19} />
               </span>
               <span className="flex-1">{label}</span>
-              {item.href === "/internal-chat" && chatUnreadCount > 0 && (
-                <span className={cn(
-                  "min-w-6 rounded-full px-1.5 py-0.5 text-center text-xs font-extrabold",
-                  active ? "bg-red-600 text-white" : "bg-white text-red-700",
-                )}>
-                  {chatUnreadCount > 99 ? "+۹۹" : chatUnreadCount.toLocaleString("fa-IR")}
-                </span>
-              )}
-              {item.href === "/internal-chat" && (
-                <button
-                  type="button"
-                  title={chatSoundMuted ? "فعال کردن صدای اعلان گفتگو" : "بی‌صدا کردن اعلان گفتگو"}
-                  aria-label={chatSoundMuted ? "فعال کردن صدای اعلان گفتگو" : "بی‌صدا کردن اعلان گفتگو"}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    toggleChatSound();
-                  }}
-                  className={cn(
-                    "rounded-lg p-1 transition-colors",
-                    active ? "hover:bg-red-100" : "hover:bg-white/15",
-                  )}
-                >
-                  {chatSoundMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
-                </button>
-              )}
+              {item.href === "/my-tasks" && taskPendingCount > 0 &&
+                renderCountBadge(taskPendingCount, active)}
+              {item.href === "/my-tasks" &&
+                renderSoundToggle(
+                  taskSoundMuted,
+                  active,
+                  toggleTaskSound,
+                  "فعال کردن صدای اعلان وظایف",
+                  "بی‌صدا کردن اعلان وظایف",
+                )}
+              {item.href === "/internal-chat" && chatUnreadCount > 0 &&
+                renderCountBadge(chatUnreadCount, active)}
+              {item.href === "/internal-chat" &&
+                renderSoundToggle(
+                  chatSoundMuted,
+                  active,
+                  toggleChatSound,
+                  "فعال کردن صدای اعلان گفتگو",
+                  "بی‌صدا کردن اعلان گفتگو",
+                )}
               <ChevronLeft
                 size={16}
                 className={cn(

@@ -57,7 +57,7 @@ class SubmissionResponse(BaseModel):
 
 
 class TaskStatusUpdate(BaseModel):
-    status: Literal["approved", "rejected"]
+    status: Literal["approved", "rejected", "submitted"]
 
 
 class TaskReferRequest(BaseModel):
@@ -71,3 +71,8 @@ class TaskColleague(BaseModel):
     display_name: str
     department: str
     job_title: str
+
+
+class TaskPendingNotification(BaseModel):
+    count: int
+    ids: list[int] = Field(default_factory=list)
