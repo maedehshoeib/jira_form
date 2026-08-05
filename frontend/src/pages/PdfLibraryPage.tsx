@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Download,
   Eye,
@@ -215,6 +216,15 @@ export default function PdfLibraryPage({ category }: PdfLibraryPageProps) {
   return (
     <AppShell>
       <div dir="rtl">
+        <div className="mb-6">
+          <Link
+            to="/"
+            className="rounded-full border border-slate-200 bg-slate-50 px-5 py-2.5 font-medium text-slate-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-white/20 dark:bg-white/[0.08] dark:text-white/80 dark:backdrop-blur dark:hover:border-red-300/60 dark:hover:bg-red-500/20 dark:hover:text-white"
+          >
+            بازگشت
+          </Link>
+        </div>
+
         <div className="mb-8 flex flex-wrap items-end justify-between gap-5">
           <div className="flex items-center gap-4">
             <div

@@ -61,11 +61,15 @@ export default function FormPage() {
     );
   }
 
+  const departmentId = searchParams.get("department");
+  const backTo = departmentId ? `/departments/${departmentId}` : "/";
+  const backLabel = departmentId ? "بازگشت" : "بازگشت به خانه";
+
   return (
     <AppShell>
       <div className="mb-8">
         <Link
-          to="/"
+          to={backTo}
           className="
             inline-flex
             items-center
@@ -75,7 +79,7 @@ export default function FormPage() {
           "
         >
           <ChevronLeft size={18} />
-          بازگشت به خانه
+          {backLabel}
         </Link>
       </div>
 

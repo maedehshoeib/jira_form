@@ -98,6 +98,15 @@ export default function DepartmentPage() {
   const isReports = department?.id === "reports";
   const pageTitle = isResourceDevelopment ? "معاونت توسعه منابع" : department!.title;
 
+  const parentDepartmentById: Record<string, string> = {
+    hr: "resource-development",
+    finance: "resource-development",
+    bank: "business",
+  };
+  const backTo = departmentId && parentDepartmentById[departmentId]
+    ? `/departments/${parentDepartmentById[departmentId]}`
+    : "/";
+
   const childIcon: Record<string, ComponentType<{ className?: string }>> = {
     hr: Users,
     finance: Wallet,
@@ -115,7 +124,7 @@ export default function DepartmentPage() {
       <div className="relative isolate overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-white/65 dark:bg-gradient-to-br dark:from-white/[0.22] dark:via-slate-100/[0.10] dark:to-cyan-100/[0.05] dark:text-white dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.85),inset_-1px_-1px_0_rgba(186,230,253,0.14),0_0_30px_rgba(224,242,254,0.12),0_28px_70px_-32px_rgba(0,0,0,0.9)] dark:ring-1 dark:ring-cyan-100/20 dark:backdrop-blur-2xl dark:saturate-150 before:pointer-events-none before:absolute before:-bottom-40 before:-right-28 before:-z-10 before:h-96 before:w-96 before:rounded-full before:bg-red-500/10 before:blur-[90px] dark:before:bg-red-500/35 sm:p-7 lg:p-9">
         <div className="mb-10 flex items-center justify-between">
           <Link
-            to="/"
+            to={backTo}
             className="rounded-full border border-slate-200 bg-slate-50 px-5 py-2.5 font-medium text-slate-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-white/20 dark:bg-white/[0.08] dark:text-white/80 dark:backdrop-blur dark:hover:border-red-300/60 dark:hover:bg-red-500/20 dark:hover:text-white"
           >
             بازگشت

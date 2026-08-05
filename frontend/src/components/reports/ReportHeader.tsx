@@ -28,7 +28,7 @@ export default function ReportHeader({
         <div>
 
           <Link
-            to="/reports"
+            to="/departments/reports"
             className="no-print mb-4 inline-flex items-center gap-2 text-red-600 hover:text-red-700"
           >
             <ArrowRight size={18} />

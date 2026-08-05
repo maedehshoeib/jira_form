@@ -7,7 +7,7 @@ export default function ContractsArchiveHome() {
   return (
     <AppShell>
       <div className="mx-auto max-w-7xl">
-        <Link to="/" className="font-semibold text-red-600">
+        <Link to="/departments/contracts" className="font-semibold text-red-600">
           بازگشت
         </Link>
 
