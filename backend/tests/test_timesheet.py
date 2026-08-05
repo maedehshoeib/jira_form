@@ -6,12 +6,24 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.api.routes.timesheet import _day_summary, add_task
+from app.api.routes.timesheet import (
+    _day_summary,
+    add_task,
+    admin_create_attendance,
+    admin_create_task,
+    admin_update_attendance,
+    admin_update_task,
+)
 from app.db.base import Base
 from app.models.department import Department  # noqa: F401 - registers FK table
-from app.models.timesheet import TimesheetAttendance, TimesheetProject
+from app.models.timesheet import TimesheetAttendance, TimesheetProject, TimesheetTask
 from app.models.user import User
-from app.schemas.timesheet import TaskPayload
+from app.schemas.timesheet import (
+    AdminAttendancePayload,
+    AdminAttendanceUpdatePayload,
+    AdminTaskPayload,
+    TaskPayload,
+)
 
 
 class TimesheetTaskIntervalTests(unittest.TestCase):
@@ -203,6 +215,150 @@ class TimesheetTaskIntervalTests(unittest.TestCase):
             self.db,
         )
         self.assertEqual(result['minutes_spent'], 60)
+
+
+class TimesheetAdminWriteTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.engine = create_engine(
+            'sqlite://',
+            connect_args={'check_same_thread': False},
+            poolclass=StaticPool,
+        )
+        cls.Session = sessionmaker(bind=cls.engine)
+
+    def setUp(self):
+        Base.metadata.drop_all(self.engine)
+        Base.metadata.create_all(self.engine)
+        self.db = self.Session()
+        self.admin = User(username='admin', is_admin=True, must_change_password=False)
+        self.employee = User(
+            username='employee',
+            display_name='کارمند تست',
+            must_change_password=False,
+        )
+        self.db.add_all(
+            [self.admin, self.employee, TimesheetProject(code='GENERAL', title='General')]
+        )
+        self.db.commit()
+        self.db.refresh(self.employee)
+
+    def tearDown(self):
+        self.db.close()
+
+    def test_admin_can_create_and_update_attendance(self):
+        created = admin_create_attendance(
+            AdminAttendancePayload(
+                employee_id=self.employee.id,
+                work_date='1405/05/10',
+                check_in_time='09:00',
+                check_out_time='12:00',
+            ),
+            self.admin,
+            self.db,
+        )
+        attendance_id = created['attendance']['id']
+        self.assertEqual(created['attendance']['check_in_time'], '09:00')
+        self.assertEqual(created['attendance']['check_out_time'], '12:00')
+
+        updated = admin_update_attendance(
+            attendance_id,
+            AdminAttendanceUpdatePayload(
+                work_date='1405/05/10',
+                check_in_time='08:30',
+                check_out_time='13:00',
+            ),
+            self.admin,
+            self.db,
+        )
+        self.assertEqual(updated['attendance']['check_in_time'], '08:30')
+        self.assertEqual(updated['attendance']['check_out_time'], '13:00')
+
+    def test_admin_can_create_and_update_task_for_employee(self):
+        admin_create_attendance(
+            AdminAttendancePayload(
+                employee_id=self.employee.id,
+                work_date='1405/05/10',
+                check_in_time='09:00',
+                check_out_time='12:00',
+            ),
+            self.admin,
+            self.db,
+        )
+        created = admin_create_task(
+            AdminTaskPayload(
+                employee_id=self.employee.id,
+                work_date='1405/05/10',
+                project_code='GENERAL',
+                task_name='کار ادمین',
+                start_time='09:30',
+                end_time='10:30',
+            ),
+            self.admin,
+            self.db,
+        )
+        self.assertEqual(created['minutes_spent'], 60)
+        task_id = created['task']['id']
+
+        updated = admin_update_task(
+            task_id,
+            TaskPayload(
+                work_date='1405/05/10',
+                project_code='GENERAL',
+                task_name='کار اصلاح‌شده',
+                start_time='10:00',
+                end_time='11:00',
+            ),
+            self.admin,
+            self.db,
+        )
+        self.assertEqual(updated['minutes_spent'], 60)
+        task = self.db.get(TimesheetTask, task_id)
+        self.assertEqual(task.task_name, 'کار اصلاح‌شده')
+        self.assertEqual(task.user_id, self.employee.id)
+
+    def test_admin_cannot_shrink_attendance_under_existing_tasks(self):
+        admin_create_attendance(
+            AdminAttendancePayload(
+                employee_id=self.employee.id,
+                work_date='1405/05/10',
+                check_in_time='09:00',
+                check_out_time='12:00',
+            ),
+            self.admin,
+            self.db,
+        )
+        created = admin_create_task(
+            AdminTaskPayload(
+                employee_id=self.employee.id,
+                work_date='1405/05/10',
+                project_code='GENERAL',
+                task_name='کار',
+                start_time='09:00',
+                end_time='11:00',
+            ),
+            self.admin,
+            self.db,
+        )
+        attendance = (
+            self.db.query(TimesheetAttendance)
+            .filter(TimesheetAttendance.user_id == self.employee.id)
+            .one()
+        )
+        with self.assertRaises(HTTPException) as raised:
+            admin_update_attendance(
+                attendance.id,
+                AdminAttendanceUpdatePayload(
+                    work_date='1405/05/10',
+                    check_in_time='09:00',
+                    check_out_time='10:00',
+                ),
+                self.admin,
+                self.db,
+            )
+        self.assertEqual(raised.exception.status_code, 400)
+        self.assertIn('فعالیت', raised.exception.detail)
+        self.assertEqual(created['minutes_spent'], 120)
 
 
 if __name__ == '__main__':

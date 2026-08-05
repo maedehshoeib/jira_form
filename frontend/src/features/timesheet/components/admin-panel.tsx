@@ -15,25 +15,37 @@ import {
   Clock3,
   Download,
   Filter,
+  Pencil,
+  Plus,
   Printer,
   Search,
   Sparkles,
   Target,
   TimerReset,
+  Trash2,
   Users,
+  X,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import {
+  adminCreateAttendance,
   adminCreateProject,
   adminCreateSubproject,
+  adminCreateTask,
+  adminDeleteAttendance,
   adminDeleteProject,
   adminDeleteSubproject,
+  adminDeleteTask,
+  adminUpdateAttendance,
   adminUpdateProject,
   adminUpdateSubproject,
+  adminUpdateTask,
   fetchAdminProjects,
   fetchAdminRangeRecords,
+  type AdminAttendanceRecord,
   type AdminRangeRecords,
+  type AdminTaskRecord,
   type ProjectItem,
   type SubprojectItem,
   type TimesheetEmployee,
@@ -45,6 +57,7 @@ import { Logo } from '@/features/timesheet/components/logo';
 
 type ReportTab = 'employees' | 'tasks' | 'attendance';
 type PeriodPreset = 'today' | 'week' | 'month' | 'custom';
+type EditorMode = 'attendance' | 'task' | null;
 
 const numberFormatter = new Intl.NumberFormat('fa-IR');
 
@@ -61,6 +74,16 @@ function parseJalali(value?: string | null): DateObject | null {
   return new DateObject({
     date: value,
     format: 'YYYY/MM/DD',
+    calendar: persian,
+    locale: persian_fa,
+  });
+}
+
+function parseTime(value?: string | null): DateObject | null {
+  if (!value) return null;
+  return new DateObject({
+    date: value,
+    format: 'HH:mm',
     calendar: persian,
     locale: persian_fa,
   });
@@ -93,12 +116,14 @@ function SelectField({
   onChange,
   children,
   icon,
+  disabled,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   children: React.ReactNode;
   icon: React.ReactNode;
+  disabled?: boolean;
 }): JSX.Element {
   return (
     <label className='block min-w-0'>
@@ -107,8 +132,9 @@ function SelectField({
         <span className='pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400'>{icon}</span>
         <select
           value={value}
+          disabled={disabled}
           onChange={(event) => onChange(event.target.value)}
-          className='h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pr-10 pl-9 text-sm font-medium text-slate-700 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100'
+          className='h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pr-10 pl-9 text-sm font-medium text-slate-700 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500'
         >
           {children}
         </select>
@@ -234,6 +260,20 @@ export function AdminPanel(): JSX.Element {
   const [subprojectUserIds, setSubprojectUserIds] = useState<number[]>([]);
   const [projectUserSearch, setProjectUserSearch] = useState('');
   const [subprojectUserSearch, setSubprojectUserSearch] = useState('');
+  const [editorMode, setEditorMode] = useState<EditorMode>(null);
+  const [editingAttendanceId, setEditingAttendanceId] = useState<number | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
+  const [editorEmployeeId, setEditorEmployeeId] = useState('');
+  const [editorWorkDate, setEditorWorkDate] = useState<DateObject | null>(today);
+  const [editorCheckIn, setEditorCheckIn] = useState<DateObject | null>(null);
+  const [editorCheckOut, setEditorCheckOut] = useState<DateObject | null>(null);
+  const [editorProjectCode, setEditorProjectCode] = useState('');
+  const [editorSubprojectCode, setEditorSubprojectCode] = useState('');
+  const [editorTaskName, setEditorTaskName] = useState('');
+  const [editorTaskStart, setEditorTaskStart] = useState<DateObject | null>(null);
+  const [editorTaskEnd, setEditorTaskEnd] = useState<DateObject | null>(null);
+  const [editorBusy, setEditorBusy] = useState(false);
+  const [status, setStatus] = useState('');
   const fullName = user?.display_name || user?.username || 'مدیر سیستم';
 
   const applyPreset = (nextPreset: PeriodPreset) => {
@@ -624,6 +664,191 @@ export function AdminPanel(): JSX.Element {
     }
   };
 
+  const editorProjects = projects.filter((item) => item.is_active !== false);
+  const editorSubprojects =
+    editorProjects.find((item) => item.code === editorProjectCode)?.subprojects || [];
+
+  const closeEditor = () => {
+    setEditorMode(null);
+    setEditingAttendanceId(null);
+    setEditingTaskId(null);
+    setEditorEmployeeId(selectedEmployee !== 'all' ? selectedEmployee : '');
+    setEditorWorkDate(new DateObject(today));
+    setEditorCheckIn(null);
+    setEditorCheckOut(null);
+    setEditorProjectCode(editorProjects[0]?.code || '');
+    setEditorSubprojectCode('');
+    setEditorTaskName('');
+    setEditorTaskStart(null);
+    setEditorTaskEnd(null);
+  };
+
+  const openAttendanceEditor = (row?: AdminAttendanceRecord) => {
+    setError('');
+    setStatus('');
+    setEditorMode('attendance');
+    setEditingTaskId(null);
+    if (row) {
+      setEditingAttendanceId(row.id);
+      setEditorEmployeeId(row.employee_id);
+      setEditorWorkDate(parseJalali(row.work_date));
+      setEditorCheckIn(parseTime(row.check_in_time));
+      setEditorCheckOut(parseTime(row.check_out_time));
+    } else {
+      setEditingAttendanceId(null);
+      setEditorEmployeeId(selectedEmployee !== 'all' ? selectedEmployee : '');
+      setEditorWorkDate(new DateObject(today));
+      setEditorCheckIn(null);
+      setEditorCheckOut(null);
+    }
+    setReportTab('attendance');
+  };
+
+  const openTaskEditor = (row?: AdminTaskRecord) => {
+    setError('');
+    setStatus('');
+    setEditorMode('task');
+    setEditingAttendanceId(null);
+    const defaultProject = editorProjects[0]?.code || '';
+    if (row) {
+      setEditingTaskId(row.id);
+      setEditorEmployeeId(row.employee_id);
+      setEditorWorkDate(parseJalali(row.work_date));
+      setEditorProjectCode(row.project_code);
+      setEditorSubprojectCode(row.subproject_code || '');
+      setEditorTaskName(row.task_name);
+      setEditorTaskStart(parseTime(row.start_time));
+      setEditorTaskEnd(parseTime(row.end_time));
+    } else {
+      setEditingTaskId(null);
+      setEditorEmployeeId(selectedEmployee !== 'all' ? selectedEmployee : '');
+      setEditorWorkDate(new DateObject(today));
+      setEditorProjectCode(defaultProject);
+      setEditorSubprojectCode('');
+      setEditorTaskName('');
+      setEditorTaskStart(null);
+      setEditorTaskEnd(null);
+    }
+    setReportTab('tasks');
+  };
+
+  const saveAttendanceEditor = async () => {
+    if (!editorEmployeeId || !editorWorkDate || !editorCheckIn) {
+      setError('کارمند، تاریخ و ساعت ورود را مشخص کنید.');
+      return;
+    }
+    const checkIn = editorCheckIn.format('HH:mm');
+    const checkOut = editorCheckOut ? editorCheckOut.format('HH:mm') : null;
+    if (checkOut && checkOut <= checkIn) {
+      setError('ساعت خروج باید بعد از ساعت ورود باشد.');
+      return;
+    }
+    setEditorBusy(true);
+    setError('');
+    setStatus('');
+    try {
+      if (editingAttendanceId) {
+        await adminUpdateAttendance(editingAttendanceId, {
+          work_date: asDate(editorWorkDate),
+          check_in_time: checkIn,
+          check_out_time: checkOut,
+        });
+        setStatus('تردد با موفقیت ویرایش شد.');
+      } else {
+        await adminCreateAttendance({
+          employee_id: Number(editorEmployeeId),
+          work_date: asDate(editorWorkDate),
+          check_in_time: checkIn,
+          check_out_time: checkOut,
+        });
+        setStatus('تردد با موفقیت ثبت شد.');
+      }
+      closeEditor();
+      await loadRecords();
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || 'ذخیره تردد با خطا روبه‌رو شد.');
+    } finally {
+      setEditorBusy(false);
+    }
+  };
+
+  const saveTaskEditor = async () => {
+    if (
+      !editorEmployeeId
+      || !editorWorkDate
+      || !editorProjectCode
+      || !editorTaskName.trim()
+      || !editorTaskStart
+      || !editorTaskEnd
+    ) {
+      setError('کارمند، تاریخ، پروژه، شرح و بازه زمانی فعالیت را کامل کنید.');
+      return;
+    }
+    const start = editorTaskStart.format('HH:mm');
+    const end = editorTaskEnd.format('HH:mm');
+    if (end <= start) {
+      setError('ساعت پایان باید بعد از ساعت شروع باشد.');
+      return;
+    }
+    setEditorBusy(true);
+    setError('');
+    setStatus('');
+    const payload = {
+      work_date: asDate(editorWorkDate),
+      project_code: editorProjectCode,
+      subproject_code: editorSubprojectCode || null,
+      task_name: editorTaskName.trim(),
+      start_time: start,
+      end_time: end,
+    };
+    try {
+      if (editingTaskId) {
+        await adminUpdateTask(editingTaskId, payload);
+        setStatus('فعالیت با موفقیت ویرایش شد.');
+      } else {
+        await adminCreateTask({
+          employee_id: Number(editorEmployeeId),
+          ...payload,
+        });
+        setStatus('فعالیت با موفقیت ثبت شد.');
+      }
+      closeEditor();
+      await loadRecords();
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || 'ذخیره فعالیت با خطا روبه‌رو شد.');
+    } finally {
+      setEditorBusy(false);
+    }
+  };
+
+  const removeAttendance = async (row: AdminAttendanceRecord) => {
+    if (!window.confirm(`تردد ${row.full_name} در تاریخ ${row.work_date} حذف شود؟`)) return;
+    setError('');
+    setStatus('');
+    try {
+      await adminDeleteAttendance(row.id);
+      setStatus('تردد حذف شد.');
+      if (editingAttendanceId === row.id) closeEditor();
+      await loadRecords();
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || 'حذف تردد با خطا روبه‌رو شد.');
+    }
+  };
+
+  const removeTask = async (row: AdminTaskRecord) => {
+    if (!window.confirm(`فعالیت «${row.task_name}» حذف شود؟`)) return;
+    setError('');
+    setStatus('');
+    try {
+      await adminDeleteTask(row.id);
+      setStatus('فعالیت حذف شد.');
+      if (editingTaskId === row.id) closeEditor();
+      await loadRecords();
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || 'حذف فعالیت با خطا روبه‌رو شد.');
+    }
+  };
+
   return (
     <div className='min-h-screen bg-[#f5f7fb] font-sans text-slate-900' dir='rtl'>
       <header className='no-print border-b border-slate-200/80 bg-white/90 backdrop-blur'>
@@ -655,9 +880,15 @@ export function AdminPanel(): JSX.Element {
               <Sparkles className='h-4 w-4' /> نمای مدیریتی
             </div>
             <h1 className='text-2xl font-black tracking-tight text-slate-950 sm:text-3xl'>گزارش جامع زمان و عملکرد</h1>
-            <p className='mt-2 text-sm text-slate-500'>وضعیت کارکنان، واحدها و پروژه‌ها را در یک نگاه بررسی کنید.</p>
+            <p className='mt-2 text-sm text-slate-500'>وضعیت کارکنان را ببینید و در صورت نیاز ورود/خروج یا فعالیت‌ها را ثبت و ویرایش کنید.</p>
           </div>
           <div className='no-print flex flex-wrap gap-2'>
+            <Button variant='outline' onClick={() => openAttendanceEditor()} className='gap-2 bg-white'>
+              <Clock3 className='h-4 w-4' /> ثبت تردد
+            </Button>
+            <Button variant='outline' onClick={() => openTaskEditor()} className='gap-2 bg-white'>
+              <Plus className='h-4 w-4' /> افزودن فعالیت
+            </Button>
             <Button variant='outline' onClick={() => setShowProjects((value) => !value)} className='gap-2 bg-white'>
               <BriefcaseBusiness className='h-4 w-4' /> مدیریت پروژه‌ها
             </Button>
@@ -670,7 +901,220 @@ export function AdminPanel(): JSX.Element {
           </div>
         </section>
 
-        {error && <div className='no-print rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700'>{error}</div>}
+        {error && !editorMode && <div className='no-print rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700'>{error}</div>}
+        {status && <div className='no-print rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700'>{status}</div>}
+
+        {editorMode && (
+          <div
+            className='no-print fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/45 p-0 backdrop-blur-sm sm:items-center sm:p-6'
+            onMouseDown={closeEditor}
+          >
+            <section
+              role='dialog'
+              aria-modal='true'
+              aria-label={editorMode === 'attendance' ? 'ویرایش تردد' : 'ویرایش فعالیت'}
+              className='max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl'
+              onMouseDown={(event) => event.stopPropagation()}
+            >
+              <div className='sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur'>
+                <div>
+                  <h2 className='text-lg font-black text-slate-900'>
+                    {editorMode === 'attendance'
+                      ? (editingAttendanceId ? 'ویرایش تردد' : 'ثبت ورود / خروج')
+                      : (editingTaskId ? 'ویرایش فعالیت' : 'افزودن فعالیت')}
+                  </h2>
+                  <p className='mt-1 text-xs text-slate-500'>
+                    {editorMode === 'attendance'
+                      ? 'ورود و خروج کارمند را ثبت یا اصلاح کنید.'
+                      : 'فعالیت باید داخل یکی از بازه‌های حضور همان روز باشد.'}
+                  </p>
+                </div>
+                <Button variant='outline' size='sm' onClick={closeEditor} className='shrink-0 gap-1 rounded-xl'>
+                  <X className='h-4 w-4' /> بستن
+                </Button>
+              </div>
+
+              <div className='space-y-4 px-5 py-5'>
+                {error && (
+                  <div className='rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700'>
+                    {error}
+                  </div>
+                )}
+
+                {editorMode === 'attendance' ? (
+                  <div className='grid gap-3 sm:grid-cols-2'>
+                    <SelectField
+                      label='کارمند'
+                      value={editorEmployeeId}
+                      onChange={setEditorEmployeeId}
+                      icon={<Users className='h-4 w-4' />}
+                      disabled={Boolean(editingAttendanceId)}
+                    >
+                      <option value=''>انتخاب کارمند</option>
+                      {(records?.employees || []).map((employee) => (
+                        <option key={employee.employee_id} value={employee.employee_id}>
+                          {employee.full_name}
+                        </option>
+                      ))}
+                    </SelectField>
+                    <label>
+                      <span className='mb-1.5 block text-xs font-bold text-slate-500'>تاریخ</span>
+                      <JalaliDateTimePicker
+                        value={editorWorkDate}
+                        onChange={(value: any) => setEditorWorkDate(Array.isArray(value) ? value[0] : value)}
+                        format='YYYY/MM/DD'
+                        placeholder='تاریخ تردد'
+                      />
+                    </label>
+                    <label>
+                      <span className='mb-1.5 block text-xs font-bold text-slate-500'>ساعت ورود</span>
+                      <JalaliDateTimePicker
+                        value={editorCheckIn}
+                        onChange={(value: any) => setEditorCheckIn(Array.isArray(value) ? value[0] : value)}
+                        disableDayPicker
+                        format='HH:mm'
+                        placeholder='--:--'
+                      />
+                    </label>
+                    <label>
+                      <span className='mb-1.5 block text-xs font-bold text-slate-500'>ساعت خروج (اختیاری)</span>
+                      <JalaliDateTimePicker
+                        value={editorCheckOut}
+                        onChange={(value: any) => setEditorCheckOut(Array.isArray(value) ? value[0] : value)}
+                        disableDayPicker
+                        format='HH:mm'
+                        placeholder='باز بماند'
+                      />
+                    </label>
+                    {editingAttendanceId && (
+                      <p className='sm:col-span-2 text-xs text-slate-400'>
+                        هنگام ویرایش، کارمند قابل تغییر نیست؛ فقط تاریخ و ساعات به‌روز می‌شوند.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className='grid gap-3 sm:grid-cols-2'>
+                    <SelectField
+                      label='کارمند'
+                      value={editorEmployeeId}
+                      onChange={setEditorEmployeeId}
+                      icon={<Users className='h-4 w-4' />}
+                      disabled={Boolean(editingTaskId)}
+                    >
+                      <option value=''>انتخاب کارمند</option>
+                      {(records?.employees || []).map((employee) => (
+                        <option key={employee.employee_id} value={employee.employee_id}>
+                          {employee.full_name}
+                        </option>
+                      ))}
+                    </SelectField>
+                    <label>
+                      <span className='mb-1.5 block text-xs font-bold text-slate-500'>تاریخ</span>
+                      <JalaliDateTimePicker
+                        value={editorWorkDate}
+                        onChange={(value: any) => setEditorWorkDate(Array.isArray(value) ? value[0] : value)}
+                        format='YYYY/MM/DD'
+                        placeholder='تاریخ فعالیت'
+                      />
+                    </label>
+                    <SelectField
+                      label='پروژه'
+                      value={editorProjectCode}
+                      onChange={(value) => {
+                        setEditorProjectCode(value);
+                        setEditorSubprojectCode('');
+                      }}
+                      icon={<BriefcaseBusiness className='h-4 w-4' />}
+                    >
+                      {!editorProjects.length && <option value=''>پروژه‌ای نیست</option>}
+                      {editorProjects.map((project) => (
+                        <option key={project.code} value={project.code}>
+                          {project.title || project.code}
+                        </option>
+                      ))}
+                    </SelectField>
+                    <SelectField
+                      label='زیرپروژه'
+                      value={editorSubprojectCode}
+                      onChange={setEditorSubprojectCode}
+                      icon={<Target className='h-4 w-4' />}
+                    >
+                      <option value=''>بدون زیرپروژه</option>
+                      {editorSubprojects.map((subproject) => (
+                        <option key={subproject.code} value={subproject.code}>
+                          {subproject.title || subproject.code}
+                        </option>
+                      ))}
+                    </SelectField>
+                    <label className='sm:col-span-2'>
+                      <span className='mb-1.5 block text-xs font-bold text-slate-500'>شرح فعالیت</span>
+                      <Input
+                        value={editorTaskName}
+                        onChange={(event) => setEditorTaskName(event.target.value)}
+                        placeholder='مثلاً بررسی درخواست‌ها'
+                      />
+                    </label>
+                    <label>
+                      <span className='mb-1.5 block text-xs font-bold text-slate-500'>از ساعت</span>
+                      <JalaliDateTimePicker
+                        value={editorTaskStart}
+                        onChange={(value: any) => setEditorTaskStart(Array.isArray(value) ? value[0] : value)}
+                        disableDayPicker
+                        format='HH:mm'
+                        placeholder='--:--'
+                      />
+                    </label>
+                    <label>
+                      <span className='mb-1.5 block text-xs font-bold text-slate-500'>تا ساعت</span>
+                      <JalaliDateTimePicker
+                        value={editorTaskEnd}
+                        onChange={(value: any) => setEditorTaskEnd(Array.isArray(value) ? value[0] : value)}
+                        disableDayPicker
+                        format='HH:mm'
+                        placeholder='--:--'
+                      />
+                    </label>
+                    {editingTaskId && (
+                      <p className='sm:col-span-2 text-xs text-slate-400'>
+                        هنگام ویرایش، کارمند قابل تغییر نیست.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className='sticky bottom-0 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 bg-white/95 px-5 py-4 backdrop-blur'>
+                {editorMode === 'attendance' && editorCheckOut && (
+                  <Button variant='outline' onClick={() => setEditorCheckOut(null)} className='rounded-xl'>
+                    پاک کردن خروج
+                  </Button>
+                )}
+                <Button variant='outline' onClick={closeEditor} className='rounded-xl'>
+                  انصراف
+                </Button>
+                {editorMode === 'attendance' ? (
+                  <Button
+                    onClick={() => void saveAttendanceEditor()}
+                    disabled={editorBusy || !editorEmployeeId}
+                    className='gap-2 rounded-xl bg-cyan-700 text-white hover:bg-cyan-800'
+                  >
+                    {editorBusy ? <Activity className='h-4 w-4 animate-spin' /> : <Clock3 className='h-4 w-4' />}
+                    {editingAttendanceId ? 'ذخیره تردد' : 'ثبت تردد'}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => void saveTaskEditor()}
+                    disabled={editorBusy || !editorEmployeeId}
+                    className='gap-2 rounded-xl bg-cyan-700 text-white hover:bg-cyan-800'
+                  >
+                    {editorBusy ? <Activity className='h-4 w-4 animate-spin' /> : <Plus className='h-4 w-4' />}
+                    {editingTaskId ? 'ذخیره فعالیت' : 'ثبت فعالیت'}
+                  </Button>
+                )}
+              </div>
+            </section>
+          </div>
+        )}
 
         <section className='no-print rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.04)]'>
           <div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
@@ -1053,15 +1497,87 @@ export function AdminPanel(): JSX.Element {
               </table>
             )}
             {reportTab === 'tasks' && (
-              <table className='w-full min-w-[980px] text-sm'>
-                <thead><tr className='bg-slate-50/70 text-xs text-slate-500'><th className='p-3 text-right'>تاریخ</th><th className='p-3 text-right'>کارمند</th><th className='p-3 text-right'>واحد</th><th className='p-3 text-right'>پروژه</th><th className='p-3 text-right'>زیرپروژه</th><th className='p-3 text-right'>شرح فعالیت</th><th className='p-3 text-right'>بازه زمانی</th><th className='p-3 text-right'>مدت</th></tr></thead>
-                <tbody>{pagedTasks.map((row) => <tr key={row.id} className='border-t border-slate-100 hover:bg-slate-50/60'><td className='p-3 font-mono text-xs'>{row.work_date}</td><td className='p-3 font-bold'>{row.full_name}</td><td className='p-3 text-slate-500'>{row.department}</td><td className='p-3 font-mono text-xs text-violet-700'>{row.project_code}</td><td className='p-3 font-mono text-xs text-sky-700'>{row.subproject_code || '—'}</td><td className='max-w-sm truncate p-3'>{row.task_name}</td><td className='p-3 font-mono text-xs'>{row.start_time} – {row.end_time}</td><td className='p-3 font-bold text-cyan-700'>{formatMinutes(row.minutes_spent)}</td></tr>)}</tbody>
+              <table className='w-full min-w-[1080px] text-sm'>
+                <thead>
+                  <tr className='bg-slate-50/70 text-xs text-slate-500'>
+                    <th className='p-3 text-right'>تاریخ</th>
+                    <th className='p-3 text-right'>کارمند</th>
+                    <th className='p-3 text-right'>واحد</th>
+                    <th className='p-3 text-right'>پروژه</th>
+                    <th className='p-3 text-right'>زیرپروژه</th>
+                    <th className='p-3 text-right'>شرح فعالیت</th>
+                    <th className='p-3 text-right'>بازه زمانی</th>
+                    <th className='p-3 text-right'>مدت</th>
+                    <th className='no-print p-3 text-right'>عملیات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagedTasks.map((row) => (
+                    <tr key={row.id} className='border-t border-slate-100 hover:bg-slate-50/60'>
+                      <td className='p-3 font-mono text-xs'>{row.work_date}</td>
+                      <td className='p-3 font-bold'>{row.full_name}</td>
+                      <td className='p-3 text-slate-500'>{row.department}</td>
+                      <td className='p-3 font-mono text-xs text-violet-700'>{row.project_code}</td>
+                      <td className='p-3 font-mono text-xs text-sky-700'>{row.subproject_code || '—'}</td>
+                      <td className='max-w-sm truncate p-3'>{row.task_name}</td>
+                      <td className='p-3 font-mono text-xs'>{row.start_time} – {row.end_time}</td>
+                      <td className='p-3 font-bold text-cyan-700'>{formatMinutes(row.minutes_spent)}</td>
+                      <td className='no-print p-3'>
+                        <div className='flex gap-1'>
+                          <Button size='sm' variant='outline' onClick={() => openTaskEditor(row)} className='h-8 gap-1 px-2'>
+                            <Pencil className='h-3.5 w-3.5' /> ویرایش
+                          </Button>
+                          <Button size='sm' variant='outline' onClick={() => void removeTask(row)} className='h-8 px-2 text-rose-600'>
+                            <Trash2 className='h-3.5 w-3.5' />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             )}
             {reportTab === 'attendance' && (
-              <table className='w-full min-w-[760px] text-sm'>
-                <thead><tr className='bg-slate-50/70 text-xs text-slate-500'><th className='p-3 text-right'>تاریخ</th><th className='p-3 text-right'>کارمند</th><th className='p-3 text-right'>واحد</th><th className='p-3 text-right'>ورود</th><th className='p-3 text-right'>خروج</th><th className='p-3 text-right'>مدت حضور</th><th className='p-3 text-right'>وضعیت</th></tr></thead>
-                <tbody>{pagedAttendance.map((row) => <tr key={row.id} className='border-t border-slate-100 hover:bg-slate-50/60'><td className='p-3 font-mono text-xs'>{row.work_date}</td><td className='p-3 font-bold'>{row.full_name}</td><td className='p-3 text-slate-500'>{row.department}</td><td className='p-3 font-mono'>{row.check_in_time}</td><td className='p-3 font-mono'>{row.check_out_time || '—'}</td><td className='p-3 font-bold'>{formatMinutes(durationMinutes(row.check_in_time, row.check_out_time, row.work_date))}</td><td className='p-3'><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${row.check_out_time ? 'bg-slate-100 text-slate-600' : 'bg-emerald-50 text-emerald-700'}`}>{row.check_out_time ? 'تکمیل‌شده' : 'در حال حضور'}</span></td></tr>)}</tbody>
+              <table className='w-full min-w-[900px] text-sm'>
+                <thead>
+                  <tr className='bg-slate-50/70 text-xs text-slate-500'>
+                    <th className='p-3 text-right'>تاریخ</th>
+                    <th className='p-3 text-right'>کارمند</th>
+                    <th className='p-3 text-right'>واحد</th>
+                    <th className='p-3 text-right'>ورود</th>
+                    <th className='p-3 text-right'>خروج</th>
+                    <th className='p-3 text-right'>مدت حضور</th>
+                    <th className='p-3 text-right'>وضعیت</th>
+                    <th className='no-print p-3 text-right'>عملیات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagedAttendance.map((row) => (
+                    <tr key={row.id} className='border-t border-slate-100 hover:bg-slate-50/60'>
+                      <td className='p-3 font-mono text-xs'>{row.work_date}</td>
+                      <td className='p-3 font-bold'>{row.full_name}</td>
+                      <td className='p-3 text-slate-500'>{row.department}</td>
+                      <td className='p-3 font-mono'>{row.check_in_time}</td>
+                      <td className='p-3 font-mono'>{row.check_out_time || '—'}</td>
+                      <td className='p-3 font-bold'>{formatMinutes(durationMinutes(row.check_in_time, row.check_out_time, row.work_date))}</td>
+                      <td className='p-3'>
+                        <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${row.check_out_time ? 'bg-slate-100 text-slate-600' : 'bg-emerald-50 text-emerald-700'}`}>
+                          {row.check_out_time ? 'تکمیل‌شده' : 'در حال حضور'}
+                        </span>
+                      </td>
+                      <td className='no-print p-3'>
+                        <div className='flex gap-1'>
+                          <Button size='sm' variant='outline' onClick={() => openAttendanceEditor(row)} className='h-8 gap-1 px-2'>
+                            <Pencil className='h-3.5 w-3.5' /> ویرایش
+                          </Button>
+                          <Button size='sm' variant='outline' onClick={() => void removeAttendance(row)} className='h-8 px-2 text-rose-600'>
+                            <Trash2 className='h-3.5 w-3.5' />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             )}
           </div>

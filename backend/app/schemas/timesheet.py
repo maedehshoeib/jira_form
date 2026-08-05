@@ -61,6 +61,15 @@ class CheckOutPayload(WorkDatePayload):
         return normalized
 
 
+def _normalize_hhmm(value: object) -> object:
+    if not isinstance(value, str):
+        return value
+    normalized = normalize_digits(value)
+    if not _TIME_PATTERN.fullmatch(normalized):
+        raise ValueError("زمان باید با قالب HH:MM وارد شود")
+    return normalized
+
+
 class TaskPayload(WorkDatePayload):
     project_code: str = Field(min_length=1, max_length=50)
     subproject_code: str | None = Field(default=None, max_length=50)
@@ -91,12 +100,46 @@ class TaskPayload(WorkDatePayload):
     @field_validator("start_time", "end_time", mode="before")
     @classmethod
     def validate_time(cls, value: object) -> object:
-        if not isinstance(value, str):
-            return value
-        normalized = normalize_digits(value)
-        if not _TIME_PATTERN.fullmatch(normalized):
-            raise ValueError("زمان باید با قالب HH:MM وارد شود")
-        return normalized
+        return _normalize_hhmm(value)
+
+
+class AdminTaskPayload(TaskPayload):
+    employee_id: int = Field(gt=0)
+
+
+class AdminAttendancePayload(WorkDatePayload):
+    employee_id: int = Field(gt=0)
+    check_in_time: str
+    check_out_time: str | None = None
+
+    @field_validator("check_in_time", mode="before")
+    @classmethod
+    def validate_check_in(cls, value: object) -> object:
+        return _normalize_hhmm(value)
+
+    @field_validator("check_out_time", mode="before")
+    @classmethod
+    def validate_check_out(cls, value: object) -> object:
+        if value is None or value == "":
+            return None
+        return _normalize_hhmm(value)
+
+
+class AdminAttendanceUpdatePayload(WorkDatePayload):
+    check_in_time: str
+    check_out_time: str | None = None
+
+    @field_validator("check_in_time", mode="before")
+    @classmethod
+    def validate_check_in(cls, value: object) -> object:
+        return _normalize_hhmm(value)
+
+    @field_validator("check_out_time", mode="before")
+    @classmethod
+    def validate_check_out(cls, value: object) -> object:
+        if value is None or value == "":
+            return None
+        return _normalize_hhmm(value)
 
 
 class DateRangePayload(BaseModel):

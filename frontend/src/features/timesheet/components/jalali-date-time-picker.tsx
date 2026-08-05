@@ -25,6 +25,8 @@ export function JalaliDateTimePicker({
       locale={persianFa}
       format={format}
       disableDayPicker={disableDayPicker}
+      portal
+      zIndex={1200}
       inputClass="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
       containerClassName="w-full"
       placeholder={placeholder}

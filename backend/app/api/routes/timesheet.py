@@ -19,6 +19,9 @@ from app.models.timesheet import (
 )
 from app.models.user import User
 from app.schemas.timesheet import (
+    AdminAttendancePayload,
+    AdminAttendanceUpdatePayload,
+    AdminTaskPayload,
     CheckInPayload,
     CheckOutPayload,
     ProjectPayload,
@@ -311,6 +314,301 @@ def _require_timesheet_admin(user: User = Depends(get_current_user)) -> User:
     return user
 
 
+def _get_employee(db: Session, employee_id: int, *, require_active: bool = True) -> User:
+    employee = db.get(User, employee_id)
+    if not employee:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="کارمند پیدا نشد.",
+        )
+    if require_active and not employee.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="کارمند غیرفعال است.",
+        )
+    return employee
+
+
+def _segments_overlap(
+    start_a: str, end_a: str | None, start_b: str, end_b: str | None
+) -> bool:
+    """Return True when two attendance segments overlap on the same day.
+
+    Open segments (no check-out) are treated as extending to end-of-day for
+    conflict detection so admins cannot stack multiple open entries.
+    """
+    end_of_day = 24 * 60
+    a_start, a_end = _minutes(start_a), _minutes(end_a) if end_a else end_of_day
+    b_start, b_end = _minutes(start_b), _minutes(end_b) if end_b else end_of_day
+    return max(a_start, b_start) < min(a_end, b_end)
+
+
+def _assert_attendance_fits_tasks(
+    db: Session,
+    *,
+    user_id: int,
+    work_date: str,
+    check_in_time: str,
+    check_out_time: str | None,
+    ignore_attendance_id: int | None = None,
+) -> None:
+    """Reject attendance edits that would leave existing tasks outside presence."""
+    tasks = (
+        db.query(TimesheetTask)
+        .filter(
+            TimesheetTask.user_id == user_id,
+            TimesheetTask.work_date == work_date,
+        )
+        .all()
+    )
+    if not tasks:
+        return
+
+    attendance = (
+        db.query(TimesheetAttendance)
+        .filter(
+            TimesheetAttendance.user_id == user_id,
+            TimesheetAttendance.work_date == work_date,
+        )
+        .all()
+    )
+    now = _minutes(_local_now_time())
+    segments: list[tuple[int, int]] = []
+    for item in attendance:
+        if ignore_attendance_id is not None and item.id == ignore_attendance_id:
+            continue
+        end = _minutes(item.check_out_time) if item.check_out_time else now
+        segments.append((_minutes(item.check_in_time), end))
+    edited_end = _minutes(check_out_time) if check_out_time else now
+    segments.append((_minutes(check_in_time), edited_end))
+
+    for task in tasks:
+        start, end = _minutes(task.start_time), _minutes(task.end_time)
+        if not any(start >= seg_start and end <= seg_end for seg_start, seg_end in segments):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "این تغییر حضور باعث می‌شود فعالیت‌های ثبت‌شده "
+                    "خارج از بازه حضور قرار گیرند."
+                ),
+            )
+
+
+def _assert_no_attendance_overlap(
+    db: Session,
+    *,
+    user_id: int,
+    work_date: str,
+    check_in_time: str,
+    check_out_time: str | None,
+    ignore_id: int | None = None,
+) -> None:
+    existing = (
+        db.query(TimesheetAttendance)
+        .filter(
+            TimesheetAttendance.user_id == user_id,
+            TimesheetAttendance.work_date == work_date,
+        )
+        .all()
+    )
+    for item in existing:
+        if ignore_id is not None and item.id == ignore_id:
+            continue
+        if _segments_overlap(
+            check_in_time, check_out_time, item.check_in_time, item.check_out_time
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="بازه حضور با تردد ثبت‌شده دیگری هم‌پوشانی دارد.",
+            )
+
+
+def _assert_single_open_attendance(
+    db: Session,
+    *,
+    user_id: int,
+    check_out_time: str | None,
+    ignore_id: int | None = None,
+) -> None:
+    if check_out_time is not None:
+        return
+    active = (
+        db.query(TimesheetAttendance)
+        .filter(
+            TimesheetAttendance.user_id == user_id,
+            TimesheetAttendance.check_out_time.is_(None),
+        )
+        .all()
+    )
+    if any(item.id != ignore_id for item in active):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="این کارمند یک ورود باز دارد؛ ابتدا خروج را ثبت کنید.",
+        )
+
+
+def _resolve_task_codes(
+    db: Session,
+    *,
+    user_id: int,
+    work_date: str,
+    project_code: str,
+    subproject_code: str | None,
+    enforce_assignees: bool,
+) -> tuple[TimesheetProject, str | None]:
+    project = db.get(TimesheetProject, project_code)
+    if not project or not project.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="پروژه انتخاب‌شده معتبر یا فعال نیست.",
+        )
+    if enforce_assignees:
+        project_assignees = _project_assignees(db)
+        if not _user_can_access_project(
+            project_code=project.code,
+            user_id=user_id,
+            assignees=project_assignees,
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="شما به این پروژه دسترسی ندارید.",
+            )
+    _ensure_within_period(
+        label="پروژه",
+        code=project.code,
+        work_date=work_date,
+        start_date=project.start_date,
+        end_date=project.end_date,
+    )
+
+    resolved_sub = subproject_code
+    if resolved_sub:
+        subproject = db.get(TimesheetSubproject, resolved_sub)
+        if (
+            not subproject
+            or not subproject.is_active
+            or subproject.project_code != project_code
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="زیرپروژه انتخاب‌شده معتبر یا متعلق به این پروژه نیست.",
+            )
+        if enforce_assignees:
+            sub_assignees = _subproject_assignees(db)
+            if not _user_can_access_subproject(
+                subproject_code=subproject.code,
+                user_id=user_id,
+                assignees=sub_assignees,
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="شما به این زیرپروژه دسترسی ندارید.",
+                )
+        _ensure_within_period(
+            label="زیرپروژه",
+            code=subproject.code,
+            work_date=work_date,
+            start_date=subproject.start_date,
+            end_date=subproject.end_date,
+        )
+    else:
+        resolved_sub = None
+    return project, resolved_sub
+
+
+def _assert_task_window(
+    db: Session,
+    *,
+    user_id: int,
+    work_date: str,
+    start_time: str,
+    end_time: str,
+    ignore_task_id: int | None = None,
+) -> int:
+    duration = _duration(start_time, end_time)
+    start, end = _minutes(start_time), _minutes(end_time)
+    overlap = (
+        db.query(TimesheetTask)
+        .filter(
+            TimesheetTask.user_id == user_id,
+            TimesheetTask.work_date == work_date,
+        )
+        .all()
+    )
+    if any(
+        item.id != ignore_task_id
+        and max(start, _minutes(item.start_time)) < min(end, _minutes(item.end_time))
+        for item in overlap
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="بازه این فعالیت با فعالیت ثبت‌شده دیگری هم‌پوشانی دارد.",
+        )
+
+    attendance = (
+        db.query(TimesheetAttendance)
+        .filter(
+            TimesheetAttendance.user_id == user_id,
+            TimesheetAttendance.work_date == work_date,
+        )
+        .all()
+    )
+    now = _minutes(_local_now_time())
+    inside_attendance = any(
+        start >= _minutes(item.check_in_time)
+        and end <= (_minutes(item.check_out_time) if item.check_out_time else now)
+        for item in attendance
+    )
+    if not inside_attendance:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="زمان فعالیت باید داخل یکی از بازه‌های حضور باشد.",
+        )
+    return duration
+
+
+def _create_task_for_user(
+    db: Session,
+    *,
+    user_id: int,
+    payload: TaskPayload,
+    enforce_assignees: bool,
+) -> dict:
+    project, subproject_code = _resolve_task_codes(
+        db,
+        user_id=user_id,
+        work_date=payload.work_date,
+        project_code=payload.project_code,
+        subproject_code=payload.subproject_code,
+        enforce_assignees=enforce_assignees,
+    )
+    duration = _assert_task_window(
+        db,
+        user_id=user_id,
+        work_date=payload.work_date,
+        start_time=payload.start_time,
+        end_time=payload.end_time,
+    )
+    item = TimesheetTask(
+        user_id=user_id,
+        work_date=payload.work_date,
+        project_code=project.code,
+        subproject_code=subproject_code,
+        task_name=payload.task_name,
+        start_time=payload.start_time,
+        end_time=payload.end_time,
+        minutes_spent=duration,
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return {
+        "message": "فعالیت با موفقیت ثبت شد.",
+        "minutes_spent": duration,
+        "task": _serialize_task(item),
+    }
+
+
 def _day_summary(db: Session, user_id: int, work_date: str) -> dict:
     attendance = (
         db.query(TimesheetAttendance)
@@ -450,117 +748,12 @@ def add_task(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    duration = _duration(payload.start_time, payload.end_time)
-    project = db.get(TimesheetProject, payload.project_code)
-    if not project or not project.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="پروژه انتخاب‌شده معتبر یا فعال نیست.",
-        )
-    project_assignees = _project_assignees(db)
-    if not _user_can_access_project(
-        project_code=project.code,
+    return _create_task_for_user(
+        db,
         user_id=user.id,
-        assignees=project_assignees,
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="شما به این پروژه دسترسی ندارید.",
-        )
-    _ensure_within_period(
-        label="پروژه",
-        code=project.code,
-        work_date=payload.work_date,
-        start_date=project.start_date,
-        end_date=project.end_date,
+        payload=payload,
+        enforce_assignees=True,
     )
-
-    subproject_code = payload.subproject_code
-    if subproject_code:
-        subproject = db.get(TimesheetSubproject, subproject_code)
-        if (
-            not subproject
-            or not subproject.is_active
-            or subproject.project_code != payload.project_code
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="زیرپروژه انتخاب‌شده معتبر یا متعلق به این پروژه نیست.",
-            )
-        sub_assignees = _subproject_assignees(db)
-        if not _user_can_access_subproject(
-            subproject_code=subproject.code,
-            user_id=user.id,
-            assignees=sub_assignees,
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="شما به این زیرپروژه دسترسی ندارید.",
-            )
-        _ensure_within_period(
-            label="زیرپروژه",
-            code=subproject.code,
-            work_date=payload.work_date,
-            start_date=subproject.start_date,
-            end_date=subproject.end_date,
-        )
-    else:
-        subproject_code = None
-
-    start, end = _minutes(payload.start_time), _minutes(payload.end_time)
-    overlap = (
-        db.query(TimesheetTask)
-        .filter(
-            TimesheetTask.user_id == user.id,
-            TimesheetTask.work_date == payload.work_date,
-        )
-        .all()
-    )
-    if any(
-        max(start, _minutes(item.start_time)) < min(end, _minutes(item.end_time))
-        for item in overlap
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="بازه این فعالیت با فعالیت ثبت‌شده دیگری هم‌پوشانی دارد.",
-        )
-
-    attendance = (
-        db.query(TimesheetAttendance)
-        .filter(
-            TimesheetAttendance.user_id == user.id,
-            TimesheetAttendance.work_date == payload.work_date,
-        )
-        .all()
-    )
-    # Attendance and task times are employee-local wall-clock values. Using a
-    # naive datetime here made valid tasks fail whenever the API host ran in a
-    # different timezone (for example, a UTC Docker container).
-    now = _minutes(_local_now_time())
-    inside_attendance = any(
-        start >= _minutes(item.check_in_time)
-        and end <= (_minutes(item.check_out_time) if item.check_out_time else now)
-        for item in attendance
-    )
-    if not inside_attendance:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="زمان فعالیت باید داخل یکی از بازه‌های حضور باشد.",
-        )
-
-    item = TimesheetTask(
-        user_id=user.id,
-        work_date=payload.work_date,
-        project_code=payload.project_code,
-        subproject_code=subproject_code,
-        task_name=payload.task_name,
-        start_time=payload.start_time,
-        end_time=payload.end_time,
-        minutes_spent=duration,
-    )
-    db.add(item)
-    db.commit()
-    return {"message": "فعالیت با موفقیت ثبت شد.", "minutes_spent": duration}
 
 
 @router.get("/me/day/timeline")
@@ -700,6 +893,270 @@ def admin_day_records(
             for item, employee in tasks
         ],
     }
+
+
+@router.post("/admin/attendance")
+def admin_create_attendance(
+    payload: AdminAttendancePayload,
+    _: User = Depends(_require_timesheet_admin),
+    db: Session = Depends(get_db),
+):
+    employee = _get_employee(db, payload.employee_id)
+    if payload.check_out_time:
+        _duration(payload.check_in_time, payload.check_out_time)
+    _assert_single_open_attendance(
+        db,
+        user_id=employee.id,
+        check_out_time=payload.check_out_time,
+    )
+    _assert_no_attendance_overlap(
+        db,
+        user_id=employee.id,
+        work_date=payload.work_date,
+        check_in_time=payload.check_in_time,
+        check_out_time=payload.check_out_time,
+    )
+    item = TimesheetAttendance(
+        user_id=employee.id,
+        work_date=payload.work_date,
+        check_in_time=payload.check_in_time,
+        check_out_time=payload.check_out_time,
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return {
+        "message": "تردد با موفقیت ثبت شد.",
+        "attendance": {
+            **_serialize_attendance(item),
+            "employee_id": str(employee.id),
+            "username": employee.username,
+            "full_name": employee.display_name or employee.username,
+            "department": employee.department or "بدون واحد",
+            "job_title": employee.job_title or "",
+        },
+    }
+
+
+@router.put("/admin/attendance/{attendance_id}")
+def admin_update_attendance(
+    attendance_id: int,
+    payload: AdminAttendanceUpdatePayload,
+    _: User = Depends(_require_timesheet_admin),
+    db: Session = Depends(get_db),
+):
+    item = db.get(TimesheetAttendance, attendance_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="تردد پیدا نشد.")
+    employee = _get_employee(db, item.user_id, require_active=False)
+    if payload.check_out_time:
+        _duration(payload.check_in_time, payload.check_out_time)
+    _assert_single_open_attendance(
+        db,
+        user_id=employee.id,
+        check_out_time=payload.check_out_time,
+        ignore_id=item.id,
+    )
+    _assert_no_attendance_overlap(
+        db,
+        user_id=employee.id,
+        work_date=payload.work_date,
+        check_in_time=payload.check_in_time,
+        check_out_time=payload.check_out_time,
+        ignore_id=item.id,
+    )
+    _assert_attendance_fits_tasks(
+        db,
+        user_id=employee.id,
+        work_date=payload.work_date,
+        check_in_time=payload.check_in_time,
+        check_out_time=payload.check_out_time,
+        ignore_attendance_id=item.id,
+    )
+    # If the work date changes, also ensure tasks on the old date remain covered
+    # by remaining attendance (or that there are no orphaned tasks).
+    if payload.work_date != item.work_date:
+        remaining = (
+            db.query(TimesheetAttendance)
+            .filter(
+                TimesheetAttendance.user_id == employee.id,
+                TimesheetAttendance.work_date == item.work_date,
+                TimesheetAttendance.id != item.id,
+            )
+            .all()
+        )
+        old_tasks = (
+            db.query(TimesheetTask)
+            .filter(
+                TimesheetTask.user_id == employee.id,
+                TimesheetTask.work_date == item.work_date,
+            )
+            .all()
+        )
+        if old_tasks:
+            now = _minutes(_local_now_time())
+            segments = [
+                (
+                    _minutes(row.check_in_time),
+                    _minutes(row.check_out_time) if row.check_out_time else now,
+                )
+                for row in remaining
+            ]
+            for task in old_tasks:
+                start, end = _minutes(task.start_time), _minutes(task.end_time)
+                if not any(
+                    start >= seg_start and end <= seg_end
+                    for seg_start, seg_end in segments
+                ):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=(
+                            "تغییر تاریخ این تردد باعث می‌شود فعالیت‌های "
+                            "روز قبلی بدون پوشش حضور بمانند."
+                        ),
+                    )
+
+    item.work_date = payload.work_date
+    item.check_in_time = payload.check_in_time
+    item.check_out_time = payload.check_out_time
+    item.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(item)
+    return {
+        "message": "تردد با موفقیت ویرایش شد.",
+        "attendance": {
+            **_serialize_attendance(item),
+            "employee_id": str(employee.id),
+            "username": employee.username,
+            "full_name": employee.display_name or employee.username,
+            "department": employee.department or "بدون واحد",
+            "job_title": employee.job_title or "",
+        },
+    }
+
+
+@router.delete("/admin/attendance/{attendance_id}")
+def admin_delete_attendance(
+    attendance_id: int,
+    _: User = Depends(_require_timesheet_admin),
+    db: Session = Depends(get_db),
+):
+    item = db.get(TimesheetAttendance, attendance_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="تردد پیدا نشد.")
+    tasks = (
+        db.query(TimesheetTask)
+        .filter(
+            TimesheetTask.user_id == item.user_id,
+            TimesheetTask.work_date == item.work_date,
+        )
+        .all()
+    )
+    if tasks:
+        remaining = (
+            db.query(TimesheetAttendance)
+            .filter(
+                TimesheetAttendance.user_id == item.user_id,
+                TimesheetAttendance.work_date == item.work_date,
+                TimesheetAttendance.id != item.id,
+            )
+            .all()
+        )
+        now = _minutes(_local_now_time())
+        segments = [
+            (
+                _minutes(row.check_in_time),
+                _minutes(row.check_out_time) if row.check_out_time else now,
+            )
+            for row in remaining
+        ]
+        for task in tasks:
+            start, end = _minutes(task.start_time), _minutes(task.end_time)
+            if not any(
+                start >= seg_start and end <= seg_end for seg_start, seg_end in segments
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        "این تردد قابل حذف نیست؛ ابتدا فعالیت‌هایی که داخل "
+                        "این بازه هستند را ویرایش یا حذف کنید."
+                    ),
+                )
+    db.delete(item)
+    db.commit()
+    return {"message": "تردد حذف شد.", "attendance_id": attendance_id}
+
+
+@router.post("/admin/tasks")
+def admin_create_task(
+    payload: AdminTaskPayload,
+    _: User = Depends(_require_timesheet_admin),
+    db: Session = Depends(get_db),
+):
+    employee = _get_employee(db, payload.employee_id)
+    return _create_task_for_user(
+        db,
+        user_id=employee.id,
+        payload=payload,
+        enforce_assignees=False,
+    )
+
+
+@router.put("/admin/tasks/{task_id}")
+def admin_update_task(
+    task_id: int,
+    payload: TaskPayload,
+    _: User = Depends(_require_timesheet_admin),
+    db: Session = Depends(get_db),
+):
+    item = db.get(TimesheetTask, task_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="فعالیت پیدا نشد.")
+    employee = _get_employee(db, item.user_id, require_active=False)
+    project, subproject_code = _resolve_task_codes(
+        db,
+        user_id=employee.id,
+        work_date=payload.work_date,
+        project_code=payload.project_code,
+        subproject_code=payload.subproject_code,
+        enforce_assignees=False,
+    )
+    duration = _assert_task_window(
+        db,
+        user_id=employee.id,
+        work_date=payload.work_date,
+        start_time=payload.start_time,
+        end_time=payload.end_time,
+        ignore_task_id=item.id,
+    )
+    item.work_date = payload.work_date
+    item.project_code = project.code
+    item.subproject_code = subproject_code
+    item.task_name = payload.task_name
+    item.start_time = payload.start_time
+    item.end_time = payload.end_time
+    item.minutes_spent = duration
+    db.commit()
+    db.refresh(item)
+    return {
+        "message": "فعالیت با موفقیت ویرایش شد.",
+        "minutes_spent": duration,
+        "task": _serialize_task(item),
+    }
+
+
+@router.delete("/admin/tasks/{task_id}")
+def admin_delete_task(
+    task_id: int,
+    _: User = Depends(_require_timesheet_admin),
+    db: Session = Depends(get_db),
+):
+    item = db.get(TimesheetTask, task_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="فعالیت پیدا نشد.")
+    db.delete(item)
+    db.commit()
+    return {"message": "فعالیت حذف شد.", "task_id": task_id}
 
 
 @router.get("/admin/range-records")

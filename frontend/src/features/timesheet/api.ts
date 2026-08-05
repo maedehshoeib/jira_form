@@ -290,3 +290,73 @@ export async function adminDeleteProject(
   );
   return data;
 }
+
+export async function adminCreateAttendance(payload: {
+  employee_id: number;
+  work_date: string;
+  check_in_time: string;
+  check_out_time?: string | null;
+}): Promise<{ message: string; attendance: AdminAttendanceRecord }> {
+  const { data } = await client.post<{ message: string; attendance: AdminAttendanceRecord }>(
+    `${base}/admin/attendance`,
+    payload,
+  );
+  return data;
+}
+
+export async function adminUpdateAttendance(
+  attendanceId: number,
+  payload: {
+    work_date: string;
+    check_in_time: string;
+    check_out_time?: string | null;
+  },
+): Promise<{ message: string; attendance: AdminAttendanceRecord }> {
+  const { data } = await client.put<{ message: string; attendance: AdminAttendanceRecord }>(
+    `${base}/admin/attendance/${attendanceId}`,
+    payload,
+  );
+  return data;
+}
+
+export async function adminDeleteAttendance(
+  attendanceId: number,
+): Promise<{ message: string; attendance_id: number }> {
+  const { data } = await client.delete(`${base}/admin/attendance/${attendanceId}`);
+  return data;
+}
+
+export async function adminCreateTask(payload: {
+  employee_id: number;
+  work_date: string;
+  project_code: string;
+  subproject_code?: string | null;
+  task_name: string;
+  start_time: string;
+  end_time: string;
+}): Promise<{ message: string; minutes_spent: number }> {
+  const { data } = await client.post(`${base}/admin/tasks`, payload);
+  return data;
+}
+
+export async function adminUpdateTask(
+  taskId: number,
+  payload: {
+    work_date: string;
+    project_code: string;
+    subproject_code?: string | null;
+    task_name: string;
+    start_time: string;
+    end_time: string;
+  },
+): Promise<{ message: string; minutes_spent: number }> {
+  const { data } = await client.put(`${base}/admin/tasks/${taskId}`, payload);
+  return data;
+}
+
+export async function adminDeleteTask(
+  taskId: number,
+): Promise<{ message: string; task_id: number }> {
+  const { data } = await client.delete(`${base}/admin/tasks/${taskId}`);
+  return data;
+}
