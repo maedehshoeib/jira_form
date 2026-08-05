@@ -418,15 +418,20 @@ def get_submission(
     return _submission_to_response(submission, user, db=db)
 
 
-def _serve_submission_attachment(submission: Submission) -> FileResponse:
-    if not submission.attachment_path:
-        raise HTTPException(status_code=404, detail="پیوست یافت نشد")
-    file_path = Path(submission.attachment_path)
+def _serve_submission_attachment(
+    submission: Submission, index: int = 0
+) -> FileResponse:
+    from app.services.management_letter_service import resolve_submission_attachment
+
+    try:
+        file_path, filename = resolve_submission_attachment(submission, index)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     if not file_path.is_file():
         raise HTTPException(status_code=404, detail="فایل پیوست موجود نیست")
     return FileResponse(
         path=file_path,
-        filename=submission.attachment_name or file_path.name,
+        filename=filename,
         media_type="application/octet-stream",
     )
 
@@ -434,6 +439,7 @@ def _serve_submission_attachment(submission: Submission) -> FileResponse:
 @router.get("/submissions/{submission_id}/attachment")
 def download_submission_attachment(
     submission_id: int,
+    index: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -446,7 +452,7 @@ def download_submission_attachment(
         and not user_can_access_task(db, current_user, submission)
     ):
         raise HTTPException(status_code=404, detail="درخواست یافت نشد")
-    return _serve_submission_attachment(submission)
+    return _serve_submission_attachment(submission, index)
 
 
 @router.get("/tasks/colleagues", response_model=list[TaskColleague])
@@ -533,13 +539,14 @@ def get_task(
 @router.get("/tasks/{submission_id}/attachment")
 def download_task_attachment(
     submission_id: int,
+    index: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     submission = db.query(Submission).filter(Submission.id == submission_id).first()
     if not submission or not user_can_access_task(db, current_user, submission):
         raise HTTPException(status_code=404, detail="پیوست یافت نشد")
-    return _serve_submission_attachment(submission)
+    return _serve_submission_attachment(submission, index)
 
 
 @router.patch("/tasks/{submission_id}/status", response_model=SubmissionResponse)

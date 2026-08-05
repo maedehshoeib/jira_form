@@ -23,7 +23,7 @@ def _parse_submission_data(raw: str) -> dict:
         return {}
     parsed: dict = {}
     for key, value in data.items():
-        if key == "_report_id":
+        if key in {"_report_id", "_attachments"}:
             continue
         if isinstance(value, str) and value.strip()[:1] in ("[", "{"):
             try:
@@ -32,7 +32,41 @@ def _parse_submission_data(raw: str) -> dict:
                 parsed[key] = value
         else:
             parsed[key] = value
+    # Expose attachment names without filesystem paths.
+    stored = data.get("_attachments")
+    if isinstance(stored, list):
+        names = [
+            str(item.get("name"))
+            for item in stored
+            if isinstance(item, dict) and item.get("name")
+        ]
+        if names:
+            parsed["attachments"] = names
     return parsed
+
+
+def _attachment_names(submission: Submission) -> list[str]:
+    try:
+        data = json.loads(submission.data or "{}")
+    except (json.JSONDecodeError, TypeError):
+        data = {}
+    stored = data.get("_attachments")
+    if isinstance(stored, list):
+        names = [
+            str(item.get("name"))
+            for item in stored
+            if isinstance(item, dict) and item.get("name")
+        ]
+        if names:
+            return names
+    public = data.get("attachments")
+    if isinstance(public, list):
+        names = [str(name) for name in public if name]
+        if names:
+            return names
+    if submission.attachment_name:
+        return [submission.attachment_name]
+    return []
 
 
 def _report_id_from_data(raw: str) -> int | None:
@@ -151,6 +185,7 @@ def _submission_to_list_item(
         submitted_by=(user.display_name or user.username) if user else "نامشخص",
         submitted_by_username=user.username if user else "",
         attachment_name=submission.attachment_name,
+        attachment_names=_attachment_names(submission),
         report_id=_report_id_from_data(submission.data),
         created_at=_format_dt(submission.created_at),
         status_updated_by=_status_updated_by_name(db, submission) if db else None,
@@ -188,6 +223,7 @@ def _submission_to_response(
         submitted_by=(user.display_name or user.username) if user else "نامشخص",
         submitted_by_username=user.username if user else "",
         attachment_name=submission.attachment_name,
+        attachment_names=_attachment_names(submission),
         report_id=_report_id_from_data(submission.data),
         created_at=_format_dt(submission.created_at),
         data=_parse_submission_data(submission.data),

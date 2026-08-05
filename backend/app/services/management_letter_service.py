@@ -55,16 +55,77 @@ def _validate_recipients(db: Session, actor: User, recipient_ids: list[int]) -> 
 
 
 async def save_attachment(upload) -> tuple[str | None, str | None]:
-    if not upload or not getattr(upload, "filename", None):
+    saved = await save_attachments([upload] if upload else [])
+    if not saved:
         return None, None
+    return saved[0]["path"], saved[0]["name"]
+
+
+async def save_attachments(uploads: list) -> list[dict[str, str]]:
+    """Persist uploaded files and return [{name, path}, ...]."""
+    results: list[dict[str, str]] = []
     upload_dir = Path(settings.UPLOAD_DIR)
     upload_dir.mkdir(parents=True, exist_ok=True)
-    ext = Path(upload.filename).suffix
-    filename = f"{uuid.uuid4().hex}{ext}"
-    file_path = upload_dir / filename
-    content = await upload.read()
-    file_path.write_bytes(content)
-    return str(file_path), upload.filename
+
+    for upload in uploads or []:
+        if not upload or not getattr(upload, "filename", None):
+            continue
+        original_name = Path(upload.filename).name[:256]
+        if not original_name:
+            continue
+        ext = Path(original_name).suffix
+        stored_name = f"{uuid.uuid4().hex}{ext}"
+        file_path = upload_dir / stored_name
+        content = await upload.read()
+        file_path.write_bytes(content)
+        results.append({"name": original_name, "path": str(file_path)})
+    return results
+
+
+def attachment_names_from_submission(submission: Submission) -> list[str]:
+    try:
+        data = json.loads(submission.data or "{}")
+    except (json.JSONDecodeError, TypeError):
+        data = {}
+    stored = data.get("_attachments")
+    if isinstance(stored, list):
+        names = [
+            str(item.get("name"))
+            for item in stored
+            if isinstance(item, dict) and item.get("name")
+        ]
+        if names:
+            return names
+    if submission.attachment_name:
+        return [submission.attachment_name]
+    return []
+
+
+def resolve_submission_attachment(
+    submission: Submission, index: int = 0
+) -> tuple[Path, str]:
+    try:
+        data = json.loads(submission.data or "{}")
+    except (json.JSONDecodeError, TypeError):
+        data = {}
+
+    stored = data.get("_attachments")
+    if isinstance(stored, list) and stored:
+        if index < 0 or index >= len(stored):
+            raise LookupError("پیوست یافت نشد")
+        item = stored[index]
+        if not isinstance(item, dict) or not item.get("path"):
+            raise LookupError("پیوست یافت نشد")
+        path = Path(str(item["path"]))
+        name = str(item.get("name") or path.name)
+        return path, name
+
+    if index == 0 and submission.attachment_path:
+        return (
+            Path(submission.attachment_path),
+            submission.attachment_name or Path(submission.attachment_path).name,
+        )
+    raise LookupError("پیوست یافت نشد")
 
 
 def create_management_letters(
@@ -74,6 +135,7 @@ def create_management_letters(
     subject: str,
     description: str,
     recipient_ids: list[int],
+    attachments: list[dict[str, str]] | None = None,
     attachment_path: str | None = None,
     attachment_name: str | None = None,
 ) -> list[Submission]:
@@ -87,20 +149,28 @@ def create_management_letters(
     if not cleaned_description:
         raise ValueError("توضیحات نامه الزامی است.")
 
+    files = list(attachments or [])
+    if not files and attachment_path and attachment_name:
+        files = [{"name": attachment_name, "path": attachment_path}]
+
     recipients = _validate_recipients(db, actor, recipient_ids)
     batch_id = uuid.uuid4().hex
     submissions: list[Submission] = []
+    first_path = files[0]["path"] if files else None
+    first_name = files[0]["name"] if files else None
 
     for recipient in recipients:
-        form_data = {
+        form_data: dict = {
             "subject": cleaned_subject,
             "description": cleaned_description,
             "letter_batch_id": batch_id,
             "recipient_id": recipient.id,
             "recipient_name": recipient.display_name or recipient.username,
         }
-        if attachment_name:
-            form_data["attachment"] = attachment_name
+        if files:
+            form_data["_attachments"] = files
+            form_data["attachments"] = [item["name"] for item in files]
+            form_data["attachment"] = first_name
 
         submission = Submission(
             form_id=MANAGEMENT_LETTER_FORM_ID,
@@ -109,8 +179,8 @@ def create_management_letters(
             user_id=actor.id,
             subject=cleaned_subject,
             data=json.dumps(form_data, ensure_ascii=False),
-            attachment_path=attachment_path,
-            attachment_name=attachment_name,
+            attachment_path=first_path,
+            attachment_name=first_name,
             status="submitted",
         )
         db.add(submission)
@@ -207,11 +277,13 @@ def list_sent_letters(db: Session, user: User) -> list[dict]:
 
         if batch_id not in groups:
             sender = senders.get(submission.user_id)
+            names = attachment_names_from_submission(submission)
             groups[batch_id] = {
                 "batch_id": batch_id,
                 "subject": submission.subject,
                 "description": data.get("description") or "",
-                "attachment_name": submission.attachment_name,
+                "attachment_name": names[0] if names else None,
+                "attachment_names": names,
                 "created_at": submission.created_at,
                 "sent_by": (sender.display_name or sender.username) if sender else "نامشخص",
                 "sent_by_id": submission.user_id,

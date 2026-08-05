@@ -48,6 +48,7 @@ type SubmissionListItem = {
   subject: string;
   status: string;
   attachment_name: string | null;
+  attachment_names?: string[];
   created_at: string;
   submitted_by?: string;
   submitted_by_username?: string;
@@ -454,13 +455,24 @@ export default function MyTasksPage() {
     }
   };
 
-  const downloadAttachment = async () => {
-    if (!selected?.attachment_name) return;
+  const downloadAttachment = async (index = 0, fileName?: string) => {
+    if (!selected) return;
+    const names =
+      selected.attachment_names?.length
+        ? selected.attachment_names
+        : selected.attachment_name
+          ? [selected.attachment_name]
+          : [];
+    const name = fileName || names[index];
+    if (!name) return;
     const token = localStorage.getItem("access_token");
     try {
-      const res = await fetch(`${API_BASE}/tasks/${selected.id}/attachment`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const res = await fetch(
+        `${API_BASE}/tasks/${selected.id}/attachment?index=${index}`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        },
+      );
       if (!res.ok) {
         setActionError("دانلود پیوست با مشکل مواجه شد.");
         return;
@@ -469,7 +481,7 @@ export default function MyTasksPage() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = selected.attachment_name;
+      link.download = name;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -498,7 +510,12 @@ export default function MyTasksPage() {
     if (!selected) return [];
     const fieldsByName = new Map(template?.fields.map((field) => [field.name, field]));
     return Object.entries(selected.data)
-      .filter(([name]) => name !== "_report_id" && name !== "attachment")
+      .filter(
+        ([name]) =>
+          name !== "_report_id" &&
+          name !== "attachment" &&
+          name !== "attachments",
+      )
       .map(([name, value]) => ({ name, value, field: fieldsByName.get(name) }));
   }, [selected, template]);
 
@@ -969,17 +986,34 @@ export default function MyTasksPage() {
                     </span>
                   </div>
                 )}
-                {selected.attachment_name && (
-                  <div className="flex items-center gap-2 sm:col-span-2">
-                    <Paperclip size={16} className="text-red-500" />
-                    <span className="text-slate-500">پیوست:</span>
-                    <button
-                      type="button"
-                      onClick={() => void downloadAttachment()}
-                      className="font-semibold text-red-600 underline-offset-2 hover:underline"
-                    >
-                      {selected.attachment_name}
-                    </button>
+                {(selected.attachment_names?.length
+                  ? selected.attachment_names
+                  : selected.attachment_name
+                    ? [selected.attachment_name]
+                    : []
+                ).length > 0 && (
+                  <div className="flex flex-wrap items-start gap-2 sm:col-span-2">
+                    <div className="flex items-center gap-2">
+                      <Paperclip size={16} className="text-red-500" />
+                      <span className="text-slate-500">پیوست‌ها:</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {(selected.attachment_names?.length
+                        ? selected.attachment_names
+                        : selected.attachment_name
+                          ? [selected.attachment_name]
+                          : []
+                      ).map((name, index) => (
+                        <button
+                          key={`${name}-${index}`}
+                          type="button"
+                          onClick={() => void downloadAttachment(index, name)}
+                          className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
+                        >
+                          {name}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

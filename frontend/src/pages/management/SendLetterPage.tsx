@@ -43,7 +43,7 @@ export default function SendLetterPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
-  const [attachment, setAttachment] = useState<File | null>(null);
+  const [attachments, setAttachments] = useState<File[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -121,7 +121,7 @@ export default function SendLetterPage() {
     fd.append("subject", subject.trim());
     fd.append("description", description.trim());
     fd.append("recipient_ids", JSON.stringify([...selectedIds]));
-    if (attachment) fd.append("attachment", attachment);
+    attachments.forEach((file) => fd.append("attachments", file));
 
     const token = localStorage.getItem("access_token");
     try {
@@ -141,7 +141,7 @@ export default function SendLetterPage() {
       setDone(true);
       setSubject("");
       setDescription("");
-      setAttachment(null);
+      setAttachments([]);
       setSelectedIds(new Set());
     } catch (requestError) {
       setError(
@@ -233,33 +233,57 @@ export default function SendLetterPage() {
 
             <div>
               <label className="mb-2 block text-sm font-bold text-slate-700">
-                پیوست
+                پیوست‌ها
+                <span className="mr-2 text-xs font-medium text-slate-400">
+                  (امکان انتخاب چند فایل)
+                </span>
               </label>
               <div className="flex flex-wrap items-center gap-3">
                 <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
                   <Paperclip size={16} />
-                  انتخاب فایل
+                  افزودن فایل
                   <input
                     type="file"
+                    multiple
                     className="hidden"
-                    onChange={(event) =>
-                      setAttachment(event.target.files?.[0] || null)
-                    }
+                    onChange={(event) => {
+                      const files = Array.from(event.target.files || []);
+                      if (!files.length) return;
+                      setAttachments((current) => {
+                        const existing = new Set(
+                          current.map((file) => `${file.name}:${file.size}`),
+                        );
+                        const next = [...current];
+                        files.forEach((file) => {
+                          const key = `${file.name}:${file.size}`;
+                          if (!existing.has(key)) next.push(file);
+                        });
+                        return next;
+                      });
+                      event.target.value = "";
+                    }}
                   />
                 </label>
-                {attachment && (
-                  <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">
-                    {attachment.name}
+                {attachments.map((file, index) => (
+                  <span
+                    key={`${file.name}-${file.size}-${index}`}
+                    className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600"
+                  >
+                    {file.name}
                     <button
                       type="button"
-                      onClick={() => setAttachment(null)}
+                      onClick={() =>
+                        setAttachments((current) =>
+                          current.filter((_, itemIndex) => itemIndex !== index),
+                        )
+                      }
                       className="text-slate-400 hover:text-red-600"
                       aria-label="حذف پیوست"
                     >
                       <X size={14} />
                     </button>
                   </span>
-                )}
+                ))}
               </div>
             </div>
 
@@ -338,7 +362,7 @@ export default function SendLetterPage() {
                 onClick={() => {
                   setSubject("");
                   setDescription("");
-                  setAttachment(null);
+                  setAttachments([]);
                   setSelectedIds(new Set());
                   setDone(false);
                   setError("");

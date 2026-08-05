@@ -27,6 +27,7 @@ class SubmissionListItem(BaseModel):
     submitted_by: str
     submitted_by_username: str
     attachment_name: str | None
+    attachment_names: list[str] = Field(default_factory=list)
     report_id: int | None
     created_at: str
     status_updated_by: str | None = None
@@ -48,6 +49,7 @@ class SubmissionResponse(BaseModel):
     submitted_by: str
     submitted_by_username: str
     attachment_name: str | None
+    attachment_names: list[str] = Field(default_factory=list)
     report_id: int | None
     created_at: str
     data: dict[str, Any]

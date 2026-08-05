@@ -32,6 +32,7 @@ type LetterReportItem = {
   subject: string;
   description: string;
   attachment_name: string | null;
+  attachment_names?: string[];
   created_at: string;
   sent_by: string;
   sent_by_id: number;
@@ -110,13 +111,20 @@ export default function LetterReportPage() {
     );
   }, [items, search]);
 
-  const downloadAttachment = async (item: LetterReportItem) => {
+  const downloadAttachment = async (item: LetterReportItem, index = 0) => {
     const submissionId = item.recipients[0]?.submission_id;
-    if (!submissionId || !item.attachment_name) return;
+    const names =
+      item.attachment_names?.length
+        ? item.attachment_names
+        : item.attachment_name
+          ? [item.attachment_name]
+          : [];
+    const name = names[index];
+    if (!submissionId || !name) return;
     const token = localStorage.getItem("access_token");
     try {
       const res = await fetch(
-        `${API_BASE}/submissions/${submissionId}/attachment`,
+        `${API_BASE}/submissions/${submissionId}/attachment?index=${index}`,
         { headers: token ? { Authorization: `Bearer ${token}` } : {} },
       );
       if (!res.ok) {
@@ -127,7 +135,7 @@ export default function LetterReportPage() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = item.attachment_name;
+      link.download = name;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -232,16 +240,22 @@ export default function LetterReportPage() {
                       <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-400">
                         <span>ارسال‌کننده: {item.sent_by}</span>
                         <span>تاریخ: {item.created_at}</span>
-                        {item.attachment_name && (
+                        {(item.attachment_names?.length
+                          ? item.attachment_names
+                          : item.attachment_name
+                            ? [item.attachment_name]
+                            : []
+                        ).map((name, index) => (
                           <button
+                            key={`${item.batch_id}-${name}-${index}`}
                             type="button"
-                            onClick={() => void downloadAttachment(item)}
+                            onClick={() => void downloadAttachment(item, index)}
                             className="inline-flex items-center gap-1 font-semibold text-red-600 hover:underline"
                           >
                             <Paperclip size={12} />
-                            {item.attachment_name}
+                            {name}
                           </button>
-                        )}
+                        ))}
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">

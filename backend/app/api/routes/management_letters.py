@@ -1,7 +1,10 @@
 import json
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+import json
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -14,7 +17,7 @@ from app.services.management_letter_service import (
     create_management_letters,
     list_letter_recipients,
     list_sent_letters,
-    save_attachment,
+    save_attachments,
     user_can_use_management_workflow,
 )
 
@@ -46,6 +49,7 @@ class LetterReportItem(BaseModel):
     subject: str
     description: str
     attachment_name: str | None = None
+    attachment_names: list[str] = []
     created_at: str
     sent_by: str
     sent_by_id: int
@@ -94,13 +98,15 @@ def get_letter_recipients(
 
 @router.post("", response_model=LetterSendResponse)
 async def send_management_letter(
-    subject: str = Form(...),
-    description: str = Form(...),
-    recipient_ids: str = Form(...),
-    attachment: UploadFile | None = File(default=None),
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    form = await request.form()
+    subject = str(form.get("subject") or "")
+    description = str(form.get("description") or "")
+    recipient_ids = str(form.get("recipient_ids") or "[]")
+
     try:
         parsed_ids = json.loads(recipient_ids)
         if not isinstance(parsed_ids, list):
@@ -109,7 +115,12 @@ async def send_management_letter(
     except (json.JSONDecodeError, TypeError, ValueError):
         raise HTTPException(status_code=400, detail="فهرست گیرندگان نامعتبر است.")
 
-    attachment_path, attachment_name = await save_attachment(attachment)
+    uploads: list[UploadFile] = []
+    for key in ("attachments", "attachment"):
+        for item in form.getlist(key):
+            if hasattr(item, "filename") and item.filename:
+                uploads.append(item)  # type: ignore[arg-type]
+    saved_files = await save_attachments(uploads)
 
     try:
         submissions = create_management_letters(
@@ -118,8 +129,7 @@ async def send_management_letter(
             subject=subject,
             description=description,
             recipient_ids=ids,
-            attachment_path=attachment_path,
-            attachment_name=attachment_name,
+            attachments=saved_files,
         )
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
@@ -161,6 +171,9 @@ def management_letter_report(
                 subject=row["subject"],
                 description=row["description"],
                 attachment_name=row["attachment_name"],
+                attachment_names=row.get("attachment_names") or (
+                    [row["attachment_name"]] if row.get("attachment_name") else []
+                ),
                 created_at=(
                     _format_dt(created_at)
                     if isinstance(created_at, datetime)
