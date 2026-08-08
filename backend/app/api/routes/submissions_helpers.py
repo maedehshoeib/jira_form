@@ -98,7 +98,9 @@ def _department_and_section_titles(
 
     if department_id == MANAGEMENT_WORKFLOW_ID:
         section_title = (
-            "ارسال نامه" if section_id == MANAGEMENT_LETTER_SECTION else section_id
+            "نامه‌های مدیریتی"
+            if section_id == MANAGEMENT_LETTER_SECTION
+            else section_id
         )
         return "گردش کار مدیریت", section_title or "گردش کار مدیریت"
 
@@ -194,6 +196,7 @@ def _submission_to_list_item(
             if db and submission.status_updated_at
             else None
         ),
+        status_note=(submission.status_note or "") if db else "",
         referrals=referrals,
         can_act=can_act,
     )
@@ -233,6 +236,7 @@ def _submission_to_response(
             if db and submission.status_updated_at
             else None
         ),
+        status_note=(submission.status_note or "") if db else "",
         referrals=referrals,
         can_act=can_act,
     )

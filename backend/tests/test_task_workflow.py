@@ -203,17 +203,19 @@ class TaskWorkflowMockTests(unittest.TestCase):
 
     def test_approve_and_status_edit(self):
         updated = set_task_status(
-            self.db, self.handler, self.submission.id, "approved"
+            self.db, self.handler, self.submission.id, "approved", "انجام شد با موفقیت"
         )
         self.assertEqual(updated.status, "approved")
         self.assertEqual(updated.status_updated_by_id, self.handler.id)
+        self.assertEqual(updated.status_note, "انجام شد با موفقیت")
         self.assertIsNotNone(updated.status_updated_at)
 
         # Status can be corrected after a mistaken approve/reject.
         corrected = set_task_status(
-            self.db, self.handler, self.submission.id, "rejected"
+            self.db, self.handler, self.submission.id, "rejected", "اشتباه بود"
         )
         self.assertEqual(corrected.status, "rejected")
+        self.assertEqual(corrected.status_note, "اشتباه بود")
 
         # Referral stays blocked while approved/rejected.
         with self.assertRaises(ValueError):
@@ -225,6 +227,7 @@ class TaskWorkflowMockTests(unittest.TestCase):
             self.db, self.handler, self.submission.id, "submitted"
         )
         self.assertEqual(restored.status, "submitted")
+        self.assertEqual(restored.status_note, "")
         refer_task(
             self.db, self.handler, self.submission.id, self.colleague.id, "بعد از اصلاح"
         )
@@ -348,11 +351,35 @@ class TaskWorkflowMockTests(unittest.TestCase):
         self._as(self.handler)
         rejected = self.client.patch(
             f"/api/v1/tasks/{self.submission.id}/status",
-            json={"status": "rejected"},
+            json={"status": "rejected", "note": "ناقص است"},
         )
         self.assertEqual(rejected.status_code, 200, rejected.text)
-        self.assertEqual(rejected.json()["status"], "rejected")
-        self.assertTrue(rejected.json()["can_act"])
+        body = rejected.json()
+        self.assertEqual(body["status"], "rejected")
+        self.assertEqual(body["status_note"], "ناقص است")
+        self.assertTrue(body["can_act"])
+
+    def test_http_multi_refer(self):
+        second = self._user("colleague2", "همکار دوم")
+        self._as(self.handler)
+        referred = self.client.post(
+            f"/api/v1/tasks/{self.submission.id}/refer",
+            json={
+                "to_user_ids": [self.colleague.id, second.id],
+                "note": "بررسی مشترک",
+            },
+        )
+        self.assertEqual(referred.status_code, 200, referred.text)
+        payload = referred.json()
+        self.assertEqual(len(payload["referrals"]), 2)
+        targets = {item["to_user_id"] for item in payload["referrals"]}
+        self.assertEqual(targets, {self.colleague.id, second.id})
+        self.assertTrue(all(item["note"] == "بررسی مشترک" for item in payload["referrals"]))
+
+        self._as(second)
+        tasks = self.client.get("/api/v1/tasks").json()
+        self.assertEqual(len(tasks), 1)
+        self.assertEqual(tasks[0]["id"], self.submission.id)
 
     def test_http_invalid_status(self):
         self._as(self.handler)

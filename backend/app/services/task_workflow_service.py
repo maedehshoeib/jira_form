@@ -113,6 +113,7 @@ def set_task_status(
     actor: User,
     submission_id: int,
     status: str,
+    note: str = "",
 ) -> Submission:
     if status not in ALLOWED_TASK_STATUSES:
         raise ValueError("وضعیت نامعتبر است.")
@@ -122,12 +123,17 @@ def set_task_status(
         raise LookupError("درخواست یافت نشد")
     if not user_can_access_task(db, actor, submission):
         raise PermissionError("شما به این وظیفه دسترسی ندارید.")
-    if submission.status == status:
+    if submission.status == status and not note:
         return submission
 
     submission.status = status
     submission.status_updated_at = datetime.utcnow()
     submission.status_updated_by_id = actor.id
+    cleaned_note = (note or "").strip()[:512]
+    if status == "submitted":
+        submission.status_note = ""
+    else:
+        submission.status_note = cleaned_note
     db.commit()
     db.refresh(submission)
     return submission
@@ -140,6 +146,24 @@ def refer_task(
     to_user_id: int,
     note: str = "",
 ) -> SubmissionReferral:
+    referrals = refer_tasks(db, actor, submission_id, [to_user_id], note)
+    return referrals[0]
+
+
+def refer_tasks(
+    db: Session,
+    actor: User,
+    submission_id: int,
+    to_user_ids: list[int],
+    note: str = "",
+) -> list[SubmissionReferral]:
+    unique_ids: list[int] = []
+    for user_id in to_user_ids:
+        if user_id not in unique_ids:
+            unique_ids.append(user_id)
+    if not unique_ids:
+        raise ValueError("حداقل یک گیرنده برای ارجاع لازم است.")
+
     submission = db.query(Submission).filter(Submission.id == submission_id).first()
     if not submission:
         raise LookupError("درخواست یافت نشد")
@@ -147,38 +171,46 @@ def refer_task(
         raise PermissionError("شما به این وظیفه دسترسی ندارید.")
     if submission.status != "submitted":
         raise ValueError("پس از تایید یا رد، امکان ارجاع وجود ندارد.")
-    if to_user_id == actor.id:
+    if any(user_id == actor.id for user_id in unique_ids):
         raise ValueError("نمی‌توانید درخواست را به خودتان ارجاع دهید.")
 
-    target = (
-        db.query(User)
-        .filter(User.id == to_user_id, User.is_active.is_(True))
-        .first()
-    )
-    if not target:
+    targets = {
+        user.id: user
+        for user in db.query(User)
+        .filter(User.id.in_(unique_ids), User.is_active.is_(True))
+        .all()
+    }
+    missing = [user_id for user_id in unique_ids if user_id not in targets]
+    if missing:
         raise ValueError("کاربر مقصد یافت نشد یا غیرفعال است.")
 
-    existing = (
-        db.query(SubmissionReferral)
+    existing_ids = {
+        row.to_user_id
+        for row in db.query(SubmissionReferral.to_user_id)
         .filter(
             SubmissionReferral.submission_id == submission.id,
-            SubmissionReferral.to_user_id == to_user_id,
+            SubmissionReferral.to_user_id.in_(unique_ids),
         )
-        .first()
-    )
-    if existing:
-        raise ValueError("این درخواست قبلاً به این کاربر ارجاع شده است.")
+        .all()
+    }
+    if existing_ids:
+        raise ValueError("این درخواست قبلاً به یکی از کاربران انتخاب‌شده ارجاع شده است.")
 
-    referral = SubmissionReferral(
-        submission_id=submission.id,
-        from_user_id=actor.id,
-        to_user_id=to_user_id,
-        note=(note or "").strip()[:512],
-    )
-    db.add(referral)
+    cleaned_note = (note or "").strip()[:512]
+    referrals = [
+        SubmissionReferral(
+            submission_id=submission.id,
+            from_user_id=actor.id,
+            to_user_id=user_id,
+            note=cleaned_note,
+        )
+        for user_id in unique_ids
+    ]
+    db.add_all(referrals)
     db.commit()
-    db.refresh(referral)
-    return referral
+    for referral in referrals:
+        db.refresh(referral)
+    return referrals
 
 
 def list_colleagues(db: Session, exclude_user_id: int) -> list[User]:

@@ -47,7 +47,7 @@ from app.services.task_workflow_service import (
     list_colleagues,
     list_pending_task_ids,
     list_task_submissions,
-    refer_task,
+    refer_tasks,
     set_task_status,
     user_can_access_task,
 )
@@ -557,7 +557,9 @@ def update_task_status(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        submission = set_task_status(db, current_user, submission_id, body.status)
+        submission = set_task_status(
+            db, current_user, submission_id, body.status, body.note
+        )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except PermissionError as exc:
@@ -577,11 +579,11 @@ def refer_task_endpoint(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        refer_task(
+        refer_tasks(
             db,
             current_user,
             submission_id,
-            body.to_user_id,
+            body.resolved_user_ids(),
             body.note,
         )
     except LookupError as exc:

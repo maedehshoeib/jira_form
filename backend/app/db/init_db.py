@@ -188,6 +188,10 @@ def _migrate_submissions_db():
             "status_updated_by_id",
             "ALTER TABLE submissions ADD COLUMN status_updated_by_id INTEGER",
         ),
+        (
+            "status_note",
+            "ALTER TABLE submissions ADD COLUMN status_note VARCHAR(512) DEFAULT ''",
+        ),
     ]
     with engine.begin() as conn:
         for column_name, ddl in migrations:

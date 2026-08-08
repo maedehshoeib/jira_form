@@ -23,6 +23,7 @@ import AppShell from "../components/layout/AppShell";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { Textarea } from "../components/ui/textarea";
 import { API_BASE, FormField, FormTemplate } from "../config/portal";
 import { formatPersianDateTime } from "../lib/persianDate";
 import UserDisplayName from "../components/UserDisplayName";
@@ -54,6 +55,7 @@ type SubmissionListItem = {
   submitted_by_username?: string;
   status_updated_by?: string | null;
   status_updated_at?: string | null;
+  status_note?: string;
   referrals?: ReferralItem[];
   can_act?: boolean;
 };
@@ -111,7 +113,7 @@ function matchesStatusTab(task: SubmissionListItem, tab: StatusTab) {
 }
 
 function statusActionLabel(status: "approved" | "rejected" | "submitted") {
-  if (status === "approved") return "تایید / انجام‌شده";
+  if (status === "approved") return "انجام شده";
   if (status === "rejected") return "رد";
   return "بازگشت به اقدام‌نشده";
 }
@@ -214,9 +216,11 @@ export default function MyTasksPage() {
   const [statusTab, setStatusTab] = useState<StatusTab>("pending");
 
   const [referOpen, setReferOpen] = useState(false);
+  const [statusPanel, setStatusPanel] = useState<"approved" | "rejected" | null>(null);
+  const [statusNote, setStatusNote] = useState("");
   const [colleagues, setColleagues] = useState<Colleague[]>([]);
   const [colleagueQuery, setColleagueQuery] = useState("");
-  const [selectedColleagueId, setSelectedColleagueId] = useState<number | null>(null);
+  const [selectedColleagueIds, setSelectedColleagueIds] = useState<number[]>([]);
   const [referNote, setReferNote] = useState("");
   const [colleaguesLoading, setColleaguesLoading] = useState(false);
 
@@ -375,6 +379,8 @@ export default function MyTasksPage() {
     setError("");
     setActionError("");
     setReferOpen(false);
+    setStatusPanel(null);
+    setStatusNote("");
     try {
       const [detailResponse, templateResponse] = await Promise.all([
         client.get<SubmissionDetail>(`${endpoints.tasks}/${task.id}`),
@@ -394,20 +400,35 @@ export default function MyTasksPage() {
     }
   };
 
-  const updateStatus = async (status: "approved" | "rejected" | "submitted") => {
+  const openStatusPanel = (status: "approved" | "rejected") => {
+    if (!selected || selected.status === status) return;
+    setReferOpen(false);
+    setStatusPanel(status);
+    setStatusNote(selected.status_note || "");
+    setActionError("");
+  };
+
+  const updateStatus = async (
+    status: "approved" | "rejected" | "submitted",
+    note = "",
+  ) => {
     if (!selected || selected.status === status) return;
     const label = statusActionLabel(status);
-    if (!window.confirm(`آیا از تغییر وضعیت به «${label}» مطمئن هستید؟`)) return;
+    if (status === "submitted") {
+      if (!window.confirm(`آیا از تغییر وضعیت به «${label}» مطمئن هستید؟`)) return;
+    }
 
     setActionLoading(true);
     setActionError("");
     try {
       const { data } = await client.patch<SubmissionDetail>(
         `${endpoints.tasks}/${selected.id}/status`,
-        { status },
+        { status, note: note.trim() },
       );
       syncTask(data);
       setSelected((prev) => (prev ? { ...data, data: prev.data } : data));
+      setStatusPanel(null);
+      setStatusNote("");
       if (status !== "submitted") setReferOpen(false);
       window.dispatchEvent(new Event("tasks:refresh-notifications"));
     } catch (err: unknown) {
@@ -417,11 +438,23 @@ export default function MyTasksPage() {
     }
   };
 
+  const submitStatusAction = async () => {
+    if (!statusPanel) return;
+    await updateStatus(statusPanel, statusNote);
+  };
+
+  const toggleColleague = (userId: number) => {
+    setSelectedColleagueIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
+    );
+  };
+
   const openReferPanel = async () => {
+    setStatusPanel(null);
     setReferOpen(true);
     setActionError("");
     setColleagueQuery("");
-    setSelectedColleagueId(null);
+    setSelectedColleagueIds([]);
     setReferNote("");
     if (colleagues.length > 0) return;
     setColleaguesLoading(true);
@@ -436,17 +469,18 @@ export default function MyTasksPage() {
   };
 
   const submitRefer = async () => {
-    if (!selected || selectedColleagueId == null) return;
+    if (!selected || selectedColleagueIds.length === 0) return;
     setActionLoading(true);
     setActionError("");
     try {
       const { data } = await client.post<SubmissionDetail>(
         `${endpoints.tasks}/${selected.id}/refer`,
-        { to_user_id: selectedColleagueId, note: referNote.trim() },
+        { to_user_ids: selectedColleagueIds, note: referNote.trim() },
       );
       syncTask(data);
       setSelected((prev) => (prev ? { ...data, data: prev.data } : data));
       setReferOpen(false);
+      setSelectedColleagueIds([]);
       window.dispatchEvent(new Event("tasks:refresh-notifications"));
     } catch (err: unknown) {
       setActionError(apiErrorDetail(err, "ارجاع درخواست با مشکل مواجه شد."));
@@ -775,6 +809,8 @@ export default function MyTasksPage() {
           onMouseDown={() => {
             setSelected(null);
             setReferOpen(false);
+            setStatusPanel(null);
+            setStatusNote("");
           }}
         >
           <section
@@ -815,6 +851,8 @@ export default function MyTasksPage() {
                 onClick={() => {
                   setSelected(null);
                   setReferOpen(false);
+                  setStatusPanel(null);
+                  setStatusNote("");
                 }}
                 className="shrink-0 rounded-xl"
               >
@@ -838,7 +876,7 @@ export default function MyTasksPage() {
                   <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
-                      onClick={() => void updateStatus("approved")}
+                      onClick={() => openStatusPanel("approved")}
                       disabled={actionLoading || selected.status === "approved"}
                       className={`gap-2 ${
                         selected.status === "approved"
@@ -846,17 +884,17 @@ export default function MyTasksPage() {
                           : "bg-emerald-600 hover:bg-emerald-700"
                       }`}
                     >
-                      {actionLoading ? (
+                      {actionLoading && statusPanel === "approved" ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
                         <CheckCircle2 className="h-4 w-4" />
                       )}
-                      {selected.status === "approved" ? "انجام‌شده" : "تایید"}
+                      انجام شده
                     </Button>
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => void updateStatus("rejected")}
+                      onClick={() => openStatusPanel("rejected")}
                       disabled={actionLoading || selected.status === "rejected"}
                       className={`gap-2 ${
                         selected.status === "rejected"
@@ -894,10 +932,66 @@ export default function MyTasksPage() {
                 </div>
               )}
 
+              {statusPanel && selected.can_act && (
+                <div
+                  className={`space-y-3 rounded-2xl border p-4 ${
+                    statusPanel === "approved"
+                      ? "border-emerald-100 bg-emerald-50/60"
+                      : "border-red-100 bg-red-50/60"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <h4 className="text-sm font-semibold text-slate-800">
+                      {statusPanel === "approved"
+                        ? "ثبت انجام شده"
+                        : "ثبت رد درخواست"}
+                    </h4>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        setStatusPanel(null);
+                        setStatusNote("");
+                      }}
+                      className="h-8 px-2 text-slate-500"
+                    >
+                      <X size={16} />
+                    </Button>
+                  </div>
+                  <Textarea
+                    value={statusNote}
+                    onChange={(event) => setStatusNote(event.target.value)}
+                    placeholder="توضیح یا یادداشت خود را بنویسید (اختیاری)"
+                    className="min-h-24 rounded-xl bg-white"
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => void submitStatusAction()}
+                    disabled={actionLoading}
+                    className={`gap-2 ${
+                      statusPanel === "approved"
+                        ? "bg-emerald-600 hover:bg-emerald-700"
+                        : "bg-red-600 hover:bg-red-700"
+                    }`}
+                  >
+                    {actionLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : statusPanel === "approved" ? (
+                      <CheckCircle2 className="h-4 w-4" />
+                    ) : (
+                      <XCircle className="h-4 w-4" />
+                    )}
+                    {statusPanel === "approved" ? "ثبت انجام شده" : "ثبت رد"}
+                  </Button>
+                </div>
+              )}
+
               {referOpen && selected.can_act && selected.status === "submitted" && (
                 <div className="space-y-3 rounded-2xl border border-sky-100 bg-sky-50/60 p-4">
                   <div className="flex items-center justify-between gap-3">
-                    <h4 className="text-sm font-semibold text-slate-800">ارجاع به همکار</h4>
+                    <h4 className="text-sm font-semibold text-slate-800">
+                      ارجاع به همکاران
+                    </h4>
                     <Button
                       type="button"
                       variant="ghost"
@@ -907,6 +1001,12 @@ export default function MyTasksPage() {
                       <X size={16} />
                     </Button>
                   </div>
+                  <p className="text-xs text-slate-500">
+                    می‌توانید چند نفر را همزمان انتخاب کنید.
+                    {selectedColleagueIds.length > 0
+                      ? ` (${selectedColleagueIds.length.toLocaleString("fa-IR")} نفر انتخاب شده)`
+                      : ""}
+                  </p>
                   <Input
                     value={colleagueQuery}
                     onChange={(event) => setColleagueQuery(event.target.value)}
@@ -924,37 +1024,42 @@ export default function MyTasksPage() {
                         همکاری یافت نشد.
                       </p>
                     ) : (
-                      filteredColleagues.map((user) => (
-                        <button
-                          key={user.id}
-                          type="button"
-                          onClick={() => setSelectedColleagueId(user.id)}
-                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-right text-sm transition ${
-                            selectedColleagueId === user.id
-                              ? "bg-red-50 text-red-700"
-                              : "hover:bg-slate-50"
-                          }`}
-                        >
-                          <span className="font-medium">
-                            <UserDisplayName user={user} />
-                          </span>
-                          <span className="text-xs text-slate-500">
-                            {user.job_title || user.department || user.username}
-                          </span>
-                        </button>
-                      ))
+                      filteredColleagues.map((user) => {
+                        const selectedUser = selectedColleagueIds.includes(user.id);
+                        return (
+                          <button
+                            key={user.id}
+                            type="button"
+                            onClick={() => toggleColleague(user.id)}
+                            className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-right text-sm transition ${
+                              selectedUser
+                                ? "bg-red-50 text-red-700"
+                                : "hover:bg-slate-50"
+                            }`}
+                          >
+                            <span className="font-medium">
+                              <UserDisplayName user={user} />
+                            </span>
+                            <span className="text-xs text-slate-500">
+                              {selectedUser
+                                ? "انتخاب‌شده"
+                                : user.job_title || user.department || user.username}
+                            </span>
+                          </button>
+                        );
+                      })
                     )}
                   </div>
-                  <Input
+                  <Textarea
                     value={referNote}
                     onChange={(event) => setReferNote(event.target.value)}
                     placeholder="یادداشت ارجاع (اختیاری)"
-                    className="h-10 rounded-xl bg-white"
+                    className="min-h-20 rounded-xl bg-white"
                   />
                   <Button
                     type="button"
                     onClick={() => void submitRefer()}
-                    disabled={actionLoading || selectedColleagueId == null}
+                    disabled={actionLoading || selectedColleagueIds.length === 0}
                     className="gap-2"
                   >
                     {actionLoading ? (
@@ -997,6 +1102,15 @@ export default function MyTasksPage() {
                     </span>
                   </div>
                 )}
+                {selected.status_note &&
+                  (selected.status === "approved" || selected.status === "rejected") && (
+                    <div className="sm:col-span-2">
+                      <span className="text-slate-500">یادداشت وضعیت:</span>{" "}
+                      <span className="whitespace-pre-wrap font-semibold text-slate-700">
+                        {selected.status_note}
+                      </span>
+                    </div>
+                  )}
                 {(selected.attachment_names?.length
                   ? selected.attachment_names
                   : selected.attachment_name

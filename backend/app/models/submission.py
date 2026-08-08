@@ -19,6 +19,7 @@ class Submission(Base):
     attachment_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
     attachment_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
     status: Mapped[str] = mapped_column(String(32), default="submitted")
+    status_note: Mapped[str] = mapped_column(String(512), default="")
     status_updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     status_updated_by_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("users.id"), nullable=True
