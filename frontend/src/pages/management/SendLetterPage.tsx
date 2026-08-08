@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import {
   CheckCircle2,
@@ -16,6 +16,13 @@ import AppShell from "../../components/layout/AppShell";
 import UserDisplayName from "../../components/UserDisplayName";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
 import { Textarea } from "../../components/ui/textarea";
 import { API_BASE } from "../../config/portal";
 
@@ -29,6 +36,24 @@ type LetterRecipient = {
   is_birthday?: boolean;
 };
 
+const NEEDS_REPLY_OPTIONS = ["دارد", "ندارد"] as const;
+const SENDER_OPTIONS = [
+  "بانک",
+  "شرکت های گروه",
+  "سایر",
+  "هلدینگ",
+] as const;
+const HOLDING_OPTIONS = [
+  "فناوری اطلاعات",
+  "مالی",
+  "کسب و کار",
+  "سایر",
+] as const;
+
+type NeedsReplyOption = (typeof NEEDS_REPLY_OPTIONS)[number];
+type SenderOption = (typeof SENDER_OPTIONS)[number];
+type HoldingOption = (typeof HOLDING_OPTIONS)[number];
+
 function apiErrorDetail(err: unknown, fallback: string) {
   if (!err || typeof err !== "object" || !("response" in err)) return fallback;
   const detail = (err as { response?: { data?: { detail?: unknown } } }).response
@@ -37,16 +62,169 @@ function apiErrorDetail(err: unknown, fallback: string) {
   return fallback;
 }
 
+function formatSenderLabel(
+  sender: SenderOption | "",
+  holdingUnit: HoldingOption | "",
+) {
+  if (!sender) return "—";
+  if (sender === "هلدینگ" && holdingUnit) return `هلدینگ / ${holdingUnit}`;
+  return sender;
+}
+
+function SenderDropdown({
+  sender,
+  holdingUnit,
+  onSelect,
+}: {
+  sender: SenderOption | "";
+  holdingUnit: HoldingOption | "";
+  onSelect: (nextSender: SenderOption, nextHolding: HoldingOption | "") => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [holdingOpen, setHoldingOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+        setHoldingOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        setHoldingOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("mousedown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  const label = formatSenderLabel(sender, holdingUnit);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="flex h-12 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none transition focus-visible:border-red-500 focus-visible:ring-2 focus-visible:ring-red-500/20"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className={sender ? "font-semibold text-slate-800" : "text-slate-400"}>
+          {sender ? label : "انتخاب فرستنده"}
+        </span>
+        <ChevronLeft
+          size={16}
+          className={`text-slate-400 transition ${open ? "-rotate-90" : "rotate-90"}`}
+        />
+      </button>
+
+      {open && (
+        <div
+          role="listbox"
+          className="absolute z-40 mt-2 w-full rounded-xl border border-slate-200 bg-white p-1 shadow-xl"
+        >
+          {SENDER_OPTIONS.map((option) => {
+            if (option === "هلدینگ") {
+              return (
+                <div
+                  key={option}
+                  className="relative"
+                  onMouseEnter={() => setHoldingOpen(true)}
+                  onMouseLeave={() => setHoldingOpen(false)}
+                >
+                  <button
+                    type="button"
+                    className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
+                      sender === "هلدینگ"
+                        ? "bg-red-50 text-red-700"
+                        : "text-slate-700 hover:bg-slate-50"
+                    }`}
+                    onClick={() => setHoldingOpen((current) => !current)}
+                  >
+                    هلدینگ
+                    <ChevronLeft
+                      size={14}
+                      className={`text-slate-400 transition ${
+                        holdingOpen ? "-rotate-90" : "rotate-90"
+                      }`}
+                    />
+                  </button>
+                  {holdingOpen && (
+                    <div className="mr-3 mt-1 space-y-0.5 border-r border-slate-200 pr-2">
+                      {HOLDING_OPTIONS.map((unit) => (
+                        <button
+                          key={unit}
+                          type="button"
+                          role="option"
+                          className={`block w-full rounded-lg px-3 py-2 text-right text-sm font-semibold transition ${
+                            sender === "هلدینگ" && holdingUnit === unit
+                              ? "bg-red-50 text-red-700"
+                              : "text-slate-600 hover:bg-slate-50"
+                          }`}
+                          onClick={() => {
+                            onSelect("هلدینگ", unit);
+                            setOpen(false);
+                            setHoldingOpen(false);
+                          }}
+                        >
+                          {unit}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            return (
+              <button
+                key={option}
+                type="button"
+                role="option"
+                className={`block w-full rounded-lg px-3 py-2.5 text-right text-sm font-semibold transition ${
+                  sender === option
+                    ? "bg-red-50 text-red-700"
+                    : "text-slate-700 hover:bg-slate-50"
+                }`}
+                onClick={() => {
+                  onSelect(option, "");
+                  setOpen(false);
+                  setHoldingOpen(false);
+                }}
+              >
+                {option}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SendLetterPage() {
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [recipients, setRecipients] = useState<LetterRecipient[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
+  const [letterNumber, setLetterNumber] = useState("");
+  const [needsReply, setNeedsReply] = useState<NeedsReplyOption | "">("");
+  const [sender, setSender] = useState<SenderOption | "">("");
+  const [holdingUnit, setHoldingUnit] = useState<HoldingOption | "">("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
 
@@ -81,6 +259,20 @@ export default function SendLetterPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!reviewOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !saving) setReviewOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [reviewOpen, saving]);
+
   const filteredRecipients = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("fa");
     if (!query) return recipients;
@@ -92,6 +284,11 @@ export default function SendLetterPage() {
     );
   }, [recipients, search]);
 
+  const selectedRecipients = useMemo(
+    () => recipients.filter((user) => selectedIds.has(user.id)),
+    [recipients, selectedIds],
+  );
+
   const toggleRecipient = (id: number) => {
     setSelectedIds((current) => {
       const next = new Set(current);
@@ -101,15 +298,60 @@ export default function SendLetterPage() {
     });
   };
 
-  const handleSubmit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (saving) return;
+  const resetForm = ({ keepDone = false }: { keepDone?: boolean } = {}) => {
+    setSubject("");
+    setDescription("");
+    setLetterNumber("");
+    setNeedsReply("");
+    setSender("");
+    setHoldingUnit("");
+    setAttachments([]);
+    setSelectedIds(new Set());
+    if (!keepDone) setDone(false);
+    setError("");
+  };
+
+  const validateForm = () => {
     if (!subject.trim() || !description.trim()) {
-      setError("موضوع و توضیحات الزامی است.");
-      return;
+      return "موضوع و توضیحات الزامی است.";
+    }
+    if (!letterNumber.trim()) {
+      return "شماره نامه الزامی است.";
+    }
+    if (!needsReply) {
+      return "نیاز به پاسخ را مشخص کنید.";
+    }
+    if (!sender) {
+      return "فرستنده را انتخاب کنید.";
+    }
+    if (sender === "هلدینگ" && !holdingUnit) {
+      return "واحد هلدینگ را انتخاب کنید.";
     }
     if (selectedIds.size === 0) {
-      setError("حداقل یک گیرنده را انتخاب کنید.");
+      return "حداقل یک گیرنده را انتخاب کنید.";
+    }
+    return "";
+  };
+
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    if (saving) return;
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+    setError("");
+    setDone(false);
+    setReviewOpen(true);
+  };
+
+  const confirmSend = async () => {
+    if (saving) return;
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      setReviewOpen(false);
       return;
     }
 
@@ -120,6 +362,10 @@ export default function SendLetterPage() {
     const fd = new FormData();
     fd.append("subject", subject.trim());
     fd.append("description", description.trim());
+    fd.append("letter_number", letterNumber.trim());
+    fd.append("needs_reply", needsReply);
+    fd.append("sender", sender);
+    fd.append("sender_detail", sender === "هلدینگ" ? holdingUnit : "");
     fd.append("recipient_ids", JSON.stringify([...selectedIds]));
     attachments.forEach((file) => fd.append("attachments", file));
 
@@ -138,17 +384,16 @@ export default function SendLetterPage() {
             : "ارسال نامه انجام نشد.",
         );
       }
+      setReviewOpen(false);
+      resetForm({ keepDone: true });
       setDone(true);
-      setSubject("");
-      setDescription("");
-      setAttachments([]);
-      setSelectedIds(new Set());
     } catch (requestError) {
       setError(
         requestError instanceof Error
           ? requestError.message
           : apiErrorDetail(requestError, "ارسال نامه انجام نشد."),
       );
+      setReviewOpen(false);
     } finally {
       setSaving(false);
     }
@@ -214,6 +459,56 @@ export default function SendLetterPage() {
                 required
                 className="h-12 rounded-xl"
                 placeholder="موضوع نامه"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-bold text-slate-700">
+                شماره نامه
+              </label>
+              <Input
+                value={letterNumber}
+                onChange={(event) => setLetterNumber(event.target.value)}
+                required
+                className="h-12 rounded-xl"
+                placeholder="شماره نامه"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-bold text-slate-700">
+                نیاز به پاسخ
+              </label>
+              <Select
+                value={needsReply || undefined}
+                onValueChange={(value) =>
+                  setNeedsReply(value as NeedsReplyOption)
+                }
+              >
+                <SelectTrigger className="h-12 w-full rounded-xl border-slate-200 bg-white text-right shadow-sm">
+                  <SelectValue placeholder="انتخاب کنید" />
+                </SelectTrigger>
+                <SelectContent position="popper" sideOffset={4}>
+                  {NEEDS_REPLY_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-bold text-slate-700">
+                فرستنده
+              </label>
+              <SenderDropdown
+                sender={sender}
+                holdingUnit={holdingUnit}
+                onSelect={(nextSender, nextHolding) => {
+                  setSender(nextSender);
+                  setHoldingUnit(nextHolding);
+                }}
               />
             </div>
 
@@ -359,14 +654,7 @@ export default function SendLetterPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => {
-                  setSubject("");
-                  setDescription("");
-                  setAttachments([]);
-                  setSelectedIds(new Set());
-                  setDone(false);
-                  setError("");
-                }}
+                onClick={resetForm}
                 className="rounded-xl"
               >
                 پاک کردن
@@ -375,13 +663,130 @@ export default function SendLetterPage() {
                 disabled={saving || recipients.length === 0}
                 className="gap-2 rounded-xl bg-red-600 px-6 hover:bg-red-700"
               >
-                {saving && <Loader2 className="animate-spin" size={16} />}
                 ارسال نامه
               </Button>
             </div>
           </form>
         )}
       </div>
+
+      {reviewOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/45 p-0 backdrop-blur-sm sm:items-center sm:p-6"
+          dir="rtl"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !saving) {
+              setReviewOpen(false);
+            }
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="letter-review-title"
+            className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl sm:rounded-3xl"
+          >
+            <header className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+              <div>
+                <h2
+                  id="letter-review-title"
+                  className="text-lg font-extrabold text-slate-900"
+                >
+                  بررسی نهایی نامه
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  قبل از ارسال، اطلاعات را مرور کنید
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => setReviewOpen(false)}
+                className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
+                aria-label="بستن"
+              >
+                <X size={18} />
+              </button>
+            </header>
+
+            <div className="space-y-4 overflow-y-auto px-5 py-5 text-sm">
+              <ReviewRow label="موضوع" value={subject.trim()} />
+              <ReviewRow label="شماره نامه" value={letterNumber.trim()} />
+              <ReviewRow label="نیاز به پاسخ" value={needsReply || "—"} />
+              <ReviewRow
+                label="فرستنده"
+                value={formatSenderLabel(sender, holdingUnit)}
+              />
+              <ReviewRow label="توضیحات" value={description.trim()} multiline />
+              <ReviewRow
+                label="پیوست‌ها"
+                value={
+                  attachments.length
+                    ? attachments.map((file) => file.name).join("، ")
+                    : "بدون پیوست"
+                }
+              />
+              <div>
+                <p className="mb-2 text-xs font-bold text-slate-400">گیرندگان</p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedRecipients.map((user) => (
+                    <span
+                      key={user.id}
+                      className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700"
+                    >
+                      {user.display_name || user.username}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <footer className="flex flex-wrap justify-end gap-3 border-t border-slate-100 px-5 py-4">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={saving}
+                onClick={() => setReviewOpen(false)}
+                className="rounded-xl"
+              >
+                بازگشت و ویرایش
+              </Button>
+              <Button
+                type="button"
+                disabled={saving}
+                onClick={() => void confirmSend()}
+                className="gap-2 rounded-xl bg-red-600 px-6 hover:bg-red-700"
+              >
+                {saving && <Loader2 className="animate-spin" size={16} />}
+                تأیید و ارسال
+              </Button>
+            </footer>
+          </section>
+        </div>
+      )}
     </AppShell>
+  );
+}
+
+function ReviewRow({
+  label,
+  value,
+  multiline = false,
+}: {
+  label: string;
+  value: string;
+  multiline?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+      <p className="text-xs font-bold text-slate-400">{label}</p>
+      <p
+        className={`mt-1 font-semibold text-slate-800 ${
+          multiline ? "whitespace-pre-wrap leading-7" : ""
+        }`}
+      >
+        {value || "—"}
+      </p>
+    </div>
   );
 }

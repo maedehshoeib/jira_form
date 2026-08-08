@@ -31,6 +31,10 @@ type LetterReportItem = {
   batch_id: string;
   subject: string;
   description: string;
+  letter_number?: string;
+  needs_reply?: string;
+  sender?: string;
+  sender_detail?: string;
   attachment_name: string | null;
   attachment_names?: string[];
   created_at: string;
@@ -38,6 +42,14 @@ type LetterReportItem = {
   sent_by_id: number;
   recipients: LetterRecipientStatus[];
 };
+
+function formatLetterSender(item: LetterReportItem) {
+  const sender = (item.sender || "").trim();
+  const detail = (item.sender_detail || "").trim();
+  if (!sender) return "";
+  if (sender === "هلدینگ" && detail) return `هلدینگ / ${detail}`;
+  return sender;
+}
 
 function displayStatus(status: string) {
   if (status === "approved") return "انجام‌شده";
@@ -102,6 +114,10 @@ export default function LetterReportPage() {
       [
         item.subject,
         item.description,
+        item.letter_number,
+        item.needs_reply,
+        item.sender,
+        item.sender_detail,
         item.sent_by,
         ...item.recipients.map((row) => row.display_name),
       ]
@@ -238,6 +254,15 @@ export default function LetterReportPage() {
                         {item.description}
                       </p>
                       <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+                        {item.letter_number && (
+                          <span>شماره نامه: {item.letter_number}</span>
+                        )}
+                        {item.needs_reply && (
+                          <span>نیاز به پاسخ: {item.needs_reply}</span>
+                        )}
+                        {formatLetterSender(item) && (
+                          <span>فرستنده: {formatLetterSender(item)}</span>
+                        )}
                         <span>ارسال‌کننده: {item.sent_by}</span>
                         <span>تاریخ: {item.created_at}</span>
                         {(item.attachment_names?.length

@@ -356,6 +356,47 @@ MANAGEMENT_WORKFLOW_ID = "management-workflow"
 MANAGEMENT_LETTER_SECTION = "send-letter"
 MANAGEMENT_LETTER_FORM_ID = "management-letter-form"
 
+MANAGEMENT_LETTER_FIELDS = [
+    FormField(name="subject", label="موضوع درخواست", type="text", required=True),
+    FormField(name="letter_number", label="شماره نامه", type="text", required=True),
+    FormField(
+        name="needs_reply",
+        label="نیاز به پاسخ",
+        type="select",
+        required=True,
+        options=[
+            SelectOption(label="دارد", value="دارد"),
+            SelectOption(label="ندارد", value="ندارد"),
+        ],
+    ),
+    FormField(
+        name="sender",
+        label="فرستنده",
+        type="select",
+        required=True,
+        options=[
+            SelectOption(label="بانک", value="بانک"),
+            SelectOption(label="شرکت های گروه", value="شرکت های گروه"),
+            SelectOption(label="سایر", value="سایر"),
+            SelectOption(label="هلدینگ", value="هلدینگ"),
+        ],
+    ),
+    FormField(
+        name="sender_detail",
+        label="واحد هلدینگ",
+        type="select",
+        required=False,
+        options=[
+            SelectOption(label="فناوری اطلاعات", value="فناوری اطلاعات"),
+            SelectOption(label="مالی", value="مالی"),
+            SelectOption(label="کسب و کار", value="کسب و کار"),
+            SelectOption(label="سایر", value="سایر"),
+        ],
+    ),
+    FormField(name="description", label="توضیحات", type="textarea", required=True),
+    FormField(name="attachment", label="پیوست", type="file", required=False),
+]
+
 FORM_TEMPLATES = {
     "software-development-form": FormTemplate(
         id="software-development-form",
@@ -369,7 +410,7 @@ FORM_TEMPLATES = {
         title="ارسال نامه",
         department_id=MANAGEMENT_WORKFLOW_ID,
         section_id=MANAGEMENT_LETTER_SECTION,
-        fields=COMMON_FIELDS,
+        fields=MANAGEMENT_LETTER_FIELDS,
     ),
     "common-form": FormTemplate(id="common-form", title="فرم عمومی درخواست", department_id="", section_id="", fields=COMMON_FIELDS),
     "software-support-form": FormTemplate(id="software-support-form", title="درخواست پشتیبانی نرم افزار", department_id="it", section_id="software-support", fields=IT_SUPPORT_FIELDS),

@@ -128,6 +128,11 @@ def resolve_submission_attachment(
     raise LookupError("پیوست یافت نشد")
 
 
+NEEDS_REPLY_OPTIONS = {"دارد", "ندارد"}
+SENDER_OPTIONS = {"بانک", "شرکت های گروه", "سایر", "هلدینگ"}
+HOLDING_OPTIONS = {"فناوری اطلاعات", "مالی", "کسب و کار", "سایر"}
+
+
 def create_management_letters(
     db: Session,
     *,
@@ -135,6 +140,10 @@ def create_management_letters(
     subject: str,
     description: str,
     recipient_ids: list[int],
+    letter_number: str = "",
+    needs_reply: str = "",
+    sender: str = "",
+    sender_detail: str = "",
     attachments: list[dict[str, str]] | None = None,
     attachment_path: str | None = None,
     attachment_name: str | None = None,
@@ -144,10 +153,26 @@ def create_management_letters(
 
     cleaned_subject = (subject or "").strip()
     cleaned_description = (description or "").strip()
+    cleaned_letter_number = (letter_number or "").strip()
+    cleaned_needs_reply = (needs_reply or "").strip()
+    cleaned_sender = (sender or "").strip()
+    cleaned_sender_detail = (sender_detail or "").strip()
+
     if not cleaned_subject:
         raise ValueError("موضوع نامه الزامی است.")
     if not cleaned_description:
         raise ValueError("توضیحات نامه الزامی است.")
+    if not cleaned_letter_number:
+        raise ValueError("شماره نامه الزامی است.")
+    if cleaned_needs_reply not in NEEDS_REPLY_OPTIONS:
+        raise ValueError("مقدار «نیاز به پاسخ» نامعتبر است.")
+    if cleaned_sender not in SENDER_OPTIONS:
+        raise ValueError("فرستنده نامعتبر است.")
+    if cleaned_sender == "هلدینگ":
+        if cleaned_sender_detail not in HOLDING_OPTIONS:
+            raise ValueError("واحد هلدینگ را انتخاب کنید.")
+    else:
+        cleaned_sender_detail = ""
 
     files = list(attachments or [])
     if not files and attachment_path and attachment_name:
@@ -163,6 +188,10 @@ def create_management_letters(
         form_data: dict = {
             "subject": cleaned_subject,
             "description": cleaned_description,
+            "letter_number": cleaned_letter_number,
+            "needs_reply": cleaned_needs_reply,
+            "sender": cleaned_sender,
+            "sender_detail": cleaned_sender_detail,
             "letter_batch_id": batch_id,
             "recipient_id": recipient.id,
             "recipient_name": recipient.display_name or recipient.username,
@@ -278,10 +307,16 @@ def list_sent_letters(db: Session, user: User) -> list[dict]:
         if batch_id not in groups:
             sender = senders.get(submission.user_id)
             names = attachment_names_from_submission(submission)
+            letter_sender = str(data.get("sender") or "")
+            letter_sender_detail = str(data.get("sender_detail") or "")
             groups[batch_id] = {
                 "batch_id": batch_id,
                 "subject": submission.subject,
                 "description": data.get("description") or "",
+                "letter_number": str(data.get("letter_number") or ""),
+                "needs_reply": str(data.get("needs_reply") or ""),
+                "sender": letter_sender,
+                "sender_detail": letter_sender_detail,
                 "attachment_name": names[0] if names else None,
                 "attachment_names": names,
                 "created_at": submission.created_at,

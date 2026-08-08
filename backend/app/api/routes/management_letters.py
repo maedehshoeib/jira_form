@@ -1,9 +1,6 @@
 import json
 from datetime import datetime
 
-import json
-from datetime import datetime
-
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -48,6 +45,10 @@ class LetterReportItem(BaseModel):
     batch_id: str
     subject: str
     description: str
+    letter_number: str = ""
+    needs_reply: str = ""
+    sender: str = ""
+    sender_detail: str = ""
     attachment_name: str | None = None
     attachment_names: list[str] = []
     created_at: str
@@ -105,6 +106,10 @@ async def send_management_letter(
     form = await request.form()
     subject = str(form.get("subject") or "")
     description = str(form.get("description") or "")
+    letter_number = str(form.get("letter_number") or "")
+    needs_reply = str(form.get("needs_reply") or "")
+    sender = str(form.get("sender") or "")
+    sender_detail = str(form.get("sender_detail") or "")
     recipient_ids = str(form.get("recipient_ids") or "[]")
 
     try:
@@ -128,6 +133,10 @@ async def send_management_letter(
             actor=current_user,
             subject=subject,
             description=description,
+            letter_number=letter_number,
+            needs_reply=needs_reply,
+            sender=sender,
+            sender_detail=sender_detail,
             recipient_ids=ids,
             attachments=saved_files,
         )
@@ -170,6 +179,10 @@ def management_letter_report(
                 batch_id=row["batch_id"],
                 subject=row["subject"],
                 description=row["description"],
+                letter_number=row.get("letter_number") or "",
+                needs_reply=row.get("needs_reply") or "",
+                sender=row.get("sender") or "",
+                sender_detail=row.get("sender_detail") or "",
                 attachment_name=row["attachment_name"],
                 attachment_names=row.get("attachment_names") or (
                     [row["attachment_name"]] if row.get("attachment_name") else []

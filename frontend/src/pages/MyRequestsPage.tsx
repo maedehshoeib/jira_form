@@ -279,7 +279,23 @@ export default function MyRequestsPage() {
     if (!selected) return [];
     const fieldsByName = new Map(template?.fields.map((field) => [field.name, field]));
     return Object.entries(selected.data)
-      .filter(([name]) => name !== "_report_id" && name !== "attachment")
+      .filter(([name, value]) => {
+        if (
+          name === "_report_id" ||
+          name === "attachment" ||
+          name === "attachments" ||
+          name === "_attachments" ||
+          name === "letter_batch_id" ||
+          name === "recipient_id" ||
+          name === "recipient_name"
+        ) {
+          return false;
+        }
+        if (name === "sender_detail" && (value == null || String(value).trim() === "")) {
+          return false;
+        }
+        return true;
+      })
       .map(([name, value]) => ({ name, value, field: fieldsByName.get(name) }));
   }, [selected, template]);
 
