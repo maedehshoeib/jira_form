@@ -369,6 +369,7 @@ MANAGEMENT_LETTER_FIELDS = [
             SelectOption(label="ندارد", value="ندارد"),
         ],
     ),
+    FormField(name="due_date", label="مهلت انجام", type="date", required=False),
     FormField(
         name="sender",
         label="فرستنده",

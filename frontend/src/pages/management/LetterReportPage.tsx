@@ -33,6 +33,7 @@ type LetterReportItem = {
   description: string;
   letter_number?: string;
   needs_reply?: string;
+  due_date?: string;
   sender?: string;
   sender_detail?: string;
   attachment_name: string | null;
@@ -116,6 +117,7 @@ export default function LetterReportPage() {
         item.description,
         item.letter_number,
         item.needs_reply,
+        item.due_date,
         item.sender,
         item.sender_detail,
         item.sent_by,
@@ -259,6 +261,9 @@ export default function LetterReportPage() {
                         )}
                         {item.needs_reply && (
                           <span>نیاز به پاسخ: {item.needs_reply}</span>
+                        )}
+                        {item.due_date && (
+                          <span>مهلت انجام: {item.due_date}</span>
                         )}
                         {formatLetterSender(item) && (
                           <span>فرستنده: {formatLetterSender(item)}</span>

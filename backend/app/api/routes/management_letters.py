@@ -47,6 +47,7 @@ class LetterReportItem(BaseModel):
     description: str
     letter_number: str = ""
     needs_reply: str = ""
+    due_date: str = ""
     sender: str = ""
     sender_detail: str = ""
     attachment_name: str | None = None
@@ -108,6 +109,7 @@ async def send_management_letter(
     description = str(form.get("description") or "")
     letter_number = str(form.get("letter_number") or "")
     needs_reply = str(form.get("needs_reply") or "")
+    due_date = str(form.get("due_date") or "")
     sender = str(form.get("sender") or "")
     sender_detail = str(form.get("sender_detail") or "")
     recipient_ids = str(form.get("recipient_ids") or "[]")
@@ -135,6 +137,7 @@ async def send_management_letter(
             description=description,
             letter_number=letter_number,
             needs_reply=needs_reply,
+            due_date=due_date,
             sender=sender,
             sender_detail=sender_detail,
             recipient_ids=ids,
@@ -181,6 +184,7 @@ def management_letter_report(
                 description=row["description"],
                 letter_number=row.get("letter_number") or "",
                 needs_reply=row.get("needs_reply") or "",
+                due_date=row.get("due_date") or "",
                 sender=row.get("sender") or "",
                 sender_detail=row.get("sender_detail") or "",
                 attachment_name=row["attachment_name"],

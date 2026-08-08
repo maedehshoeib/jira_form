@@ -294,6 +294,9 @@ export default function MyRequestsPage() {
         if (name === "sender_detail" && (value == null || String(value).trim() === "")) {
           return false;
         }
+        if (name === "due_date" && (value == null || String(value).trim() === "")) {
+          return false;
+        }
         return true;
       })
       .map(([name, value]) => ({ name, value, field: fieldsByName.get(name) }));

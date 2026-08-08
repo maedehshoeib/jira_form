@@ -3,12 +3,16 @@ import { Link, Navigate } from "react-router-dom";
 import {
   CheckCircle2,
   ChevronLeft,
+  FileText,
   Loader2,
   Paperclip,
   Search,
   Send,
   X,
 } from "lucide-react";
+import DatePicker from "react-multi-date-picker";
+import persian from "react-date-object/calendars/persian";
+import persian_fa from "react-date-object/locales/persian_fa";
 
 import client from "../../api/client";
 import { endpoints } from "../../api/endpoints";
@@ -25,6 +29,7 @@ import {
 } from "../../components/ui/select";
 import { Textarea } from "../../components/ui/textarea";
 import { API_BASE } from "../../config/portal";
+import { normalizePersianDate, PERSIAN_DATE_FORMAT } from "../../lib/persianDate";
 
 type LetterRecipient = {
   id: number;
@@ -69,6 +74,23 @@ function formatSenderLabel(
   if (!sender) return "—";
   if (sender === "هلدینگ" && holdingUnit) return `هلدینگ / ${holdingUnit}`;
   return sender;
+}
+
+function isImageFile(file: File) {
+  return file.type.startsWith("image/");
+}
+
+function isPdfFile(file: File) {
+  return (
+    file.type === "application/pdf" ||
+    file.name.toLocaleLowerCase("en").endsWith(".pdf")
+  );
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function SenderDropdown({
@@ -218,6 +240,7 @@ export default function SendLetterPage() {
   const [description, setDescription] = useState("");
   const [letterNumber, setLetterNumber] = useState("");
   const [needsReply, setNeedsReply] = useState<NeedsReplyOption | "">("");
+  const [dueDate, setDueDate] = useState("");
   const [sender, setSender] = useState<SenderOption | "">("");
   const [holdingUnit, setHoldingUnit] = useState<HoldingOption | "">("");
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -227,6 +250,21 @@ export default function SendLetterPage() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
+
+  const attachmentPreviewUrls = useMemo(
+    () =>
+      attachments.map((file) => ({
+        file,
+        url: URL.createObjectURL(file),
+      })),
+    [attachments],
+  );
+
+  useEffect(() => {
+    return () => {
+      attachmentPreviewUrls.forEach((item) => URL.revokeObjectURL(item.url));
+    };
+  }, [attachmentPreviewUrls]);
 
   useEffect(() => {
     let active = true;
@@ -303,6 +341,7 @@ export default function SendLetterPage() {
     setDescription("");
     setLetterNumber("");
     setNeedsReply("");
+    setDueDate("");
     setSender("");
     setHoldingUnit("");
     setAttachments([]);
@@ -320,6 +359,9 @@ export default function SendLetterPage() {
     }
     if (!needsReply) {
       return "نیاز به پاسخ را مشخص کنید.";
+    }
+    if (needsReply === "دارد" && !dueDate.trim()) {
+      return "مهلت انجام را مشخص کنید.";
     }
     if (!sender) {
       return "فرستنده را انتخاب کنید.";
@@ -364,6 +406,7 @@ export default function SendLetterPage() {
     fd.append("description", description.trim());
     fd.append("letter_number", letterNumber.trim());
     fd.append("needs_reply", needsReply);
+    fd.append("due_date", needsReply === "دارد" ? dueDate.trim() : "");
     fd.append("sender", sender);
     fd.append("sender_detail", sender === "هلدینگ" ? holdingUnit : "");
     fd.append("recipient_ids", JSON.stringify([...selectedIds]));
@@ -481,9 +524,11 @@ export default function SendLetterPage() {
               </label>
               <Select
                 value={needsReply || undefined}
-                onValueChange={(value) =>
-                  setNeedsReply(value as NeedsReplyOption)
-                }
+                onValueChange={(value) => {
+                  const next = value as NeedsReplyOption;
+                  setNeedsReply(next);
+                  if (next !== "دارد") setDueDate("");
+                }}
               >
                 <SelectTrigger className="h-12 w-full rounded-xl border-slate-200 bg-white text-right shadow-sm">
                   <SelectValue placeholder="انتخاب کنید" />
@@ -497,6 +542,25 @@ export default function SendLetterPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {needsReply === "دارد" && (
+              <div>
+                <label className="mb-2 block text-sm font-bold text-slate-700">
+                  مهلت انجام
+                </label>
+                <DatePicker
+                  calendar={persian}
+                  locale={persian_fa}
+                  format={PERSIAN_DATE_FORMAT}
+                  value={dueDate || undefined}
+                  onChange={(date) => setDueDate(normalizePersianDate(date))}
+                  inputClass="w-full h-12 rounded-xl border border-slate-200 bg-white px-4 text-right shadow-sm outline-none focus:border-red-500"
+                  calendarPosition="bottom-right"
+                  placeholder="انتخاب تاریخ"
+                  containerClassName="w-full"
+                />
+              </div>
+            )}
 
             <div>
               <label className="mb-2 block text-sm font-bold text-slate-700">
@@ -713,19 +777,72 @@ export default function SendLetterPage() {
               <ReviewRow label="موضوع" value={subject.trim()} />
               <ReviewRow label="شماره نامه" value={letterNumber.trim()} />
               <ReviewRow label="نیاز به پاسخ" value={needsReply || "—"} />
+              {needsReply === "دارد" && (
+                <ReviewRow label="مهلت انجام" value={dueDate || "—"} />
+              )}
               <ReviewRow
                 label="فرستنده"
                 value={formatSenderLabel(sender, holdingUnit)}
               />
               <ReviewRow label="توضیحات" value={description.trim()} multiline />
-              <ReviewRow
-                label="پیوست‌ها"
-                value={
-                  attachments.length
-                    ? attachments.map((file) => file.name).join("، ")
-                    : "بدون پیوست"
-                }
-              />
+              <div>
+                <p className="mb-2 text-xs font-bold text-slate-400">پیوست‌ها</p>
+                {attachmentPreviewUrls.length === 0 ? (
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 font-semibold text-slate-800">
+                    بدون پیوست
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {attachmentPreviewUrls.map(({ file, url }, index) => (
+                      <div
+                        key={`${file.name}-${file.size}-${index}`}
+                        className="overflow-hidden rounded-2xl border border-slate-100 bg-slate-50"
+                      >
+                        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-2.5">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-800">
+                              {file.name}
+                            </p>
+                            <p className="mt-0.5 text-xs text-slate-400">
+                              {formatFileSize(file.size)}
+                            </p>
+                          </div>
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="shrink-0 text-xs font-bold text-red-600 hover:underline"
+                          >
+                            مشاهده
+                          </a>
+                        </div>
+                        {isImageFile(file) ? (
+                          <div className="bg-white p-3">
+                            <img
+                              src={url}
+                              alt={file.name}
+                              className="mx-auto max-h-56 w-auto max-w-full rounded-xl object-contain"
+                            />
+                          </div>
+                        ) : isPdfFile(file) ? (
+                          <iframe
+                            title={file.name}
+                            src={url}
+                            className="h-64 w-full bg-white"
+                          />
+                        ) : (
+                          <div className="flex items-center gap-3 px-4 py-5 text-slate-500">
+                            <FileText size={28} className="shrink-0 text-slate-400" />
+                            <p className="text-sm font-semibold">
+                              پیش‌نمایش برای این نوع فایل در دسترس نیست
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div>
                 <p className="mb-2 text-xs font-bold text-slate-400">گیرندگان</p>
                 <div className="flex flex-wrap gap-2">

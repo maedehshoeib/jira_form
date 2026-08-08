@@ -142,6 +142,7 @@ def create_management_letters(
     recipient_ids: list[int],
     letter_number: str = "",
     needs_reply: str = "",
+    due_date: str = "",
     sender: str = "",
     sender_detail: str = "",
     attachments: list[dict[str, str]] | None = None,
@@ -155,6 +156,7 @@ def create_management_letters(
     cleaned_description = (description or "").strip()
     cleaned_letter_number = (letter_number or "").strip()
     cleaned_needs_reply = (needs_reply or "").strip()
+    cleaned_due_date = (due_date or "").strip()
     cleaned_sender = (sender or "").strip()
     cleaned_sender_detail = (sender_detail or "").strip()
 
@@ -166,6 +168,11 @@ def create_management_letters(
         raise ValueError("شماره نامه الزامی است.")
     if cleaned_needs_reply not in NEEDS_REPLY_OPTIONS:
         raise ValueError("مقدار «نیاز به پاسخ» نامعتبر است.")
+    if cleaned_needs_reply == "دارد":
+        if not cleaned_due_date:
+            raise ValueError("مهلت انجام الزامی است.")
+    else:
+        cleaned_due_date = ""
     if cleaned_sender not in SENDER_OPTIONS:
         raise ValueError("فرستنده نامعتبر است.")
     if cleaned_sender == "هلدینگ":
@@ -190,6 +197,7 @@ def create_management_letters(
             "description": cleaned_description,
             "letter_number": cleaned_letter_number,
             "needs_reply": cleaned_needs_reply,
+            "due_date": cleaned_due_date,
             "sender": cleaned_sender,
             "sender_detail": cleaned_sender_detail,
             "letter_batch_id": batch_id,
@@ -315,6 +323,7 @@ def list_sent_letters(db: Session, user: User) -> list[dict]:
                 "description": data.get("description") or "",
                 "letter_number": str(data.get("letter_number") or ""),
                 "needs_reply": str(data.get("needs_reply") or ""),
+                "due_date": str(data.get("due_date") or ""),
                 "sender": letter_sender,
                 "sender_detail": letter_sender_detail,
                 "attachment_name": names[0] if names else None,
