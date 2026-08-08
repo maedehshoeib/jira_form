@@ -1,15 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
+  CheckCircle2,
   ChevronLeft,
   ClipboardList,
+  Clock3,
+  Eye,
+  EyeOff,
   FileText,
+  Forward,
   Loader2,
   Paperclip,
   RefreshCw,
   Search,
   SlidersHorizontal,
+  UserRound,
   X,
+  XCircle,
 } from "lucide-react";
 
 import client from "../api/client";
@@ -22,6 +29,48 @@ import { API_BASE, FormField, FormTemplate } from "../config/portal";
 import { useAuth } from "../context/AuthContext";
 import { formatPersianDateTime } from "../lib/persianDate";
 
+type WorkflowStatus =
+  | "unseen"
+  | "seen"
+  | "referred"
+  | "in_progress"
+  | "completed"
+  | "rejected";
+
+type StatusTab = "all" | WorkflowStatus;
+
+type InitialAssignee = {
+  user_id: number;
+  username: string;
+  display_name: string;
+};
+
+type ReferralItem = {
+  id: number;
+  from_user_id: number;
+  from_user_name: string;
+  to_user_id: number;
+  to_user_name: string;
+  note: string;
+  created_at: string;
+};
+
+type TimelineItem = {
+  id: number | string;
+  event_type: string;
+  actor_id?: number | null;
+  actor_name: string;
+  from_status?: string | null;
+  note: string;
+  progress_percent: number | null;
+  to_status?: string | null;
+  from_progress_percent?: number | null;
+  to_progress_percent?: number | null;
+  to_user_id?: number | null;
+  to_user_name?: string | null;
+  created_at: string;
+};
+
 type SubmissionListItem = {
   id: number;
   form_id: string;
@@ -32,6 +81,11 @@ type SubmissionListItem = {
   section_title: string;
   subject: string;
   status: string;
+  workflow_status: WorkflowStatus;
+  progress_percent: number;
+  first_viewed_at: string | null;
+  initial_assignees?: InitialAssignee[];
+  referrals?: ReferralItem[];
   attachment_name: string | null;
   created_at: string;
   submitted_by?: string;
@@ -40,10 +94,75 @@ type SubmissionListItem = {
 
 type SubmissionDetail = SubmissionListItem & {
   data: Record<string, unknown>;
+  timeline: TimelineItem[];
 };
 
 type TimeRange = "all" | "today" | "7days" | "30days" | "90days";
 type SortOrder = "newest" | "oldest";
+
+const STATUS_TABS: { id: StatusTab; label: string }[] = [
+  { id: "all", label: "همه" },
+  { id: "unseen", label: "دیده‌نشده" },
+  { id: "seen", label: "دیده‌شده" },
+  { id: "referred", label: "ارجاع‌شده" },
+  { id: "in_progress", label: "در حال انجام" },
+  { id: "completed", label: "انجام‌شده" },
+  { id: "rejected", label: "رد‌شده" },
+];
+
+const WORKFLOW_STATUS_META: Record<
+  WorkflowStatus,
+  {
+    label: string;
+    description: string;
+    badgeClass: string;
+    activeTabClass: string;
+    barClass: string;
+  }
+> = {
+  unseen: {
+    label: "دیده‌نشده",
+    description: "درخواست ثبت شده و هنوز توسط مسئول مربوطه باز نشده است.",
+    badgeClass: "border-amber-200 bg-amber-50 text-amber-800",
+    activeTabClass: "bg-amber-500 text-white shadow-amber-500/20",
+    barClass: "bg-amber-500",
+  },
+  seen: {
+    label: "دیده‌شده",
+    description: "مسئول مربوطه درخواست را مشاهده کرده است.",
+    badgeClass: "border-sky-200 bg-sky-50 text-sky-700",
+    activeTabClass: "bg-sky-600 text-white shadow-sky-600/20",
+    barClass: "bg-sky-500",
+  },
+  referred: {
+    label: "ارجاع‌شده",
+    description: "درخواست برای پیگیری به مسئول دیگری ارجاع شده است.",
+    badgeClass: "border-violet-200 bg-violet-50 text-violet-700",
+    activeTabClass: "bg-violet-600 text-white shadow-violet-600/20",
+    barClass: "bg-violet-500",
+  },
+  in_progress: {
+    label: "در حال انجام",
+    description: "رسیدگی به درخواست آغاز شده و در حال پیشرفت است.",
+    badgeClass: "border-blue-200 bg-blue-50 text-blue-700",
+    activeTabClass: "bg-blue-600 text-white shadow-blue-600/20",
+    barClass: "bg-blue-600",
+  },
+  completed: {
+    label: "انجام‌شده",
+    description: "رسیدگی به درخواست با موفقیت به پایان رسیده است.",
+    badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    activeTabClass: "bg-emerald-600 text-white shadow-emerald-600/20",
+    barClass: "bg-emerald-600",
+  },
+  rejected: {
+    label: "رد‌شده",
+    description: "درخواست توسط مسئول مربوطه رد شده است.",
+    badgeClass: "border-red-200 bg-red-50 text-red-700",
+    activeTabClass: "bg-red-600 text-white shadow-red-600/20",
+    barClass: "bg-red-500",
+  },
+};
 
 function parseSubmittedAt(value: string) {
   const match = value.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{1,2})$/);
@@ -52,17 +171,193 @@ function parseSubmittedAt(value: string) {
   return new Date(year, month - 1, day, hour, minute);
 }
 
-function displayStatus(status: string) {
-  if (status === "approved") return "تایید‌شده";
-  if (status === "rejected") return "رد‌شده";
-  if (status === "submitted") return "ثبت‌شده";
-  return status || "ثبت‌شده";
+function workflowStatusMeta(status: WorkflowStatus) {
+  return WORKFLOW_STATUS_META[status] ?? WORKFLOW_STATUS_META.unseen;
 }
 
-function statusBadgeClass(status: string) {
-  if (status === "approved") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (status === "rejected") return "border-red-200 bg-red-50 text-red-700";
-  return "border-amber-200 bg-amber-50 text-amber-700";
+function normalizedProgress(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(100, Math.max(0, Math.round(value)));
+}
+
+function uniqueNames(names: Array<string | null | undefined>) {
+  const seen = new Set<string>();
+  names.forEach((name) => {
+    const normalized = (name ?? "").trim();
+    if (normalized) seen.add(normalized);
+  });
+  return Array.from(seen);
+}
+
+function compactNames(names: Array<string | null | undefined>) {
+  const values = uniqueNames(names);
+  if (values.length === 0) return "\u0646\u0627\u0645\u0634\u062e\u0635";
+  if (values.length <= 2) return values.join("\u060c ");
+  return `${values.slice(0, 2).join("\u060c ")} \u0648 ${(
+    values.length - 2
+  ).toLocaleString("fa-IR")} \u0646\u0641\u0631 \u062f\u06cc\u06af\u0631`;
+}
+
+function timelineEventLabel(item: TimelineItem) {
+  const labels: Record<string, string> = {
+    submitted: "درخواست ثبت شد",
+    created: "درخواست ثبت شد",
+    viewed: "درخواست دیده شد",
+    seen: "درخواست دیده شد",
+    referred: "درخواست ارجاع شد",
+    progress_updated: "درصد پیشرفت به‌روزرسانی شد",
+    in_progress: "رسیدگی آغاز شد",
+    completed: "درخواست انجام شد",
+    approved: "درخواست انجام شد",
+    rejected: "درخواست رد شد",
+    reopened: "درخواست دوباره باز شد",
+  };
+  if (item.event_type === "status_changed") {
+    const destinationLabels: Record<string, string> = {
+      in_progress: "وضعیت به «در حال انجام» تغییر کرد",
+      approved: "درخواست انجام شد",
+      completed: "درخواست انجام شد",
+      rejected: "درخواست رد شد",
+      submitted: "درخواست به «اقدام‌نشده» بازگشت",
+    };
+    return destinationLabels[item.to_status || ""] ?? "وضعیت درخواست تغییر کرد";
+  }
+  return labels[item.event_type] ?? "رویداد درخواست";
+}
+
+function timelineEventDotClass(item: TimelineItem) {
+  if (item.event_type === "viewed" || item.event_type === "seen") {
+    return "bg-sky-500 ring-sky-100";
+  }
+  if (item.event_type === "referred") {
+    return "bg-violet-500 ring-violet-100";
+  }
+  if (item.event_type === "progress_updated" || item.event_type === "in_progress") {
+    return "bg-blue-600 ring-blue-100";
+  }
+  if (
+    item.event_type === "completed" ||
+    item.event_type === "approved" ||
+    (item.event_type === "status_changed" &&
+      (item.to_status === "approved" || item.to_status === "completed"))
+  ) {
+    return "bg-emerald-600 ring-emerald-100";
+  }
+  if (
+    item.event_type === "rejected" ||
+    (item.event_type === "status_changed" && item.to_status === "rejected")
+  ) {
+    return "bg-red-600 ring-red-100";
+  }
+  return "bg-slate-500 ring-slate-100";
+}
+
+function workflowStepIndex(status: WorkflowStatus) {
+  if (status === "unseen") return 0;
+  if (status === "seen") return 1;
+  if (status === "referred" || status === "in_progress") return 2;
+  return 3;
+}
+
+function WorkflowStatusIcon({
+  status,
+  size = 15,
+}: {
+  status: WorkflowStatus;
+  size?: number;
+}) {
+  if (status === "unseen") return <EyeOff size={size} aria-hidden="true" />;
+  if (status === "seen") return <Eye size={size} aria-hidden="true" />;
+  if (status === "referred") return <Forward size={size} aria-hidden="true" />;
+  if (status === "in_progress") return <Clock3 size={size} aria-hidden="true" />;
+  if (status === "completed") return <CheckCircle2 size={size} aria-hidden="true" />;
+  return <XCircle size={size} aria-hidden="true" />;
+}
+
+function WorkflowOverview({ status }: { status: WorkflowStatus }) {
+  const currentStep = workflowStepIndex(status);
+  const statusMeta = workflowStatusMeta(status);
+  const steps = [
+    "ثبت درخواست",
+    "مشاهده توسط مسئول",
+    status === "referred"
+      ? "ارجاع به مسئول"
+      : status === "in_progress"
+        ? "در حال رسیدگی"
+        : "رسیدگی درخواست",
+    status === "completed"
+      ? "انجام‌شده"
+      : status === "rejected"
+        ? "رد‌شده"
+        : "نتیجه نهایی",
+  ];
+
+  return (
+    <section
+      aria-label="جایگاه فعلی درخواست در فرایند رسیدگی"
+      className="rounded-3xl border border-slate-100 bg-slate-50/70 p-4 sm:p-5"
+    >
+      <div className="mb-5 flex items-start gap-3">
+        <div
+          className={
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border " +
+            statusMeta.badgeClass
+          }
+        >
+          <WorkflowStatusIcon status={status} size={19} />
+        </div>
+        <div>
+          <h4 className="font-bold text-slate-800">
+            جایگاه فعلی: {statusMeta.label}
+          </h4>
+          <p className="mt-1 text-sm leading-6 text-slate-500">
+            {statusMeta.description}
+          </p>
+        </div>
+      </div>
+
+      <ol className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {steps.map((label, index) => {
+          const passed = index < currentStep;
+          const current = index === currentStep;
+          return (
+            <li
+              key={label}
+              aria-current={current ? "step" : undefined}
+              className={[
+                "flex min-h-20 items-center gap-2 rounded-2xl border px-3 py-3 text-xs font-semibold transition",
+                passed
+                  ? "border-emerald-100 bg-emerald-50 text-emerald-700"
+                  : current
+                    ? statusMeta.badgeClass
+                    : "border-slate-200 bg-white text-slate-400",
+              ].join(" ")}
+            >
+              <span
+                className={[
+                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-extrabold",
+                  passed
+                    ? "bg-emerald-600 text-white"
+                    : current
+                      ? "bg-white/80"
+                      : "bg-slate-100 text-slate-400",
+                ].join(" ")}
+              >
+                {passed ? (
+                  <CheckCircle2 size={15} aria-hidden="true" />
+                ) : current ? (
+                  <WorkflowStatusIcon status={status} size={14} />
+                ) : (
+                  (index + 1).toLocaleString("fa-IR")
+                )}
+              </span>
+              <span className="leading-5">{label}</span>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
 }
 
 function displayValue(value: unknown, field?: FormField) {
@@ -133,6 +428,7 @@ export default function MyRequestsPage() {
   const [sectionFilter, setSectionFilter] = useState("all");
   const [timeRange, setTimeRange] = useState<TimeRange>("all");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
+  const [statusTab, setStatusTab] = useState<StatusTab>("all");
 
   const loadRequests = async () => {
     setLoading(true);
@@ -193,6 +489,24 @@ export default function MyRequestsPage() {
     );
   }, [requests, departmentFilter]);
 
+  const tabCounts = useMemo(() => {
+    const counts: Record<StatusTab, number> = {
+      all: requests.length,
+      unseen: 0,
+      seen: 0,
+      referred: 0,
+      in_progress: 0,
+      completed: 0,
+      rejected: 0,
+    };
+    requests.forEach((request) => {
+      if (request.workflow_status in WORKFLOW_STATUS_META) {
+        counts[request.workflow_status] += 1;
+      }
+    });
+    return counts;
+  }, [requests]);
+
   const filteredRequests = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLocaleLowerCase("fa");
     const now = new Date();
@@ -207,12 +521,22 @@ export default function MyRequestsPage() {
 
     return requests
       .filter((request) => {
+        if (statusTab !== "all" && request.workflow_status !== statusTab) return false;
+
         const searchableText = [
           request.id,
           request.subject,
           request.form_title,
           request.department_title,
           request.section_title,
+          ...(request.initial_assignees ?? []).flatMap((assignee) => [
+            assignee.display_name,
+            assignee.username,
+          ]),
+          ...(request.referrals ?? []).flatMap((referral) => [
+            referral.from_user_name,
+            referral.to_user_name,
+          ]),
         ]
           .join(" ")
           .toLocaleLowerCase("fa");
@@ -241,9 +565,18 @@ export default function MyRequestsPage() {
         const bTime = parseSubmittedAt(b.created_at)?.getTime() ?? 0;
         return sortOrder === "newest" ? bTime - aTime : aTime - bTime;
       });
-  }, [requests, searchQuery, departmentFilter, sectionFilter, timeRange, sortOrder]);
+  }, [
+    requests,
+    statusTab,
+    searchQuery,
+    departmentFilter,
+    sectionFilter,
+    timeRange,
+    sortOrder,
+  ]);
 
   const hasActiveFilters =
+    statusTab !== "all" ||
     searchQuery !== "" ||
     departmentFilter !== "all" ||
     sectionFilter !== "all" ||
@@ -251,6 +584,7 @@ export default function MyRequestsPage() {
     sortOrder !== "newest";
 
   const resetFilters = () => {
+    setStatusTab("all");
     setSearchQuery("");
     setDepartmentFilter("all");
     setSectionFilter("all");
@@ -302,6 +636,19 @@ export default function MyRequestsPage() {
       .map(([name, value]) => ({ name, value, field: fieldsByName.get(name) }));
   }, [selected, template]);
 
+  const selectedInitialAssigneeNames = selected
+    ? uniqueNames(
+        (selected.initial_assignees ?? []).map(
+          (assignee) => assignee.display_name || assignee.username,
+        ),
+      )
+    : [];
+  const selectedReferralTargetNames = selected
+    ? uniqueNames(
+        (selected.referrals ?? []).map((referral) => referral.to_user_name),
+      )
+    : [];
+
   return (
     <AppShell>
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
@@ -329,6 +676,47 @@ export default function MyRequestsPage() {
       </div>
 
       {error && <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>}
+
+      {!loading && requests.length > 0 && (
+        <div
+          role="tablist"
+          aria-label="فیلتر درخواست‌ها بر اساس وضعیت"
+          className="mb-6 flex gap-2 overflow-x-auto rounded-3xl border border-slate-100 bg-white p-2 shadow-md"
+        >
+          {STATUS_TABS.map((tab) => {
+            const active = statusTab === tab.id;
+            const activeClass =
+              tab.id === "all"
+                ? "bg-slate-900 text-white shadow-slate-900/20"
+                : workflowStatusMeta(tab.id).activeTabClass;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setStatusTab(tab.id)}
+                className={[
+                  "flex min-w-max items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2",
+                  active
+                    ? activeClass + " shadow-md"
+                    : "text-slate-600 hover:bg-slate-50",
+                ].join(" ")}
+              >
+                <span>{tab.label}</span>
+                <span
+                  className={[
+                    "min-w-7 rounded-full px-2 py-0.5 text-center text-xs font-extrabold",
+                    active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600",
+                  ].join(" ")}
+                >
+                  {tabCounts[tab.id].toLocaleString("fa-IR")}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {!loading && requests.length > 0 && (
         <div className="mb-6 rounded-3xl border border-slate-100 bg-white p-5 shadow-md">
@@ -440,38 +828,143 @@ export default function MyRequestsPage() {
         </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-          {filteredRequests.map((request) => (
-            <button
-              type="button"
-              key={request.id}
-              onClick={() => void openRequest(request)}
-              className="group rounded-3xl border border-slate-100 bg-white p-6 text-right shadow-md transition hover:-translate-y-1 hover:border-red-100 hover:shadow-xl disabled:opacity-60"
-              disabled={detailLoading}
-            >
-              <div className="mb-5 flex items-start justify-between gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600">
-                  <FileText size={21} />
+          {filteredRequests.map((request) => {
+            const statusMeta = workflowStatusMeta(request.workflow_status);
+            const progress = normalizedProgress(request.progress_percent);
+            const showProgress =
+              progress > 0 ||
+              request.workflow_status === "in_progress" ||
+              request.workflow_status === "completed";
+            const requestTitle =
+              request.subject || request.section_title || request.form_title;
+            const initialAssigneeNames = uniqueNames(
+              (request.initial_assignees ?? []).map(
+                (assignee) => assignee.display_name || assignee.username,
+              ),
+            );
+            const referralTargetNames = uniqueNames(
+              (request.referrals ?? []).map((referral) => referral.to_user_name),
+            );
+            return (
+              <button
+                type="button"
+                key={request.id}
+                onClick={() => void openRequest(request)}
+                aria-label={
+                  "مشاهده جزئیات درخواست " +
+                  requestTitle +
+                  "، وضعیت " +
+                  statusMeta.label +
+                  "، ارسال اولیه به " +
+                  compactNames(initialAssigneeNames) +
+                  (referralTargetNames.length > 0
+                    ? "، ارجاع‌شده به " + compactNames(referralTargetNames)
+                    : "")
+                }
+                className={[
+                  "group relative overflow-hidden rounded-3xl border p-6 text-right shadow-md transition hover:-translate-y-1 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 disabled:opacity-60",
+                  request.workflow_status === "unseen"
+                    ? "border-amber-200 bg-amber-50/30 hover:border-amber-300"
+                    : "border-slate-100 bg-white hover:border-red-100",
+                ].join(" ")}
+                disabled={detailLoading}
+              >
+                <div className={"absolute inset-x-0 top-0 h-1 " + statusMeta.barClass} />
+                <div className="mb-5 flex items-start justify-between gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600">
+                    <FileText size={21} />
+                  </div>
+                  <Badge
+                    variant="outline"
+                    aria-label={"وضعیت درخواست: " + statusMeta.label}
+                    className={statusMeta.badgeClass}
+                  >
+                    {statusMeta.label}
+                  </Badge>
                 </div>
-                <Badge variant="outline" className={statusBadgeClass(request.status)}>
-                  {displayStatus(request.status)}
-                </Badge>
-              </div>
-              <h3 className="line-clamp-2 text-lg font-bold text-slate-800">
-                {request.subject || request.section_title || request.form_title}
-              </h3>
-              <p className="mt-2 text-sm text-slate-500">{request.section_title || request.form_title}</p>
-              {request.department_title && <p className="mt-1 text-xs text-slate-400">{request.department_title}</p>}
-              {user?.is_admin && request.submitted_by && (
-                <p className="mt-2 text-xs font-medium text-slate-500">
-                  ثبت‌کننده: {request.submitted_by}
+                <h3 className="line-clamp-2 text-lg font-bold text-slate-800">
+                  {requestTitle}
+                </h3>
+                <p className="mt-2 text-sm text-slate-500">
+                  {request.section_title || request.form_title}
                 </p>
-              )}
-              <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4 text-xs text-slate-500">
-                <span className="flex items-center gap-1.5"><CalendarDays size={14} />{formatPersianDateTime(request.created_at)}</span>
-                <span className="flex items-center gap-1 font-medium text-red-600">مشاهده جزئیات <ChevronLeft size={15} /></span>
-              </div>
-            </button>
-          ))}
+                {request.department_title && (
+                  <p className="mt-1 text-xs text-slate-400">
+                    {request.department_title}
+                  </p>
+                )}
+                <div className="mt-3 space-y-1.5 rounded-xl bg-slate-50/80 px-3 py-2.5 text-xs">
+                  <p className="flex min-w-0 items-center gap-1.5">
+                    <UserRound
+                      size={13}
+                      className="shrink-0 text-slate-500"
+                      aria-hidden="true"
+                    />
+                    <span className="shrink-0 text-slate-500">
+                      ارسال اولیه به:
+                    </span>
+                    <span
+                      className="min-w-0 truncate font-semibold text-slate-700"
+                      title={initialAssigneeNames.join("، ") || "نامشخص"}
+                    >
+                      {compactNames(initialAssigneeNames)}
+                    </span>
+                  </p>
+                  {referralTargetNames.length > 0 && (
+                    <p className="flex min-w-0 items-center gap-1.5 text-violet-700">
+                      <Forward size={13} className="shrink-0" aria-hidden="true" />
+                      <span className="shrink-0">ارجاع‌شده به:</span>
+                      <span
+                        className="min-w-0 truncate font-bold"
+                        title={referralTargetNames.join("، ")}
+                      >
+                        {compactNames(referralTargetNames)}
+                      </span>
+                    </p>
+                  )}
+                </div>
+                {user?.is_admin && request.submitted_by && (
+                  <p className="mt-2 text-xs font-medium text-slate-500">
+                    ثبت‌کننده: {request.submitted_by}
+                  </p>
+                )}
+
+                {showProgress && (
+                  <div className="mt-5 rounded-2xl bg-slate-50 p-3">
+                    <div className="mb-2 flex items-center justify-between text-xs">
+                      <span className="font-semibold text-slate-600">میزان پیشرفت</span>
+                      <span className="font-extrabold text-slate-800">
+                        {progress.toLocaleString("fa-IR")}٪
+                      </span>
+                    </div>
+                    <div
+                      role="progressbar"
+                      aria-label="میزان پیشرفت رسیدگی"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={progress}
+                      className="h-2 overflow-hidden rounded-full bg-slate-200"
+                    >
+                      <div
+                        className={"h-full rounded-full transition-all " + statusMeta.barClass}
+                        style={{ width: progress + "%" }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4 text-xs text-slate-500">
+                  <span className="flex items-center gap-1.5">
+                    <CalendarDays size={14} />
+                    {formatPersianDateTime(request.created_at)}
+                  </span>
+                  <span className="flex items-center gap-1 font-medium text-red-600">
+                    مشاهده جزئیات <ChevronLeft size={15} />
+                  </span>
+                </div>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -487,7 +980,20 @@ export default function MyRequestsPage() {
             <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b bg-white/95 p-6 backdrop-blur">
               <div>
                 <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" className={statusBadgeClass(selected.status)}>{displayStatus(selected.status)}</Badge>
+                  <Badge
+                    variant="outline"
+                    aria-label={
+                      "وضعیت درخواست: " +
+                      workflowStatusMeta(selected.workflow_status).label
+                    }
+                    className={
+                      "gap-1.5 " +
+                      workflowStatusMeta(selected.workflow_status).badgeClass
+                    }
+                  >
+                    <WorkflowStatusIcon status={selected.workflow_status} />
+                    {workflowStatusMeta(selected.workflow_status).label}
+                  </Badge>
                   <span className="text-xs text-slate-400">شناسه درخواست: {selected.id}</span>
                 </div>
                 <h3 className="text-2xl font-bold text-slate-900">{selected.subject || selected.section_title || selected.form_title}</h3>
@@ -497,9 +1003,109 @@ export default function MyRequestsPage() {
             </div>
 
             <div className="space-y-6 p-6 sm:p-8">
+              <WorkflowOverview status={selected.workflow_status} />
+
+              <section
+                aria-label="میزان پیشرفت رسیدگی"
+                className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm"
+              >
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <h4 className="font-bold text-slate-800">
+                      {selected.workflow_status === "rejected"
+                        ? "پیشرفت ثبت‌شده تا زمان رد"
+                        : "میزان پیشرفت رسیدگی"}
+                    </h4>
+                    <p className="mt-1 text-xs text-slate-500">
+                      آخرین درصدی که مسئول رسیدگی ثبت کرده است
+                    </p>
+                  </div>
+                  <span className="text-2xl font-extrabold text-slate-900">
+                    {normalizedProgress(selected.progress_percent).toLocaleString("fa-IR")}٪
+                  </span>
+                </div>
+                <div
+                  role="progressbar"
+                  aria-label="درصد پیشرفت درخواست"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={normalizedProgress(selected.progress_percent)}
+                  className="h-3 overflow-hidden rounded-full bg-slate-100"
+                >
+                  <div
+                    className={
+                      "h-full rounded-full transition-all " +
+                      workflowStatusMeta(selected.workflow_status).barClass
+                    }
+                    style={{
+                      width: normalizedProgress(selected.progress_percent) + "%",
+                    }}
+                  />
+                </div>
+              </section>
+
               <div className="grid gap-3 rounded-2xl bg-slate-50 p-4 text-sm sm:grid-cols-2">
                 <div><span className="text-slate-500">تاریخ ثبت:</span> <span className="font-semibold text-slate-700">{formatPersianDateTime(selected.created_at)}</span></div>
                 <div><span className="text-slate-500">نوع فرم:</span> <span className="font-semibold text-slate-700">{selected.form_title}</span></div>
+                <div className="flex items-start gap-2 sm:col-span-2">
+                  <UserRound
+                    size={16}
+                    className="mt-0.5 shrink-0 text-slate-500"
+                    aria-hidden="true"
+                  />
+                  <span className="shrink-0 text-slate-500">
+                    ارسال اولیه به:
+                  </span>
+                  <div className="flex min-w-0 flex-wrap gap-1.5">
+                    {selectedInitialAssigneeNames.length > 0 ? (
+                      selectedInitialAssigneeNames.map((name) => (
+                        <span
+                          key={name}
+                          className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-700"
+                        >
+                          {name}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="font-semibold text-slate-500">نامشخص</span>
+                    )}
+                  </div>
+                </div>
+                {selectedReferralTargetNames.length > 0 && (
+                  <div className="flex items-start gap-2 sm:col-span-2">
+                    <Forward
+                      size={16}
+                      className="mt-0.5 shrink-0 text-violet-600"
+                      aria-hidden="true"
+                    />
+                    <span className="shrink-0 text-slate-500">
+                      ارجاع‌شده به:
+                    </span>
+                    <div className="flex min-w-0 flex-wrap gap-1.5">
+                      {selectedReferralTargetNames.map((name) => (
+                        <span
+                          key={name}
+                          className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-xs font-bold text-violet-700"
+                        >
+                          {name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 sm:col-span-2">
+                  {selected.first_viewed_at ? (
+                    <Eye size={16} className="text-sky-600" aria-hidden="true" />
+                  ) : (
+                    <EyeOff size={16} className="text-amber-600" aria-hidden="true" />
+                  )}
+                  <span className="text-slate-500">اولین مشاهده توسط مسئول:</span>
+                  <span className="font-semibold text-slate-700">
+                    {selected.first_viewed_at
+                      ? formatPersianDateTime(selected.first_viewed_at)
+                      : "هنوز مشاهده نشده"}
+                  </span>
+                </div>
                 {selected.attachment_name && (
                   <div className="flex items-center gap-2 sm:col-span-2">
                     <Paperclip size={16} className="text-red-500" />
@@ -534,6 +1140,92 @@ export default function MyRequestsPage() {
                   </div>
                 )}
               </div>
+
+              <section aria-labelledby="request-timeline-title" className="space-y-4">
+                <div>
+                  <h4
+                    id="request-timeline-title"
+                    className="text-lg font-extrabold text-slate-800"
+                  >
+                    مسیر درخواست
+                  </h4>
+                  <p className="mt-1 text-sm text-slate-500">
+                    همه تغییرات از زمان ثبت تا وضعیت فعلی
+                  </p>
+                </div>
+
+                {(selected.timeline ?? []).length > 0 ? (
+                  <ol className="relative space-y-1 before:absolute before:bottom-5 before:right-[7px] before:top-5 before:w-px before:bg-slate-200">
+                    {(selected.timeline ?? []).map((item) => {
+                      const eventProgress =
+                        item.to_progress_percent ?? item.progress_percent;
+                      return (
+                        <li key={item.id} className="relative flex gap-4 pb-5">
+                          <span
+                            className={
+                              "relative z-[1] mt-2 h-3.5 w-3.5 shrink-0 rounded-full ring-4 " +
+                              timelineEventDotClass(item)
+                            }
+                            aria-hidden="true"
+                          />
+                          <div className="min-w-0 flex-1 rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                              <div>
+                                <p className="font-bold text-slate-800">
+                                  {timelineEventLabel(item)}
+                                </p>
+                                <p className="mt-1 text-xs text-slate-500">
+                                  {item.event_type === "referred" &&
+                                  item.to_user_name ? (
+                                    <>
+                                      از{" "}
+                                      <span className="font-semibold text-slate-700">
+                                        {item.actor_name || "سامانه"}
+                                      </span>{" "}
+                                      به{" "}
+                                      <span className="font-semibold text-violet-700">
+                                        {item.to_user_name}
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <>توسط {item.actor_name || "سامانه"}</>
+                                  )}
+                                </p>
+                              </div>
+                              <time className="whitespace-nowrap text-xs text-slate-400">
+                                {formatPersianDateTime(item.created_at)}
+                              </time>
+                            </div>
+
+                            {(eventProgress !== null || item.note) && (
+                              <div className="mt-3 flex flex-wrap items-start gap-2">
+                                {eventProgress !== null && (
+                                  <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
+                                    پیشرفت:{" "}
+                                    {normalizedProgress(eventProgress).toLocaleString(
+                                      "fa-IR",
+                                    )}
+                                    ٪
+                                  </span>
+                                )}
+                                {item.note && (
+                                  <p className="min-w-0 flex-1 whitespace-pre-wrap rounded-xl bg-slate-50 px-3 py-2 text-xs leading-6 text-slate-600">
+                                    {item.note}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center text-sm text-slate-500">
+                    هنوز رویدادی برای این درخواست ثبت نشده است.
+                  </div>
+                )}
+              </section>
 
               <div className="space-y-4">
                 {visibleFields.map(({ name, value, field }) => (

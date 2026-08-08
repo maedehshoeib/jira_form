@@ -181,6 +181,10 @@ def _migrate_submissions_db():
     columns = {col["name"] for col in inspector.get_columns("submissions")}
     migrations = [
         (
+            "progress_percent",
+            "ALTER TABLE submissions ADD COLUMN progress_percent INTEGER NOT NULL DEFAULT 0",
+        ),
+        (
             "status_updated_at",
             "ALTER TABLE submissions ADD COLUMN status_updated_at DATETIME",
         ),
@@ -197,6 +201,13 @@ def _migrate_submissions_db():
         for column_name, ddl in migrations:
             if column_name not in columns:
                 conn.execute(text(ddl))
+        if "progress_percent" not in columns:
+            conn.execute(
+                text(
+                    "UPDATE submissions SET progress_percent = 100 "
+                    "WHERE status = 'approved'"
+                )
+            )
 
 
 def _seed_departments_from_users():
@@ -395,6 +406,12 @@ def init_db():
 
     db = SessionLocal()
     try:
+        from app.services.form_duty_service import (
+            backfill_submission_initial_assignees,
+        )
+
+        backfill_submission_initial_assignees(db)
+        db.commit()
         if not db.query(SiteBanner).filter(SiteBanner.id == 1).first():
             db.add(SiteBanner(id=1))
             db.commit()

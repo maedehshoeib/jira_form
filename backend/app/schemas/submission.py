@@ -14,6 +14,29 @@ class SubmissionReferralItem(BaseModel):
     created_at: str
 
 
+class SubmissionAssigneeItem(BaseModel):
+    user_id: int
+    username: str
+    display_name: str
+    assigned_at: str
+
+
+class SubmissionTimelineItem(BaseModel):
+    id: str
+    event_type: Literal["submitted", "viewed", "referred", "status_changed"]
+    created_at: str
+    actor_id: int | None = None
+    actor_name: str | None = None
+    from_status: str | None = None
+    to_status: str | None = None
+    from_progress_percent: int | None = None
+    to_progress_percent: int | None = None
+    progress_percent: int | None = None
+    to_user_id: int | None = None
+    to_user_name: str | None = None
+    note: str = ""
+
+
 class SubmissionListItem(BaseModel):
     id: int
     form_id: str
@@ -24,6 +47,11 @@ class SubmissionListItem(BaseModel):
     section_title: str
     subject: str
     status: str
+    workflow_status: str
+    progress_percent: int = 0
+    is_read: bool = False
+    first_viewed_at: str | None = None
+    last_viewed_at: str | None = None
     submitted_by: str
     submitted_by_username: str
     attachment_name: str | None
@@ -33,6 +61,7 @@ class SubmissionListItem(BaseModel):
     status_updated_by: str | None = None
     status_updated_at: str | None = None
     status_note: str = ""
+    initial_assignees: list[SubmissionAssigneeItem] = Field(default_factory=list)
     referrals: list[SubmissionReferralItem] = Field(default_factory=list)
     can_act: bool = False
 
@@ -47,6 +76,11 @@ class SubmissionResponse(BaseModel):
     section_title: str
     subject: str
     status: str
+    workflow_status: str
+    progress_percent: int = 0
+    is_read: bool = False
+    first_viewed_at: str | None = None
+    last_viewed_at: str | None = None
     submitted_by: str
     submitted_by_username: str
     attachment_name: str | None
@@ -57,12 +91,15 @@ class SubmissionResponse(BaseModel):
     status_updated_by: str | None = None
     status_updated_at: str | None = None
     status_note: str = ""
+    initial_assignees: list[SubmissionAssigneeItem] = Field(default_factory=list)
     referrals: list[SubmissionReferralItem] = Field(default_factory=list)
+    timeline: list[SubmissionTimelineItem] = Field(default_factory=list)
     can_act: bool = False
 
 
 class TaskStatusUpdate(BaseModel):
-    status: Literal["approved", "rejected", "submitted"]
+    status: Literal["approved", "rejected", "submitted", "in_progress"]
+    progress_percent: int | None = Field(default=None, ge=0, le=100)
     note: str = Field(default="", max_length=512)
 
 

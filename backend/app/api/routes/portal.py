@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.api.routes.submissions_helpers import (
     _submission_to_list_item,
     _submission_to_response,
+    build_submission_workflow_context,
     require_api_key_or_user,
 )
 from app.core.birthday import is_birthday_today
@@ -36,7 +37,10 @@ from app.services.form_access_service import (
     allowed_target_keys,
     can_access_target,
 )
-from app.services.form_duty_service import user_handles_target
+from app.services.form_duty_service import (
+    snapshot_submission_initial_assignees,
+    user_handles_target,
+)
 from app.services.portal_service import (
     DEPARTMENTS,
     FORM_TEMPLATES,
@@ -47,6 +51,8 @@ from app.services.task_workflow_service import (
     list_colleagues,
     list_pending_task_ids,
     list_task_submissions,
+    list_unseen_task_ids,
+    mark_task_viewed,
     refer_tasks,
     set_task_status,
     user_can_access_task,
@@ -343,6 +349,8 @@ async def create_submission(
         attachment_name=attachment_name,
     )
     db.add(submission)
+    db.flush()
+    snapshot_submission_initial_assignees(db, submission)
     db.commit()
     db.refresh(submission)
 
@@ -394,10 +402,22 @@ def list_submissions(
         query = query.filter(Submission.section_id == section_id)
 
     submissions = query.offset(offset).limit(limit).all()
+    workflow_context = build_submission_workflow_context(
+        db,
+        submissions,
+        viewer_user_id=auth.id if auth is not None else None,
+    )
     result = []
     for submission in submissions:
-        user = db.query(User).filter(User.id == submission.user_id).first()
-        result.append(_submission_to_list_item(submission, user))
+        user = workflow_context.users_by_id.get(submission.user_id)
+        result.append(
+            _submission_to_list_item(
+                submission,
+                user,
+                db=db,
+                workflow_context=workflow_context,
+            )
+        )
     return result
 
 
@@ -414,8 +434,19 @@ def get_submission(
         # Return 404 so request identifiers belonging to other employees are not exposed.
         raise HTTPException(status_code=404, detail="درخواست یافت نشد")
 
-    user = db.query(User).filter(User.id == submission.user_id).first()
-    return _submission_to_response(submission, user, db=db)
+    workflow_context = build_submission_workflow_context(
+        db,
+        [submission],
+        viewer_user_id=auth.id if auth is not None else None,
+        include_history=True,
+    )
+    user = workflow_context.users_by_id.get(submission.user_id)
+    return _submission_to_response(
+        submission,
+        user,
+        db=db,
+        workflow_context=workflow_context,
+    )
 
 
 def _serve_submission_attachment(
@@ -483,6 +514,15 @@ def get_pending_task_count(
     return TaskPendingNotification(count=len(ids), ids=ids)
 
 
+@router.get("/tasks/unseen-count", response_model=TaskPendingNotification)
+def get_unseen_task_count(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    ids = list_unseen_task_ids(db, current_user.id)
+    return TaskPendingNotification(count=len(ids), ids=ids)
+
+
 @router.get("/tasks", response_model=list[SubmissionListItem])
 def list_tasks(
     form_id: str | None = Query(default=None),
@@ -503,15 +543,21 @@ def list_tasks(
         limit=limit,
         offset=offset,
     )
+    workflow_context = build_submission_workflow_context(
+        db,
+        submissions,
+        viewer_user_id=current_user.id,
+    )
     result = []
     for submission in submissions:
-        user = db.query(User).filter(User.id == submission.user_id).first()
+        user = workflow_context.users_by_id.get(submission.user_id)
         result.append(
             _submission_to_list_item(
                 submission,
                 user,
                 db=db,
-                can_act=user_can_access_task(db, current_user, submission),
+                workflow_context=workflow_context,
+                can_act=True,
             )
         )
     return result
@@ -527,11 +573,19 @@ def get_task(
     if not submission or not user_can_access_task(db, current_user, submission):
         raise HTTPException(status_code=404, detail="درخواست یافت نشد")
 
-    user = db.query(User).filter(User.id == submission.user_id).first()
+    mark_task_viewed(db, current_user, submission)
+    workflow_context = build_submission_workflow_context(
+        db,
+        [submission],
+        viewer_user_id=current_user.id,
+        include_history=True,
+    )
+    user = workflow_context.users_by_id.get(submission.user_id)
     return _submission_to_response(
         submission,
         user,
         db=db,
+        workflow_context=workflow_context,
         can_act=True,
     )
 
@@ -558,7 +612,12 @@ def update_task_status(
 ):
     try:
         submission = set_task_status(
-            db, current_user, submission_id, body.status, body.note
+            db,
+            current_user,
+            submission_id,
+            body.status,
+            body.note,
+            body.progress_percent,
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -567,8 +626,20 @@ def update_task_status(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    user = db.query(User).filter(User.id == submission.user_id).first()
-    return _submission_to_response(submission, user, db=db, can_act=True)
+    workflow_context = build_submission_workflow_context(
+        db,
+        [submission],
+        viewer_user_id=current_user.id,
+        include_history=True,
+    )
+    user = workflow_context.users_by_id.get(submission.user_id)
+    return _submission_to_response(
+        submission,
+        user,
+        db=db,
+        workflow_context=workflow_context,
+        can_act=True,
+    )
 
 
 @router.post("/tasks/{submission_id}/refer", response_model=SubmissionResponse)
@@ -594,10 +665,17 @@ def refer_task_endpoint(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     submission = db.query(Submission).filter(Submission.id == submission_id).first()
-    user = db.query(User).filter(User.id == submission.user_id).first()
+    workflow_context = build_submission_workflow_context(
+        db,
+        [submission],
+        viewer_user_id=current_user.id,
+        include_history=True,
+    )
+    user = workflow_context.users_by_id.get(submission.user_id)
     return _submission_to_response(
         submission,
         user,
         db=db,
+        workflow_context=workflow_context,
         can_act=user_can_access_task(db, current_user, submission),
     )

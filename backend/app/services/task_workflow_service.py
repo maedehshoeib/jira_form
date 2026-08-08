@@ -3,11 +3,17 @@ from datetime import datetime
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
-from app.models.submission import Submission, SubmissionReferral
+from app.models.submission import (
+    Submission,
+    SubmissionReferral,
+    SubmissionStatusHistory,
+    SubmissionView,
+)
 from app.models.user import User
 from app.services.form_duty_service import list_user_duty_assignments, user_handles_target
 
-ALLOWED_TASK_STATUSES = {"approved", "rejected", "submitted"}
+ALLOWED_TASK_STATUSES = {"approved", "rejected", "submitted", "in_progress"}
+TERMINAL_TASK_STATUSES = {"approved", "rejected"}
 
 
 def user_is_referral_recipient(db: Session, user_id: int, submission_id: int) -> bool:
@@ -84,17 +90,93 @@ def list_task_submissions(
 
 
 def list_pending_task_ids(db: Session, user_id: int) -> list[int]:
-    """IDs of tasks the user can still act on (status=submitted)."""
+    """IDs of non-terminal tasks the user can still act on."""
     conditions = _task_access_conditions(db, user_id)
     if not conditions:
         return []
     rows = (
         db.query(Submission.id)
-        .filter(or_(*conditions), Submission.status == "submitted")
+        .filter(
+            or_(*conditions),
+            Submission.status.in_({"submitted", "in_progress"}),
+        )
         .order_by(Submission.created_at.desc())
         .all()
     )
     return [row.id for row in rows]
+
+
+def list_unseen_task_ids(db: Session, user_id: int) -> list[int]:
+    """IDs of accessible tasks this user has never opened."""
+    conditions = _task_access_conditions(db, user_id)
+    if not conditions:
+        return []
+    rows = (
+        db.query(Submission.id)
+        .outerjoin(
+            SubmissionView,
+            and_(
+                SubmissionView.submission_id == Submission.id,
+                SubmissionView.user_id == user_id,
+            ),
+        )
+        .filter(or_(*conditions), SubmissionView.id.is_(None))
+        .order_by(Submission.created_at.desc())
+        .all()
+    )
+    return [row.id for row in rows]
+
+
+def mark_task_viewed(
+    db: Session,
+    actor: User,
+    submission: Submission,
+) -> SubmissionView:
+    if not user_can_access_task(db, actor, submission):
+        raise PermissionError("شما به این وظیفه دسترسی ندارید.")
+
+    now = datetime.utcnow()
+    view = (
+        db.query(SubmissionView)
+        .filter(
+            SubmissionView.submission_id == submission.id,
+            SubmissionView.user_id == actor.id,
+        )
+        .first()
+    )
+    if view is None:
+        view = SubmissionView(
+            submission_id=submission.id,
+            user_id=actor.id,
+            first_viewed_at=now,
+            last_viewed_at=now,
+        )
+        db.add(view)
+    else:
+        view.last_viewed_at = now
+    db.commit()
+    db.refresh(view)
+    return view
+
+
+def derive_workflow_status(
+    submission: Submission,
+    *,
+    has_referrals: bool,
+    has_views: bool,
+) -> str:
+    """Return the sender-facing lifecycle stage in deterministic precedence."""
+    if submission.status == "approved":
+        return "completed"
+    if submission.status == "rejected":
+        return "rejected"
+    if submission.status == "in_progress":
+        return "in_progress"
+    if has_referrals:
+        return "referred"
+    if has_views:
+        return "seen"
+    return "unseen"
 
 
 def list_submission_referrals(
@@ -114,6 +196,7 @@ def set_task_status(
     submission_id: int,
     status: str,
     note: str = "",
+    progress_percent: int | None = None,
 ) -> Submission:
     if status not in ALLOWED_TASK_STATUSES:
         raise ValueError("وضعیت نامعتبر است.")
@@ -123,17 +206,49 @@ def set_task_status(
         raise LookupError("درخواست یافت نشد")
     if not user_can_access_task(db, actor, submission):
         raise PermissionError("شما به این وظیفه دسترسی ندارید.")
-    if submission.status == status and not note:
+    old_status = submission.status or "submitted"
+    old_progress = int(submission.progress_percent or 0)
+    if progress_percent is not None and not 0 <= progress_percent <= 100:
+        raise ValueError("درصد پیشرفت باید بین صفر تا صد باشد.")
+    if status == "approved":
+        new_progress = 100
+    elif status == "submitted":
+        new_progress = 0
+    elif status == "in_progress":
+        new_progress = old_progress if progress_percent is None else progress_percent
+        if new_progress >= 100:
+            raise ValueError("برای پیشرفت صد درصد، وضعیت را انجام‌شده ثبت کنید.")
+    else:
+        new_progress = old_progress if progress_percent is None else progress_percent
+
+    cleaned_note = (note or "").strip()[:512]
+    if (
+        old_status == status
+        and old_progress == new_progress
+        and not cleaned_note
+    ):
         return submission
 
     submission.status = status
+    submission.progress_percent = new_progress
     submission.status_updated_at = datetime.utcnow()
     submission.status_updated_by_id = actor.id
-    cleaned_note = (note or "").strip()[:512]
     if status == "submitted":
         submission.status_note = ""
     else:
         submission.status_note = cleaned_note
+    db.add(
+        SubmissionStatusHistory(
+            submission_id=submission.id,
+            changed_by_id=actor.id,
+            from_status=old_status,
+            to_status=status,
+            from_progress_percent=old_progress,
+            to_progress_percent=new_progress,
+            note=submission.status_note,
+            created_at=submission.status_updated_at,
+        )
+    )
     db.commit()
     db.refresh(submission)
     return submission
@@ -169,7 +284,7 @@ def refer_tasks(
         raise LookupError("درخواست یافت نشد")
     if not user_can_access_task(db, actor, submission):
         raise PermissionError("شما به این وظیفه دسترسی ندارید.")
-    if submission.status != "submitted":
+    if submission.status in TERMINAL_TASK_STATUSES:
         raise ValueError("پس از تایید یا رد، امکان ارجاع وجود ندارد.")
     if any(user_id == actor.id for user_id in unique_ids):
         raise ValueError("نمی‌توانید درخواست را به خودتان ارجاع دهید.")

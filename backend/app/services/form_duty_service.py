@@ -1,11 +1,13 @@
+import json
 from dataclasses import dataclass
+from datetime import datetime
 
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from app.core.birthday import user_display_name
 from app.models.form_template import FormDutyAssignment
-from app.models.submission import Submission
+from app.models.submission import Submission, SubmissionInitialAssignee
 from app.models.user import User
 from app.services.form_access_service import (
     AccessTarget,
@@ -62,6 +64,115 @@ def list_assignments(db: Session) -> list[DutyEdge]:
             )
         )
     return edges
+
+
+def snapshot_submission_initial_assignees(
+    db: Session,
+    submission: Submission,
+    *,
+    explicit_user_ids: list[int] | None = None,
+    assigned_at: datetime | None = None,
+) -> list[SubmissionInitialAssignee]:
+    """Persist the initial recipients of a submission without changing them later.
+
+    Normal portal submissions resolve recipients from the form-duty mapping. Workflows
+    that select their own recipients (such as management letters) pass explicit IDs.
+    The helper only flushes so callers can keep submission creation atomic.
+    """
+    if submission.id is None:
+        db.flush()
+
+    if explicit_user_ids is None:
+        candidate_ids = [
+            row.user_id
+            for row in db.query(FormDutyAssignment.user_id)
+            .filter(
+                FormDutyAssignment.portal_department_id
+                == submission.department_id,
+                FormDutyAssignment.section_id == submission.section_id,
+                FormDutyAssignment.form_id == submission.form_id,
+            )
+            .order_by(FormDutyAssignment.id.asc())
+            .all()
+        ]
+    else:
+        candidate_ids = list(explicit_user_ids)
+
+    candidate_ids = list(dict.fromkeys(candidate_ids))
+    if not candidate_ids:
+        return []
+
+    valid_user_ids = {
+        row.id
+        for row in db.query(User.id).filter(User.id.in_(candidate_ids)).all()
+    }
+    existing_user_ids = {
+        row.user_id
+        for row in db.query(SubmissionInitialAssignee.user_id)
+        .filter(SubmissionInitialAssignee.submission_id == submission.id)
+        .all()
+    }
+    snapshot_time = assigned_at or submission.created_at or datetime.utcnow()
+    snapshots = [
+        SubmissionInitialAssignee(
+            submission_id=submission.id,
+            user_id=user_id,
+            assigned_at=snapshot_time,
+        )
+        for user_id in candidate_ids
+        if user_id in valid_user_ids and user_id not in existing_user_ids
+    ]
+    if snapshots:
+        db.add_all(snapshots)
+        db.flush()
+    return snapshots
+
+
+def backfill_submission_initial_assignees(db: Session) -> int:
+    """Create best-effort initial-recipient snapshots for legacy submissions."""
+    from app.services.portal_service import (
+        MANAGEMENT_LETTER_FORM_ID,
+        MANAGEMENT_LETTER_SECTION,
+        MANAGEMENT_WORKFLOW_ID,
+    )
+
+    submissions = (
+        db.query(Submission)
+        .outerjoin(
+            SubmissionInitialAssignee,
+            SubmissionInitialAssignee.submission_id == Submission.id,
+        )
+        .filter(SubmissionInitialAssignee.id.is_(None))
+        .order_by(Submission.id.asc())
+        .all()
+    )
+    created = 0
+    for submission in submissions:
+        explicit_user_ids: list[int] | None = None
+        if (
+            submission.department_id == MANAGEMENT_WORKFLOW_ID
+            and submission.section_id == MANAGEMENT_LETTER_SECTION
+            and submission.form_id == MANAGEMENT_LETTER_FORM_ID
+        ):
+            explicit_user_ids = []
+            try:
+                recipient_id = json.loads(submission.data or "{}").get(
+                    "recipient_id"
+                )
+                if recipient_id is not None:
+                    explicit_user_ids = [int(recipient_id)]
+            except (AttributeError, json.JSONDecodeError, TypeError, ValueError):
+                explicit_user_ids = []
+
+        created += len(
+            snapshot_submission_initial_assignees(
+                db,
+                submission,
+                explicit_user_ids=explicit_user_ids,
+                assigned_at=submission.created_at,
+            )
+        )
+    return created
 
 
 def replace_assignments(

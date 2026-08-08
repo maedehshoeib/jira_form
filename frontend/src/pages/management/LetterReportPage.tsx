@@ -53,6 +53,7 @@ function formatLetterSender(item: LetterReportItem) {
 }
 
 function displayStatus(status: string) {
+  if (status === "in_progress") return "در حال انجام";
   if (status === "approved") return "انجام‌شده";
   if (status === "rejected") return "رد‌شده";
   if (status === "referred") return "ارجاع‌شده";
@@ -61,6 +62,7 @@ function displayStatus(status: string) {
 }
 
 function statusBadgeClass(status: string) {
+  if (status === "in_progress") return "border-sky-200 bg-sky-50 text-sky-700";
   if (status === "approved") return "border-emerald-200 bg-emerald-50 text-emerald-700";
   if (status === "rejected") return "border-red-200 bg-red-50 text-red-700";
   if (status === "referred") return "border-blue-200 bg-blue-50 text-blue-700";
@@ -72,8 +74,11 @@ function batchSummary(item: LetterReportItem) {
   const done = item.recipients.filter((row) => row.status === "approved").length;
   const rejected = item.recipients.filter((row) => row.status === "rejected").length;
   const referred = item.recipients.filter((row) => row.status === "referred").length;
-  const pending = total - done - rejected - referred;
-  return { total, done, rejected, referred, pending };
+  const inProgress = item.recipients.filter(
+    (row) => row.status === "in_progress",
+  ).length;
+  const pending = total - done - rejected - referred - inProgress;
+  return { total, done, rejected, referred, inProgress, pending };
 }
 
 export default function LetterReportPage() {
@@ -295,6 +300,11 @@ export default function LetterReportPage() {
                       <Badge className="border-amber-200 bg-amber-50 text-amber-700">
                         {summary.pending.toLocaleString("fa-IR")} اقدام‌نشده
                       </Badge>
+                      {summary.inProgress > 0 && (
+                        <Badge className="border-sky-200 bg-sky-50 text-sky-700">
+                          {summary.inProgress.toLocaleString("fa-IR")} در حال انجام
+                        </Badge>
+                      )}
                       {summary.referred > 0 && (
                         <Badge className="border-blue-200 bg-blue-50 text-blue-700">
                           {summary.referred.toLocaleString("fa-IR")} ارجاع‌شده

@@ -37,7 +37,7 @@ type NavigationItem = {
   icon: typeof Home;
 };
 
-type TaskPendingNotification = {
+type TaskUnreadNotification = {
   count: number;
   ids: number[];
 };
@@ -89,7 +89,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
-  const [taskPendingCount, setTaskPendingCount] = useState(0);
+  const [taskUnreadCount, setTaskUnreadCount] = useState(0);
   const [chatSoundMuted, setChatSoundMuted] = useState(
     () => localStorage.getItem("chat_notification_sound_muted") === "true",
   );
@@ -97,7 +97,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
     () => localStorage.getItem("tasks_notification_sound_muted") === "true",
   );
   const knownUnreadRef = useRef<Map<number, number> | null>(null);
-  const knownPendingTaskIdsRef = useRef<Set<number> | null>(null);
+  const knownUnreadTaskIdsRef = useRef<Set<number> | null>(null);
 
   const playChatNotificationSound = useCallback(() => {
     playTone(chatSoundMuted);
@@ -131,13 +131,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   const refreshTaskNotifications = useCallback(async () => {
     try {
-      const { data } = await client.get<TaskPendingNotification>(endpoints.taskPendingCount);
+      const { data } = await client.get<TaskUnreadNotification>(endpoints.taskUnseenCount);
       const nextIds = new Set(data.ids);
-      const previous = knownPendingTaskIdsRef.current;
+      const previous = knownUnreadTaskIdsRef.current;
       const hasNewTask =
         previous !== null && data.ids.some((id) => !previous.has(id));
-      knownPendingTaskIdsRef.current = nextIds;
-      setTaskPendingCount(data.count);
+      knownUnreadTaskIdsRef.current = nextIds;
+      setTaskUnreadCount(data.count);
       if (hasNewTask) playTaskNotificationSound();
     } catch {
       // Keep navigation usable if task notifications are temporarily unavailable.
@@ -270,8 +270,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 <Icon size={19} />
               </span>
               <span className="flex-1">{label}</span>
-              {item.href === "/my-tasks" && taskPendingCount > 0 &&
-                renderCountBadge(taskPendingCount, active)}
+              {item.href === "/my-tasks" && taskUnreadCount > 0 &&
+                renderCountBadge(taskUnreadCount, active)}
               {item.href === "/my-tasks" &&
                 renderSoundToggle(
                   taskSoundMuted,

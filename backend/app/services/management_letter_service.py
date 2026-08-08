@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.models.submission import Submission, SubmissionReferral
 from app.models.user import User
 from app.services.form_access_service import can_access_restricted_department
+from app.services.form_duty_service import snapshot_submission_initial_assignees
 from app.services.portal_service import (
     MANAGEMENT_LETTER_FORM_ID,
     MANAGEMENT_LETTER_SECTION,
@@ -222,6 +223,11 @@ def create_management_letters(
         )
         db.add(submission)
         db.flush()
+        snapshot_submission_initial_assignees(
+            db,
+            submission,
+            explicit_user_ids=[recipient.id],
+        )
         db.add(
             SubmissionReferral(
                 submission_id=submission.id,

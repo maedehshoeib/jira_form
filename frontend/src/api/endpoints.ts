@@ -18,6 +18,7 @@ export const endpoints = {
   tasks: "/tasks",
   taskColleagues: "/tasks/colleagues",
   taskPendingCount: "/tasks/pending-count",
+  taskUnseenCount: "/tasks/unseen-count",
   jiraMe: "/jira/me",
   jiraUsers: "/jira/users",
   jiraRequestTypes: "/jira/request-types",

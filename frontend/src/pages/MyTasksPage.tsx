@@ -48,6 +48,10 @@ type SubmissionListItem = {
   section_title: string;
   subject: string;
   status: string;
+  workflow_status: string;
+  progress_percent: number;
+  is_read: boolean;
+  first_viewed_at: string | null;
   attachment_name: string | null;
   attachment_names?: string[];
   created_at: string;
@@ -58,6 +62,7 @@ type SubmissionListItem = {
   status_note?: string;
   referrals?: ReferralItem[];
   can_act?: boolean;
+  timeline?: unknown[];
 };
 
 type SubmissionDetail = SubmissionListItem & {
@@ -76,10 +81,11 @@ type Colleague = {
 
 type TimeRange = "all" | "today" | "7days" | "30days" | "90days";
 type SortOrder = "newest" | "oldest";
-type StatusTab = "pending" | "rejected" | "approved" | "referred";
+type StatusTab = "pending" | "in_progress" | "rejected" | "approved" | "referred";
 
 const STATUS_TABS: { id: StatusTab; label: string }[] = [
   { id: "pending", label: "اقدام نشده" },
+  { id: "in_progress", label: "\u062f\u0631 \u062d\u0627\u0644 \u0627\u0646\u062c\u0627\u0645" },
   { id: "rejected", label: "رد شده" },
   { id: "approved", label: "انجام شده" },
   { id: "referred", label: "ارجاع شده" },
@@ -93,6 +99,7 @@ function parseSubmittedAt(value: string) {
 }
 
 function displayStatus(status: string) {
+  if (status === "in_progress") return "\u062f\u0631 \u062d\u0627\u0644 \u0627\u0646\u062c\u0627\u0645";
   if (status === "approved") return "انجام‌شده";
   if (status === "rejected") return "رد‌شده";
   if (status === "submitted") return "اقدام‌نشده";
@@ -100,16 +107,67 @@ function displayStatus(status: string) {
 }
 
 function statusBadgeClass(status: string) {
+  if (status === "in_progress") return "border-blue-200 bg-blue-50 text-blue-700";
   if (status === "approved") return "border-emerald-200 bg-emerald-50 text-emerald-700";
   if (status === "rejected") return "border-red-200 bg-red-50 text-red-700";
   return "border-amber-200 bg-amber-50 text-amber-700";
 }
 
 function matchesStatusTab(task: SubmissionListItem, tab: StatusTab) {
+  if (tab === "in_progress") return task.status === "in_progress";
   if (tab === "pending") return task.status === "submitted";
   if (tab === "rejected") return task.status === "rejected";
   if (tab === "approved") return task.status === "approved";
   return (task.referrals?.length ?? 0) > 0;
+}
+
+function normalizedProgress(value: number | null | undefined, status?: string) {
+  if (status === "approved") return 100;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.min(100, Math.max(0, Math.round(parsed)));
+}
+
+function progressBarClass(status: string) {
+  if (status === "approved") return "bg-emerald-500";
+  if (status === "rejected") return "bg-red-500";
+  if (status === "in_progress") return "bg-blue-500";
+  return "bg-amber-500";
+}
+
+function TaskProgress({
+  progress,
+  status,
+  compact = false,
+}: {
+  progress: number;
+  status: string;
+  compact?: boolean;
+}) {
+  const value = normalizedProgress(progress, status);
+  return (
+    <div className={compact ? "mt-4" : "rounded-2xl border border-slate-100 bg-slate-50 p-4"}>
+      <div className="flex items-center justify-between gap-3 text-xs">
+        <span className="font-semibold text-slate-600">{"\u067e\u06cc\u0634\u0631\u0641\u062a \u0627\u0646\u062c\u0627\u0645 \u062f\u0631\u062e\u0648\u0627\u0633\u062a"}</span>
+        <span dir="ltr" className="font-extrabold tabular-nums text-slate-700">
+          {value}%
+        </span>
+      </div>
+      <div
+        className="mt-2 h-2.5 overflow-hidden rounded-full bg-slate-200"
+        role="progressbar"
+        aria-label="\u067e\u06cc\u0634\u0631\u0641\u062a \u0627\u0646\u062c\u0627\u0645 \u062f\u0631\u062e\u0648\u0627\u0633\u062a"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={value}
+      >
+        <div
+          className={`h-full rounded-full transition-all ${progressBarClass(status)}`}
+          style={{ width: `${value}%` }}
+        />
+      </div>
+    </div>
+  );
 }
 
 function statusActionLabel(status: "approved" | "rejected" | "submitted") {
@@ -218,6 +276,7 @@ export default function MyTasksPage() {
   const [referOpen, setReferOpen] = useState(false);
   const [statusPanel, setStatusPanel] = useState<"approved" | "rejected" | null>(null);
   const [statusNote, setStatusNote] = useState("");
+  const [progressDraft, setProgressDraft] = useState(0);
   const [colleagues, setColleagues] = useState<Colleague[]>([]);
   const [colleagueQuery, setColleagueQuery] = useState("");
   const [selectedColleagueIds, setSelectedColleagueIds] = useState<number[]>([]);
@@ -295,12 +354,14 @@ export default function MyTasksPage() {
   const tabCounts = useMemo(() => {
     const counts: Record<StatusTab, number> = {
       pending: 0,
+      in_progress: 0,
       rejected: 0,
       approved: 0,
       referred: 0,
     };
     tasks.forEach((task) => {
       if (task.status === "submitted") counts.pending += 1;
+      if (task.status === "in_progress") counts.in_progress += 1;
       if (task.status === "rejected") counts.rejected += 1;
       if (task.status === "approved") counts.approved += 1;
       if ((task.referrals?.length ?? 0) > 0) counts.referred += 1;
@@ -391,8 +452,13 @@ export default function MyTasksPage() {
           },
         }),
       ]);
+      syncTask(detailResponse.data);
       setSelected(detailResponse.data);
+      setProgressDraft(
+        normalizedProgress(detailResponse.data.progress_percent, detailResponse.data.status),
+      );
       setTemplate(templateResponse.data);
+      window.dispatchEvent(new Event("tasks:refresh-notifications"));
     } catch {
       setError("نمایش جزئیات این وظیفه با مشکل مواجه شد.");
     } finally {
@@ -427,6 +493,7 @@ export default function MyTasksPage() {
       );
       syncTask(data);
       setSelected((prev) => (prev ? { ...data, data: prev.data } : data));
+      setProgressDraft(normalizedProgress(data.progress_percent, data.status));
       setStatusPanel(null);
       setStatusNote("");
       if (status !== "submitted") setReferOpen(false);
@@ -441,6 +508,42 @@ export default function MyTasksPage() {
   const submitStatusAction = async () => {
     if (!statusPanel) return;
     await updateStatus(statusPanel, statusNote);
+  };
+
+  const updateProgress = async () => {
+    if (
+      !selected ||
+      !selected.can_act ||
+      (selected.status !== "submitted" && selected.status !== "in_progress")
+    ) {
+      return;
+    }
+    const nextProgress = Math.min(99, Math.max(0, Math.round(progressDraft)));
+    if (
+      selected.status === "in_progress" &&
+      nextProgress === normalizedProgress(selected.progress_percent, selected.status)
+    ) {
+      return;
+    }
+
+    setActionLoading(true);
+    setActionError("");
+    try {
+      const { data } = await client.patch<SubmissionDetail>(
+        `${endpoints.tasks}/${selected.id}/status`,
+        { status: "in_progress", progress_percent: nextProgress },
+      );
+      syncTask(data);
+      setSelected((prev) => (prev ? { ...data, data: prev.data } : data));
+      setProgressDraft(normalizedProgress(data.progress_percent, data.status));
+      window.dispatchEvent(new Event("tasks:refresh-notifications"));
+    } catch (err: unknown) {
+      setActionError(
+        apiErrorDetail(err, "\u062b\u0628\u062a \u067e\u06cc\u0634\u0631\u0641\u062a \u0628\u0627 \u0645\u0634\u06a9\u0644 \u0645\u0648\u0627\u062c\u0647 \u0634\u062f."),
+      );
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const toggleColleague = (userId: number) => {
@@ -601,7 +704,7 @@ export default function MyTasksPage() {
       )}
 
       {!loading && tasks.length > 0 && (
-        <div className="mb-6 grid gap-2 rounded-3xl border border-slate-100 bg-white p-2 shadow-md sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-6 grid gap-2 rounded-3xl border border-slate-100 bg-white p-2 shadow-md sm:grid-cols-2 lg:grid-cols-5">
           {STATUS_TABS.map((tab) => {
             const active = statusTab === tab.id;
             const count = tabCounts[tab.id];
@@ -756,7 +859,16 @@ export default function MyTasksPage() {
               type="button"
               key={task.id}
               onClick={() => void openTask(task)}
-              className="group rounded-3xl border border-slate-100 bg-white p-6 text-right shadow-md transition hover:-translate-y-1 hover:border-red-100 hover:shadow-xl disabled:opacity-60"
+              aria-label={`${task.subject || task.section_title || task.form_title}${
+                task.is_read === false
+                  ? "\u060c \u062c\u062f\u06cc\u062f \u0648 \u062f\u06cc\u062f\u0647\u200c\u0646\u0634\u062f\u0647"
+                  : ""
+              }`}
+              className={`group relative rounded-3xl border p-6 text-right shadow-md transition hover:-translate-y-1 hover:shadow-xl disabled:opacity-60 ${
+                task.is_read === false
+                  ? "border-amber-300 bg-amber-50 ring-2 ring-amber-200/80 shadow-amber-100"
+                  : "border-slate-100 bg-white hover:border-red-100"
+              }`}
               disabled={detailLoading}
             >
               <div className="mb-5 flex items-start justify-between gap-3">
@@ -764,6 +876,18 @@ export default function MyTasksPage() {
                   <FileText size={21} />
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-1.5">
+                  {task.is_read === false && (
+                    <Badge
+                      variant="outline"
+                      className="gap-1.5 border-amber-300 bg-amber-100 font-extrabold text-amber-900"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="h-2 w-2 rounded-full bg-amber-600"
+                      />
+                      {"\u062c\u062f\u06cc\u062f"}
+                    </Badge>
+                  )}
                   {(task.referrals?.length ?? 0) > 0 && (
                     <Badge
                       variant="outline"
@@ -791,6 +915,15 @@ export default function MyTasksPage() {
                   <UserRound size={13} />
                   ثبت‌کننده: {task.submitted_by}
                 </p>
+              )}
+              {(task.status === "in_progress" ||
+                task.status === "approved" ||
+                normalizedProgress(task.progress_percent, task.status) > 0) && (
+                <TaskProgress
+                  compact
+                  progress={task.progress_percent}
+                  status={task.status}
+                />
               )}
               <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4 text-xs text-slate-500">
                 <span className="flex items-center gap-1.5">
@@ -870,8 +1003,88 @@ export default function MyTasksPage() {
                 </div>
               )}
 
+              <TaskProgress
+                progress={selected.progress_percent}
+                status={selected.status}
+              />
+
               {selected.can_act && (
                 <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                  {(selected.status === "submitted" ||
+                    selected.status === "in_progress") && (
+                    <div className="space-y-3 rounded-xl border border-blue-100 bg-white p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <label
+                            htmlFor={`task-progress-${selected.id}`}
+                            className="text-sm font-bold text-slate-800"
+                          >
+                            {"\u062f\u0631\u0635\u062f \u067e\u06cc\u0634\u0631\u0641\u062a"}
+                          </label>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {"\u062a\u06a9\u0645\u06cc\u0644 \u0646\u0647\u0627\u06cc\u06cc \u0641\u0642\u0637 \u0628\u0627 \u062f\u06a9\u0645\u0647 \u00ab\u0627\u0646\u062c\u0627\u0645 \u0634\u062f\u0647\u00bb \u062b\u0628\u062a \u0645\u06cc\u200c\u0634\u0648\u062f."}
+                          </p>
+                        </div>
+                        <span
+                          dir="ltr"
+                          className="rounded-lg bg-blue-50 px-2.5 py-1 text-sm font-extrabold tabular-nums text-blue-700"
+                        >
+                          {progressDraft}%
+                        </span>
+                      </div>
+                      <input
+                        id={`task-progress-${selected.id}`}
+                        type="range"
+                        min={0}
+                        max={99}
+                        step={1}
+                        value={progressDraft}
+                        dir="ltr"
+                        aria-valuetext={`${progressDraft} \u062f\u0631\u0635\u062f`}
+                        onChange={(event) => setProgressDraft(Number(event.target.value))}
+                        className="h-2 w-full cursor-pointer accent-blue-600"
+                      />
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={99}
+                          step={1}
+                          value={progressDraft}
+                          dir="ltr"
+                          aria-label="\u062f\u0631\u0635\u062f \u062f\u0642\u06cc\u0642 \u067e\u06cc\u0634\u0631\u0641\u062a"
+                          onChange={(event) =>
+                            setProgressDraft(
+                              Math.min(
+                                99,
+                                Math.max(0, Math.round(Number(event.target.value) || 0)),
+                              ),
+                            )
+                          }
+                          className="h-10 w-24 rounded-xl text-left"
+                        />
+                        <Button
+                          type="button"
+                          onClick={() => void updateProgress()}
+                          disabled={
+                            actionLoading ||
+                            (selected.status === "in_progress" &&
+                              progressDraft ===
+                                normalizedProgress(
+                                  selected.progress_percent,
+                                  selected.status,
+                                ))
+                          }
+                          className="h-10 gap-2 bg-blue-600 hover:bg-blue-700"
+                        >
+                          {actionLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : null}
+                          {"\u062b\u0628\u062a \u067e\u06cc\u0634\u0631\u0641\u062a"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                   <p className="text-xs font-semibold text-slate-500">
                     تغییر وضعیت درخواست
                     {selected.status !== "submitted" ? " (در صورت اشتباه قابل اصلاح است)" : ""}
@@ -920,7 +1133,8 @@ export default function MyTasksPage() {
                         بازگشت به اقدام‌نشده
                       </Button>
                     )}
-                    {selected.status === "submitted" && (
+                    {(selected.status === "submitted" ||
+                      selected.status === "in_progress") && (
                       <Button
                         type="button"
                         onClick={() => void openReferPanel()}
@@ -989,7 +1203,10 @@ export default function MyTasksPage() {
                 </div>
               )}
 
-              {referOpen && selected.can_act && selected.status === "submitted" && (
+              {referOpen &&
+                selected.can_act &&
+                (selected.status === "submitted" ||
+                  selected.status === "in_progress") && (
                 <div className="space-y-3 rounded-2xl border border-sky-100 bg-sky-50/60 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <h4 className="text-sm font-semibold text-slate-800">
