@@ -1,11 +1,10 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.api.routes.reports_helpers import _format_dt
 from app.core.birthday import is_birthday_today, user_display_name
 from app.core.deps import get_current_user
 from app.db.session import get_db
@@ -21,6 +20,13 @@ from app.services.management_letter_service import (
 
 
 router = APIRouter(prefix="/management-letters", tags=["management-letters"])
+IRAN_TZ = timezone(timedelta(hours=3, minutes=30))
+
+
+def _format_report_dt(value: datetime) -> str:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(IRAN_TZ).strftime("%Y/%m/%d %H:%M")
 
 
 class LetterRecipientResponse(BaseModel):
@@ -239,7 +245,7 @@ def management_letter_report(
                     [row["attachment_name"]] if row.get("attachment_name") else []
                 ),
                 created_at=(
-                    _format_dt(created_at)
+                    _format_report_dt(created_at)
                     if isinstance(created_at, datetime)
                     else str(created_at)
                 ),
@@ -251,7 +257,7 @@ def management_letter_report(
                         display_name=item["display_name"],
                         status=item["status"],
                         status_updated_at=(
-                            _format_dt(item["status_updated_at"])
+                            _format_report_dt(item["status_updated_at"])
                             if item.get("status_updated_at")
                             else None
                         ),

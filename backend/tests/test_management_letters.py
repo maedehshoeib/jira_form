@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 import json
 import unittest
 
@@ -7,10 +8,12 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.api.routes.management_letters import _format_report_dt
 from app.db.base import Base
 from app.models.department import Department  # noqa: F401 - registers FK target
-from app.models.submission import Submission
+from app.models.submission import Submission, SubmissionInitialAssignee
 from app.models.user import User
+from app.services.form_duty_service import backfill_submission_initial_assignees
 from app.services.management_letter_service import (
     create_management_letters,
     list_sent_letters,
@@ -90,6 +93,67 @@ class ManagementLetterServiceTests(unittest.TestCase):
             sender_detail="",
             recipient_ids=recipient_ids or [self.first_recipient.id],
             recipient_comments=recipient_comments,
+        )
+
+    def _initial_recipient_ids(self, submission_id: int) -> list[int]:
+        return [
+            row.user_id
+            for row in (
+                self.db.query(SubmissionInitialAssignee)
+                .filter(
+                    SubmissionInitialAssignee.submission_id == submission_id
+                )
+                .order_by(SubmissionInitialAssignee.id.asc())
+                .all()
+            )
+        ]
+
+    def test_every_letter_copy_snapshots_all_batch_recipients(self):
+        submissions = self._create_letters(
+            needs_action="\u062f\u0627\u0631\u062f",
+            recipient_ids=[self.first_recipient.id, self.second_recipient.id],
+        )
+        expected_ids = [self.first_recipient.id, self.second_recipient.id]
+
+        for submission in submissions:
+            self.assertEqual(
+                self._initial_recipient_ids(submission.id),
+                expected_ids,
+            )
+
+    def test_backfill_expands_existing_incomplete_letter_batch_snapshots(self):
+        submissions = self._create_letters(
+            needs_action="\u062f\u0627\u0631\u062f",
+            recipient_ids=[self.first_recipient.id, self.second_recipient.id],
+        )
+        submission_ids = [submission.id for submission in submissions]
+        self.db.query(SubmissionInitialAssignee).filter(
+            SubmissionInitialAssignee.submission_id.in_(submission_ids)
+        ).delete(synchronize_session=False)
+        for submission in submissions:
+            recipient_id = int(json.loads(submission.data)["recipient_id"])
+            self.db.add(
+                SubmissionInitialAssignee(
+                    submission_id=submission.id,
+                    user_id=recipient_id,
+                    assigned_at=submission.created_at,
+                )
+            )
+        self.db.flush()
+
+        self.assertEqual(backfill_submission_initial_assignees(self.db), 2)
+        expected_ids = {self.first_recipient.id, self.second_recipient.id}
+        for submission in submissions:
+            self.assertEqual(
+                set(self._initial_recipient_ids(submission.id)),
+                expected_ids,
+            )
+        self.assertEqual(backfill_submission_initial_assignees(self.db), 0)
+
+    def test_report_datetime_is_converted_from_utc_to_iran_time(self):
+        self.assertEqual(
+            _format_report_dt(datetime(2026, 3, 20, 21, 0)),
+            "2026/03/21 00:30",
         )
 
     def test_generated_number_is_shared_per_batch_unique_across_batches_and_reported(self):

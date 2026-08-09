@@ -129,12 +129,84 @@ def snapshot_submission_initial_assignees(
 
 
 def backfill_submission_initial_assignees(db: Session) -> int:
-    """Create best-effort initial-recipient snapshots for legacy submissions."""
+    """Create missing snapshots and repair legacy management-letter batches."""
     from app.services.portal_service import (
         MANAGEMENT_LETTER_FORM_ID,
         MANAGEMENT_LETTER_SECTION,
         MANAGEMENT_WORKFLOW_ID,
     )
+
+    created = 0
+    # One logical management letter is stored as one submission per recipient.
+    # Every sibling copy needs the same name-only initial-recipient snapshot.
+    management_letters = (
+        db.query(Submission)
+        .filter(
+            Submission.department_id == MANAGEMENT_WORKFLOW_ID,
+            Submission.section_id == MANAGEMENT_LETTER_SECTION,
+            Submission.form_id == MANAGEMENT_LETTER_FORM_ID,
+        )
+        .order_by(Submission.id.asc())
+        .all()
+    )
+    batch_key_by_submission: dict[int, tuple[int, str]] = {}
+    recipient_ids_by_batch: dict[tuple[int, str], list[int]] = {}
+    for submission in management_letters:
+        try:
+            data = json.loads(submission.data or "{}")
+        except (json.JSONDecodeError, TypeError):
+            data = {}
+        if not isinstance(data, dict):
+            data = {}
+        batch_id = str(data.get("letter_batch_id") or "").strip()
+        if not batch_id:
+            batch_id = f"single-{submission.id}"
+        batch_key = (submission.user_id, batch_id)
+        batch_key_by_submission[submission.id] = batch_key
+
+        raw_recipient_id = data.get("recipient_id")
+        try:
+            if isinstance(raw_recipient_id, bool):
+                raise ValueError
+            recipient_id = int(raw_recipient_id)
+        except (TypeError, ValueError, OverflowError):
+            continue
+        if recipient_id <= 0:
+            continue
+        batch_recipient_ids = recipient_ids_by_batch.setdefault(batch_key, [])
+        if recipient_id not in batch_recipient_ids:
+            batch_recipient_ids.append(recipient_id)
+
+    management_letter_ids = [submission.id for submission in management_letters]
+    existing_by_submission: dict[int, set[int]] = {}
+    if management_letter_ids:
+        existing_snapshots = (
+            db.query(SubmissionInitialAssignee)
+            .filter(
+                SubmissionInitialAssignee.submission_id.in_(management_letter_ids)
+            )
+            .all()
+        )
+        for row in existing_snapshots:
+            existing_by_submission.setdefault(row.submission_id, set()).add(
+                row.user_id
+            )
+
+    for submission in management_letters:
+        recipient_ids = recipient_ids_by_batch.get(
+            batch_key_by_submission[submission.id], []
+        )
+        existing_ids = existing_by_submission.get(submission.id, set())
+        if not any(user_id not in existing_ids for user_id in recipient_ids):
+            continue
+        created += len(
+            snapshot_submission_initial_assignees(
+                db,
+                submission,
+                explicit_user_ids=recipient_ids,
+                assigned_at=submission.created_at,
+            )
+        )
 
     submissions = (
         db.query(Submission)
@@ -146,29 +218,18 @@ def backfill_submission_initial_assignees(db: Session) -> int:
         .order_by(Submission.id.asc())
         .all()
     )
-    created = 0
     for submission in submissions:
-        explicit_user_ids: list[int] | None = None
         if (
             submission.department_id == MANAGEMENT_WORKFLOW_ID
             and submission.section_id == MANAGEMENT_LETTER_SECTION
             and submission.form_id == MANAGEMENT_LETTER_FORM_ID
         ):
-            explicit_user_ids = []
-            try:
-                recipient_id = json.loads(submission.data or "{}").get(
-                    "recipient_id"
-                )
-                if recipient_id is not None:
-                    explicit_user_ids = [int(recipient_id)]
-            except (AttributeError, json.JSONDecodeError, TypeError, ValueError):
-                explicit_user_ids = []
+            continue
 
         created += len(
             snapshot_submission_initial_assignees(
                 db,
                 submission,
-                explicit_user_ids=explicit_user_ids,
                 assigned_at=submission.created_at,
             )
         )

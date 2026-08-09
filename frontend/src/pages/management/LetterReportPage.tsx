@@ -2,13 +2,18 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import {
   BarChart3,
+  CalendarRange,
   ChevronLeft,
   Loader2,
   Paperclip,
   RefreshCw,
   Search,
   Users,
+  X,
 } from "lucide-react";
+import DatePicker from "react-multi-date-picker";
+import persian from "react-date-object/calendars/persian";
+import persian_fa from "react-date-object/locales/persian_fa";
 
 import client from "../../api/client";
 import { endpoints } from "../../api/endpoints";
@@ -17,6 +22,12 @@ import { API_BASE } from "../../config/portal";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import {
+  formatPersianDate,
+  formatPersianDateTime,
+  normalizePersianDate,
+  PERSIAN_DATE_FORMAT,
+} from "../../lib/persianDate";
 
 type LetterRecipientStatus = {
   user_id: number | null;
@@ -46,6 +57,9 @@ type LetterReportItem = {
   sent_by_id: number;
   recipients: LetterRecipientStatus[];
 };
+
+const datePickerInputClass =
+  "h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-right text-sm shadow-sm outline-none transition focus:border-red-500";
 
 function formatLetterSender(item: LetterReportItem) {
   const sender = (item.sender || "").trim();
@@ -91,6 +105,9 @@ export default function LetterReportPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
 
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
   const load = async () => {
     setLoading(true);
     setError("");
@@ -116,10 +133,22 @@ export default function LetterReportPage() {
     void load();
   }, []);
 
+  const dateFiltered = useMemo(() => {
+    if (fromDate && toDate && fromDate > toDate) return [];
+
+    return items.filter((item) => {
+      const sentDate = formatPersianDate(item.created_at);
+      return (
+        (!fromDate || sentDate >= fromDate) &&
+        (!toDate || sentDate <= toDate)
+      );
+    });
+  }, [fromDate, items, toDate]);
+
   const filtered = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("fa");
-    if (!query) return items;
-    return items.filter((item) =>
+    if (!query) return dateFiltered;
+    return dateFiltered.filter((item) =>
       [
         item.subject,
         item.description,
@@ -131,13 +160,27 @@ export default function LetterReportPage() {
         item.sender,
         item.sender_detail,
         item.sent_by,
-        ...item.recipients.flatMap((row) => [row.display_name, row.comment]),
+        formatPersianDateTime(item.created_at),
+        ...item.recipients.flatMap((row) => [
+          row.display_name,
+          row.comment,
+          formatPersianDateTime(row.status_updated_at),
+        ]),
       ]
         .join(" ")
         .toLocaleLowerCase("fa")
         .includes(query),
     );
-  }, [items, search]);
+  }, [dateFiltered, search]);
+
+  const hasActiveFilters = Boolean(search.trim() || fromDate || toDate);
+  const hasInvalidRange = Boolean(fromDate && toDate && fromDate > toDate);
+
+  const clearFilters = () => {
+    setSearch("");
+    setFromDate("");
+    setToDate("");
+  };
 
   const downloadAttachment = async (item: LetterReportItem, index = 0) => {
     const submissionId = item.recipients[0]?.submission_id;
@@ -224,6 +267,74 @@ export default function LetterReportPage() {
           />
         </div>
 
+        <div className='mb-5 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm'>
+          <div className='mb-3 flex flex-wrap items-center justify-between gap-3'>
+            <div className='flex items-center gap-2 text-sm font-bold text-slate-700'>
+              <CalendarRange size={18} className='text-red-600' />
+              بازه زمانی ارسال
+            </div>
+            {hasActiveFilters && (
+              <button
+                type='button'
+                onClick={clearFilters}
+                className='inline-flex items-center gap-1 text-xs font-bold text-slate-500 transition hover:text-red-600'
+              >
+                <X size={14} />
+                پاک کردن فیلترها
+              </button>
+            )}
+          </div>
+
+          <div className='grid gap-3 sm:grid-cols-2'>
+            <label>
+              <span className='mb-1.5 block text-xs font-bold text-slate-500'>
+                از تاریخ ارسال
+              </span>
+              <DatePicker
+                calendar={persian}
+                locale={persian_fa}
+                format={PERSIAN_DATE_FORMAT}
+                value={fromDate || undefined}
+                maxDate={toDate || undefined}
+                onChange={(date) => setFromDate(normalizePersianDate(date))}
+                inputClass={datePickerInputClass}
+                containerClassName='w-full'
+                calendarPosition='bottom-right'
+                placeholder='انتخاب تاریخ شروع'
+              />
+            </label>
+
+            <label>
+              <span className='mb-1.5 block text-xs font-bold text-slate-500'>
+                تا تاریخ ارسال
+              </span>
+              <DatePicker
+                calendar={persian}
+                locale={persian_fa}
+                format={PERSIAN_DATE_FORMAT}
+                value={toDate || undefined}
+                minDate={fromDate || undefined}
+                onChange={(date) => setToDate(normalizePersianDate(date))}
+                inputClass={datePickerInputClass}
+                containerClassName='w-full'
+                calendarPosition='bottom-right'
+                placeholder='انتخاب تاریخ پایان'
+              />
+            </label>
+          </div>
+
+          {hasInvalidRange ? (
+            <p className='mt-3 text-xs font-semibold text-red-600'>
+              تاریخ شروع نمی‌تواند بعد از تاریخ پایان باشد.
+            </p>
+          ) : hasActiveFilters ? (
+            <p className='mt-3 text-xs text-slate-500'>
+              نمایش {filtered.length.toLocaleString('fa-IR')} نامه از{' '}
+              {items.length.toLocaleString('fa-IR')} نامه
+            </p>
+          ) : null}
+        </div>
+
         {error && (
           <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
             {error}
@@ -233,6 +344,23 @@ export default function LetterReportPage() {
         {loading ? (
           <div className="flex min-h-48 items-center justify-center rounded-3xl bg-white shadow-sm">
             <Loader2 className="animate-spin text-red-600" />
+          </div>
+        ) : filtered.length === 0 && hasActiveFilters ? (
+          <div className='rounded-3xl border border-dashed border-slate-200 bg-white p-12 text-center shadow-sm'>
+            <Users className='mx-auto text-slate-300' size={36} />
+            <p className='mt-4 font-bold text-slate-600'>
+              نامه‌ای در بازه یا فیلتر انتخاب‌شده پیدا نشد
+            </p>
+            <p className='mt-1 text-sm text-slate-400'>
+              بازه زمانی یا عبارت جستجو را تغییر دهید.
+            </p>
+            <button
+              type='button'
+              onClick={clearFilters}
+              className='mt-5 font-bold text-red-600 hover:text-red-700'
+            >
+              پاک کردن فیلترها
+            </button>
           </div>
         ) : filtered.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-12 text-center shadow-sm">
@@ -287,7 +415,9 @@ export default function LetterReportPage() {
                           <span>فرستنده: {formatLetterSender(item)}</span>
                         )}
                         <span>ارسال‌کننده: {item.sent_by}</span>
-                        <span>تاریخ: {item.created_at}</span>
+                        <span>
+                          تاریخ: {formatPersianDateTime(item.created_at) || "—"}
+                        </span>
                         {(item.attachment_names?.length
                           ? item.attachment_names
                           : item.attachment_name
@@ -363,7 +493,8 @@ export default function LetterReportPage() {
                               {recipient.referred_to || "—"}
                             </td>
                             <td className="px-4 py-3 text-slate-500">
-                              {recipient.status_updated_at || "—"}
+                              {formatPersianDateTime(recipient.status_updated_at) ||
+                                "—"}
                             </td>
                           </tr>
                         ))}

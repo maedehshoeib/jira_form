@@ -38,6 +38,13 @@ type ReferralItem = {
   created_at: string;
 };
 
+type InitialAssignee = {
+  user_id: number;
+  username: string;
+  display_name: string;
+  assigned_at: string;
+};
+
 type SubmissionListItem = {
   id: number;
   form_id: string;
@@ -60,6 +67,7 @@ type SubmissionListItem = {
   status_updated_by?: string | null;
   status_updated_at?: string | null;
   status_note?: string;
+  initial_assignees?: InitialAssignee[];
   referrals?: ReferralItem[];
   can_act?: boolean;
   timeline?: unknown[];
@@ -78,6 +86,34 @@ type Colleague = {
   birth_date?: string | null;
   is_birthday?: boolean;
 };
+
+function uniqueNames(names: Array<string | null | undefined>) {
+  return Array.from(
+    new Set(names.map((name) => (name || "").trim()).filter(Boolean)),
+  );
+}
+
+function initialAssigneeNames(task: SubmissionListItem) {
+  return uniqueNames(
+    (task.initial_assignees ?? []).map(
+      (assignee) => assignee.display_name || assignee.username,
+    ),
+  );
+}
+
+function referralTargetNames(task: SubmissionListItem) {
+  return uniqueNames(
+    (task.referrals ?? []).map((referral) => referral.to_user_name),
+  );
+}
+
+function compactNames(names: string[], limit = 2) {
+  if (names.length === 0) return "\u2014";
+  if (names.length <= limit) return names.join("\u060c ");
+  return `${names.slice(0, limit).join("\u060c ")} \u0648 ${(
+    names.length - limit
+  ).toLocaleString("fa-IR")} \u0646\u0641\u0631 \u062f\u06cc\u06af\u0631`;
+}
 
 type TimeRange = "all" | "today" | "7days" | "30days" | "90days";
 type SortOrder = "newest" | "oldest";
@@ -393,6 +429,14 @@ export default function MyTasksPage() {
           task.section_title,
           task.submitted_by,
           task.submitted_by_username,
+          ...(task.initial_assignees ?? []).flatMap((assignee) => [
+            assignee.display_name,
+            assignee.username,
+          ]),
+          ...(task.referrals ?? []).flatMap((referral) => [
+            referral.from_user_name,
+            referral.to_user_name,
+          ]),
         ]
           .join(" ")
           .toLocaleLowerCase("fa");
@@ -916,6 +960,45 @@ export default function MyTasksPage() {
                   ثبت‌کننده: {task.submitted_by}
                 </p>
               )}
+              {(initialAssigneeNames(task).length > 0 ||
+                referralTargetNames(task).length > 0) && (
+                <div className="mt-3 space-y-1.5 rounded-xl bg-slate-50/80 px-3 py-2.5 text-xs">
+                  {initialAssigneeNames(task).length > 0 && (
+                    <p className="flex min-w-0 items-center gap-1.5">
+                      <UserRound
+                        size={13}
+                        className="shrink-0 text-slate-500"
+                        aria-hidden="true"
+                      />
+                      <span className="shrink-0 text-slate-500">
+                        {task.form_id === "management-letter-form"
+                          ? "\u06af\u06cc\u0631\u0646\u062f\u06af\u0627\u0646 \u0646\u0627\u0645\u0647:"
+                          : "\u0645\u0633\u0626\u0648\u0644\u0627\u0646 \u0627\u0648\u0644\u06cc\u0647:"}
+                      </span>
+                      <span
+                        className="min-w-0 truncate font-semibold text-slate-700"
+                        title={initialAssigneeNames(task).join("\u060c ")}
+                      >
+                        {compactNames(initialAssigneeNames(task))}
+                      </span>
+                    </p>
+                  )}
+                  {referralTargetNames(task).length > 0 && (
+                    <p className="flex min-w-0 items-center gap-1.5 text-sky-700">
+                      <Forward size={13} className="shrink-0" aria-hidden="true" />
+                      <span className="shrink-0">
+                        {"\u0627\u0631\u062c\u0627\u0639\u200c\u0634\u062f\u0647 \u0628\u0647:"}
+                      </span>
+                      <span
+                        className="min-w-0 truncate font-bold"
+                        title={referralTargetNames(task).join("\u060c ")}
+                      >
+                        {compactNames(referralTargetNames(task))}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
               {(task.status === "in_progress" ||
                 task.status === "approved" ||
                 normalizedProgress(task.progress_percent, task.status) > 0) && (
@@ -1303,6 +1386,52 @@ export default function MyTasksPage() {
                   <span className="text-slate-500">نوع فرم:</span>{" "}
                   <span className="font-semibold text-slate-700">{selected.form_title}</span>
                 </div>
+                {initialAssigneeNames(selected).length > 0 && (
+                  <div className="flex items-start gap-2 sm:col-span-2">
+                    <UserRound
+                      size={16}
+                      className="mt-0.5 shrink-0 text-slate-500"
+                      aria-hidden="true"
+                    />
+                    <span className="shrink-0 text-slate-500">
+                      {selected.form_id === "management-letter-form"
+                        ? "\u06af\u06cc\u0631\u0646\u062f\u06af\u0627\u0646 \u0646\u0627\u0645\u0647:"
+                        : "\u0645\u0633\u0626\u0648\u0644\u0627\u0646 \u0627\u0648\u0644\u06cc\u0647:"}
+                    </span>
+                    <div className="flex min-w-0 flex-wrap gap-1.5">
+                      {initialAssigneeNames(selected).map((name) => (
+                        <span
+                          key={name}
+                          className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-700"
+                        >
+                          {name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {referralTargetNames(selected).length > 0 && (
+                  <div className="flex items-start gap-2 sm:col-span-2">
+                    <Forward
+                      size={16}
+                      className="mt-0.5 shrink-0 text-sky-600"
+                      aria-hidden="true"
+                    />
+                    <span className="shrink-0 text-slate-500">
+                      {"\u0627\u0631\u062c\u0627\u0639\u200c\u0634\u062f\u0647 \u0628\u0647:"}
+                    </span>
+                    <div className="flex min-w-0 flex-wrap gap-1.5">
+                      {referralTargetNames(selected).map((name) => (
+                        <span
+                          key={name}
+                          className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-xs font-bold text-sky-700"
+                        >
+                          {name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {selected.submitted_by && (
                   <div>
                     <span className="text-slate-500">ثبت‌کننده:</span>{" "}

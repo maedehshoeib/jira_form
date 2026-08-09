@@ -202,6 +202,9 @@ def create_management_letters(
         files = [{"name": attachment_name, "path": attachment_path}]
 
     recipients = _validate_recipients(db, actor, recipient_ids)
+    # Each submission below is a per-recipient copy of the same logical letter,
+    # so every copy keeps the complete original audience for display.
+    all_recipient_ids = [recipient.id for recipient in recipients]
     selected_recipient_ids = {recipient.id for recipient in recipients}
     cleaned_recipient_comments: dict[int, str] = {}
     for recipient_id, comment in (recipient_comments or {}).items():
@@ -272,7 +275,7 @@ def create_management_letters(
         snapshot_submission_initial_assignees(
             db,
             submission,
-            explicit_user_ids=[recipient.id],
+            explicit_user_ids=all_recipient_ids,
         )
         db.add(
             SubmissionReferral(

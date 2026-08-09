@@ -35,6 +35,7 @@ from app.services.form_duty_service import (
     replace_assignments,
     snapshot_submission_initial_assignees,
 )
+from app.services.management_letter_service import create_management_letters
 from app.services.task_workflow_service import (
     list_task_submissions,
     refer_task,
@@ -487,6 +488,80 @@ class TaskWorkflowMockTests(unittest.TestCase):
         tasks = self.client.get("/api/v1/tasks").json()
         self.assertEqual(len(tasks), 1)
         self.assertEqual(tasks[0]["id"], self.submission.id)
+        self.assertEqual(
+            {item["to_user_id"] for item in tasks[0]["referrals"]},
+            {self.colleague.id, second.id},
+        )
+
+        detail = self.client.get(f"/api/v1/tasks/{self.submission.id}")
+        self.assertEqual(detail.status_code, 200, detail.text)
+        self.assertEqual(
+            {item["to_user_id"] for item in detail.json()["referrals"]},
+            {self.colleague.id, second.id},
+        )
+
+    def test_letter_recipient_sees_all_names_without_sibling_access(self):
+        self.handler.is_letter_recipient = True
+        self.colleague.is_letter_recipient = True
+        self.db.commit()
+        letters = create_management_letters(
+            self.db,
+            actor=self.admin,
+            subject="letter subject",
+            description="letter description",
+            letter_number="L-1",
+            needs_reply="\u0646\u062f\u0627\u0631\u062f",
+            needs_action="\u062f\u0627\u0631\u062f",
+            due_date="",
+            sender="\u0628\u0627\u0646\u06a9",
+            sender_detail="",
+            recipient_ids=[self.handler.id, self.colleague.id],
+            recipient_comments={
+                self.handler.id: "private-handler-note",
+                self.colleague.id: "private-colleague-note",
+            },
+        )
+        expected_recipient_ids = {self.handler.id, self.colleague.id}
+        cases = (
+            (
+                self.handler,
+                letters[0],
+                letters[1],
+                "private-colleague-note",
+            ),
+            (
+                self.colleague,
+                letters[1],
+                letters[0],
+                "private-handler-note",
+            ),
+        )
+
+        for actor, own_letter, sibling_letter, sibling_note in cases:
+            with self.subTest(actor=actor.username):
+                self._as(actor)
+                rows = self.client.get("/api/v1/tasks").json()
+                own_row = next(row for row in rows if row["id"] == own_letter.id)
+                self.assertNotIn(sibling_letter.id, {row["id"] for row in rows})
+                self.assertEqual(
+                    {
+                        item["user_id"]
+                        for item in own_row["initial_assignees"]
+                    },
+                    expected_recipient_ids,
+                )
+
+                detail = self.client.get(f"/api/v1/tasks/{own_letter.id}")
+                self.assertEqual(detail.status_code, 200, detail.text)
+                detail_body = detail.json()
+                self.assertEqual(
+                    {
+                        item["user_id"]
+                        for item in detail_body["initial_assignees"]
+                    },
+                    expected_recipient_ids,
+                )
+                self.assertNotIn(sibling_note, json.dumps(detail_body["data"]))
 
     def test_http_invalid_status(self):
         self._as(self.handler)
