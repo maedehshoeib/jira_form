@@ -25,6 +25,7 @@ type LetterRecipientStatus = {
   status_updated_at: string | null;
   submission_id: number;
   referred_to?: string | null;
+  comment?: string;
 };
 
 type LetterReportItem = {
@@ -32,7 +33,9 @@ type LetterReportItem = {
   subject: string;
   description: string;
   letter_number?: string;
+  system_letter_number?: string;
   needs_reply?: string;
+  needs_action?: string;
   due_date?: string;
   sender?: string;
   sender_detail?: string;
@@ -121,12 +124,14 @@ export default function LetterReportPage() {
         item.subject,
         item.description,
         item.letter_number,
+        item.system_letter_number,
         item.needs_reply,
+        item.needs_action,
         item.due_date,
         item.sender,
         item.sender_detail,
         item.sent_by,
-        ...item.recipients.map((row) => row.display_name),
+        ...item.recipients.flatMap((row) => [row.display_name, row.comment]),
       ]
         .join(" ")
         .toLocaleLowerCase("fa")
@@ -264,8 +269,16 @@ export default function LetterReportPage() {
                         {item.letter_number && (
                           <span>شماره نامه: {item.letter_number}</span>
                         )}
+                        {item.system_letter_number && (
+                          <span>
+                            شماره نامه سیستمی: {item.system_letter_number}
+                          </span>
+                        )}
                         {item.needs_reply && (
                           <span>نیاز به پاسخ: {item.needs_reply}</span>
+                        )}
+                        {item.needs_action && (
+                          <span>نیاز به اقدام: {item.needs_action}</span>
                         )}
                         {item.due_date && (
                           <span>مهلت انجام: {item.due_date}</span>
@@ -321,11 +334,12 @@ export default function LetterReportPage() {
                     </div>
                   </div>
 
-                  <div className="mt-5 overflow-hidden rounded-2xl border border-slate-100">
-                    <table className="w-full text-sm">
+                  <div className="mt-5 overflow-x-auto rounded-2xl border border-slate-100">
+                    <table className="min-w-[850px] w-full text-sm">
                       <thead className="bg-slate-50 text-slate-500">
                         <tr>
                           <th className="px-4 py-3 text-right font-bold">گیرنده</th>
+                          <th className="px-4 py-3 text-right font-bold">یادداشت</th>
                           <th className="px-4 py-3 text-right font-bold">وضعیت</th>
                           <th className="px-4 py-3 text-right font-bold">ارجاع به</th>
                           <th className="px-4 py-3 text-right font-bold">آخرین تغییر</th>
@@ -336,6 +350,9 @@ export default function LetterReportPage() {
                           <tr key={recipient.submission_id}>
                             <td className="px-4 py-3 font-semibold text-slate-800">
                               {recipient.display_name}
+                            </td>
+                            <td className="max-w-xs whitespace-pre-wrap break-words px-4 py-3 leading-6 text-slate-600">
+                              {recipient.comment || "—"}
                             </td>
                             <td className="px-4 py-3">
                               <Badge className={statusBadgeClass(recipient.status)}>

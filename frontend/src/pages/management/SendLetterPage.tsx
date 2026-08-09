@@ -41,7 +41,12 @@ type LetterRecipient = {
   is_birthday?: boolean;
 };
 
+type LetterSendResponse = {
+  system_letter_number: string;
+};
+
 const NEEDS_REPLY_OPTIONS = ["دارد", "ندارد"] as const;
+const NEEDS_ACTION_OPTIONS = ["دارد", "ندارد(جهت اطلاع)"] as const;
 const SENDER_OPTIONS = [
   "بانک",
   "شرکت های گروه",
@@ -56,6 +61,7 @@ const HOLDING_OPTIONS = [
 ] as const;
 
 type NeedsReplyOption = (typeof NEEDS_REPLY_OPTIONS)[number];
+type NeedsActionOption = (typeof NEEDS_ACTION_OPTIONS)[number];
 type SenderOption = (typeof SENDER_OPTIONS)[number];
 type HoldingOption = (typeof HOLDING_OPTIONS)[number];
 
@@ -236,10 +242,18 @@ export default function SendLetterPage() {
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [recipients, setRecipients] = useState<LetterRecipient[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [sharedComment, setSharedComment] = useState("");
+  const [commentTargetIds, setCommentTargetIds] = useState<Set<number>>(
+    new Set(),
+  );
+  const [recipientComments, setRecipientComments] = useState<
+    Record<number, string>
+  >({});
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
   const [letterNumber, setLetterNumber] = useState("");
   const [needsReply, setNeedsReply] = useState<NeedsReplyOption | "">("");
+  const [needsAction, setNeedsAction] = useState<NeedsActionOption | "">("");
   const [dueDate, setDueDate] = useState("");
   const [sender, setSender] = useState<SenderOption | "">("");
   const [holdingUnit, setHoldingUnit] = useState<HoldingOption | "">("");
@@ -249,6 +263,7 @@ export default function SendLetterPage() {
   const [saving, setSaving] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [done, setDone] = useState(false);
+  const [submittedSystemLetterNumber, setSubmittedSystemLetterNumber] = useState("");
   const [error, setError] = useState("");
 
   const attachmentPreviewUrls = useMemo(
@@ -327,8 +342,30 @@ export default function SendLetterPage() {
     [recipients, selectedIds],
   );
 
-  const toggleRecipient = (id: number) => {
+  const setRecipientSelected = (id: number, selected: boolean) => {
     setSelectedIds((current) => {
+      const next = new Set(current);
+      if (selected) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+    setCommentTargetIds((current) => {
+      const next = new Set(current);
+      if (selected) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+    if (!selected) {
+      setRecipientComments((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
+    }
+  };
+
+  const toggleCommentTarget = (id: number) => {
+    setCommentTargetIds((current) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -336,17 +373,37 @@ export default function SendLetterPage() {
     });
   };
 
+  const applySharedComment = () => {
+    const comment = sharedComment.trim();
+    if (!comment || commentTargetIds.size === 0) return;
+    setRecipientComments((current) => {
+      const next = { ...current };
+      commentTargetIds.forEach((id) => {
+        if (selectedIds.has(id)) next[id] = comment;
+      });
+      return next;
+    });
+    setSharedComment("");
+  };
+
   const resetForm = ({ keepDone = false }: { keepDone?: boolean } = {}) => {
     setSubject("");
     setDescription("");
     setLetterNumber("");
     setNeedsReply("");
+    setNeedsAction("");
     setDueDate("");
     setSender("");
     setHoldingUnit("");
     setAttachments([]);
     setSelectedIds(new Set());
-    if (!keepDone) setDone(false);
+    setSharedComment("");
+    setCommentTargetIds(new Set());
+    setRecipientComments({});
+    if (!keepDone) {
+      setDone(false);
+      setSubmittedSystemLetterNumber("");
+    }
     setError("");
   };
 
@@ -360,6 +417,9 @@ export default function SendLetterPage() {
     if (!needsReply) {
       return "نیاز به پاسخ را مشخص کنید.";
     }
+    if (!needsAction) {
+      return "نیاز به اقدام را مشخص کنید.";
+    }
     if (needsReply === "دارد" && !dueDate.trim()) {
       return "مهلت انجام را مشخص کنید.";
     }
@@ -371,6 +431,9 @@ export default function SendLetterPage() {
     }
     if (selectedIds.size === 0) {
       return "حداقل یک گیرنده را انتخاب کنید.";
+    }
+    if (sharedComment.trim()) {
+      return "برای ثبت یادداشت مشترک، ابتدا دکمه «اعمال» را بزنید.";
     }
     return "";
   };
@@ -406,10 +469,21 @@ export default function SendLetterPage() {
     fd.append("description", description.trim());
     fd.append("letter_number", letterNumber.trim());
     fd.append("needs_reply", needsReply);
+    fd.append("needs_action", needsAction);
     fd.append("due_date", needsReply === "دارد" ? dueDate.trim() : "");
     fd.append("sender", sender);
     fd.append("sender_detail", sender === "هلدینگ" ? holdingUnit : "");
     fd.append("recipient_ids", JSON.stringify([...selectedIds]));
+    fd.append(
+      "recipient_comments",
+      JSON.stringify(
+        Object.fromEntries(
+          [...selectedIds]
+            .map((id) => [String(id), (recipientComments[id] || "").trim()])
+            .filter(([, comment]) => Boolean(comment)),
+        ),
+      ),
+    );
     attachments.forEach((file) => fd.append("attachments", file));
 
     const token = localStorage.getItem("access_token");
@@ -419,8 +493,10 @@ export default function SendLetterPage() {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: fd,
       });
+      const payload = (await res.json().catch(() => null)) as
+        | (Partial<LetterSendResponse> & { detail?: unknown })
+        | null;
       if (!res.ok) {
-        const payload = await res.json().catch(() => null);
         throw new Error(
           typeof payload?.detail === "string"
             ? payload.detail
@@ -429,6 +505,11 @@ export default function SendLetterPage() {
       }
       setReviewOpen(false);
       resetForm({ keepDone: true });
+      setSubmittedSystemLetterNumber(
+        typeof payload?.system_letter_number === "string"
+          ? payload.system_letter_number
+          : "",
+      );
       setDone(true);
     } catch (requestError) {
       setError(
@@ -481,9 +562,16 @@ export default function SendLetterPage() {
             className="space-y-6 rounded-3xl border border-slate-100 bg-white p-8 shadow-xl"
           >
             {done && (
-              <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-700">
+              <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-700">
                 <CheckCircle2 size={20} />
-                نامه با موفقیت ارسال شد و در وظایف گیرندگان قرار گرفت.
+                <div>
+                  <p>نامه با موفقیت ارسال شد و در وظایف گیرندگان قرار گرفت.</p>
+                  {submittedSystemLetterNumber && (
+                    <p className="mt-1 font-extrabold">
+                      شماره نامه سیستمی: {submittedSystemLetterNumber}
+                    </p>
+                  )}
+                </div>
               </div>
             )}
             {error && (
@@ -520,6 +608,18 @@ export default function SendLetterPage() {
 
             <div>
               <label className="mb-2 block text-sm font-bold text-slate-700">
+                شماره نامه سیستمی
+              </label>
+              <Input
+                value="پس از ارسال، به‌صورت خودکار صادر می‌شود"
+                readOnly
+                aria-readonly="true"
+                className="h-12 rounded-xl bg-slate-50 text-slate-500"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-bold text-slate-700">
                 نیاز به پاسخ
               </label>
               <Select
@@ -535,6 +635,29 @@ export default function SendLetterPage() {
                 </SelectTrigger>
                 <SelectContent position="popper" sideOffset={4}>
                   {NEEDS_REPLY_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-bold text-slate-700">
+                نیاز به اقدام
+              </label>
+              <Select
+                value={needsAction || undefined}
+                onValueChange={(value) =>
+                  setNeedsAction(value as NeedsActionOption)
+                }
+              >
+                <SelectTrigger className="h-12 w-full rounded-xl border-slate-200 bg-white text-right shadow-sm">
+                  <SelectValue placeholder="انتخاب کنید" />
+                </SelectTrigger>
+                <SelectContent position="popper" sideOffset={4}>
+                  {NEEDS_ACTION_OPTIONS.map((option) => (
                     <SelectItem key={option} value={option}>
                       {option}
                     </SelectItem>
@@ -689,7 +812,9 @@ export default function SendLetterPage() {
                         <input
                           type="checkbox"
                           checked={checked}
-                          onChange={() => toggleRecipient(user.id)}
+                          onChange={(event) =>
+                            setRecipientSelected(user.id, event.target.checked)
+                          }
                           className="h-4 w-4 accent-red-600"
                         />
                         <div className="min-w-0 flex-1">
@@ -713,6 +838,134 @@ export default function SendLetterPage() {
                 </div>
               )}
             </div>
+
+            <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-800">
+                  یادداشت برای گیرندگان
+                </h3>
+                <p className="mt-1 text-xs leading-6 text-slate-500">
+                  یک یادداشت را برای همه یا چند گیرنده اعمال کنید و در صورت
+                  نیاز، متن هر نفر را جداگانه تغییر دهید.
+                </p>
+              </div>
+
+              {selectedRecipients.length === 0 ? (
+                <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-white p-4 text-center text-sm text-slate-400">
+                  ابتدا حداقل یک گیرنده را انتخاب کنید.
+                </div>
+              ) : (
+                <div className="mt-4 space-y-5">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                    <label className="text-sm font-bold text-slate-700">
+                      یادداشت مشترک
+                    </label>
+                    <Textarea
+                      value={sharedComment}
+                      onChange={(event) => setSharedComment(event.target.value)}
+                      rows={3}
+                      maxLength={4000}
+                      className="mt-2 rounded-xl"
+                      placeholder="متن یادداشت را بنویسید"
+                    />
+
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-bold text-slate-500">
+                        این یادداشت برای چه کسانی اعمال شود؟
+                      </p>
+                      <div className="flex gap-3 text-xs font-bold">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCommentTargetIds(new Set(selectedIds))
+                          }
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          انتخاب همه
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCommentTargetIds(new Set())}
+                          className="text-slate-400 hover:text-slate-600"
+                        >
+                          لغو انتخاب
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex max-h-36 flex-wrap gap-2 overflow-y-auto rounded-xl border border-slate-100 bg-slate-50 p-3">
+                      {selectedRecipients.map((user) => (
+                        <label
+                          key={user.id}
+                          className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                            commentTargetIds.has(user.id)
+                              ? "border-red-200 bg-red-50 text-red-700"
+                              : "border-slate-200 bg-white text-slate-500"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={commentTargetIds.has(user.id)}
+                            onChange={() => toggleCommentTarget(user.id)}
+                            className="h-3.5 w-3.5 accent-red-600"
+                          />
+                          <UserDisplayName user={user} />
+                        </label>
+                      ))}
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={
+                          !sharedComment.trim() || commentTargetIds.size === 0
+                        }
+                        onClick={applySharedComment}
+                        className="rounded-xl border-red-200 text-red-700 hover:bg-red-50"
+                      >
+                        اعمال برای{" "}
+                        {commentTargetIds.size.toLocaleString("fa-IR")} گیرنده
+                      </Button>
+                      <p className="text-xs text-slate-400">
+                        اعمال یادداشت، متن فعلی گیرندگان انتخاب‌شده را جایگزین
+                        می‌کند.
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="mb-3 text-sm font-bold text-slate-700">
+                      یادداشت اختصاصی هر گیرنده
+                    </p>
+                    <div className="max-h-[32rem] space-y-3 overflow-y-auto pl-1">
+                      {selectedRecipients.map((user) => (
+                        <div
+                          key={user.id}
+                          className="rounded-2xl border border-slate-200 bg-white p-4"
+                        >
+                          <label className="text-sm font-bold text-slate-800">
+                            <UserDisplayName user={user} />
+                          </label>
+                          <Textarea
+                            value={recipientComments[user.id] || ""}
+                            onChange={(event) =>
+                              setRecipientComments((current) => ({
+                                ...current,
+                                [user.id]: event.target.value,
+                              }))
+                            }
+                            rows={3}
+                            maxLength={4000}
+                            className="mt-2 rounded-xl"
+                            placeholder="یادداشت اختصاصی این گیرنده (اختیاری)"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </section>
 
             <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
               <Button
@@ -776,7 +1029,12 @@ export default function SendLetterPage() {
             <div className="space-y-4 overflow-y-auto px-5 py-5 text-sm">
               <ReviewRow label="موضوع" value={subject.trim()} />
               <ReviewRow label="شماره نامه" value={letterNumber.trim()} />
+              <ReviewRow
+                label="شماره نامه سیستمی"
+                value="پس از تأیید و ارسال صادر می‌شود"
+              />
               <ReviewRow label="نیاز به پاسخ" value={needsReply || "—"} />
+              <ReviewRow label="نیاز به اقدام" value={needsAction || "—"} />
               {needsReply === "دارد" && (
                 <ReviewRow label="مهلت انجام" value={dueDate || "—"} />
               )}
@@ -844,15 +1102,23 @@ export default function SendLetterPage() {
                 )}
               </div>
               <div>
-                <p className="mb-2 text-xs font-bold text-slate-400">گیرندگان</p>
-                <div className="flex flex-wrap gap-2">
+                <p className="mb-2 text-xs font-bold text-slate-400">
+                  گیرندگان و یادداشت‌ها
+                </p>
+                <div className="space-y-2">
                   {selectedRecipients.map((user) => (
-                    <span
+                    <div
                       key={user.id}
-                      className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700"
+                      className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3"
                     >
-                      {user.display_name || user.username}
-                    </span>
+                      <p className="font-bold text-slate-800">
+                        <UserDisplayName user={user} />
+                      </p>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-slate-600">
+                        {(recipientComments[user.id] || "").trim() ||
+                          "بدون یادداشت"}
+                      </p>
+                    </div>
                   ))}
                 </div>
               </div>

@@ -360,6 +360,28 @@ MANAGEMENT_LETTER_FIELDS = [
     FormField(name="subject", label="موضوع درخواست", type="text", required=True),
     FormField(name="letter_number", label="شماره نامه", type="text", required=True),
     FormField(
+        name="system_letter_number",
+        label="شماره نامه سیستمی",
+        type="text",
+        required=False,
+    ),
+    FormField(
+        name="needs_action",
+        label="نیاز به اقدام",
+        type="select",
+        required=True,
+        options=[
+            SelectOption(
+                label="دارد",
+                value="دارد",
+            ),
+            SelectOption(
+                label="ندارد(جهت اطلاع)",
+                value="ندارد(جهت اطلاع)",
+            ),
+        ],
+    ),
+    FormField(
         name="needs_reply",
         label="نیاز به پاسخ",
         type="select",
@@ -396,6 +418,12 @@ MANAGEMENT_LETTER_FIELDS = [
     ),
     FormField(name="description", label="توضیحات", type="textarea", required=True),
     FormField(name="attachment", label="پیوست", type="file", required=False),
+    FormField(
+        name="recipient_comment",
+        label="یادداشت برای گیرنده",
+        type="textarea",
+        required=False,
+    ),
 ]
 
 FORM_TEMPLATES = {

@@ -132,6 +132,16 @@ def resolve_submission_attachment(
 NEEDS_REPLY_OPTIONS = {"دارد", "ندارد"}
 SENDER_OPTIONS = {"بانک", "شرکت های گروه", "سایر", "هلدینگ"}
 HOLDING_OPTIONS = {"فناوری اطلاعات", "مالی", "کسب و کار", "سایر"}
+NEEDS_ACTION_OPTIONS = {
+    "دارد",
+    "ندارد(جهت اطلاع)",
+}
+MAX_RECIPIENT_COMMENT_LENGTH = 4000
+
+
+def _system_letter_number(submission_id: int) -> str:
+    """Build one readable, unique number for a logical letter batch."""
+    return f"ML-{submission_id:08d}"
 
 
 def create_management_letters(
@@ -141,8 +151,10 @@ def create_management_letters(
     subject: str,
     description: str,
     recipient_ids: list[int],
+    recipient_comments: dict[int, str] | None = None,
     letter_number: str = "",
     needs_reply: str = "",
+    needs_action: str = "",
     due_date: str = "",
     sender: str = "",
     sender_detail: str = "",
@@ -157,6 +169,7 @@ def create_management_letters(
     cleaned_description = (description or "").strip()
     cleaned_letter_number = (letter_number or "").strip()
     cleaned_needs_reply = (needs_reply or "").strip()
+    cleaned_needs_action = (needs_action or "").strip()
     cleaned_due_date = (due_date or "").strip()
     cleaned_sender = (sender or "").strip()
     cleaned_sender_detail = (sender_detail or "").strip()
@@ -169,6 +182,8 @@ def create_management_letters(
         raise ValueError("شماره نامه الزامی است.")
     if cleaned_needs_reply not in NEEDS_REPLY_OPTIONS:
         raise ValueError("مقدار «نیاز به پاسخ» نامعتبر است.")
+    if cleaned_needs_action not in NEEDS_ACTION_OPTIONS:
+        raise ValueError("مقدار «نیاز به اقدام» نامعتبر است.")
     if cleaned_needs_reply == "دارد":
         if not cleaned_due_date:
             raise ValueError("مهلت انجام الزامی است.")
@@ -187,7 +202,29 @@ def create_management_letters(
         files = [{"name": attachment_name, "path": attachment_path}]
 
     recipients = _validate_recipients(db, actor, recipient_ids)
+    selected_recipient_ids = {recipient.id for recipient in recipients}
+    cleaned_recipient_comments: dict[int, str] = {}
+    for recipient_id, comment in (recipient_comments or {}).items():
+        if (
+            not isinstance(recipient_id, int)
+            or isinstance(recipient_id, bool)
+            or not isinstance(comment, str)
+        ):
+            raise ValueError("یادداشت گیرندگان نامعتبر است.")
+        if recipient_id not in selected_recipient_ids:
+            raise ValueError(
+                "یادداشت فقط برای گیرندگان انتخاب‌شده قابل ثبت است."
+            )
+        cleaned_comment = comment.strip()
+        if len(cleaned_comment) > MAX_RECIPIENT_COMMENT_LENGTH:
+            raise ValueError(
+                "یادداشت هر گیرنده حداکثر می‌تواند ۴۰۰۰ نویسه باشد."
+            )
+        if cleaned_comment:
+            cleaned_recipient_comments[recipient_id] = cleaned_comment
+
     batch_id = uuid.uuid4().hex
+    system_letter_number = ""
     submissions: list[Submission] = []
     first_path = files[0]["path"] if files else None
     first_name = files[0]["name"] if files else None
@@ -197,7 +234,9 @@ def create_management_letters(
             "subject": cleaned_subject,
             "description": cleaned_description,
             "letter_number": cleaned_letter_number,
+            "system_letter_number": system_letter_number,
             "needs_reply": cleaned_needs_reply,
+            "needs_action": cleaned_needs_action,
             "due_date": cleaned_due_date,
             "sender": cleaned_sender,
             "sender_detail": cleaned_sender_detail,
@@ -209,6 +248,9 @@ def create_management_letters(
             form_data["_attachments"] = files
             form_data["attachments"] = [item["name"] for item in files]
             form_data["attachment"] = first_name
+        recipient_comment = cleaned_recipient_comments.get(recipient.id, "")
+        if recipient_comment:
+            form_data["recipient_comment"] = recipient_comment
 
         submission = Submission(
             form_id=MANAGEMENT_LETTER_FORM_ID,
@@ -223,6 +265,10 @@ def create_management_letters(
         )
         db.add(submission)
         db.flush()
+        if not system_letter_number:
+            system_letter_number = _system_letter_number(submission.id)
+            form_data["system_letter_number"] = system_letter_number
+            submission.data = json.dumps(form_data, ensure_ascii=False)
         snapshot_submission_initial_assignees(
             db,
             submission,
@@ -292,6 +338,7 @@ def list_sent_letters(db: Session, user: User) -> list[dict]:
                 else None
             )
 
+        recipient_comment = str(data.get("recipient_comment") or "")
         if referrals:
             recipient_user = (
                 db.query(User).filter(User.id == referrals[0].to_user_id).first()
@@ -307,6 +354,7 @@ def list_sent_letters(db: Session, user: User) -> list[dict]:
                 "status_updated_at": submission.status_updated_at,
                 "submission_id": submission.id,
                 "referred_to": referred_to_name,
+                "comment": recipient_comment,
             }
         else:
             recipient = {
@@ -316,6 +364,7 @@ def list_sent_letters(db: Session, user: User) -> list[dict]:
                 "status_updated_at": submission.status_updated_at,
                 "submission_id": submission.id,
                 "referred_to": referred_to_name,
+                "comment": recipient_comment,
             }
 
         if batch_id not in groups:
@@ -328,7 +377,9 @@ def list_sent_letters(db: Session, user: User) -> list[dict]:
                 "subject": submission.subject,
                 "description": data.get("description") or "",
                 "letter_number": str(data.get("letter_number") or ""),
+                "system_letter_number": str(data.get("system_letter_number") or ""),
                 "needs_reply": str(data.get("needs_reply") or ""),
+                "needs_action": str(data.get("needs_action") or ""),
                 "due_date": str(data.get("due_date") or ""),
                 "sender": letter_sender,
                 "sender_detail": letter_sender_detail,

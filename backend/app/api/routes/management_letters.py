@@ -11,6 +11,7 @@ from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
 from app.services.management_letter_service import (
+    MAX_RECIPIENT_COMMENT_LENGTH,
     create_management_letters,
     list_letter_recipients,
     list_sent_letters,
@@ -39,6 +40,7 @@ class LetterRecipientStatus(BaseModel):
     status_updated_at: str | None = None
     submission_id: int
     referred_to: str | None = None
+    comment: str = ""
 
 
 class LetterReportItem(BaseModel):
@@ -46,7 +48,9 @@ class LetterReportItem(BaseModel):
     subject: str
     description: str
     letter_number: str = ""
+    system_letter_number: str = ""
     needs_reply: str = ""
+    needs_action: str = ""
     due_date: str = ""
     sender: str = ""
     sender_detail: str = ""
@@ -61,6 +65,7 @@ class LetterReportItem(BaseModel):
 class LetterSendResponse(BaseModel):
     message: str
     batch_id: str
+    system_letter_number: str
     count: int
     ids: list[int]
 
@@ -109,18 +114,52 @@ async def send_management_letter(
     description = str(form.get("description") or "")
     letter_number = str(form.get("letter_number") or "")
     needs_reply = str(form.get("needs_reply") or "")
+    needs_action = str(form.get("needs_action") or "")
     due_date = str(form.get("due_date") or "")
     sender = str(form.get("sender") or "")
     sender_detail = str(form.get("sender_detail") or "")
     recipient_ids = str(form.get("recipient_ids") or "[]")
+    recipient_comments = str(form.get("recipient_comments") or "{}")
 
     try:
         parsed_ids = json.loads(recipient_ids)
         if not isinstance(parsed_ids, list):
             raise ValueError("فهرست گیرندگان نامعتبر است.")
-        ids = [int(item) for item in parsed_ids]
+        if any(
+            not isinstance(item, int)
+            or isinstance(item, bool)
+            or item <= 0
+            for item in parsed_ids
+        ):
+            raise ValueError("فهرست گیرندگان نامعتبر است.")
+        ids = parsed_ids
     except (json.JSONDecodeError, TypeError, ValueError):
         raise HTTPException(status_code=400, detail="فهرست گیرندگان نامعتبر است.")
+
+    try:
+        parsed_comments = json.loads(recipient_comments)
+        if not isinstance(parsed_comments, dict):
+            raise ValueError("یادداشت گیرندگان نامعتبر است.")
+        comments: dict[int, str] = {}
+        for recipient_id, comment in parsed_comments.items():
+            if (
+                not recipient_id.isascii()
+                or not recipient_id.isdigit()
+                or recipient_id.startswith("0")
+                or not isinstance(comment, str)
+            ):
+                raise ValueError("یادداشت گیرندگان نامعتبر است.")
+            normalized_id = int(recipient_id)
+            if normalized_id in comments:
+                raise ValueError("یادداشت گیرندگان نامعتبر است.")
+            comments[normalized_id] = comment
+        if not set(comments).issubset(ids) or any(
+            len(comment.strip()) > MAX_RECIPIENT_COMMENT_LENGTH
+            for comment in comments.values()
+        ):
+            raise ValueError("یادداشت گیرندگان نامعتبر است.")
+    except (json.JSONDecodeError, TypeError, ValueError, OverflowError):
+        raise HTTPException(status_code=400, detail="یادداشت گیرندگان نامعتبر است.")
 
     uploads: list[UploadFile] = []
     for key in ("attachments", "attachment"):
@@ -135,8 +174,10 @@ async def send_management_letter(
             actor=current_user,
             subject=subject,
             description=description,
+            recipient_comments=comments,
             letter_number=letter_number,
             needs_reply=needs_reply,
+            needs_action=needs_action,
             due_date=due_date,
             sender=sender,
             sender_detail=sender_detail,
@@ -149,16 +190,20 @@ async def send_management_letter(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     batch_id = ""
+    system_letter_number = ""
     if submissions:
         try:
             data = json.loads(submissions[0].data or "{}")
             batch_id = str(data.get("letter_batch_id") or "")
+            system_letter_number = str(data.get("system_letter_number") or "")
         except (json.JSONDecodeError, TypeError):
             batch_id = ""
+            system_letter_number = ""
 
     return LetterSendResponse(
         message="نامه با موفقیت ارسال شد.",
         batch_id=batch_id,
+        system_letter_number=system_letter_number,
         count=len(submissions),
         ids=[item.id for item in submissions],
     )
@@ -183,7 +228,9 @@ def management_letter_report(
                 subject=row["subject"],
                 description=row["description"],
                 letter_number=row.get("letter_number") or "",
+                system_letter_number=row.get("system_letter_number") or "",
                 needs_reply=row.get("needs_reply") or "",
+                needs_action=row.get("needs_action") or "",
                 due_date=row.get("due_date") or "",
                 sender=row.get("sender") or "",
                 sender_detail=row.get("sender_detail") or "",
@@ -210,6 +257,7 @@ def management_letter_report(
                         ),
                         submission_id=item["submission_id"],
                         referred_to=item.get("referred_to"),
+                        comment=item.get("comment") or "",
                     )
                     for item in row["recipients"]
                 ],
