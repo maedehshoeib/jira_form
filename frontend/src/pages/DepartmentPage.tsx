@@ -79,7 +79,7 @@ export default function DepartmentPage() {
   }
 
   if (departmentId === "management-workflow") {
-    return <Navigate to="/management-workflow" replace />;
+    return <Navigate to="/management-workflow/external" replace />;
   }
 
   if (loadError) {

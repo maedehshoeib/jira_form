@@ -29,6 +29,7 @@ import { SiteBanner } from "../features/banner";
 import { SiteNews } from "../features/news";
 import { formatPersianDateTime } from "../lib/persianDate";
 import { cn } from "../lib/utils";
+import { LETTER_WORKFLOWS } from "./management/letterWorkflow";
 
 type HomeCard = {
   id: string;
@@ -124,10 +125,18 @@ const HOME_CARDS: HomeCard[] = [
     icon: Clock3,
   },
   {
-    id: "management-workflow",
-    title: "گردش کار مدیریت",
-    description: "ارسال نامه و پیگیری وضعیت",
-    href: "/management-workflow",
+    id: "external-letters",
+    title: LETTER_WORKFLOWS.external.title,
+    description: LETTER_WORKFLOWS.external.description,
+    href: LETTER_WORKFLOWS.external.homePath,
+    icon: Network,
+    departmentIds: ["management-workflow"],
+  },
+  {
+    id: "internal-letters",
+    title: LETTER_WORKFLOWS.internal.title,
+    description: LETTER_WORKFLOWS.internal.description,
+    href: LETTER_WORKFLOWS.internal.homePath,
     icon: Network,
     departmentIds: ["management-workflow"],
   },
@@ -145,7 +154,8 @@ const HOME_ICON_STYLES: Record<string, string> = {
   reports: "border-green-200 bg-green-50 text-green-700 dark:border-green-400/40 dark:bg-green-500/20 dark:text-green-200",
   contracts: "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-400/40 dark:bg-orange-500/20 dark:text-orange-200",
   timesheet: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-400/40 dark:bg-blue-500/20 dark:text-blue-200",
-  "management-workflow": "border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-400/40 dark:bg-indigo-500/20 dark:text-indigo-200",
+  "external-letters": "border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-400/40 dark:bg-indigo-500/20 dark:text-indigo-200",
+  "internal-letters": "border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-400/40 dark:bg-indigo-500/20 dark:text-indigo-200",
 };
 
 const formatNewsDate = (value: string) => formatPersianDateTime(value);
@@ -339,7 +349,7 @@ export default function HomePage() {
     return isAvailable ? card : { ...card, href: undefined };
   }).filter((card) => {
     // Restricted admin card: hide completely when the user has no access.
-    if (card.id === "management-workflow" && !card.href) return false;
+    if (card.departmentIds?.includes("management-workflow") && !card.href) return false;
     return true;
   });
 

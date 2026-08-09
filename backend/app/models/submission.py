@@ -28,6 +28,15 @@ class Submission(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class ManagementLetterNumberCounter(Base):
+    """Durable per-letter-type sequence used for system letter numbers."""
+
+    __tablename__ = "management_letter_number_counters"
+
+    letter_type: Mapped[str] = mapped_column(String(16), primary_key=True)
+    last_number: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
 class SubmissionInitialAssignee(Base):
     """Immutable snapshot of the users a request was initially routed to."""
 

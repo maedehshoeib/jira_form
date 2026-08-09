@@ -698,6 +698,7 @@ export default function MyTasksPage() {
           name === "attachments" ||
           name === "_attachments" ||
           name === "letter_batch_id" ||
+          name === "letter_type" ||
           name === "recipient_id" ||
           name === "recipient_name"
         ) {

@@ -30,6 +30,7 @@ import {
 import { Textarea } from "../../components/ui/textarea";
 import { API_BASE } from "../../config/portal";
 import { normalizePersianDate, PERSIAN_DATE_FORMAT } from "../../lib/persianDate";
+import { LETTER_WORKFLOWS, LetterType } from "./letterWorkflow";
 
 type LetterRecipient = {
   id: number;
@@ -238,7 +239,8 @@ function SenderDropdown({
   );
 }
 
-export default function SendLetterPage() {
+export default function SendLetterPage({ letterType }: { letterType: LetterType }) {
+  const workflow = LETTER_WORKFLOWS[letterType];
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [recipients, setRecipients] = useState<LetterRecipient[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -288,12 +290,14 @@ export default function SendLetterPage() {
       try {
         const access = await client.get<{ allowed: boolean }>(
           endpoints.managementLetterAccess,
+          { params: { letter_type: letterType } },
         );
         if (!active) return;
         setAllowed(access.data.allowed);
         if (!access.data.allowed) return;
         const { data } = await client.get<LetterRecipient[]>(
           endpoints.managementLetterRecipients,
+          { params: { letter_type: letterType } },
         );
         if (!active) return;
         setRecipients(data);
@@ -310,7 +314,7 @@ export default function SendLetterPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [letterType]);
 
   useEffect(() => {
     if (!reviewOpen) return;
@@ -465,6 +469,7 @@ export default function SendLetterPage() {
     setDone(false);
 
     const fd = new FormData();
+    fd.append("letter_type", letterType);
     fd.append("subject", subject.trim());
     fd.append("description", description.trim());
     fd.append("letter_number", letterNumber.trim());
@@ -531,7 +536,7 @@ export default function SendLetterPage() {
     <AppShell>
       <div className="mx-auto max-w-4xl">
         <Link
-          to="/management-workflow"
+          to={workflow.homePath}
           className="inline-flex items-center gap-2 font-semibold text-red-600 hover:text-red-700"
         >
           <ChevronLeft size={18} />
@@ -544,7 +549,9 @@ export default function SendLetterPage() {
               <Send size={28} />
             </div>
             <div>
-              <h1 className="text-2xl font-extrabold text-slate-900">ارسال نامه</h1>
+              <h1 className="text-2xl font-extrabold text-slate-900">
+                {workflow.sendTitle}
+              </h1>
               <p className="mt-1 text-sm text-slate-500">
                 مشابه فرم عمومی؛ پس از ارسال برای گیرندگان به‌صورت وظیفه ثبت می‌شود
               </p>
@@ -611,7 +618,7 @@ export default function SendLetterPage() {
                 شماره نامه سیستمی
               </label>
               <Input
-                value="پس از ارسال، به‌صورت خودکار صادر می‌شود"
+                value={`پس از ارسال، به‌صورت خودکار صادر می‌شود (مانند ${workflow.numberExample})`}
                 readOnly
                 aria-readonly="true"
                 className="h-12 rounded-xl bg-slate-50 text-slate-500"
@@ -794,7 +801,7 @@ export default function SendLetterPage() {
               {recipients.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
                   هنوز گیرنده‌ای توسط مدیر سیستم مشخص نشده است. از بخش مدیریت کاربران،
-                  گزینه «دریافت‌کننده نامه مدیریت» را فعال کنید.
+                  گزینه «دریافت‌کننده نامه‌های سازمانی» را فعال کنید.
                 </div>
               ) : (
                 <div className="max-h-72 space-y-2 overflow-y-auto rounded-2xl border border-slate-200 p-3">
@@ -971,7 +978,7 @@ export default function SendLetterPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={resetForm}
+                onClick={() => resetForm()}
                 className="rounded-xl"
               >
                 پاک کردن

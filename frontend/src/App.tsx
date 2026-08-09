@@ -153,27 +153,69 @@ export default function App() {
 
       <Route
         path="/management-workflow"
-        element={
-          <ProtectedRoute>
-            <ManagementWorkflowHome />
-          </ProtectedRoute>
-        }
+        element={<Navigate to="/management-workflow/external" replace />}
       />
 
       <Route
         path="/management-workflow/send"
+        element={<Navigate to="/management-workflow/external/send" replace />}
+      />
+
+      <Route
+        path="/management-workflow/report"
+        element={<Navigate to="/management-workflow/external/report" replace />}
+      />
+
+      <Route
+        path="/management-workflow/external"
         element={
           <ProtectedRoute>
-            <SendLetterPage />
+            <ManagementWorkflowHome letterType="external" />
           </ProtectedRoute>
         }
       />
 
       <Route
-        path="/management-workflow/report"
+        path="/management-workflow/external/send"
         element={
           <ProtectedRoute>
-            <LetterReportPage />
+            <SendLetterPage letterType="external" />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/management-workflow/external/report"
+        element={
+          <ProtectedRoute>
+            <LetterReportPage letterType="external" />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/management-workflow/internal"
+        element={
+          <ProtectedRoute>
+            <ManagementWorkflowHome letterType="internal" />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/management-workflow/internal/send"
+        element={
+          <ProtectedRoute>
+            <SendLetterPage letterType="internal" />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/management-workflow/internal/report"
+        element={
+          <ProtectedRoute>
+            <LetterReportPage letterType="internal" />
           </ProtectedRoute>
         }
       />

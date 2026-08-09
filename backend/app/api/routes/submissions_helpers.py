@@ -100,7 +100,9 @@ def _form_title(form_id: str) -> str:
 
 
 def _department_and_section_titles(
-    department_id: str, section_id: str
+    department_id: str,
+    section_id: str,
+    submission_data: str | None = None,
 ) -> tuple[str, str]:
     from app.services.portal_service import (
         MANAGEMENT_LETTER_SECTION,
@@ -108,12 +110,27 @@ def _department_and_section_titles(
     )
 
     if department_id == MANAGEMENT_WORKFLOW_ID:
+        letter_type = "external"
+        try:
+            stored_data = json.loads(submission_data or "{}")
+            if (
+                isinstance(stored_data, dict)
+                and stored_data.get("letter_type") == "internal"
+            ):
+                letter_type = "internal"
+        except (json.JSONDecodeError, TypeError):
+            pass
+        workflow_title = (
+            "نامه‌های درون‌سازمانی"
+            if letter_type == "internal"
+            else "نامه‌های برون‌سازمانی"
+        )
         section_title = (
-            "نامه‌های مدیریتی"
+            workflow_title
             if section_id == MANAGEMENT_LETTER_SECTION
             else section_id
         )
-        return "گردش کار مدیریت", section_title or "گردش کار مدیریت"
+        return workflow_title, section_title or workflow_title
 
     for department in DEPARTMENTS:
         if department.id != department_id:
@@ -446,7 +463,9 @@ def _submission_to_list_item(
             )
         )
     department_title, section_title = _department_and_section_titles(
-        submission.department_id, submission.section_id
+        submission.department_id,
+        submission.section_id,
+        submission.data,
     )
     initial_assignees = _initial_assignee_items(context, submission.id)
     referrals = _referral_items(context, submission.id)
@@ -513,7 +532,9 @@ def _submission_to_response(
             )
         )
     department_title, section_title = _department_and_section_titles(
-        submission.department_id, submission.section_id
+        submission.department_id,
+        submission.section_id,
+        submission.data,
     )
     initial_assignees = _initial_assignee_items(context, submission.id)
     referrals = _referral_items(context, submission.id)

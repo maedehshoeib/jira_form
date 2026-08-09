@@ -11,7 +11,12 @@ from sqlalchemy.pool import StaticPool
 from app.api.routes.management_letters import _format_report_dt
 from app.db.base import Base
 from app.models.department import Department  # noqa: F401 - registers FK target
-from app.models.submission import Submission, SubmissionInitialAssignee
+from app.models.submission import (
+    ManagementLetterNumberCounter,
+    Submission,
+    SubmissionInitialAssignee,
+    SubmissionReferral,
+)
 from app.models.user import User
 from app.services.form_duty_service import backfill_submission_initial_assignees
 from app.services.management_letter_service import (
@@ -79,6 +84,7 @@ class ManagementLetterServiceTests(unittest.TestCase):
         recipient_ids: list[int] | None = None,
         recipient_comments: dict[int, str] | None = None,
         letter_number: str = "نامه-۱",
+        letter_type: str = "external",
     ) -> list[Submission]:
         return create_management_letters(
             self.db,
@@ -93,6 +99,7 @@ class ManagementLetterServiceTests(unittest.TestCase):
             sender_detail="",
             recipient_ids=recipient_ids or [self.first_recipient.id],
             recipient_comments=recipient_comments,
+            letter_type=letter_type,
         )
 
     def _initial_recipient_ids(self, submission_id: int) -> list[int]:
@@ -156,47 +163,132 @@ class ManagementLetterServiceTests(unittest.TestCase):
             "2026/03/21 00:30",
         )
 
-    def test_generated_number_is_shared_per_batch_unique_across_batches_and_reported(self):
-        first_batch = self._create_letters(
+    def test_independent_type_sequences_are_exact_shared_and_report_isolated(self):
+        first_external_batch = self._create_letters(
             needs_action="دارد",
             recipient_ids=[self.first_recipient.id, self.second_recipient.id],
         )
-
-        self.assertEqual(len(first_batch), 2)
-        first_payloads = [json.loads(item.data) for item in first_batch]
-        first_numbers = {
-            str(payload.get("system_letter_number") or "")
-            for payload in first_payloads
-        }
-        self.assertEqual(len(first_numbers), 1)
-        first_number = first_numbers.pop()
-        self.assertTrue(first_number)
-        self.assertTrue(
-            all(payload.get("needs_action") == "دارد" for payload in first_payloads)
+        first_internal_batch = self._create_letters(
+            needs_action="دارد",
+            letter_number="نامه داخلی-۱",
+            letter_type="internal",
         )
-
-        second_batch = self._create_letters(
+        second_external_batch = self._create_letters(
             needs_action="ندارد(جهت اطلاع)",
-            letter_number="نامه-۲",
+            letter_number="نامه خارجی-۲",
         )
-        second_payload = json.loads(second_batch[0].data)
-        second_number = str(second_payload.get("system_letter_number") or "")
-        self.assertTrue(second_number)
-        self.assertNotEqual(second_number, first_number)
-        self.assertEqual(second_payload.get("needs_action"), "ندارد(جهت اطلاع)")
+        second_internal_batch = self._create_letters(
+            needs_action="ندارد(جهت اطلاع)",
+            letter_number="نامه داخلی-۲",
+            letter_type="internal",
+        )
 
-        report_by_number = {
-            str(item.get("system_letter_number") or ""): item
-            for item in list_sent_letters(self.db, self.actor)
-        }
-        self.assertIn(first_number, report_by_number)
-        self.assertIn(second_number, report_by_number)
-        self.assertEqual(report_by_number[first_number]["needs_action"], "دارد")
+        external_payloads = [
+            json.loads(item.data) for item in first_external_batch
+        ]
+        self.assertEqual(len(external_payloads), 2)
         self.assertEqual(
-            report_by_number[second_number]["needs_action"],
-            "ندارد(جهت اطلاع)",
+            {payload["system_letter_number"] for payload in external_payloads},
+            {"1001/ب"},
         )
-        self.assertEqual(len(report_by_number[first_number]["recipients"]), 2)
+        self.assertTrue(
+            all(payload["letter_type"] == "external" for payload in external_payloads)
+        )
+        expected_single_numbers = (
+            (first_internal_batch, "1001/د"),
+            (second_external_batch, "1002/ب"),
+            (second_internal_batch, "1002/د"),
+        )
+        for batch, expected_number in expected_single_numbers:
+            self.assertEqual(
+                json.loads(batch[0].data)["system_letter_number"],
+                expected_number,
+            )
+
+        reports = {
+            letter_type: list_sent_letters(
+                self.db,
+                self.actor,
+                letter_type=letter_type,
+            )
+            for letter_type in ("external", "internal")
+        }
+        self.assertEqual(
+            {item["system_letter_number"] for item in reports["external"]},
+            {"1001/ب", "1002/ب"},
+        )
+        self.assertEqual(
+            {item["system_letter_number"] for item in reports["internal"]},
+            {"1001/د", "1002/د"},
+        )
+        for letter_type, report in reports.items():
+            self.assertTrue(
+                all(item["letter_type"] == letter_type for item in report)
+            )
+        first_external_report = next(
+            item
+            for item in reports["external"]
+            if item["system_letter_number"] == "1001/ب"
+        )
+        self.assertEqual(len(first_external_report["recipients"]), 2)
+
+    def test_legacy_untyped_letter_defaults_external_and_keeps_ml_number(self):
+        legacy_batch = self._create_letters(needs_action="دارد")
+        legacy_payload = json.loads(legacy_batch[0].data)
+        legacy_payload.pop("letter_type")
+        legacy_payload["system_letter_number"] = "ML-00000042"
+        legacy_batch[0].data = json.dumps(legacy_payload, ensure_ascii=False)
+        self.db.commit()
+
+        external_report = list_sent_letters(self.db, self.actor)
+        internal_report = list_sent_letters(
+            self.db,
+            self.actor,
+            letter_type="internal",
+        )
+
+        self.assertEqual(len(external_report), 1)
+        self.assertEqual(external_report[0]["letter_type"], "external")
+        self.assertEqual(external_report[0]["system_letter_number"], "ML-00000042")
+        self.assertEqual(internal_report, [])
+
+    def test_invalid_letter_types_are_rejected_before_counter_allocation(self):
+        for invalid_type in ("", "inside", "EXTERNAL", "داخلی"):
+            with self.subTest(letter_type=invalid_type):
+                with self.assertRaisesRegex(ValueError, "نوع نامه نامعتبر است"):
+                    self._create_letters(
+                        needs_action="دارد",
+                        letter_type=invalid_type,
+                    )
+
+        with self.assertRaisesRegex(ValueError, "نوع نامه نامعتبر است"):
+            list_sent_letters(self.db, self.actor, letter_type="invalid")
+        self.assertEqual(self.db.query(Submission).count(), 0)
+        self.assertEqual(self.db.query(ManagementLetterNumberCounter).count(), 0)
+
+    def test_counter_persists_and_does_not_reuse_deleted_letter_number(self):
+        first_batch = self._create_letters(needs_action="دارد")
+        self.assertEqual(
+            json.loads(first_batch[0].data)["system_letter_number"],
+            "1001/ب",
+        )
+
+        self.db.query(SubmissionReferral).delete(synchronize_session=False)
+        self.db.query(SubmissionInitialAssignee).delete(synchronize_session=False)
+        self.db.query(Submission).delete(synchronize_session=False)
+        self.db.commit()
+        actor_id = self.actor.id
+        recipient_id = self.first_recipient.id
+        self.db.close()
+        self.db = self.Session()
+        self.actor = self.db.get(User, actor_id)
+        self.first_recipient = self.db.get(User, recipient_id)
+
+        next_batch = self._create_letters(needs_action="دارد")
+        self.assertEqual(
+            json.loads(next_batch[0].data)["system_letter_number"],
+            "1002/ب",
+        )
 
     def test_recipient_comments_are_isolated_per_submission_and_reported(self):
         first_comment = "یادداشت مشترک\nخط دوم"

@@ -28,6 +28,7 @@ import {
   normalizePersianDate,
   PERSIAN_DATE_FORMAT,
 } from "../../lib/persianDate";
+import { LETTER_WORKFLOWS, LetterType } from "./letterWorkflow";
 
 type LetterRecipientStatus = {
   user_id: number | null;
@@ -98,7 +99,8 @@ function batchSummary(item: LetterReportItem) {
   return { total, done, rejected, referred, inProgress, pending };
 }
 
-export default function LetterReportPage() {
+export default function LetterReportPage({ letterType }: { letterType: LetterType }) {
+  const workflow = LETTER_WORKFLOWS[letterType];
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [items, setItems] = useState<LetterReportItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,11 +116,13 @@ export default function LetterReportPage() {
     try {
       const access = await client.get<{ allowed: boolean }>(
         endpoints.managementLetterAccess,
+        { params: { letter_type: letterType } },
       );
       setAllowed(access.data.allowed);
       if (!access.data.allowed) return;
       const { data } = await client.get<LetterReportItem[]>(
         endpoints.managementLetterReport,
+        { params: { letter_type: letterType } },
       );
       setItems(data);
     } catch {
@@ -131,7 +135,7 @@ export default function LetterReportPage() {
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [letterType]);
 
   const dateFiltered = useMemo(() => {
     if (fromDate && toDate && fromDate > toDate) return [];
@@ -226,7 +230,7 @@ export default function LetterReportPage() {
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div>
             <Link
-              to="/management-workflow"
+              to={workflow.homePath}
               className="inline-flex items-center gap-2 font-semibold text-red-600 hover:text-red-700"
             >
               <ChevronLeft size={18} />
@@ -237,7 +241,9 @@ export default function LetterReportPage() {
                 <BarChart3 size={24} />
               </div>
               <div>
-                <h1 className="text-2xl font-extrabold text-slate-900">گزارش نامه‌ها</h1>
+                <h1 className="text-2xl font-extrabold text-slate-900">
+                  {workflow.reportTitle}
+                </h1>
                 <p className="mt-1 text-sm text-slate-500">
                   وضعیت انجام نامه‌های ارسال‌شده برای هر گیرنده
                 </p>
@@ -370,7 +376,7 @@ export default function LetterReportPage() {
               پس از ارسال نامه از بخش «ارسال نامه»، وضعیت اینجا نمایش داده می‌شود.
             </p>
             <Link
-              to="/management-workflow/send"
+              to={`${workflow.homePath}/send`}
               className="mt-5 inline-block font-bold text-red-600"
             >
               ارسال نامه جدید

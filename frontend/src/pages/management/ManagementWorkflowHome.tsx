@@ -6,16 +6,24 @@ import client from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import AppShell from "../../components/layout/AppShell";
 import { Card, CardContent } from "../../components/ui/card";
+import { LETTER_WORKFLOWS, LetterType } from "./letterWorkflow";
 
-export default function ManagementWorkflowHome() {
+export default function ManagementWorkflowHome({
+  letterType,
+}: {
+  letterType: LetterType;
+}) {
+  const workflow = LETTER_WORKFLOWS[letterType];
   const [allowed, setAllowed] = useState<boolean | null>(null);
 
   useEffect(() => {
     client
-      .get<{ allowed: boolean }>(endpoints.managementLetterAccess)
+      .get<{ allowed: boolean }>(endpoints.managementLetterAccess, {
+        params: { letter_type: letterType },
+      })
       .then(({ data }) => setAllowed(data.allowed))
       .catch(() => setAllowed(false));
-  }, []);
+  }, [letterType]);
 
   if (allowed === null) {
     return (
@@ -45,15 +53,17 @@ export default function ManagementWorkflowHome() {
             <Network className="h-7 w-7" />
           </div>
           <div>
-            <h1 className="text-3xl font-extrabold text-slate-900">گردش کار مدیریت</h1>
+            <h1 className="text-3xl font-extrabold text-slate-900">
+              {workflow.title}
+            </h1>
             <p className="mt-1 text-sm text-slate-500">
-              ارسال نامه به کاربران منتخب و پیگیری وضعیت انجام
+              {workflow.description}
             </p>
           </div>
         </div>
 
         <div className="mt-10 grid gap-6 md:grid-cols-2">
-          <Link to="/management-workflow/send">
+          <Link to={`${workflow.homePath}/send`}>
             <Card className="group h-full rounded-3xl border border-slate-200 transition hover:-translate-y-1 hover:border-red-200 hover:shadow-lg">
               <CardContent className="p-8">
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50 text-red-600">
@@ -67,7 +77,7 @@ export default function ManagementWorkflowHome() {
             </Card>
           </Link>
 
-          <Link to="/management-workflow/report">
+          <Link to={`${workflow.homePath}/report`}>
             <Card className="group h-full rounded-3xl border border-slate-200 transition hover:-translate-y-1 hover:border-red-200 hover:shadow-lg">
               <CardContent className="p-8">
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">

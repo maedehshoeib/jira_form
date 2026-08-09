@@ -341,7 +341,7 @@ DEPARTMENTS = [
         ),
     ]),
     Department(id="contract-archive", title="ارشیو قراردادها", sections=[]),
-    Department(id="management-workflow", title="گردش کار مدیریت", sections=[]),
+    Department(id="management-workflow", title="نامه‌های سازمانی", sections=[]),
 ]
 
 DEPARTMENTS[0].sections.append(
@@ -436,7 +436,7 @@ FORM_TEMPLATES = {
     ),
     MANAGEMENT_LETTER_FORM_ID: FormTemplate(
         id=MANAGEMENT_LETTER_FORM_ID,
-        title="ارسال نامه",
+        title="ارسال نامه سازمانی",
         department_id=MANAGEMENT_WORKFLOW_ID,
         section_id=MANAGEMENT_LETTER_SECTION,
         fields=MANAGEMENT_LETTER_FIELDS,

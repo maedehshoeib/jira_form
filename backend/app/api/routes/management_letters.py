@@ -10,12 +10,15 @@ from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
 from app.services.management_letter_service import (
+    DEFAULT_LETTER_TYPE,
     MAX_RECIPIENT_COMMENT_LENGTH,
+    LetterType,
     create_management_letters,
     list_letter_recipients,
     list_sent_letters,
     save_attachments,
     user_can_use_management_workflow,
+    validate_letter_type,
 )
 
 
@@ -55,6 +58,7 @@ class LetterReportItem(BaseModel):
     description: str
     letter_number: str = ""
     system_letter_number: str = ""
+    letter_type: LetterType = DEFAULT_LETTER_TYPE
     needs_reply: str = ""
     needs_action: str = ""
     due_date: str = ""
@@ -72,6 +76,7 @@ class LetterSendResponse(BaseModel):
     message: str
     batch_id: str
     system_letter_number: str
+    letter_type: LetterType
     count: int
     ids: list[int]
 
@@ -90,22 +95,38 @@ def _recipient_response(user: User) -> LetterRecipientResponse:
 
 @router.get("/access")
 def management_letter_access(
+    letter_type: LetterType = DEFAULT_LETTER_TYPE,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return {"allowed": user_can_use_management_workflow(db, current_user)}
+    return {
+        "allowed": user_can_use_management_workflow(
+            db,
+            current_user,
+            letter_type=letter_type,
+        )
+    }
 
 
 @router.get("/recipients", response_model=list[LetterRecipientResponse])
 def get_letter_recipients(
+    letter_type: LetterType = DEFAULT_LETTER_TYPE,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if not user_can_use_management_workflow(db, current_user):
-        raise HTTPException(status_code=403, detail="شما به گردش کار مدیریت دسترسی ندارید.")
+    if not user_can_use_management_workflow(
+        db,
+        current_user,
+        letter_type=letter_type,
+    ):
+        raise HTTPException(status_code=403, detail="شما به نامه‌های سازمانی دسترسی ندارید.")
     return [
         _recipient_response(user)
-        for user in list_letter_recipients(db, exclude_user_id=current_user.id)
+        for user in list_letter_recipients(
+            db,
+            exclude_user_id=current_user.id,
+            letter_type=letter_type,
+        )
     ]
 
 
@@ -116,6 +137,15 @@ async def send_management_letter(
     current_user: User = Depends(get_current_user),
 ):
     form = await request.form()
+    raw_letter_type = form.get("letter_type")
+    try:
+        letter_type = validate_letter_type(
+            DEFAULT_LETTER_TYPE
+            if raw_letter_type is None
+            else str(raw_letter_type)
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     subject = str(form.get("subject") or "")
     description = str(form.get("description") or "")
     letter_number = str(form.get("letter_number") or "")
@@ -189,6 +219,7 @@ async def send_management_letter(
             sender_detail=sender_detail,
             recipient_ids=ids,
             attachments=saved_files,
+            letter_type=letter_type,
         )
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
@@ -210,6 +241,7 @@ async def send_management_letter(
         message="نامه با موفقیت ارسال شد.",
         batch_id=batch_id,
         system_letter_number=system_letter_number,
+        letter_type=letter_type,
         count=len(submissions),
         ids=[item.id for item in submissions],
     )
@@ -217,11 +249,12 @@ async def send_management_letter(
 
 @router.get("/report", response_model=list[LetterReportItem])
 def management_letter_report(
+    letter_type: LetterType = DEFAULT_LETTER_TYPE,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
-        rows = list_sent_letters(db, current_user)
+        rows = list_sent_letters(db, current_user, letter_type=letter_type)
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
 
@@ -235,6 +268,7 @@ def management_letter_report(
                 description=row["description"],
                 letter_number=row.get("letter_number") or "",
                 system_letter_number=row.get("system_letter_number") or "",
+                letter_type=row.get("letter_type") or DEFAULT_LETTER_TYPE,
                 needs_reply=row.get("needs_reply") or "",
                 needs_action=row.get("needs_action") or "",
                 due_date=row.get("due_date") or "",

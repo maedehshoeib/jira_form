@@ -1,7 +1,9 @@
 import json
 import uuid
 from pathlib import Path
+from typing import Literal, cast
 
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -17,11 +19,40 @@ from app.services.portal_service import (
 from app.services.task_workflow_service import list_submission_referrals
 
 
-def user_can_use_management_workflow(db: Session, user: User) -> bool:
+LetterType = Literal["internal", "external"]
+DEFAULT_LETTER_TYPE: LetterType = "external"
+LETTER_TYPES = frozenset({"internal", "external"})
+LETTER_NUMBER_SUFFIXES: dict[LetterType, str] = {
+    "internal": "د",
+    "external": "ب",
+}
+LETTER_NUMBER_START = 1001
+
+
+def validate_letter_type(letter_type: str) -> LetterType:
+    """Validate an API/service letter type without changing bad input."""
+    if letter_type not in LETTER_TYPES:
+        raise ValueError("نوع نامه نامعتبر است.")
+    return cast(LetterType, letter_type)
+
+
+def user_can_use_management_workflow(
+    db: Session,
+    user: User,
+    *,
+    letter_type: str = DEFAULT_LETTER_TYPE,
+) -> bool:
+    validate_letter_type(letter_type)
     return can_access_restricted_department(db, user, MANAGEMENT_WORKFLOW_ID)
 
 
-def list_letter_recipients(db: Session, *, exclude_user_id: int | None = None) -> list[User]:
+def list_letter_recipients(
+    db: Session,
+    *,
+    exclude_user_id: int | None = None,
+    letter_type: str = DEFAULT_LETTER_TYPE,
+) -> list[User]:
+    validate_letter_type(letter_type)
     query = db.query(User).filter(
         User.is_active.is_(True),
         User.is_letter_recipient.is_(True),
@@ -139,9 +170,39 @@ NEEDS_ACTION_OPTIONS = {
 MAX_RECIPIENT_COMMENT_LENGTH = 4000
 
 
-def _system_letter_number(submission_id: int) -> str:
-    """Build one readable, unique number for a logical letter batch."""
-    return f"ML-{submission_id:08d}"
+def _stored_letter_type(data: dict) -> LetterType:
+    """Treat records created before letter types were introduced as external."""
+    value = data.get("letter_type")
+    if value is None or value == "":
+        return DEFAULT_LETTER_TYPE
+    if value in LETTER_TYPES:
+        return cast(LetterType, value)
+    # Invalid historical data must never appear in the internal-letter report.
+    return DEFAULT_LETTER_TYPE
+
+
+def _next_system_letter_number(db: Session, letter_type: LetterType) -> str:
+    """Atomically reserve the next durable number for one logical batch.
+
+    SQLite executes this upsert as one write statement. Each letter type owns a
+    separate row, so both sequences begin at 1001 and advance independently.
+    """
+    number = db.execute(
+        text(
+            """
+            INSERT INTO management_letter_number_counters (letter_type, last_number)
+            VALUES (:letter_type, :start_number)
+            ON CONFLICT(letter_type) DO UPDATE SET
+                last_number = management_letter_number_counters.last_number + 1
+            RETURNING last_number
+            """
+        ),
+        {
+            "letter_type": letter_type,
+            "start_number": LETTER_NUMBER_START,
+        },
+    ).scalar_one()
+    return f"{int(number)}/{LETTER_NUMBER_SUFFIXES[letter_type]}"
 
 
 def create_management_letters(
@@ -161,9 +222,15 @@ def create_management_letters(
     attachments: list[dict[str, str]] | None = None,
     attachment_path: str | None = None,
     attachment_name: str | None = None,
+    letter_type: str = DEFAULT_LETTER_TYPE,
 ) -> list[Submission]:
-    if not user_can_use_management_workflow(db, actor):
-        raise PermissionError("شما به گردش کار مدیریت دسترسی ندارید.")
+    normalized_letter_type = validate_letter_type(letter_type)
+    if not user_can_use_management_workflow(
+        db,
+        actor,
+        letter_type=normalized_letter_type,
+    ):
+        raise PermissionError("شما به نامه‌های سازمانی دسترسی ندارید.")
 
     cleaned_subject = (subject or "").strip()
     cleaned_description = (description or "").strip()
@@ -227,7 +294,7 @@ def create_management_letters(
             cleaned_recipient_comments[recipient_id] = cleaned_comment
 
     batch_id = uuid.uuid4().hex
-    system_letter_number = ""
+    system_letter_number = _next_system_letter_number(db, normalized_letter_type)
     submissions: list[Submission] = []
     first_path = files[0]["path"] if files else None
     first_name = files[0]["name"] if files else None
@@ -238,6 +305,7 @@ def create_management_letters(
             "description": cleaned_description,
             "letter_number": cleaned_letter_number,
             "system_letter_number": system_letter_number,
+            "letter_type": normalized_letter_type,
             "needs_reply": cleaned_needs_reply,
             "needs_action": cleaned_needs_action,
             "due_date": cleaned_due_date,
@@ -268,10 +336,6 @@ def create_management_letters(
         )
         db.add(submission)
         db.flush()
-        if not system_letter_number:
-            system_letter_number = _system_letter_number(submission.id)
-            form_data["system_letter_number"] = system_letter_number
-            submission.data = json.dumps(form_data, ensure_ascii=False)
         snapshot_submission_initial_assignees(
             db,
             submission,
@@ -282,7 +346,7 @@ def create_management_letters(
                 submission_id=submission.id,
                 from_user_id=actor.id,
                 to_user_id=recipient.id,
-                note="نامه مدیریت",
+                note="نامه‌های سازمانی",
             )
         )
         submissions.append(submission)
@@ -293,9 +357,19 @@ def create_management_letters(
     return submissions
 
 
-def list_sent_letters(db: Session, user: User) -> list[dict]:
-    if not user_can_use_management_workflow(db, user):
-        raise PermissionError("شما به گردش کار مدیریت دسترسی ندارید.")
+def list_sent_letters(
+    db: Session,
+    user: User,
+    *,
+    letter_type: str = DEFAULT_LETTER_TYPE,
+) -> list[dict]:
+    normalized_letter_type = validate_letter_type(letter_type)
+    if not user_can_use_management_workflow(
+        db,
+        user,
+        letter_type=normalized_letter_type,
+    ):
+        raise PermissionError("شما به نامه‌های سازمانی دسترسی ندارید.")
 
     query = db.query(Submission).filter(
         Submission.department_id == MANAGEMENT_WORKFLOW_ID,
@@ -320,6 +394,11 @@ def list_sent_letters(db: Session, user: User) -> list[dict]:
             data = json.loads(submission.data or "{}")
         except (json.JSONDecodeError, TypeError):
             data = {}
+        if not isinstance(data, dict):
+            data = {}
+        stored_letter_type = _stored_letter_type(data)
+        if stored_letter_type != normalized_letter_type:
+            continue
         batch_id = str(data.get("letter_batch_id") or f"single-{submission.id}")
         referrals = list_submission_referrals(db, submission.id)
         # First referral is the initial send; later ones mean the recipient referred onward.
@@ -381,6 +460,7 @@ def list_sent_letters(db: Session, user: User) -> list[dict]:
                 "description": data.get("description") or "",
                 "letter_number": str(data.get("letter_number") or ""),
                 "system_letter_number": str(data.get("system_letter_number") or ""),
+                "letter_type": stored_letter_type,
                 "needs_reply": str(data.get("needs_reply") or ""),
                 "needs_action": str(data.get("needs_action") or ""),
                 "due_date": str(data.get("due_date") or ""),

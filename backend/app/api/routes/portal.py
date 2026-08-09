@@ -308,7 +308,7 @@ async def create_submission(
     if form_id == MANAGEMENT_LETTER_FORM_ID:
         raise HTTPException(
             status_code=400,
-            detail="برای ارسال نامه از بخش گردش کار مدیریت استفاده کنید.",
+            detail="برای ارسال نامه از بخش نامه‌های سازمانی استفاده کنید.",
         )
     if form_id not in FORM_TEMPLATES or not can_access_target(
         db, current_user, department_id, section_id, form_id

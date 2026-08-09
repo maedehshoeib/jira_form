@@ -920,9 +920,9 @@ export default function AdminUsersPage() {
                   className="h-4 w-4 accent-indigo-600"
                 />
                 <span>
-                  <span className="block">دریافت‌کننده نامه مدیریت</span>
+                  <span className="block">دریافت‌کننده نامه‌های سازمانی</span>
                   <span className="mt-1 block text-xs font-medium text-slate-500">
-                    در فهرست گیرندگان «ارسال نامه» در گردش کار مدیریت نمایش داده می‌شود
+                    در فهرست گیرندگان نامه‌های درون‌سازمانی و برون‌سازمانی نمایش داده می‌شود
                   </span>
                 </span>
               </label>
@@ -973,8 +973,8 @@ export default function AdminUsersPage() {
                   دسترسی فرم‌ها: {accessEditor.title}
                 </h3>
                 <p className="mt-1 text-xs text-slate-500">
-                  دسترسی اختصاصی کاربر بر تنظیمات واحد سازمانی اولویت دارد. کارت
-                  «گردش کار مدیریت» فقط برای مدیر و کسانی که اینجا انتخاب شوند
+                  دسترسی اختصاصی کاربر بر تنظیمات واحد سازمانی اولویت دارد.
+                  کارت‌های «نامه‌های سازمانی» فقط برای مدیر و کسانی که اینجا انتخاب شوند
                   نمایش داده می‌شود.
                 </p>
               </div>
