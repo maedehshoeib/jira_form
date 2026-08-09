@@ -4,11 +4,17 @@ from sqlalchemy.orm import Session
 
 from app.models.form_template import DepartmentFormAccess, UserFormAccess
 from app.models.user import User
-from app.services.portal_service import DEPARTMENTS, MANAGEMENT_WORKFLOW_ID
+from app.services.portal_service import (
+    DEPARTMENTS,
+    INTERNAL_LETTERS_WORKFLOW_ID,
+    MANAGEMENT_WORKFLOW_ID,
+)
 
 
 # Visible only to admins or users/departments explicitly granted access.
-RESTRICTED_PORTAL_DEPARTMENTS = frozenset({MANAGEMENT_WORKFLOW_ID})
+RESTRICTED_PORTAL_DEPARTMENTS = frozenset(
+    {MANAGEMENT_WORKFLOW_ID, INTERNAL_LETTERS_WORKFLOW_ID}
+)
 
 
 @dataclass(frozen=True)
@@ -52,6 +58,11 @@ def access_catalog() -> list[AccessTarget]:
     return targets
 
 
+def duty_catalog() -> list[AccessTarget]:
+    """Return only real form routes that can own task-duty assignments."""
+    return [target for target in access_catalog() if target.section_id]
+
+
 def target_key(portal_department_id: str, section_id: str, form_id: str) -> str:
     return f"{portal_department_id}:{section_id}:{form_id}"
 
@@ -65,6 +76,14 @@ def parse_target_keys(keys: list[str]) -> list[AccessTarget]:
     invalid = sorted(set(keys) - set(by_key))
     if invalid:
         raise ValueError(f"Unknown form access target: {invalid[0]}")
+    return [by_key[key] for key in dict.fromkeys(keys)]
+
+
+def parse_duty_target_keys(keys: list[str]) -> list[AccessTarget]:
+    by_key = {target.key: target for target in duty_catalog()}
+    invalid = sorted(set(keys) - set(by_key))
+    if invalid:
+        raise ValueError(f"Unknown form duty target: {invalid[0]}")
     return [by_key[key] for key in dict.fromkeys(keys)]
 
 

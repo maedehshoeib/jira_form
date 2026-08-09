@@ -130,7 +130,7 @@ const HOME_CARDS: HomeCard[] = [
     description: LETTER_WORKFLOWS.external.description,
     href: LETTER_WORKFLOWS.external.homePath,
     icon: Network,
-    departmentIds: ["management-workflow"],
+    departmentIds: [LETTER_WORKFLOWS.external.accessDepartmentId],
   },
   {
     id: "internal-letters",
@@ -138,7 +138,7 @@ const HOME_CARDS: HomeCard[] = [
     description: LETTER_WORKFLOWS.internal.description,
     href: LETTER_WORKFLOWS.internal.homePath,
     icon: Network,
-    departmentIds: ["management-workflow"],
+    departmentIds: [LETTER_WORKFLOWS.internal.accessDepartmentId],
   },
 ];
 
@@ -349,7 +349,12 @@ export default function HomePage() {
     return isAvailable ? card : { ...card, href: undefined };
   }).filter((card) => {
     // Restricted admin card: hide completely when the user has no access.
-    if (card.departmentIds?.includes("management-workflow") && !card.href) return false;
+    const isRestrictedLetterCard = card.departmentIds?.some(
+      (id) =>
+        id === LETTER_WORKFLOWS.external.accessDepartmentId ||
+        id === LETTER_WORKFLOWS.internal.accessDepartmentId,
+    );
+    if (isRestrictedLetterCard && !card.href) return false;
     return true;
   });
 

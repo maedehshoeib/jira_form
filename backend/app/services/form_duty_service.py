@@ -11,8 +11,8 @@ from app.models.submission import Submission, SubmissionInitialAssignee
 from app.models.user import User
 from app.services.form_access_service import (
     AccessTarget,
-    access_catalog,
-    parse_target_keys,
+    duty_catalog,
+    parse_duty_target_keys,
     target_key,
 )
 
@@ -40,7 +40,7 @@ def list_assignments(db: Session) -> list[DutyEdge]:
         .order_by(User.display_name.asc(), User.username.asc(), FormDutyAssignment.id.asc())
         .all()
     )
-    catalog = {target.key: target for target in access_catalog()}
+    catalog = {target.key: target for target in duty_catalog()}
     edges: list[DutyEdge] = []
     for assignment, user in rows:
         key = target_key(
@@ -258,7 +258,7 @@ def replace_assignments(
 
     target_keys = [key for _, key in edges]
     targets_by_key: dict[str, AccessTarget] = {
-        target.key: target for target in parse_target_keys(target_keys)
+        target.key: target for target in parse_duty_target_keys(target_keys)
     }
 
     seen: set[tuple[int, str]] = set()

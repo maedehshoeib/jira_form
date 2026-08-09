@@ -12,6 +12,7 @@ from app.models.user import User
 from app.services.form_access_service import can_access_restricted_department
 from app.services.form_duty_service import snapshot_submission_initial_assignees
 from app.services.portal_service import (
+    INTERNAL_LETTERS_WORKFLOW_ID,
     MANAGEMENT_LETTER_FORM_ID,
     MANAGEMENT_LETTER_SECTION,
     MANAGEMENT_WORKFLOW_ID,
@@ -42,8 +43,13 @@ def user_can_use_management_workflow(
     *,
     letter_type: str = DEFAULT_LETTER_TYPE,
 ) -> bool:
-    validate_letter_type(letter_type)
-    return can_access_restricted_department(db, user, MANAGEMENT_WORKFLOW_ID)
+    normalized_letter_type = validate_letter_type(letter_type)
+    access_department_id = (
+        INTERNAL_LETTERS_WORKFLOW_ID
+        if normalized_letter_type == "internal"
+        else MANAGEMENT_WORKFLOW_ID
+    )
+    return can_access_restricted_department(db, user, access_department_id)
 
 
 def list_letter_recipients(
@@ -52,32 +58,35 @@ def list_letter_recipients(
     exclude_user_id: int | None = None,
     letter_type: str = DEFAULT_LETTER_TYPE,
 ) -> list[User]:
-    validate_letter_type(letter_type)
-    query = db.query(User).filter(
-        User.is_active.is_(True),
-        User.is_letter_recipient.is_(True),
-    )
+    normalized_letter_type = validate_letter_type(letter_type)
+    query = db.query(User).filter(User.is_active.is_(True))
+    if normalized_letter_type == "external":
+        query = query.filter(User.is_letter_recipient.is_(True))
     if exclude_user_id is not None:
         query = query.filter(User.id != exclude_user_id)
     return query.order_by(User.display_name.asc(), User.username.asc()).all()
 
 
-def _validate_recipients(db: Session, actor: User, recipient_ids: list[int]) -> list[User]:
+def _validate_recipients(
+    db: Session,
+    actor: User,
+    recipient_ids: list[int],
+    *,
+    letter_type: LetterType,
+) -> list[User]:
     unique_ids = list(dict.fromkeys(recipient_ids))
     if not unique_ids:
         raise ValueError("حداقل یک گیرنده را انتخاب کنید.")
     if actor.id in unique_ids:
         raise ValueError("نمی‌توانید نامه را برای خودتان ارسال کنید.")
 
-    recipients = (
-        db.query(User)
-        .filter(
-            User.id.in_(unique_ids),
-            User.is_active.is_(True),
-            User.is_letter_recipient.is_(True),
-        )
-        .all()
+    query = db.query(User).filter(
+        User.id.in_(unique_ids),
+        User.is_active.is_(True),
     )
+    if letter_type == "external":
+        query = query.filter(User.is_letter_recipient.is_(True))
+    recipients = query.all()
     found = {user.id for user in recipients}
     missing = [item for item in unique_ids if item not in found]
     if missing:
@@ -256,19 +265,30 @@ def create_management_letters(
             raise ValueError("مهلت انجام الزامی است.")
     else:
         cleaned_due_date = ""
-    if cleaned_sender not in SENDER_OPTIONS:
-        raise ValueError("فرستنده نامعتبر است.")
-    if cleaned_sender == "هلدینگ":
-        if cleaned_sender_detail not in HOLDING_OPTIONS:
-            raise ValueError("واحد هلدینگ را انتخاب کنید.")
+    if normalized_letter_type == "external":
+        if cleaned_sender not in SENDER_OPTIONS:
+            raise ValueError("فرستنده نامعتبر است.")
+        if cleaned_sender == "هلدینگ":
+            if cleaned_sender_detail not in HOLDING_OPTIONS:
+                raise ValueError("واحد هلدینگ را انتخاب کنید.")
+        else:
+            cleaned_sender_detail = ""
     else:
+        # Internal letters are sent by the logged-in user and have no separate
+        # sender field in their contract or persisted form data.
+        cleaned_sender = ""
         cleaned_sender_detail = ""
 
     files = list(attachments or [])
     if not files and attachment_path and attachment_name:
         files = [{"name": attachment_name, "path": attachment_path}]
 
-    recipients = _validate_recipients(db, actor, recipient_ids)
+    recipients = _validate_recipients(
+        db,
+        actor,
+        recipient_ids,
+        letter_type=normalized_letter_type,
+    )
     # Each submission below is a per-recipient copy of the same logical letter,
     # so every copy keeps the complete original audience for display.
     all_recipient_ids = [recipient.id for recipient in recipients]
@@ -309,12 +329,13 @@ def create_management_letters(
             "needs_reply": cleaned_needs_reply,
             "needs_action": cleaned_needs_action,
             "due_date": cleaned_due_date,
-            "sender": cleaned_sender,
-            "sender_detail": cleaned_sender_detail,
             "letter_batch_id": batch_id,
             "recipient_id": recipient.id,
             "recipient_name": recipient.display_name or recipient.username,
         }
+        if normalized_letter_type == "external":
+            form_data["sender"] = cleaned_sender
+            form_data["sender_detail"] = cleaned_sender_detail
         if files:
             form_data["_attachments"] = files
             form_data["attachments"] = [item["name"] for item in files]

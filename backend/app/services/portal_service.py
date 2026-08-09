@@ -341,7 +341,8 @@ DEPARTMENTS = [
         ),
     ]),
     Department(id="contract-archive", title="ارشیو قراردادها", sections=[]),
-    Department(id="management-workflow", title="نامه‌های سازمانی", sections=[]),
+    Department(id="management-workflow", title="نامه‌های برون‌سازمانی", sections=[]),
+    Department(id="internal-letters", title="نامه‌های درون‌سازمانی", sections=[]),
 ]
 
 DEPARTMENTS[0].sections.append(
@@ -353,6 +354,7 @@ DEPARTMENTS[0].sections.append(
 )
 
 MANAGEMENT_WORKFLOW_ID = "management-workflow"
+INTERNAL_LETTERS_WORKFLOW_ID = "internal-letters"
 MANAGEMENT_LETTER_SECTION = "send-letter"
 MANAGEMENT_LETTER_FORM_ID = "management-letter-form"
 

@@ -20,7 +20,8 @@ export default function DepartmentPage() {
     if (
       !departmentId ||
       departmentId === "contract-archive" ||
-      departmentId === "management-workflow"
+      departmentId === "management-workflow" ||
+      departmentId === "internal-letters"
     )
       return;
     setLoadError(false);
@@ -80,6 +81,10 @@ export default function DepartmentPage() {
 
   if (departmentId === "management-workflow") {
     return <Navigate to="/management-workflow/external" replace />;
+  }
+
+  if (departmentId === "internal-letters") {
+    return <Navigate to="/management-workflow/internal" replace />;
   }
 
   if (loadError) {

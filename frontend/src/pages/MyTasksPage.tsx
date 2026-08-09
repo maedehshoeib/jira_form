@@ -689,9 +689,15 @@ export default function MyTasksPage() {
 
   const visibleFields = useMemo(() => {
     if (!selected) return [];
+    const isInternalLetter =
+      selected.form_id === "management-letter-form" &&
+      selected.data.letter_type === "internal";
     const fieldsByName = new Map(template?.fields.map((field) => [field.name, field]));
     return Object.entries(selected.data)
       .filter(([name, value]) => {
+        if (isInternalLetter && (name === "sender" || name === "sender_detail")) {
+          return false;
+        }
         if (
           name === "_report_id" ||
           name === "attachment" ||

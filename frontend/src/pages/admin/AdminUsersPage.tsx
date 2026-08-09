@@ -708,7 +708,7 @@ export default function AdminUsersPage() {
                                 )}
                                 {user.is_letter_recipient && (
                                   <Badge className="bg-indigo-100 text-indigo-700 hover:bg-indigo-100">
-                                    گیرنده نامه
+                                    گیرنده نامه برون‌سازمانی
                                   </Badge>
                                 )}
                               </div>
@@ -920,9 +920,9 @@ export default function AdminUsersPage() {
                   className="h-4 w-4 accent-indigo-600"
                 />
                 <span>
-                  <span className="block">دریافت‌کننده نامه‌های سازمانی</span>
+                  <span className="block">دریافت‌کننده نامه‌های برون‌سازمانی</span>
                   <span className="mt-1 block text-xs font-medium text-slate-500">
-                    در فهرست گیرندگان نامه‌های درون‌سازمانی و برون‌سازمانی نمایش داده می‌شود
+                    در فهرست گیرندگان نامه‌های برون‌سازمانی نمایش داده می‌شود؛ فهرست نامه‌های درون‌سازمانی شامل همه کاربران فعال است
                   </span>
                 </span>
               </label>
@@ -974,8 +974,8 @@ export default function AdminUsersPage() {
                 </h3>
                 <p className="mt-1 text-xs text-slate-500">
                   دسترسی اختصاصی کاربر بر تنظیمات واحد سازمانی اولویت دارد.
-                  کارت‌های «نامه‌های سازمانی» فقط برای مدیر و کسانی که اینجا انتخاب شوند
-                  نمایش داده می‌شود.
+                  دسترسی کارت‌های «نامه‌های درون‌سازمانی» و «نامه‌های برون‌سازمانی»
+                  به‌صورت مستقل از همین فهرست قابل انتخاب است.
                 </p>
               </div>
               <Button

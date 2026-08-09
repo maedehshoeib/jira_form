@@ -40,7 +40,7 @@ export async function fetchFormDutyCatalog() {
   const { data } = await client.get<FormDutyCatalogTarget[]>(
     endpoints.adminFormAccessCatalog,
   );
-  return data;
+  return data.filter((target) => Boolean(target.section_id));
 }
 
 export async function fetchFormDuties() {

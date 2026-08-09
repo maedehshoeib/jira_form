@@ -417,9 +417,10 @@ export default function LetterReportPage({ letterType }: { letterType: LetterTyp
                         {item.due_date && (
                           <span>مهلت انجام: {item.due_date}</span>
                         )}
-                        {formatLetterSender(item) && (
-                          <span>فرستنده: {formatLetterSender(item)}</span>
-                        )}
+                        {letterType === "external" &&
+                          formatLetterSender(item) && (
+                            <span>فرستنده: {formatLetterSender(item)}</span>
+                          )}
                         <span>ارسال‌کننده: {item.sent_by}</span>
                         <span>
                           تاریخ: {formatPersianDateTime(item.created_at) || "—"}

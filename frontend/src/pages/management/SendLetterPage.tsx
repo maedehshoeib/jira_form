@@ -427,10 +427,10 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
     if (needsReply === "دارد" && !dueDate.trim()) {
       return "مهلت انجام را مشخص کنید.";
     }
-    if (!sender) {
+    if (letterType === "external" && !sender) {
       return "فرستنده را انتخاب کنید.";
     }
-    if (sender === "هلدینگ" && !holdingUnit) {
+    if (letterType === "external" && sender === "هلدینگ" && !holdingUnit) {
       return "واحد هلدینگ را انتخاب کنید.";
     }
     if (selectedIds.size === 0) {
@@ -476,8 +476,10 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
     fd.append("needs_reply", needsReply);
     fd.append("needs_action", needsAction);
     fd.append("due_date", needsReply === "دارد" ? dueDate.trim() : "");
-    fd.append("sender", sender);
-    fd.append("sender_detail", sender === "هلدینگ" ? holdingUnit : "");
+    if (letterType === "external") {
+      fd.append("sender", sender);
+      fd.append("sender_detail", sender === "هلدینگ" ? holdingUnit : "");
+    }
     fd.append("recipient_ids", JSON.stringify([...selectedIds]));
     fd.append(
       "recipient_comments",
@@ -692,19 +694,21 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
               </div>
             )}
 
-            <div>
-              <label className="mb-2 block text-sm font-bold text-slate-700">
-                فرستنده
-              </label>
-              <SenderDropdown
-                sender={sender}
-                holdingUnit={holdingUnit}
-                onSelect={(nextSender, nextHolding) => {
-                  setSender(nextSender);
-                  setHoldingUnit(nextHolding);
-                }}
-              />
-            </div>
+            {letterType === "external" && (
+              <div>
+                <label className="mb-2 block text-sm font-bold text-slate-700">
+                  فرستنده
+                </label>
+                <SenderDropdown
+                  sender={sender}
+                  holdingUnit={holdingUnit}
+                  onSelect={(nextSender, nextHolding) => {
+                    setSender(nextSender);
+                    setHoldingUnit(nextHolding);
+                  }}
+                />
+              </div>
+            )}
 
             <div>
               <label className="mb-2 block text-sm font-bold text-slate-700">
@@ -800,8 +804,9 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
 
               {recipients.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
-                  هنوز گیرنده‌ای توسط مدیر سیستم مشخص نشده است. از بخش مدیریت کاربران،
-                  گزینه «دریافت‌کننده نامه‌های سازمانی» را فعال کنید.
+                  {letterType === "internal"
+                    ? "کاربر فعال دیگری برای دریافت نامه یافت نشد."
+                    : "هنوز گیرنده‌ای توسط مدیر سیستم مشخص نشده است. از بخش مدیریت کاربران، گزینه «دریافت‌کننده نامه‌های برون‌سازمانی» را فعال کنید."}
                 </div>
               ) : (
                 <div className="max-h-72 space-y-2 overflow-y-auto rounded-2xl border border-slate-200 p-3">
@@ -1045,10 +1050,12 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
               {needsReply === "دارد" && (
                 <ReviewRow label="مهلت انجام" value={dueDate || "—"} />
               )}
-              <ReviewRow
-                label="فرستنده"
-                value={formatSenderLabel(sender, holdingUnit)}
-              />
+              {letterType === "external" && (
+                <ReviewRow
+                  label="فرستنده"
+                  value={formatSenderLabel(sender, holdingUnit)}
+                />
+              )}
               <ReviewRow label="توضیحات" value={description.trim()} multiline />
               <div>
                 <p className="mb-2 text-xs font-bold text-slate-400">پیوست‌ها</p>

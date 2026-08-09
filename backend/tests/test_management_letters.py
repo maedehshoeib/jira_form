@@ -9,8 +9,10 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.api.routes.management_letters import _format_report_dt
+from app.api.routes.portal import get_departments
 from app.db.base import Base
 from app.models.department import Department  # noqa: F401 - registers FK target
+from app.models.form_template import UserFormAccess
 from app.models.submission import (
     ManagementLetterNumberCounter,
     Submission,
@@ -19,9 +21,20 @@ from app.models.submission import (
 )
 from app.models.user import User
 from app.services.form_duty_service import backfill_submission_initial_assignees
+from app.services.form_access_service import (
+    access_catalog,
+    duty_catalog,
+    parse_duty_target_keys,
+)
 from app.services.management_letter_service import (
     create_management_letters,
+    list_letter_recipients,
     list_sent_letters,
+    user_can_use_management_workflow,
+)
+from app.services.portal_service import (
+    INTERNAL_LETTERS_WORKFLOW_ID,
+    MANAGEMENT_WORKFLOW_ID,
 )
 
 
@@ -65,11 +78,12 @@ class ManagementLetterServiceTests(unittest.TestCase):
         *,
         is_admin: bool = False,
         is_letter_recipient: bool = False,
+        is_active: bool = True,
     ) -> User:
         user = User(
             username=username,
             display_name=display_name,
-            is_active=True,
+            is_active=is_active,
             is_admin=is_admin,
             is_letter_recipient=is_letter_recipient,
         )
@@ -85,6 +99,8 @@ class ManagementLetterServiceTests(unittest.TestCase):
         recipient_comments: dict[int, str] | None = None,
         letter_number: str = "نامه-۱",
         letter_type: str = "external",
+        sender: str = "بانک",
+        sender_detail: str = "",
     ) -> list[Submission]:
         return create_management_letters(
             self.db,
@@ -95,8 +111,8 @@ class ManagementLetterServiceTests(unittest.TestCase):
             needs_reply="ندارد",
             needs_action=needs_action,
             due_date="",
-            sender="بانک",
-            sender_detail="",
+            sender=sender,
+            sender_detail=sender_detail,
             recipient_ids=recipient_ids or [self.first_recipient.id],
             recipient_comments=recipient_comments,
             letter_type=letter_type,
@@ -162,6 +178,206 @@ class ManagementLetterServiceTests(unittest.TestCase):
             _format_report_dt(datetime(2026, 3, 20, 21, 0)),
             "2026/03/21 00:30",
         )
+
+    def test_access_catalog_and_permissions_are_independent_by_letter_type(self):
+        catalog = {target.key: target for target in access_catalog()}
+        external_key = f"{MANAGEMENT_WORKFLOW_ID}::{MANAGEMENT_WORKFLOW_ID}"
+        internal_key = (
+            f"{INTERNAL_LETTERS_WORKFLOW_ID}::{INTERNAL_LETTERS_WORKFLOW_ID}"
+        )
+        self.assertIn(external_key, catalog)
+        self.assertIn(internal_key, catalog)
+        self.assertEqual(
+            catalog[external_key].portal_department_title,
+            "نامه‌های برون‌سازمانی",
+        )
+        self.assertEqual(
+            catalog[internal_key].portal_department_title,
+            "نامه‌های درون‌سازمانی",
+        )
+        duty_keys = {target.key for target in duty_catalog()}
+        self.assertNotIn(external_key, duty_keys)
+        self.assertNotIn(internal_key, duty_keys)
+        with self.assertRaisesRegex(ValueError, "Unknown form duty target"):
+            parse_duty_target_keys([internal_key])
+
+        limited_user = self._user(
+            "limited-user",
+            "کاربر دسترسی محدود",
+        )
+        limited_user.form_access_configured = True
+        self.db.add(
+            UserFormAccess(
+                user_id=limited_user.id,
+                portal_department_id=INTERNAL_LETTERS_WORKFLOW_ID,
+                section_id="",
+                form_id=INTERNAL_LETTERS_WORKFLOW_ID,
+            )
+        )
+        self.db.commit()
+
+        self.assertTrue(
+            user_can_use_management_workflow(
+                self.db,
+                limited_user,
+                letter_type="internal",
+            )
+        )
+        self.assertFalse(
+            user_can_use_management_workflow(
+                self.db,
+                limited_user,
+                letter_type="external",
+            )
+        )
+        visible_ids = {
+            department.id
+            for department in get_departments(
+                db=self.db,
+                current_user=limited_user,
+            )
+        }
+        self.assertIn(INTERNAL_LETTERS_WORKFLOW_ID, visible_ids)
+        self.assertNotIn(MANAGEMENT_WORKFLOW_ID, visible_ids)
+
+        self.db.query(UserFormAccess).filter(
+            UserFormAccess.user_id == limited_user.id
+        ).delete(synchronize_session=False)
+        self.db.add(
+            UserFormAccess(
+                user_id=limited_user.id,
+                portal_department_id=MANAGEMENT_WORKFLOW_ID,
+                section_id="",
+                form_id=MANAGEMENT_WORKFLOW_ID,
+            )
+        )
+        self.db.commit()
+        self.assertTrue(
+            user_can_use_management_workflow(
+                self.db,
+                limited_user,
+                letter_type="external",
+            )
+        )
+        self.assertFalse(
+            user_can_use_management_workflow(
+                self.db,
+                limited_user,
+                letter_type="internal",
+            )
+        )
+        visible_ids = {
+            department.id
+            for department in get_departments(
+                db=self.db,
+                current_user=limited_user,
+            )
+        }
+        self.assertIn(MANAGEMENT_WORKFLOW_ID, visible_ids)
+        self.assertNotIn(INTERNAL_LETTERS_WORKFLOW_ID, visible_ids)
+
+    def test_internal_recipient_list_uses_all_active_users_only(self):
+        active_unflagged = self._user(
+            "active-unflagged",
+            "کاربر فعال عادی",
+        )
+        inactive_flagged = self._user(
+            "inactive-flagged",
+            "گیرنده غیرفعال",
+            is_letter_recipient=True,
+            is_active=False,
+        )
+        self.db.commit()
+
+        external_ids = {
+            user.id
+            for user in list_letter_recipients(
+                self.db,
+                exclude_user_id=self.actor.id,
+                letter_type="external",
+            )
+        }
+        internal_ids = {
+            user.id
+            for user in list_letter_recipients(
+                self.db,
+                exclude_user_id=self.actor.id,
+                letter_type="internal",
+            )
+        }
+
+        self.assertEqual(
+            external_ids,
+            {self.first_recipient.id, self.second_recipient.id},
+        )
+        self.assertEqual(
+            internal_ids,
+            {
+                self.first_recipient.id,
+                self.second_recipient.id,
+                active_unflagged.id,
+            },
+        )
+        self.assertNotIn(self.actor.id, internal_ids)
+        self.assertNotIn(inactive_flagged.id, internal_ids)
+
+    def test_internal_letter_accepts_unflagged_recipient_and_omits_sender_data(self):
+        active_unflagged = self._user(
+            "internal-recipient",
+            "گیرنده داخلی",
+        )
+        inactive_user = self._user(
+            "inactive-internal-recipient",
+            "گیرنده داخلی غیرفعال",
+            is_active=False,
+        )
+        self.db.commit()
+
+        submissions = self._create_letters(
+            needs_action="دارد",
+            recipient_ids=[active_unflagged.id],
+            letter_type="internal",
+            sender="مقدار نامعتبر که باید نادیده گرفته شود",
+            sender_detail="مقدار نامعتبر",
+        )
+
+        payload = json.loads(submissions[0].data)
+        self.assertNotIn("sender", payload)
+        self.assertNotIn("sender_detail", payload)
+        self.assertEqual(submissions[0].department_id, MANAGEMENT_WORKFLOW_ID)
+        report = list_sent_letters(
+            self.db,
+            self.actor,
+            letter_type="internal",
+        )
+        self.assertEqual(report[0]["sender"], "")
+        self.assertEqual(report[0]["sender_detail"], "")
+        with self.assertRaisesRegex(ValueError, "فهرست مجاز نیست"):
+            self._create_letters(
+                needs_action="دارد",
+                recipient_ids=[inactive_user.id],
+                letter_type="internal",
+                sender="",
+            )
+
+    def test_external_letter_still_requires_sender_and_flagged_recipient(self):
+        active_unflagged = self._user(
+            "external-unflagged",
+            "کاربر عادی",
+        )
+        self.db.commit()
+
+        with self.assertRaisesRegex(ValueError, "فرستنده نامعتبر است"):
+            self._create_letters(
+                needs_action="دارد",
+                sender="",
+            )
+        with self.assertRaises(ValueError):
+            self._create_letters(
+                needs_action="دارد",
+                recipient_ids=[active_unflagged.id],
+            )
+        self.assertEqual(self.db.query(Submission).count(), 0)
 
     def test_independent_type_sequences_are_exact_shared_and_report_isolated(self):
         first_external_batch = self._create_letters(
