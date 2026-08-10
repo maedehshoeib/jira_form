@@ -400,7 +400,7 @@ export default function LetterReportPage({ letterType }: { letterType: LetterTyp
                         {item.description}
                       </p>
                       <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-400">
-                        {item.letter_number && (
+                        {letterType === "external" && item.letter_number && (
                           <span>شماره نامه: {item.letter_number}</span>
                         )}
                         {item.system_letter_number && (

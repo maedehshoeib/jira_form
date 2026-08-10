@@ -656,6 +656,7 @@ def refer_task_endpoint(
             submission_id,
             body.resolved_user_ids(),
             body.note,
+            allow_repeat=body.allow_repeat,
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

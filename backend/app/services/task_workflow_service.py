@@ -56,6 +56,7 @@ def _task_access_conditions(db: Session, user_id: int):
         row.submission_id
         for row in db.query(SubmissionReferral.submission_id)
         .filter(SubmissionReferral.to_user_id == user_id)
+        .distinct()
         .all()
     ]
     if referred_ids:
@@ -107,10 +108,19 @@ def list_pending_task_ids(db: Session, user_id: int) -> list[int]:
 
 
 def list_unseen_task_ids(db: Session, user_id: int) -> list[int]:
-    """IDs of accessible tasks this user has never opened."""
+    """IDs of accessible tasks not opened since their latest referral."""
     conditions = _task_access_conditions(db, user_id)
     if not conditions:
         return []
+    newer_referral_exists = (
+        db.query(SubmissionReferral.id)
+        .filter(
+            SubmissionReferral.submission_id == Submission.id,
+            SubmissionReferral.to_user_id == user_id,
+            SubmissionReferral.created_at > SubmissionView.last_viewed_at,
+        )
+        .exists()
+    )
     rows = (
         db.query(Submission.id)
         .outerjoin(
@@ -120,7 +130,10 @@ def list_unseen_task_ids(db: Session, user_id: int) -> list[int]:
                 SubmissionView.user_id == user_id,
             ),
         )
-        .filter(or_(*conditions), SubmissionView.id.is_(None))
+        .filter(
+            or_(*conditions),
+            or_(SubmissionView.id.is_(None), newer_referral_exists),
+        )
         .order_by(Submission.created_at.desc())
         .all()
     )
@@ -260,8 +273,17 @@ def refer_task(
     submission_id: int,
     to_user_id: int,
     note: str = "",
+    *,
+    allow_repeat: bool = False,
 ) -> SubmissionReferral:
-    referrals = refer_tasks(db, actor, submission_id, [to_user_id], note)
+    referrals = refer_tasks(
+        db,
+        actor,
+        submission_id,
+        [to_user_id],
+        note,
+        allow_repeat=allow_repeat,
+    )
     return referrals[0]
 
 
@@ -271,6 +293,8 @@ def refer_tasks(
     submission_id: int,
     to_user_ids: list[int],
     note: str = "",
+    *,
+    allow_repeat: bool = False,
 ) -> list[SubmissionReferral]:
     unique_ids: list[int] = []
     for user_id in to_user_ids:
@@ -308,7 +332,7 @@ def refer_tasks(
         )
         .all()
     }
-    if existing_ids:
+    if existing_ids and not allow_repeat:
         raise ValueError("این درخواست قبلاً به یکی از کاربران انتخاب‌شده ارجاع شده است.")
 
     cleaned_note = (note or "").strip()[:512]

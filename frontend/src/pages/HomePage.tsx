@@ -14,6 +14,7 @@ import {
   GraduationCap,
   Landmark,
   LucideIcon,
+  Mail,
   Megaphone,
   Monitor,
   Network,
@@ -38,9 +39,19 @@ type HomeCard = {
   href?: string;
   icon: LucideIcon;
   departmentIds?: string[];
+  featured?: boolean;
 };
 
 const HOME_CARDS: HomeCard[] = [
+  {
+    id: "internal-letters",
+    title: LETTER_WORKFLOWS.internal.title,
+    description: LETTER_WORKFLOWS.internal.description,
+    href: LETTER_WORKFLOWS.internal.homePath,
+    icon: Mail,
+    departmentIds: [LETTER_WORKFLOWS.internal.accessDepartmentId],
+    featured: true,
+  },
   {
     id: "guidelines",
     title: "دستورالعمل",
@@ -131,14 +142,6 @@ const HOME_CARDS: HomeCard[] = [
     href: LETTER_WORKFLOWS.external.homePath,
     icon: Network,
     departmentIds: [LETTER_WORKFLOWS.external.accessDepartmentId],
-  },
-  {
-    id: "internal-letters",
-    title: LETTER_WORKFLOWS.internal.title,
-    description: LETTER_WORKFLOWS.internal.description,
-    href: LETTER_WORKFLOWS.internal.homePath,
-    icon: Network,
-    departmentIds: [LETTER_WORKFLOWS.internal.accessDepartmentId],
   },
 ];
 
@@ -240,18 +243,43 @@ function NewsDetailModal({
 
 function DestinationCard({ card }: { card: HomeCard }) {
   const Icon = card.icon;
+  const isFeatured = card.featured && Boolean(card.href);
   const content = (
     <Card
       className={cn(
         "group relative isolate h-full overflow-hidden rounded-[1.75rem] border transition-all duration-500",
         card.href
-          ? "border-slate-200 bg-white shadow-sm hover:-translate-y-2 hover:border-red-200 hover:shadow-lg hover:shadow-red-100/60 focus-within:-translate-y-1 dark:border-slate-600 dark:bg-slate-800/90 dark:shadow-lg dark:shadow-black/30 dark:hover:border-red-400/50 dark:hover:bg-slate-800 dark:hover:shadow-red-950/40"
+          ? isFeatured
+            ? "border-indigo-200/90 bg-gradient-to-br from-indigo-50 via-white to-sky-50 shadow-[0_12px_32px_-20px_rgba(79,70,229,0.55)] hover:-translate-y-2 hover:border-indigo-300 hover:shadow-[0_18px_38px_-20px_rgba(79,70,229,0.65)] focus-within:-translate-y-1 dark:border-indigo-300/45 dark:from-indigo-950/80 dark:via-slate-800 dark:to-sky-950/60 dark:shadow-[0_16px_36px_-20px_rgba(129,140,248,0.5)] dark:hover:border-indigo-300/70"
+            : "border-slate-200 bg-white shadow-sm hover:-translate-y-2 hover:border-red-200 hover:shadow-lg hover:shadow-red-100/60 focus-within:-translate-y-1 dark:border-slate-600 dark:bg-slate-800/90 dark:shadow-lg dark:shadow-black/30 dark:hover:border-red-400/50 dark:hover:bg-slate-800 dark:hover:shadow-red-950/40"
           : "border-dashed border-slate-300 bg-slate-50 shadow-none dark:border-slate-600 dark:bg-slate-800/50",
       )}
     >
-      <div className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-red-500/10 blur-3xl transition-all duration-500 group-hover:bg-red-400/20 dark:bg-red-500/15 dark:group-hover:bg-red-400/25" />
-      <div className="pointer-events-none absolute -bottom-16 -left-12 h-36 w-36 rounded-full bg-rose-300/10 blur-3xl dark:bg-rose-300/5" />
+      {isFeatured && (
+        <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-indigo-500/70 to-transparent" />
+      )}
+      <div
+        className={cn(
+          "pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full blur-3xl transition-all duration-500",
+          isFeatured
+            ? "bg-indigo-500/20 group-hover:bg-indigo-400/30 dark:bg-indigo-400/20 dark:group-hover:bg-indigo-300/30"
+            : "bg-red-500/10 group-hover:bg-red-400/20 dark:bg-red-500/15 dark:group-hover:bg-red-400/25",
+        )}
+      />
+      <div
+        className={cn(
+          "pointer-events-none absolute -bottom-16 -left-12 h-36 w-36 rounded-full blur-3xl",
+          isFeatured
+            ? "bg-sky-300/25 dark:bg-sky-300/10"
+            : "bg-rose-300/10 dark:bg-rose-300/5",
+        )}
+      />
       <CardContent className="relative flex h-full min-h-56 flex-col items-center justify-center p-7 text-center sm:p-8">
+        {isFeatured && (
+          <span className="absolute right-4 top-4 rounded-full border border-indigo-200/80 bg-white/75 px-2.5 py-1 text-[11px] font-bold text-indigo-700 shadow-sm backdrop-blur dark:border-indigo-300/30 dark:bg-indigo-300/10 dark:text-indigo-200">
+            دسترسی سریع
+          </span>
+        )}
         {!card.href && (
           <span className="absolute left-4 top-4 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500 dark:border-white/20 dark:bg-black/20 dark:text-white/50 dark:backdrop-blur-md">
             به‌زودی
@@ -269,7 +297,14 @@ function DestinationCard({ card }: { card: HomeCard }) {
           <Icon className="h-8 w-8 shrink-0" strokeWidth={2} />
         </div>
 
-        <h3 className="text-xl font-bold leading-8 text-slate-900 dark:text-white">
+        <h3
+          className={cn(
+            "text-xl font-bold leading-8",
+            isFeatured
+              ? "text-indigo-950 dark:text-indigo-50"
+              : "text-slate-900 dark:text-white",
+          )}
+        >
           {card.title}
         </h3>
         <div className="mt-3 flex items-center justify-center gap-1 text-sm font-medium text-red-600 dark:text-red-200">
@@ -277,7 +312,14 @@ function DestinationCard({ card }: { card: HomeCard }) {
             {card.description}
           </span>
           {card.href && (
-            <ChevronLeft className="absolute bottom-4 left-4 h-9 w-9 shrink-0 rounded-full border border-slate-200 bg-slate-50 p-2 text-slate-500 transition-all group-hover:-translate-x-1 group-hover:border-red-200 group-hover:bg-red-50 group-hover:text-red-600 dark:border-white/25 dark:bg-white/10 dark:text-white/80 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_0_14px_rgba(255,255,255,0.08)] dark:backdrop-blur dark:group-hover:border-red-200/60 dark:group-hover:bg-red-400/20 dark:group-hover:text-white/80" />
+            <ChevronLeft
+              className={cn(
+                "absolute bottom-4 left-4 h-9 w-9 shrink-0 rounded-full border p-2 transition-all group-hover:-translate-x-1 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_0_14px_rgba(255,255,255,0.08)] dark:backdrop-blur",
+                isFeatured
+                  ? "border-indigo-200 bg-white/80 text-indigo-600 group-hover:border-indigo-300 group-hover:bg-indigo-100 dark:border-indigo-300/30 dark:bg-indigo-300/10 dark:text-indigo-100 dark:group-hover:border-indigo-200/60 dark:group-hover:bg-indigo-300/20"
+                  : "border-slate-200 bg-slate-50 text-slate-500 group-hover:border-red-200 group-hover:bg-red-50 group-hover:text-red-600 dark:border-white/25 dark:bg-white/10 dark:text-white/80 dark:group-hover:border-red-200/60 dark:group-hover:bg-red-400/20 dark:group-hover:text-white/80",
+              )}
+            />
           )}
         </div>
       </CardContent>

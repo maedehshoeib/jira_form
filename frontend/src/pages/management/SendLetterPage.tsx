@@ -415,7 +415,7 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
     if (!subject.trim() || !description.trim()) {
       return "موضوع و توضیحات الزامی است.";
     }
-    if (!letterNumber.trim()) {
+    if (letterType === "external" && !letterNumber.trim()) {
       return "شماره نامه الزامی است.";
     }
     if (!needsReply) {
@@ -472,7 +472,9 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
     fd.append("letter_type", letterType);
     fd.append("subject", subject.trim());
     fd.append("description", description.trim());
-    fd.append("letter_number", letterNumber.trim());
+    if (letterType === "external") {
+      fd.append("letter_number", letterNumber.trim());
+    }
     fd.append("needs_reply", needsReply);
     fd.append("needs_action", needsAction);
     fd.append("due_date", needsReply === "دارد" ? dueDate.trim() : "");
@@ -602,18 +604,20 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
               />
             </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-bold text-slate-700">
-                شماره نامه
-              </label>
-              <Input
-                value={letterNumber}
-                onChange={(event) => setLetterNumber(event.target.value)}
-                required
-                className="h-12 rounded-xl"
-                placeholder="شماره نامه"
-              />
-            </div>
+            {letterType === "external" && (
+              <div>
+                <label className="mb-2 block text-sm font-bold text-slate-700">
+                  شماره نامه
+                </label>
+                <Input
+                  value={letterNumber}
+                  onChange={(event) => setLetterNumber(event.target.value)}
+                  required
+                  className="h-12 rounded-xl"
+                  placeholder="شماره نامه"
+                />
+              </div>
+            )}
 
             <div>
               <label className="mb-2 block text-sm font-bold text-slate-700">
@@ -1040,7 +1044,9 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
 
             <div className="space-y-4 overflow-y-auto px-5 py-5 text-sm">
               <ReviewRow label="موضوع" value={subject.trim()} />
-              <ReviewRow label="شماره نامه" value={letterNumber.trim()} />
+              {letterType === "external" && (
+                <ReviewRow label="شماره نامه" value={letterNumber.trim()} />
+              )}
               <ReviewRow
                 label="شماره نامه سیستمی"
                 value="پس از تأیید و ارسال صادر می‌شود"

@@ -254,7 +254,7 @@ def create_management_letters(
         raise ValueError("موضوع نامه الزامی است.")
     if not cleaned_description:
         raise ValueError("توضیحات نامه الزامی است.")
-    if not cleaned_letter_number:
+    if normalized_letter_type == "external" and not cleaned_letter_number:
         raise ValueError("شماره نامه الزامی است.")
     if cleaned_needs_reply not in NEEDS_REPLY_OPTIONS:
         raise ValueError("مقدار «نیاز به پاسخ» نامعتبر است.")
@@ -323,7 +323,6 @@ def create_management_letters(
         form_data: dict = {
             "subject": cleaned_subject,
             "description": cleaned_description,
-            "letter_number": cleaned_letter_number,
             "system_letter_number": system_letter_number,
             "letter_type": normalized_letter_type,
             "needs_reply": cleaned_needs_reply,
@@ -334,6 +333,7 @@ def create_management_letters(
             "recipient_name": recipient.display_name or recipient.username,
         }
         if normalized_letter_type == "external":
+            form_data["letter_number"] = cleaned_letter_number
             form_data["sender"] = cleaned_sender
             form_data["sender_detail"] = cleaned_sender_detail
         if files:
@@ -479,7 +479,11 @@ def list_sent_letters(
                 "batch_id": batch_id,
                 "subject": submission.subject,
                 "description": data.get("description") or "",
-                "letter_number": str(data.get("letter_number") or ""),
+                "letter_number": (
+                    str(data.get("letter_number") or "")
+                    if stored_letter_type == "external"
+                    else ""
+                ),
                 "system_letter_number": str(data.get("system_letter_number") or ""),
                 "letter_type": stored_letter_type,
                 "needs_reply": str(data.get("needs_reply") or ""),

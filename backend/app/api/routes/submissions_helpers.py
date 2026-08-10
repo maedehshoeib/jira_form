@@ -323,6 +323,15 @@ def _workflow_fields(
         ),
         None,
     )
+    has_unseen_referral = bool(
+        viewer_view
+        and context.viewer_user_id is not None
+        and any(
+            referral.to_user_id == context.viewer_user_id
+            and referral.created_at > viewer_view.last_viewed_at
+            for referral in referrals
+        )
+    )
     first_viewed_at = (
         _format_dt(min(item.first_viewed_at for item in views))
         if views
@@ -339,7 +348,7 @@ def _workflow_fields(
             has_referrals=bool(referrals),
             has_views=bool(views),
         ),
-        viewer_view is not None,
+        viewer_view is not None and not has_unseen_referral,
         first_viewed_at,
         last_viewed_at,
     )

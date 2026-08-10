@@ -107,6 +107,7 @@ class TaskReferRequest(BaseModel):
     to_user_id: int | None = None
     to_user_ids: list[int] = Field(default_factory=list)
     note: str = Field(default="", max_length=512)
+    allow_repeat: bool = False
 
     def resolved_user_ids(self) -> list[int]:
         ids: list[int] = []

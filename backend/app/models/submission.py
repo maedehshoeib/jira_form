@@ -61,13 +61,6 @@ class SubmissionInitialAssignee(Base):
 
 class SubmissionReferral(Base):
     __tablename__ = "submission_referrals"
-    __table_args__ = (
-        UniqueConstraint(
-            "submission_id",
-            "to_user_id",
-            name="uq_submission_referral_target",
-        ),
-    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     submission_id: Mapped[int] = mapped_column(

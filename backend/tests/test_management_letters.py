@@ -336,12 +336,14 @@ class ManagementLetterServiceTests(unittest.TestCase):
         submissions = self._create_letters(
             needs_action="دارد",
             recipient_ids=[active_unflagged.id],
+            letter_number="",
             letter_type="internal",
             sender="مقدار نامعتبر که باید نادیده گرفته شود",
             sender_detail="مقدار نامعتبر",
         )
 
         payload = json.loads(submissions[0].data)
+        self.assertNotIn("letter_number", payload)
         self.assertNotIn("sender", payload)
         self.assertNotIn("sender_detail", payload)
         self.assertEqual(submissions[0].department_id, MANAGEMENT_WORKFLOW_ID)
@@ -352,6 +354,7 @@ class ManagementLetterServiceTests(unittest.TestCase):
         )
         self.assertEqual(report[0]["sender"], "")
         self.assertEqual(report[0]["sender_detail"], "")
+        self.assertEqual(report[0]["letter_number"], "")
         with self.assertRaisesRegex(ValueError, "فهرست مجاز نیست"):
             self._create_letters(
                 needs_action="دارد",
@@ -367,6 +370,11 @@ class ManagementLetterServiceTests(unittest.TestCase):
         )
         self.db.commit()
 
+        with self.assertRaisesRegex(ValueError, "شماره نامه الزامی است"):
+            self._create_letters(
+                needs_action="دارد",
+                letter_number="",
+            )
         with self.assertRaisesRegex(ValueError, "فرستنده نامعتبر است"):
             self._create_letters(
                 needs_action="دارد",

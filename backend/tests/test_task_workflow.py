@@ -210,6 +210,48 @@ class TaskWorkflowMockTests(unittest.TestCase):
             refer_task(
                 self.db, self.handler, self.submission.id, self.colleague.id, ""
             )
+        self.assertEqual(
+            self.db.query(SubmissionReferral)
+            .filter(
+                SubmissionReferral.submission_id == self.submission.id,
+                SubmissionReferral.to_user_id == self.colleague.id,
+            )
+            .count(),
+            1,
+        )
+
+    def test_allow_repeat_refer_appends_same_recipient_history(self):
+        first = refer_task(
+            self.db,
+            self.handler,
+            self.submission.id,
+            self.colleague.id,
+            "first referral",
+        )
+        repeated = refer_task(
+            self.db,
+            self.handler,
+            self.submission.id,
+            self.colleague.id,
+            "repeat referral",
+            allow_repeat=True,
+        )
+
+        referrals = (
+            self.db.query(SubmissionReferral)
+            .filter(
+                SubmissionReferral.submission_id == self.submission.id,
+                SubmissionReferral.to_user_id == self.colleague.id,
+            )
+            .order_by(SubmissionReferral.created_at, SubmissionReferral.id)
+            .all()
+        )
+        self.assertEqual([row.id for row in referrals], [first.id, repeated.id])
+        self.assertEqual(
+            [row.note for row in referrals],
+            ["first referral", "repeat referral"],
+        )
+        self.assertNotEqual(first.id, repeated.id)
 
     def test_self_refer_rejected(self):
         with self.assertRaises(ValueError):
@@ -500,6 +542,78 @@ class TaskWorkflowMockTests(unittest.TestCase):
             {self.colleague.id, second.id},
         )
 
+    def test_http_repeat_refer_accepts_mixed_old_and_new_recipients(self):
+        second = self._user("colleague2", "همکار دوم")
+        self._as(self.handler)
+        first = self.client.post(
+            f"/api/v1/tasks/{self.submission.id}/refer",
+            json={"to_user_id": self.colleague.id, "note": "first referral"},
+        )
+        self.assertEqual(first.status_code, 200, first.text)
+
+        rejected_without_opt_in = self.client.post(
+            f"/api/v1/tasks/{self.submission.id}/refer",
+            json={
+                "to_user_ids": [self.colleague.id, second.id],
+                "note": "should not be saved",
+            },
+        )
+        self.assertEqual(
+            rejected_without_opt_in.status_code,
+            422,
+            rejected_without_opt_in.text,
+        )
+        self.assertEqual(
+            self.db.query(SubmissionReferral)
+            .filter(SubmissionReferral.submission_id == self.submission.id)
+            .count(),
+            1,
+        )
+
+        repeated = self.client.post(
+            f"/api/v1/tasks/{self.submission.id}/refer",
+            json={
+                "to_user_ids": [self.colleague.id, second.id],
+                "note": "repeat round",
+                "allow_repeat": True,
+            },
+        )
+        self.assertEqual(repeated.status_code, 200, repeated.text)
+        body = repeated.json()
+        expected_history = [
+            (self.colleague.id, "first referral"),
+            (self.colleague.id, "repeat round"),
+            (second.id, "repeat round"),
+        ]
+        self.assertEqual(
+            [
+                (item["to_user_id"], item["note"])
+                for item in body["referrals"]
+            ],
+            expected_history,
+        )
+
+        referral_events = [
+            event
+            for event in body["timeline"]
+            if event["event_type"] == "referred"
+        ]
+        self.assertEqual(
+            [
+                (event["to_user_id"], event["note"])
+                for event in referral_events
+            ],
+            expected_history,
+        )
+        self.assertEqual(
+            [event["id"] for event in referral_events],
+            [f"referral:{item['id']}" for item in body["referrals"]],
+        )
+        self.assertEqual(
+            [event["event_type"] for event in body["timeline"]],
+            ["submitted", "referred", "referred", "referred"],
+        )
+
     def test_letter_recipient_sees_all_names_without_sibling_access(self):
         self.handler.is_letter_recipient = True
         self.colleague.is_letter_recipient = True
@@ -683,6 +797,60 @@ class TaskWorkflowMockTests(unittest.TestCase):
         self.assertEqual(referral_event["to_user_id"], self.colleague.id)
         self.assertEqual(referral_event["note"], "forward")
 
+    def test_repeat_referral_marks_recipient_unread_until_reopened(self):
+        self._as(self.handler)
+        referred = self.client.post(
+            f"/api/v1/tasks/{self.submission.id}/refer",
+            json={"to_user_id": self.colleague.id, "note": "first referral"},
+        )
+        self.assertEqual(referred.status_code, 200, referred.text)
+
+        self._as(self.colleague)
+        opened = self.client.get(f"/api/v1/tasks/{self.submission.id}")
+        self.assertEqual(opened.status_code, 200, opened.text)
+        self.assertTrue(opened.json()["is_read"])
+        self.assertEqual(
+            self.client.get("/api/v1/tasks/unseen-count").json(),
+            {"count": 0, "ids": []},
+        )
+
+        self._as(self.handler)
+        repeated = self.client.post(
+            f"/api/v1/tasks/{self.submission.id}/refer",
+            json={
+                "to_user_id": self.colleague.id,
+                "note": "please review again",
+                "allow_repeat": True,
+            },
+        )
+        self.assertEqual(repeated.status_code, 200, repeated.text)
+
+        self._as(self.colleague)
+        row = self.client.get("/api/v1/tasks").json()[0]
+        self.assertFalse(row["is_read"])
+        self.assertEqual(len(row["referrals"]), 2)
+        self.assertEqual(
+            self.client.get("/api/v1/tasks/unseen-count").json(),
+            {"count": 1, "ids": [self.submission.id]},
+        )
+
+        reopened = self.client.get(f"/api/v1/tasks/{self.submission.id}")
+        self.assertEqual(reopened.status_code, 200, reopened.text)
+        self.assertTrue(reopened.json()["is_read"])
+        self.assertEqual(
+            self.client.get("/api/v1/tasks/unseen-count").json(),
+            {"count": 0, "ids": []},
+        )
+        self.assertEqual(
+            self.db.query(SubmissionView)
+            .filter(
+                SubmissionView.submission_id == self.submission.id,
+                SubmissionView.user_id == self.colleague.id,
+            )
+            .count(),
+            1,
+        )
+
     def test_in_progress_updates_progress_history_and_terminal_precedence(self):
         self._as(self.handler)
         progress = self.client.patch(
@@ -827,6 +995,74 @@ class TaskWorkflowMockTests(unittest.TestCase):
 
 
 class SubmissionWorkflowMigrationTests(unittest.TestCase):
+    def test_legacy_referral_unique_constraint_is_removed_idempotently(self):
+        old_engine = create_engine(
+            "sqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        self.addCleanup(old_engine.dispose)
+        with old_engine.begin() as connection:
+            connection.execute(
+                text(
+                    "CREATE TABLE submission_referrals ("
+                    "id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, "
+                    "submission_id INTEGER NOT NULL, "
+                    "from_user_id INTEGER NOT NULL, "
+                    "to_user_id INTEGER NOT NULL, "
+                    "note VARCHAR(512) NOT NULL DEFAULT '', "
+                    "created_at DATETIME NOT NULL, "
+                    "CONSTRAINT uq_submission_referral_target "
+                    "UNIQUE (submission_id, to_user_id)"
+                    ")"
+                )
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO submission_referrals "
+                    "(submission_id, from_user_id, to_user_id, note, created_at) "
+                    "VALUES (7, 2, 3, 'legacy referral', "
+                    "'2026-08-10 12:00:00')"
+                )
+            )
+
+        with patch.object(init_db_module, "engine", old_engine):
+            init_db_module._migrate_submission_referrals_db()
+            init_db_module._migrate_submission_referrals_db()
+
+        unique_column_sets = {
+            frozenset(item.get("column_names") or [])
+            for item in inspect(old_engine).get_unique_constraints(
+                "submission_referrals"
+            )
+        }
+        self.assertNotIn(
+            frozenset({"submission_id", "to_user_id"}),
+            unique_column_sets,
+        )
+        with old_engine.begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO submission_referrals "
+                    "(submission_id, from_user_id, to_user_id, note, created_at) "
+                    "VALUES (7, 4, 3, 'repeat referral', "
+                    "'2026-08-10 13:00:00')"
+                )
+            )
+            rows = connection.execute(
+                text(
+                    "SELECT submission_id, from_user_id, to_user_id, note "
+                    "FROM submission_referrals ORDER BY id"
+                )
+            ).all()
+        self.assertEqual(
+            rows,
+            [
+                (7, 2, 3, "legacy referral"),
+                (7, 4, 3, "repeat referral"),
+            ],
+        )
+
     def test_progress_column_is_added_and_approved_rows_are_backfilled(self):
         old_engine = create_engine(
             "sqlite://",

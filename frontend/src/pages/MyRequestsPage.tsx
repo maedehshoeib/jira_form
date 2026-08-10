@@ -617,7 +617,10 @@ export default function MyRequestsPage() {
     const fieldsByName = new Map(template?.fields.map((field) => [field.name, field]));
     return Object.entries(selected.data)
       .filter(([name, value]) => {
-        if (isInternalLetter && (name === "sender" || name === "sender_detail")) {
+        if (
+          isInternalLetter &&
+          (name === "letter_number" || name === "sender" || name === "sender_detail")
+        ) {
           return false;
         }
         if (

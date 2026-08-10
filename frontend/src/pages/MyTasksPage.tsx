@@ -622,7 +622,11 @@ export default function MyTasksPage() {
     try {
       const { data } = await client.post<SubmissionDetail>(
         `${endpoints.tasks}/${selected.id}/refer`,
-        { to_user_ids: selectedColleagueIds, note: referNote.trim() },
+        {
+          to_user_ids: selectedColleagueIds,
+          note: referNote.trim(),
+          allow_repeat: (selected.referrals?.length ?? 0) > 0,
+        },
       );
       syncTask(data);
       setSelected((prev) => (prev ? { ...data, data: prev.data } : data));
@@ -672,20 +676,23 @@ export default function MyTasksPage() {
     }
   };
 
+  const previouslyReferredColleagueIds = useMemo(
+    () => new Set((selected?.referrals ?? []).map((item) => item.to_user_id)),
+    [selected?.referrals],
+  );
+
   const filteredColleagues = useMemo(() => {
     const q = colleagueQuery.trim().toLocaleLowerCase("fa");
-    const alreadyReferred = new Set(
-      (selected?.referrals || []).map((item) => item.to_user_id),
-    );
     return colleagues.filter((user) => {
-      if (alreadyReferred.has(user.id)) return false;
       if (!q) return true;
       const hay = [user.display_name, user.username, user.department, user.job_title]
         .join(" ")
         .toLocaleLowerCase("fa");
       return hay.includes(q);
     });
-  }, [colleagues, colleagueQuery, selected?.referrals]);
+  }, [colleagues, colleagueQuery]);
+
+  const isRepeatReferral = previouslyReferredColleagueIds.size > 0;
 
   const visibleFields = useMemo(() => {
     if (!selected) return [];
@@ -695,7 +702,10 @@ export default function MyTasksPage() {
     const fieldsByName = new Map(template?.fields.map((field) => [field.name, field]));
     return Object.entries(selected.data)
       .filter(([name, value]) => {
-        if (isInternalLetter && (name === "sender" || name === "sender_detail")) {
+        if (
+          isInternalLetter &&
+          (name === "letter_number" || name === "sender" || name === "sender_detail")
+        ) {
           return false;
         }
         if (
@@ -1232,7 +1242,7 @@ export default function MyTasksPage() {
                         className="gap-2 bg-sky-600 font-bold text-white hover:bg-sky-700"
                       >
                         <Forward className="h-4 w-4" />
-                        ارجاع
+                        {isRepeatReferral ? "ارجاع مجدد" : "ارجاع"}
                       </Button>
                     )}
                   </div>
@@ -1300,7 +1310,7 @@ export default function MyTasksPage() {
                 <div className="space-y-3 rounded-2xl border border-sky-100 bg-sky-50/60 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <h4 className="text-sm font-semibold text-slate-800">
-                      ارجاع به همکاران
+                      {isRepeatReferral ? "ارجاع مجدد به همکاران" : "ارجاع به همکاران"}
                     </h4>
                     <Button
                       type="button"
@@ -1336,6 +1346,9 @@ export default function MyTasksPage() {
                     ) : (
                       filteredColleagues.map((user) => {
                         const selectedUser = selectedColleagueIds.includes(user.id);
+                        const previouslyReferred = previouslyReferredColleagueIds.has(
+                          user.id,
+                        );
                         return (
                           <button
                             key={user.id}
@@ -1350,10 +1363,17 @@ export default function MyTasksPage() {
                             <span className="font-medium">
                               <UserDisplayName user={user} />
                             </span>
-                            <span className="text-xs text-slate-500">
-                              {selectedUser
-                                ? "انتخاب‌شده"
-                                : user.job_title || user.department || user.username}
+                            <span className="flex flex-wrap items-center justify-end gap-1.5 text-xs text-slate-500">
+                              {previouslyReferred && (
+                                <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 font-semibold text-sky-700">
+                                  قبلاً ارجاع شده
+                                </span>
+                              )}
+                              <span>
+                                {selectedUser
+                                  ? "انتخاب‌شده"
+                                  : user.job_title || user.department || user.username}
+                              </span>
                             </span>
                           </button>
                         );
@@ -1377,7 +1397,7 @@ export default function MyTasksPage() {
                     ) : (
                       <Forward className="h-4 w-4" />
                     )}
-                    ثبت ارجاع
+                    {isRepeatReferral ? "ثبت ارجاع مجدد" : "ثبت ارجاع"}
                   </Button>
                 </div>
               )}

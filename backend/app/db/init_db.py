@@ -210,6 +210,71 @@ def _migrate_submissions_db():
             )
 
 
+def _migrate_submission_referrals_db():
+    """Remove the legacy one-referral-per-recipient constraint."""
+    inspector = inspect(engine)
+    if "submission_referrals" not in inspector.get_table_names():
+        return
+
+    has_legacy_target_constraint = any(
+        set(constraint.get("column_names") or []) == {"submission_id", "to_user_id"}
+        for constraint in inspector.get_unique_constraints("submission_referrals")
+    )
+    if not has_legacy_target_constraint:
+        return
+    if engine.dialect.name != "sqlite":
+        raise RuntimeError(
+            "Referral constraint migration is only supported for SQLite."
+        )
+
+    with engine.begin() as conn:
+        conn.execute(text("DROP TABLE IF EXISTS submission_referrals_new"))
+        conn.execute(
+            text(
+                """
+                CREATE TABLE submission_referrals_new (
+                    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    submission_id INTEGER NOT NULL,
+                    from_user_id INTEGER NOT NULL,
+                    to_user_id INTEGER NOT NULL,
+                    note VARCHAR(512) NOT NULL DEFAULT '',
+                    created_at DATETIME NOT NULL,
+                    FOREIGN KEY(submission_id) REFERENCES submissions (id) ON DELETE CASCADE,
+                    FOREIGN KEY(from_user_id) REFERENCES users (id) ON DELETE CASCADE,
+                    FOREIGN KEY(to_user_id) REFERENCES users (id) ON DELETE CASCADE
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO submission_referrals_new (
+                    id, submission_id, from_user_id, to_user_id, note, created_at
+                )
+                SELECT
+                    id, submission_id, from_user_id, to_user_id,
+                    COALESCE(note, ''), created_at
+                FROM submission_referrals
+                """
+            )
+        )
+        conn.execute(text("DROP TABLE submission_referrals"))
+        conn.execute(
+            text(
+                "ALTER TABLE submission_referrals_new "
+                "RENAME TO submission_referrals"
+            )
+        )
+        for column_name in ("submission_id", "from_user_id", "to_user_id"):
+            conn.execute(
+                text(
+                    f"CREATE INDEX ix_submission_referrals_{column_name} "
+                    f"ON submission_referrals ({column_name})"
+                )
+            )
+
+
 def _seed_departments_from_users():
     """Preserve existing free-text departments while upgrading."""
     db = SessionLocal()
@@ -398,6 +463,7 @@ def init_db():
     Base.metadata.create_all(bind=engine)
     _migrate_users_db()
     _migrate_submissions_db()
+    _migrate_submission_referrals_db()
     # New tables can reference columns added by the idempotent migration above.
     Base.metadata.create_all(bind=engine)
     _migrate_site_banner_db()
