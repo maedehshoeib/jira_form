@@ -2,7 +2,16 @@ import json
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import (  # noqa: F401 — File/Form reserved for multipart signatures
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+)
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -16,7 +25,11 @@ from app.core.birthday import is_birthday_today
 from app.core.config import settings
 from app.core.deps import get_current_user
 from app.db.session import get_db
-from app.models.submission import Submission, SubmissionReferral
+from app.models.submission import (
+    Submission,
+    SubmissionReferral,
+    SubmissionStatusHistory,
+)
 from app.models.pdf_form import PdfForm
 from app.models.site_banner import SiteBanner, SiteBannerImage
 from app.models.site_news import SiteNews
@@ -64,6 +77,168 @@ from app.services.report_submission_service import (
 
 
 router = APIRouter()
+MAX_TASK_ACTION_ATTACHMENT_SIZE = 15 * 1024 * 1024
+
+
+async def _save_task_action_attachment(
+    upload: UploadFile,
+) -> tuple[str, str]:
+    safe_name = Path(upload.filename or "attachment").name[:256]
+    content = await upload.read(MAX_TASK_ACTION_ATTACHMENT_SIZE + 1)
+    if len(content) > MAX_TASK_ACTION_ATTACHMENT_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail="حداکثر حجم فایل ۱۵ مگابایت است",
+        )
+    extension = Path(safe_name).suffix.lower()[:16]
+    upload_dir = (Path(settings.UPLOAD_DIR) / "task-actions").resolve()
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    target = upload_dir / f"{uuid.uuid4().hex}{extension}"
+    target.write_bytes(content)
+    return str(target), safe_name
+
+
+def _user_can_view_submission(
+    db: Session,
+    user: User,
+    submission: Submission,
+) -> bool:
+    if user.is_admin or submission.user_id == user.id:
+        return True
+    return user_can_access_task(db, user, submission)
+
+
+def _serve_task_action_file(
+    file_path: str | None,
+    file_name: str | None,
+) -> FileResponse:
+    if not file_path or not file_name:
+        raise HTTPException(status_code=404, detail="پیوست یافت نشد")
+    path = Path(file_path).resolve()
+    allowed_root = (Path(settings.UPLOAD_DIR) / "task-actions").resolve()
+    if allowed_root not in path.parents or not path.is_file():
+        raise HTTPException(status_code=404, detail="فایل پیوست موجود نیست")
+    return FileResponse(
+        path=path,
+        filename=file_name,
+        media_type="application/octet-stream",
+    )
+
+
+def _get_viewable_submission(
+    db: Session,
+    current_user: User,
+    submission_id: int,
+) -> Submission:
+    submission = db.query(Submission).filter(Submission.id == submission_id).first()
+    if not submission or not _user_can_view_submission(db, current_user, submission):
+        raise HTTPException(status_code=404, detail="درخواست یافت نشد")
+    return submission
+
+
+def _latest_status_attachment(
+    db: Session,
+    submission: Submission,
+) -> SubmissionStatusHistory:
+    if submission.status not in {"approved", "rejected"}:
+        raise HTTPException(status_code=404, detail="پیوست یافت نشد")
+    history = (
+        db.query(SubmissionStatusHistory)
+        .filter(
+            SubmissionStatusHistory.submission_id == submission.id,
+            SubmissionStatusHistory.to_status == submission.status,
+            SubmissionStatusHistory.attachment_path.isnot(None),
+        )
+        .order_by(
+            SubmissionStatusHistory.created_at.desc(),
+            SubmissionStatusHistory.id.desc(),
+        )
+        .first()
+    )
+    if not history or not history.attachment_path:
+        raise HTTPException(status_code=404, detail="پیوست یافت نشد")
+    return history
+
+
+def _parse_form_user_ids(form) -> list[int]:
+    ids: list[int] = []
+    raw_values = form.getlist("to_user_ids") if hasattr(form, "getlist") else []
+    if not raw_values:
+        single = form.get("to_user_ids")
+        if single is not None:
+            raw_values = [single]
+    for raw in raw_values:
+        text = str(raw or "").strip()
+        if not text:
+            continue
+        if text.startswith("["):
+            try:
+                parsed = json.loads(text)
+            except json.JSONDecodeError as exc:
+                raise HTTPException(
+                    status_code=422,
+                    detail="شناسه کاربران ارجاع نامعتبر است.",
+                ) from exc
+            if not isinstance(parsed, list):
+                raise HTTPException(
+                    status_code=422,
+                    detail="شناسه کاربران ارجاع نامعتبر است.",
+                )
+            for item in parsed:
+                try:
+                    user_id = int(item)
+                except (TypeError, ValueError) as exc:
+                    raise HTTPException(
+                        status_code=422,
+                        detail="شناسه کاربران ارجاع نامعتبر است.",
+                    ) from exc
+                if user_id not in ids:
+                    ids.append(user_id)
+            continue
+        try:
+            user_id = int(text)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(
+                status_code=422,
+                detail="شناسه کاربران ارجاع نامعتبر است.",
+            ) from exc
+        if user_id not in ids:
+            ids.append(user_id)
+    single_id = form.get("to_user_id")
+    if single_id not in (None, ""):
+        try:
+            user_id = int(str(single_id))
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(
+                status_code=422,
+                detail="شناسه کاربران ارجاع نامعتبر است.",
+            ) from exc
+        if user_id not in ids:
+            ids.append(user_id)
+    return ids
+
+
+def _task_response(
+    db: Session,
+    current_user: User,
+    submission: Submission,
+    *,
+    can_act: bool,
+) -> SubmissionResponse:
+    workflow_context = build_submission_workflow_context(
+        db,
+        [submission],
+        viewer_user_id=current_user.id,
+        include_history=True,
+    )
+    user = workflow_context.users_by_id.get(submission.user_id)
+    return _submission_to_response(
+        submission,
+        user,
+        db=db,
+        workflow_context=workflow_context,
+        can_act=can_act,
+    )
 
 
 @router.get("/health")
@@ -604,20 +779,61 @@ def download_task_attachment(
 
 
 @router.patch("/tasks/{submission_id}/status", response_model=SubmissionResponse)
-def update_task_status(
+async def update_task_status(
     submission_id: int,
-    body: TaskStatusUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    content_type = (request.headers.get("content-type") or "").lower()
+    attachment_path: str | None = None
+    attachment_name: str | None = None
+    if "multipart/form-data" in content_type:
+        form = await request.form()
+        status = str(form.get("status") or "").strip()
+        note = str(form.get("note") or "")
+        progress_raw = form.get("progress_percent")
+        progress_percent: int | None = None
+        if progress_raw not in (None, ""):
+            try:
+                progress_percent = int(str(progress_raw))
+            except (TypeError, ValueError) as exc:
+                raise HTTPException(
+                    status_code=422,
+                    detail="درصد پیشرفت نامعتبر است.",
+                ) from exc
+        upload = form.get("attachment")
+        if (
+            upload is not None
+            and hasattr(upload, "filename")
+            and upload.filename
+        ):
+            attachment_path, attachment_name = await _save_task_action_attachment(
+                upload
+            )
+    else:
+        try:
+            payload = await request.json()
+        except Exception as exc:
+            raise HTTPException(
+                status_code=422,
+                detail="بدنه درخواست نامعتبر است.",
+            ) from exc
+        body = TaskStatusUpdate.model_validate(payload)
+        status = body.status
+        note = body.note
+        progress_percent = body.progress_percent
+
     try:
         submission = set_task_status(
             db,
             current_user,
             submission_id,
-            body.status,
-            body.note,
-            body.progress_percent,
+            status,
+            note,
+            progress_percent,
+            attachment_path=attachment_path,
+            attachment_name=attachment_name,
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -626,37 +842,57 @@ def update_task_status(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    workflow_context = build_submission_workflow_context(
-        db,
-        [submission],
-        viewer_user_id=current_user.id,
-        include_history=True,
-    )
-    user = workflow_context.users_by_id.get(submission.user_id)
-    return _submission_to_response(
-        submission,
-        user,
-        db=db,
-        workflow_context=workflow_context,
-        can_act=True,
-    )
+    return _task_response(db, current_user, submission, can_act=True)
 
 
 @router.post("/tasks/{submission_id}/refer", response_model=SubmissionResponse)
-def refer_task_endpoint(
+async def refer_task_endpoint(
     submission_id: int,
-    body: TaskReferRequest,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    content_type = (request.headers.get("content-type") or "").lower()
+    attachment_path: str | None = None
+    attachment_name: str | None = None
+    if "multipart/form-data" in content_type:
+        form = await request.form()
+        to_user_ids = _parse_form_user_ids(form)
+        note = str(form.get("note") or "")
+        allow_repeat_raw = str(form.get("allow_repeat") or "false").strip().lower()
+        allow_repeat = allow_repeat_raw in {"1", "true", "yes", "on"}
+        upload = form.get("attachment")
+        if (
+            upload is not None
+            and hasattr(upload, "filename")
+            and upload.filename
+        ):
+            attachment_path, attachment_name = await _save_task_action_attachment(
+                upload
+            )
+    else:
+        try:
+            payload = await request.json()
+        except Exception as exc:
+            raise HTTPException(
+                status_code=422,
+                detail="بدنه درخواست نامعتبر است.",
+            ) from exc
+        body = TaskReferRequest.model_validate(payload)
+        to_user_ids = body.resolved_user_ids()
+        note = body.note
+        allow_repeat = body.allow_repeat
+
     try:
         refer_tasks(
             db,
             current_user,
             submission_id,
-            body.resolved_user_ids(),
-            body.note,
-            allow_repeat=body.allow_repeat,
+            to_user_ids,
+            note,
+            allow_repeat=allow_repeat,
+            attachment_path=attachment_path,
+            attachment_name=attachment_name,
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -666,17 +902,117 @@ def refer_task_endpoint(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     submission = db.query(Submission).filter(Submission.id == submission_id).first()
-    workflow_context = build_submission_workflow_context(
+    if not submission:
+        raise HTTPException(status_code=404, detail="درخواست یافت نشد")
+    return _task_response(
         db,
-        [submission],
-        viewer_user_id=current_user.id,
-        include_history=True,
-    )
-    user = workflow_context.users_by_id.get(submission.user_id)
-    return _submission_to_response(
+        current_user,
         submission,
-        user,
-        db=db,
-        workflow_context=workflow_context,
         can_act=user_can_access_task(db, current_user, submission),
     )
+
+
+@router.get("/tasks/{submission_id}/status-attachment")
+def download_task_status_attachment(
+    submission_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    submission = _get_viewable_submission(db, current_user, submission_id)
+    history = _latest_status_attachment(db, submission)
+    return _serve_task_action_file(history.attachment_path, history.attachment_name)
+
+
+@router.get("/submissions/{submission_id}/status-attachment")
+def download_submission_status_attachment(
+    submission_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    submission = _get_viewable_submission(db, current_user, submission_id)
+    history = _latest_status_attachment(db, submission)
+    return _serve_task_action_file(history.attachment_path, history.attachment_name)
+
+
+@router.get("/tasks/{submission_id}/status-history/{history_id}/attachment")
+def download_task_status_history_attachment(
+    submission_id: int,
+    history_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    submission = _get_viewable_submission(db, current_user, submission_id)
+    history = (
+        db.query(SubmissionStatusHistory)
+        .filter(
+            SubmissionStatusHistory.id == history_id,
+            SubmissionStatusHistory.submission_id == submission.id,
+        )
+        .first()
+    )
+    if not history:
+        raise HTTPException(status_code=404, detail="پیوست یافت نشد")
+    return _serve_task_action_file(history.attachment_path, history.attachment_name)
+
+
+@router.get("/submissions/{submission_id}/status-history/{history_id}/attachment")
+def download_submission_status_history_attachment(
+    submission_id: int,
+    history_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    submission = _get_viewable_submission(db, current_user, submission_id)
+    history = (
+        db.query(SubmissionStatusHistory)
+        .filter(
+            SubmissionStatusHistory.id == history_id,
+            SubmissionStatusHistory.submission_id == submission.id,
+        )
+        .first()
+    )
+    if not history:
+        raise HTTPException(status_code=404, detail="پیوست یافت نشد")
+    return _serve_task_action_file(history.attachment_path, history.attachment_name)
+
+
+@router.get("/tasks/{submission_id}/referrals/{referral_id}/attachment")
+def download_task_referral_attachment(
+    submission_id: int,
+    referral_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    submission = _get_viewable_submission(db, current_user, submission_id)
+    referral = (
+        db.query(SubmissionReferral)
+        .filter(
+            SubmissionReferral.id == referral_id,
+            SubmissionReferral.submission_id == submission.id,
+        )
+        .first()
+    )
+    if not referral:
+        raise HTTPException(status_code=404, detail="پیوست یافت نشد")
+    return _serve_task_action_file(referral.attachment_path, referral.attachment_name)
+
+
+@router.get("/submissions/{submission_id}/referrals/{referral_id}/attachment")
+def download_submission_referral_attachment(
+    submission_id: int,
+    referral_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    submission = _get_viewable_submission(db, current_user, submission_id)
+    referral = (
+        db.query(SubmissionReferral)
+        .filter(
+            SubmissionReferral.id == referral_id,
+            SubmissionReferral.submission_id == submission.id,
+        )
+        .first()
+    )
+    if not referral:
+        raise HTTPException(status_code=404, detail="پیوست یافت نشد")
+    return _serve_task_action_file(referral.attachment_path, referral.attachment_name)

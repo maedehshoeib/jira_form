@@ -11,6 +11,7 @@ class SubmissionReferralItem(BaseModel):
     to_user_id: int
     to_user_name: str
     note: str = ""
+    attachment_name: str | None = None
     created_at: str
 
 
@@ -35,6 +36,7 @@ class SubmissionTimelineItem(BaseModel):
     to_user_id: int | None = None
     to_user_name: str | None = None
     note: str = ""
+    attachment_name: str | None = None
 
 
 class SubmissionListItem(BaseModel):
@@ -61,6 +63,7 @@ class SubmissionListItem(BaseModel):
     status_updated_by: str | None = None
     status_updated_at: str | None = None
     status_note: str = ""
+    status_attachment_name: str | None = None
     initial_assignees: list[SubmissionAssigneeItem] = Field(default_factory=list)
     referrals: list[SubmissionReferralItem] = Field(default_factory=list)
     can_act: bool = False
@@ -91,6 +94,7 @@ class SubmissionResponse(BaseModel):
     status_updated_by: str | None = None
     status_updated_at: str | None = None
     status_note: str = ""
+    status_attachment_name: str | None = None
     initial_assignees: list[SubmissionAssigneeItem] = Field(default_factory=list)
     referrals: list[SubmissionReferralItem] = Field(default_factory=list)
     timeline: list[SubmissionTimelineItem] = Field(default_factory=list)

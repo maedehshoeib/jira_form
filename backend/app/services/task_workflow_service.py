@@ -1,4 +1,5 @@
 from datetime import datetime
+from pathlib import Path
 
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
@@ -210,6 +211,9 @@ def set_task_status(
     status: str,
     note: str = "",
     progress_percent: int | None = None,
+    *,
+    attachment_path: str | None = None,
+    attachment_name: str | None = None,
 ) -> Submission:
     if status not in ALLOWED_TASK_STATUSES:
         raise ValueError("وضعیت نامعتبر است.")
@@ -235,10 +239,18 @@ def set_task_status(
         new_progress = old_progress if progress_percent is None else progress_percent
 
     cleaned_note = (note or "").strip()[:512]
+    cleaned_attachment_path = (attachment_path or "").strip() or None
+    cleaned_attachment_name = (attachment_name or "").strip()[:256] or None
+    if cleaned_attachment_path and not cleaned_attachment_name:
+        cleaned_attachment_name = Path(cleaned_attachment_path).name
+    if status == "submitted":
+        cleaned_attachment_path = None
+        cleaned_attachment_name = None
     if (
         old_status == status
         and old_progress == new_progress
         and not cleaned_note
+        and not cleaned_attachment_path
     ):
         return submission
 
@@ -259,6 +271,8 @@ def set_task_status(
             from_progress_percent=old_progress,
             to_progress_percent=new_progress,
             note=submission.status_note,
+            attachment_path=cleaned_attachment_path,
+            attachment_name=cleaned_attachment_name,
             created_at=submission.status_updated_at,
         )
     )
@@ -275,6 +289,8 @@ def refer_task(
     note: str = "",
     *,
     allow_repeat: bool = False,
+    attachment_path: str | None = None,
+    attachment_name: str | None = None,
 ) -> SubmissionReferral:
     referrals = refer_tasks(
         db,
@@ -283,6 +299,8 @@ def refer_task(
         [to_user_id],
         note,
         allow_repeat=allow_repeat,
+        attachment_path=attachment_path,
+        attachment_name=attachment_name,
     )
     return referrals[0]
 
@@ -295,6 +313,8 @@ def refer_tasks(
     note: str = "",
     *,
     allow_repeat: bool = False,
+    attachment_path: str | None = None,
+    attachment_name: str | None = None,
 ) -> list[SubmissionReferral]:
     unique_ids: list[int] = []
     for user_id in to_user_ids:
@@ -336,12 +356,18 @@ def refer_tasks(
         raise ValueError("این درخواست قبلاً به یکی از کاربران انتخاب‌شده ارجاع شده است.")
 
     cleaned_note = (note or "").strip()[:512]
+    cleaned_attachment_path = (attachment_path or "").strip() or None
+    cleaned_attachment_name = (attachment_name or "").strip()[:256] or None
+    if cleaned_attachment_path and not cleaned_attachment_name:
+        cleaned_attachment_name = Path(cleaned_attachment_path).name
     referrals = [
         SubmissionReferral(
             submission_id=submission.id,
             from_user_id=actor.id,
             to_user_id=user_id,
             note=cleaned_note,
+            attachment_path=cleaned_attachment_path,
+            attachment_name=cleaned_attachment_name,
         )
         for user_id in unique_ids
     ]

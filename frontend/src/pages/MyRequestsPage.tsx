@@ -52,6 +52,7 @@ type ReferralItem = {
   to_user_id: number;
   to_user_name: string;
   note: string;
+  attachment_name?: string | null;
   created_at: string;
 };
 
@@ -68,6 +69,7 @@ type TimelineItem = {
   to_progress_percent?: number | null;
   to_user_id?: number | null;
   to_user_name?: string | null;
+  attachment_name?: string | null;
   created_at: string;
 };
 
@@ -87,6 +89,7 @@ type SubmissionListItem = {
   initial_assignees?: InitialAssignee[];
   referrals?: ReferralItem[];
   attachment_name: string | null;
+  status_attachment_name?: string | null;
   created_at: string;
   submitted_by?: string;
   submitted_by_username?: string;
@@ -250,6 +253,31 @@ function timelineEventDotClass(item: TimelineItem) {
     return "bg-red-600 ring-red-100";
   }
   return "bg-slate-500 ring-slate-100";
+}
+
+function parseTimelineEntityId(itemId: number | string, prefix: string) {
+  const raw = String(itemId);
+  const expected = `${prefix}:`;
+  if (!raw.startsWith(expected)) return null;
+  const value = Number(raw.slice(expected.length));
+  return Number.isFinite(value) ? value : null;
+}
+
+async function downloadWithAuth(url: string, fileName: string) {
+  const token = localStorage.getItem("access_token");
+  const res = await fetch(url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) return;
+  const blob = await res.blob();
+  const objectUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(objectUrl);
 }
 
 function workflowStepIndex(status: WorkflowStatus) {
@@ -1207,7 +1235,9 @@ export default function MyRequestsPage() {
                               </time>
                             </div>
 
-                            {(eventProgress !== null || item.note) && (
+                            {(eventProgress !== null ||
+                              item.note ||
+                              item.attachment_name) && (
                               <div className="mt-3 flex flex-wrap items-start gap-2">
                                 {eventProgress !== null && (
                                   <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
@@ -1222,6 +1252,42 @@ export default function MyRequestsPage() {
                                   <p className="min-w-0 flex-1 whitespace-pre-wrap rounded-xl bg-slate-50 px-3 py-2 text-xs leading-6 text-slate-600">
                                     {item.note}
                                   </p>
+                                )}
+                                {item.attachment_name && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      void (async () => {
+                                        if (item.event_type === "referred") {
+                                          const referralId = parseTimelineEntityId(
+                                            item.id,
+                                            "referral",
+                                          );
+                                          if (!referralId) return;
+                                          await downloadWithAuth(
+                                            `${API_BASE}/submissions/${selected.id}/referrals/${referralId}/attachment`,
+                                            item.attachment_name!,
+                                          );
+                                          return;
+                                        }
+                                        if (item.event_type === "status_changed") {
+                                          const historyId = parseTimelineEntityId(
+                                            item.id,
+                                            "status",
+                                          );
+                                          if (!historyId) return;
+                                          await downloadWithAuth(
+                                            `${API_BASE}/submissions/${selected.id}/status-history/${historyId}/attachment`,
+                                            item.attachment_name!,
+                                          );
+                                        }
+                                      })();
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded-full border border-violet-100 bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-100"
+                                  >
+                                    <Paperclip size={12} />
+                                    {item.attachment_name}
+                                  </button>
                                 )}
                               </div>
                             )}

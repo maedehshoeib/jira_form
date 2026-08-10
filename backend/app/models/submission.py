@@ -73,6 +73,8 @@ class SubmissionReferral(Base):
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     note: Mapped[str] = mapped_column(String(512), default="")
+    attachment_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    attachment_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
@@ -120,4 +122,6 @@ class SubmissionStatusHistory(Base):
     from_progress_percent: Mapped[int] = mapped_column(Integer, default=0)
     to_progress_percent: Mapped[int] = mapped_column(Integer, default=0)
     note: Mapped[str] = mapped_column(String(512), default="")
+    attachment_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    attachment_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

@@ -35,6 +35,19 @@ type ReferralItem = {
   to_user_id: number;
   to_user_name: string;
   note: string;
+  attachment_name?: string | null;
+  created_at: string;
+};
+
+type TimelineItem = {
+  id: string;
+  event_type: string;
+  actor_id?: number | null;
+  actor_name?: string | null;
+  from_status?: string | null;
+  to_status?: string | null;
+  note?: string;
+  attachment_name?: string | null;
   created_at: string;
 };
 
@@ -67,10 +80,11 @@ type SubmissionListItem = {
   status_updated_by?: string | null;
   status_updated_at?: string | null;
   status_note?: string;
+  status_attachment_name?: string | null;
   initial_assignees?: InitialAssignee[];
   referrals?: ReferralItem[];
   can_act?: boolean;
-  timeline?: unknown[];
+  timeline?: TimelineItem[];
 };
 
 type SubmissionDetail = SubmissionListItem & {
@@ -318,6 +332,8 @@ export default function MyTasksPage() {
   const [selectedColleagueIds, setSelectedColleagueIds] = useState<number[]>([]);
   const [referNote, setReferNote] = useState("");
   const [colleaguesLoading, setColleaguesLoading] = useState(false);
+  const [statusAttachment, setStatusAttachment] = useState<File | null>(null);
+  const [referAttachment, setReferAttachment] = useState<File | null>(null);
 
   const syncTask = (updated: SubmissionListItem | SubmissionDetail) => {
     setTasks((prev) =>
@@ -486,6 +502,8 @@ export default function MyTasksPage() {
     setReferOpen(false);
     setStatusPanel(null);
     setStatusNote("");
+    setStatusAttachment(null);
+    setReferAttachment(null);
     try {
       const [detailResponse, templateResponse] = await Promise.all([
         client.get<SubmissionDetail>(`${endpoints.tasks}/${task.id}`),
@@ -513,14 +531,17 @@ export default function MyTasksPage() {
   const openStatusPanel = (status: "approved" | "rejected") => {
     if (!selected || selected.status === status) return;
     setReferOpen(false);
+    setReferAttachment(null);
     setStatusPanel(status);
     setStatusNote(selected.status_note || "");
+    setStatusAttachment(null);
     setActionError("");
   };
 
   const updateStatus = async (
     status: "approved" | "rejected" | "submitted",
     note = "",
+    attachment: File | null = null,
   ) => {
     if (!selected || selected.status === status) return;
     const label = statusActionLabel(status);
@@ -531,15 +552,30 @@ export default function MyTasksPage() {
     setActionLoading(true);
     setActionError("");
     try {
-      const { data } = await client.patch<SubmissionDetail>(
-        `${endpoints.tasks}/${selected.id}/status`,
-        { status, note: note.trim() },
-      );
+      let data: SubmissionDetail;
+      if (attachment) {
+        const formData = new FormData();
+        formData.append("status", status);
+        formData.append("note", note.trim());
+        formData.append("attachment", attachment);
+        const response = await client.patch<SubmissionDetail>(
+          `${endpoints.tasks}/${selected.id}/status`,
+          formData,
+        );
+        data = response.data;
+      } else {
+        const response = await client.patch<SubmissionDetail>(
+          `${endpoints.tasks}/${selected.id}/status`,
+          { status, note: note.trim() },
+        );
+        data = response.data;
+      }
       syncTask(data);
       setSelected((prev) => (prev ? { ...data, data: prev.data } : data));
       setProgressDraft(normalizedProgress(data.progress_percent, data.status));
       setStatusPanel(null);
       setStatusNote("");
+      setStatusAttachment(null);
       if (status !== "submitted") setReferOpen(false);
       window.dispatchEvent(new Event("tasks:refresh-notifications"));
     } catch (err: unknown) {
@@ -551,7 +587,7 @@ export default function MyTasksPage() {
 
   const submitStatusAction = async () => {
     if (!statusPanel) return;
-    await updateStatus(statusPanel, statusNote);
+    await updateStatus(statusPanel, statusNote, statusAttachment);
   };
 
   const updateProgress = async () => {
@@ -598,11 +634,13 @@ export default function MyTasksPage() {
 
   const openReferPanel = async () => {
     setStatusPanel(null);
+    setStatusAttachment(null);
     setReferOpen(true);
     setActionError("");
     setColleagueQuery("");
     setSelectedColleagueIds([]);
     setReferNote("");
+    setReferAttachment(null);
     if (colleagues.length > 0) return;
     setColleaguesLoading(true);
     try {
@@ -620,23 +658,68 @@ export default function MyTasksPage() {
     setActionLoading(true);
     setActionError("");
     try {
-      const { data } = await client.post<SubmissionDetail>(
-        `${endpoints.tasks}/${selected.id}/refer`,
-        {
-          to_user_ids: selectedColleagueIds,
-          note: referNote.trim(),
-          allow_repeat: (selected.referrals?.length ?? 0) > 0,
-        },
-      );
+      let data: SubmissionDetail;
+      if (referAttachment) {
+        const formData = new FormData();
+        selectedColleagueIds.forEach((id) => {
+          formData.append("to_user_ids", String(id));
+        });
+        formData.append("note", referNote.trim());
+        formData.append(
+          "allow_repeat",
+          String((selected.referrals?.length ?? 0) > 0),
+        );
+        formData.append("attachment", referAttachment);
+        const response = await client.post<SubmissionDetail>(
+          `${endpoints.tasks}/${selected.id}/refer`,
+          formData,
+        );
+        data = response.data;
+      } else {
+        const response = await client.post<SubmissionDetail>(
+          `${endpoints.tasks}/${selected.id}/refer`,
+          {
+            to_user_ids: selectedColleagueIds,
+            note: referNote.trim(),
+            allow_repeat: (selected.referrals?.length ?? 0) > 0,
+          },
+        );
+        data = response.data;
+      }
       syncTask(data);
       setSelected((prev) => (prev ? { ...data, data: prev.data } : data));
       setReferOpen(false);
       setSelectedColleagueIds([]);
+      setReferAttachment(null);
       window.dispatchEvent(new Event("tasks:refresh-notifications"));
     } catch (err: unknown) {
       setActionError(apiErrorDetail(err, "ارجاع درخواست با مشکل مواجه شد."));
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const downloadAuthFile = async (url: string, fileName: string) => {
+    const token = localStorage.getItem("access_token");
+    try {
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        setActionError("دانلود پیوست با مشکل مواجه شد.");
+        return;
+      }
+      const blob = await res.blob();
+      const objectUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(objectUrl);
+    } catch {
+      setActionError("دانلود پیوست با مشکل مواجه شد.");
     }
   };
 
@@ -650,30 +733,26 @@ export default function MyTasksPage() {
           : [];
     const name = fileName || names[index];
     if (!name) return;
-    const token = localStorage.getItem("access_token");
-    try {
-      const res = await fetch(
-        `${API_BASE}/tasks/${selected.id}/attachment?index=${index}`,
-        {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        },
-      );
-      if (!res.ok) {
-        setActionError("دانلود پیوست با مشکل مواجه شد.");
-        return;
-      }
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = name;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch {
-      setActionError("دانلود پیوست با مشکل مواجه شد.");
-    }
+    await downloadAuthFile(
+      `${API_BASE}/tasks/${selected.id}/attachment?index=${index}`,
+      name,
+    );
+  };
+
+  const downloadStatusAttachment = async () => {
+    if (!selected?.status_attachment_name) return;
+    await downloadAuthFile(
+      `${API_BASE}/tasks/${selected.id}/status-attachment`,
+      selected.status_attachment_name,
+    );
+  };
+
+  const downloadReferralAttachment = async (referral: ReferralItem) => {
+    if (!selected || !referral.attachment_name) return;
+    await downloadAuthFile(
+      `${API_BASE}/tasks/${selected.id}/referrals/${referral.id}/attachment`,
+      referral.attachment_name,
+    );
   };
 
   const previouslyReferredColleagueIds = useMemo(
@@ -1047,6 +1126,8 @@ export default function MyTasksPage() {
             setReferOpen(false);
             setStatusPanel(null);
             setStatusNote("");
+            setStatusAttachment(null);
+            setReferAttachment(null);
           }}
         >
           <section
@@ -1089,6 +1170,8 @@ export default function MyTasksPage() {
                   setReferOpen(false);
                   setStatusPanel(null);
                   setStatusNote("");
+                  setStatusAttachment(null);
+                  setReferAttachment(null);
                 }}
                 className="shrink-0 rounded-xl"
               >
@@ -1269,6 +1352,7 @@ export default function MyTasksPage() {
                       onClick={() => {
                         setStatusPanel(null);
                         setStatusNote("");
+                        setStatusAttachment(null);
                       }}
                       className="h-8 px-2 text-slate-500"
                     >
@@ -1281,6 +1365,32 @@ export default function MyTasksPage() {
                     placeholder="توضیح یا یادداشت خود را بنویسید (اختیاری)"
                     className="min-h-24 rounded-xl bg-white"
                   />
+                  <div className="space-y-2">
+                    <label className="block text-xs font-semibold text-slate-600">
+                      پیوست (اختیاری)
+                    </label>
+                    <Input
+                      type="file"
+                      onChange={(event) =>
+                        setStatusAttachment(event.target.files?.[0] ?? null)
+                      }
+                      className="h-10 rounded-xl bg-white file:ml-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1 file:text-xs file:font-semibold"
+                    />
+                    {statusAttachment ? (
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                        <Paperclip size={14} className="text-slate-500" />
+                        <span className="font-semibold">{statusAttachment.name}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => setStatusAttachment(null)}
+                          className="h-7 px-2 text-slate-500"
+                        >
+                          حذف
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
                   <Button
                     type="button"
                     onClick={() => void submitStatusAction()}
@@ -1315,7 +1425,10 @@ export default function MyTasksPage() {
                     <Button
                       type="button"
                       variant="ghost"
-                      onClick={() => setReferOpen(false)}
+                      onClick={() => {
+                        setReferOpen(false);
+                        setReferAttachment(null);
+                      }}
                       className="h-8 px-2 text-slate-500"
                     >
                       <X size={16} />
@@ -1386,6 +1499,32 @@ export default function MyTasksPage() {
                     placeholder="یادداشت ارجاع (اختیاری)"
                     className="min-h-20 rounded-xl bg-white"
                   />
+                  <div className="space-y-2">
+                    <label className="block text-xs font-semibold text-slate-600">
+                      پیوست (اختیاری)
+                    </label>
+                    <Input
+                      type="file"
+                      onChange={(event) =>
+                        setReferAttachment(event.target.files?.[0] ?? null)
+                      }
+                      className="h-10 rounded-xl bg-white file:ml-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1 file:text-xs file:font-semibold"
+                    />
+                    {referAttachment ? (
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                        <Paperclip size={14} className="text-slate-500" />
+                        <span className="font-semibold">{referAttachment.name}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => setReferAttachment(null)}
+                          className="h-7 px-2 text-slate-500"
+                        >
+                          حذف
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
                   <Button
                     type="button"
                     onClick={() => void submitRefer()}
@@ -1487,6 +1626,20 @@ export default function MyTasksPage() {
                       </span>
                     </div>
                   )}
+                {selected.status_attachment_name &&
+                  (selected.status === "approved" || selected.status === "rejected") && (
+                    <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
+                      <Paperclip size={16} className="text-emerald-600" />
+                      <span className="text-slate-500">پیوست وضعیت:</span>
+                      <button
+                        type="button"
+                        onClick={() => void downloadStatusAttachment()}
+                        className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                      >
+                        {selected.status_attachment_name}
+                      </button>
+                    </div>
+                  )}
                 {(selected.attachment_names?.length
                   ? selected.attachment_names
                   : selected.attachment_name
@@ -1533,6 +1686,16 @@ export default function MyTasksPage() {
                         </div>
                         {referral.note ? (
                           <div className="mt-1 text-sky-700">{referral.note}</div>
+                        ) : null}
+                        {referral.attachment_name ? (
+                          <button
+                            type="button"
+                            onClick={() => void downloadReferralAttachment(referral)}
+                            className="mt-1 inline-flex items-center gap-1 font-semibold text-sky-700 underline-offset-2 hover:underline"
+                          >
+                            <Paperclip size={12} />
+                            {referral.attachment_name}
+                          </button>
                         ) : null}
                         <div className="mt-1 text-sky-600">
                           {formatPersianDateTime(referral.created_at)}

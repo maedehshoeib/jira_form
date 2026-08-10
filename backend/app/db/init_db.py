@@ -227,6 +227,18 @@ def _migrate_submission_referrals_db():
             "Referral constraint migration is only supported for SQLite."
         )
 
+    existing_columns = {
+        col["name"] for col in inspector.get_columns("submission_referrals")
+    }
+    has_attachment_path = "attachment_path" in existing_columns
+    has_attachment_name = "attachment_name" in existing_columns
+    attachment_path_select = (
+        "attachment_path" if has_attachment_path else "NULL"
+    )
+    attachment_name_select = (
+        "attachment_name" if has_attachment_name else "NULL"
+    )
+
     with engine.begin() as conn:
         conn.execute(text("DROP TABLE IF EXISTS submission_referrals_new"))
         conn.execute(
@@ -238,6 +250,8 @@ def _migrate_submission_referrals_db():
                     from_user_id INTEGER NOT NULL,
                     to_user_id INTEGER NOT NULL,
                     note VARCHAR(512) NOT NULL DEFAULT '',
+                    attachment_path VARCHAR(512),
+                    attachment_name VARCHAR(256),
                     created_at DATETIME NOT NULL,
                     FOREIGN KEY(submission_id) REFERENCES submissions (id) ON DELETE CASCADE,
                     FOREIGN KEY(from_user_id) REFERENCES users (id) ON DELETE CASCADE,
@@ -248,13 +262,15 @@ def _migrate_submission_referrals_db():
         )
         conn.execute(
             text(
-                """
+                f"""
                 INSERT INTO submission_referrals_new (
-                    id, submission_id, from_user_id, to_user_id, note, created_at
+                    id, submission_id, from_user_id, to_user_id, note,
+                    attachment_path, attachment_name, created_at
                 )
                 SELECT
                     id, submission_id, from_user_id, to_user_id,
-                    COALESCE(note, ''), created_at
+                    COALESCE(note, ''),
+                    {attachment_path_select}, {attachment_name_select}, created_at
                 FROM submission_referrals
                 """
             )
@@ -273,6 +289,47 @@ def _migrate_submission_referrals_db():
                     f"ON submission_referrals ({column_name})"
                 )
             )
+
+
+def _migrate_task_action_attachments_db():
+    """Add optional attachment columns for Done/Refer task actions."""
+    inspector = inspect(engine)
+    table_migrations = {
+        "submission_referrals": [
+            (
+                "attachment_path",
+                "ALTER TABLE submission_referrals "
+                "ADD COLUMN attachment_path VARCHAR(512)",
+            ),
+            (
+                "attachment_name",
+                "ALTER TABLE submission_referrals "
+                "ADD COLUMN attachment_name VARCHAR(256)",
+            ),
+        ],
+        "submission_status_history": [
+            (
+                "attachment_path",
+                "ALTER TABLE submission_status_history "
+                "ADD COLUMN attachment_path VARCHAR(512)",
+            ),
+            (
+                "attachment_name",
+                "ALTER TABLE submission_status_history "
+                "ADD COLUMN attachment_name VARCHAR(256)",
+            ),
+        ],
+    }
+    with engine.begin() as conn:
+        for table_name, migrations in table_migrations.items():
+            if table_name not in inspector.get_table_names():
+                continue
+            columns = {
+                col["name"] for col in inspector.get_columns(table_name)
+            }
+            for column_name, ddl in migrations:
+                if column_name not in columns:
+                    conn.execute(text(ddl))
 
 
 def _seed_departments_from_users():
@@ -464,6 +521,7 @@ def init_db():
     _migrate_users_db()
     _migrate_submissions_db()
     _migrate_submission_referrals_db()
+    _migrate_task_action_attachments_db()
     # New tables can reference columns added by the idempotent migration above.
     Base.metadata.create_all(bind=engine)
     _migrate_site_banner_db()

@@ -294,10 +294,24 @@ def _referral_items(
             to_user_id=row.to_user_id,
             to_user_name=_user_display(context.users_by_id.get(row.to_user_id)),
             note=row.note or "",
+            attachment_name=row.attachment_name,
             created_at=_format_dt(row.created_at),
         )
         for row in context.referrals_by_submission.get(submission_id, [])
     ]
+
+
+def _status_attachment_name(
+    context: SubmissionWorkflowContext,
+    submission: Submission,
+) -> str | None:
+    if submission.status not in {"approved", "rejected"}:
+        return None
+    histories = context.histories_by_submission.get(submission.id, [])
+    for history in reversed(histories):
+        if history.to_status == submission.status and history.attachment_name:
+            return history.attachment_name
+    return None
 
 
 def _status_updated_by_name(
@@ -396,6 +410,7 @@ def _submission_timeline(
                 context.users_by_id.get(referral.to_user_id)
             ),
             note=referral.note or "",
+            attachment_name=referral.attachment_name,
         )
         events.append((referral.created_at, event.id, event))
 
@@ -415,6 +430,7 @@ def _submission_timeline(
             to_progress_percent=history.to_progress_percent,
             progress_percent=history.to_progress_percent,
             note=history.note or "",
+            attachment_name=history.attachment_name,
         )
         events.append((history.created_at, event.id, event))
 
@@ -509,6 +525,7 @@ def _submission_to_list_item(
             else None
         ),
         status_note=submission.status_note or "",
+        status_attachment_name=_status_attachment_name(context, submission),
         initial_assignees=initial_assignees,
         referrals=referrals,
         can_act=can_act,
@@ -579,6 +596,7 @@ def _submission_to_response(
             else None
         ),
         status_note=submission.status_note or "",
+        status_attachment_name=_status_attachment_name(context, submission),
         initial_assignees=initial_assignees,
         referrals=referrals,
         timeline=_submission_timeline(context, submission),
