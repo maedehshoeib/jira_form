@@ -80,6 +80,31 @@ class SubmissionReferral(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class SubmissionCcRecipient(Base):
+    """A read-only recipient mentioned while referring a request."""
+
+    __tablename__ = "submission_cc_recipients"
+    __table_args__ = (
+        UniqueConstraint(
+            "submission_id",
+            "user_id",
+            name="uq_submission_cc_recipient_user",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    submission_id: Mapped[int] = mapped_column(
+        ForeignKey("submissions.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    mentioned_by_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class SubmissionView(Base):
     """Per-user read state for a task.
 

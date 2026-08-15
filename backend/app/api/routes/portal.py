@@ -73,6 +73,7 @@ from app.services.task_workflow_service import (
     refer_tasks,
     set_task_status,
     user_can_access_task,
+    user_can_view_task,
 )
 from app.services.report_submission_service import (
     create_report_from_submission,
@@ -109,7 +110,7 @@ def _user_can_view_submission(
 ) -> bool:
     if user.is_admin or submission.user_id == user.id:
         return True
-    return user_can_access_task(db, user, submission)
+    return user_can_view_task(db, user, submission)
 
 
 def _serve_task_action_file(
@@ -164,11 +165,15 @@ def _latest_status_attachment(
     return history
 
 
-def _parse_form_user_ids(form) -> list[int]:
+def _parse_form_user_ids(
+    form,
+    field_name: str = "to_user_ids",
+    single_field_name: str | None = "to_user_id",
+) -> list[int]:
     ids: list[int] = []
-    raw_values = form.getlist("to_user_ids") if hasattr(form, "getlist") else []
+    raw_values = form.getlist(field_name) if hasattr(form, "getlist") else []
     if not raw_values:
-        single = form.get("to_user_ids")
+        single = form.get(field_name)
         if single is not None:
             raw_values = [single]
     for raw in raw_values:
@@ -208,7 +213,7 @@ def _parse_form_user_ids(form) -> list[int]:
             ) from exc
         if user_id not in ids:
             ids.append(user_id)
-    single_id = form.get("to_user_id")
+    single_id = form.get(single_field_name) if single_field_name else None
     if single_id not in (None, ""):
         try:
             user_id = int(str(single_id))
@@ -764,7 +769,7 @@ def list_tasks(
                 user,
                 db=db,
                 workflow_context=workflow_context,
-                can_act=True,
+                can_act=user_can_access_task(db, current_user, submission),
             )
         )
     return result
@@ -777,7 +782,7 @@ def get_task(
     current_user: User = Depends(get_current_user),
 ):
     submission = db.query(Submission).filter(Submission.id == submission_id).first()
-    if not submission or not user_can_access_task(db, current_user, submission):
+    if not submission or not user_can_view_task(db, current_user, submission):
         raise HTTPException(status_code=404, detail="درخواست یافت نشد")
 
     mark_task_viewed(db, current_user, submission)
@@ -793,7 +798,7 @@ def get_task(
         user,
         db=db,
         workflow_context=workflow_context,
-        can_act=True,
+        can_act=user_can_access_task(db, current_user, submission),
     )
 
 
@@ -805,7 +810,7 @@ def download_task_attachment(
     current_user: User = Depends(get_current_user),
 ):
     submission = db.query(Submission).filter(Submission.id == submission_id).first()
-    if not submission or not user_can_access_task(db, current_user, submission):
+    if not submission or not user_can_view_task(db, current_user, submission):
         raise HTTPException(status_code=404, detail="پیوست یافت نشد")
     return _serve_submission_attachment(submission, index)
 
@@ -890,6 +895,9 @@ async def refer_task_endpoint(
     if "multipart/form-data" in content_type:
         form = await request.form()
         to_user_ids = _parse_form_user_ids(form)
+        cc_user_ids = _parse_form_user_ids(
+            form, "cc_user_ids", single_field_name=None
+        )
         note = str(form.get("note") or "")
         allow_repeat_raw = str(form.get("allow_repeat") or "false").strip().lower()
         allow_repeat = allow_repeat_raw in {"1", "true", "yes", "on"}
@@ -912,6 +920,7 @@ async def refer_task_endpoint(
             ) from exc
         body = TaskReferRequest.model_validate(payload)
         to_user_ids = body.resolved_user_ids()
+        cc_user_ids = body.cc_user_ids
         note = body.note
         allow_repeat = body.allow_repeat
 
@@ -925,6 +934,7 @@ async def refer_task_endpoint(
             allow_repeat=allow_repeat,
             attachment_path=attachment_path,
             attachment_name=attachment_name,
+            cc_user_ids=cc_user_ids,
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

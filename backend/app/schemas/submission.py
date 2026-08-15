@@ -15,6 +15,15 @@ class SubmissionReferralItem(BaseModel):
     created_at: str
 
 
+class SubmissionCcRecipientItem(BaseModel):
+    user_id: int
+    username: str
+    display_name: str
+    mentioned_by_id: int
+    mentioned_by_name: str
+    created_at: str
+
+
 class SubmissionAssigneeItem(BaseModel):
     user_id: int
     username: str
@@ -68,6 +77,7 @@ class SubmissionListItem(BaseModel):
     jira_status: str = ""
     initial_assignees: list[SubmissionAssigneeItem] = Field(default_factory=list)
     referrals: list[SubmissionReferralItem] = Field(default_factory=list)
+    cc_recipients: list[SubmissionCcRecipientItem] = Field(default_factory=list)
     can_act: bool = False
 
 
@@ -101,6 +111,7 @@ class SubmissionResponse(BaseModel):
     jira_status: str = ""
     initial_assignees: list[SubmissionAssigneeItem] = Field(default_factory=list)
     referrals: list[SubmissionReferralItem] = Field(default_factory=list)
+    cc_recipients: list[SubmissionCcRecipientItem] = Field(default_factory=list)
     timeline: list[SubmissionTimelineItem] = Field(default_factory=list)
     can_act: bool = False
 
@@ -126,6 +137,7 @@ class TaskStatusUpdate(BaseModel):
 class TaskReferRequest(BaseModel):
     to_user_id: int | None = None
     to_user_ids: list[int] = Field(default_factory=list)
+    cc_user_ids: list[int] = Field(default_factory=list)
     note: str = Field(default="", max_length=512)
     allow_repeat: bool = False
 

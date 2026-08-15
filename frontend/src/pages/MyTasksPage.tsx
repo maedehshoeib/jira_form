@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  AtSign,
   CalendarDays,
   CheckCircle2,
   ChevronLeft,
@@ -58,6 +59,15 @@ type InitialAssignee = {
   assigned_at: string;
 };
 
+type CcRecipient = {
+  user_id: number;
+  username: string;
+  display_name: string;
+  mentioned_by_id: number;
+  mentioned_by_name: string;
+  created_at: string;
+};
+
 type SubmissionListItem = {
   id: number;
   form_id: string;
@@ -85,6 +95,7 @@ type SubmissionListItem = {
   status_attachment_name?: string | null;
   initial_assignees?: InitialAssignee[];
   referrals?: ReferralItem[];
+  cc_recipients?: CcRecipient[];
   can_act?: boolean;
   timeline?: TimelineItem[];
 };
@@ -120,6 +131,14 @@ function initialAssigneeNames(task: SubmissionListItem) {
 function referralTargetNames(task: SubmissionListItem) {
   return uniqueNames(
     (task.referrals ?? []).map((referral) => referral.to_user_name),
+  );
+}
+
+function ccRecipientNames(task: SubmissionListItem) {
+  return uniqueNames(
+    (task.cc_recipients ?? []).map(
+      (recipient) => recipient.display_name || recipient.username,
+    ),
   );
 }
 
@@ -332,6 +351,7 @@ export default function MyTasksPage() {
   const [colleagues, setColleagues] = useState<Colleague[]>([]);
   const [colleagueQuery, setColleagueQuery] = useState("");
   const [selectedColleagueIds, setSelectedColleagueIds] = useState<number[]>([]);
+  const [mentionedColleagueIds, setMentionedColleagueIds] = useState<number[]>([]);
   const [referNote, setReferNote] = useState("");
   const [colleaguesLoading, setColleaguesLoading] = useState(false);
   const [statusAttachment, setStatusAttachment] = useState<File | null>(null);
@@ -454,6 +474,10 @@ export default function MyTasksPage() {
           ...(task.referrals ?? []).flatMap((referral) => [
             referral.from_user_name,
             referral.to_user_name,
+          ]),
+          ...(task.cc_recipients ?? []).flatMap((recipient) => [
+            recipient.display_name,
+            recipient.username,
           ]),
         ]
           .join(" ")
@@ -629,9 +653,13 @@ export default function MyTasksPage() {
   };
 
   const toggleColleague = (userId: number) => {
-    setSelectedColleagueIds((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
-    );
+    setSelectedColleagueIds((prev) => {
+      if (prev.includes(userId)) return prev.filter((id) => id !== userId);
+      setMentionedColleagueIds((mentions) =>
+        mentions.filter((id) => id !== userId),
+      );
+      return [...prev, userId];
+    });
   };
 
   const openReferPanel = async () => {
@@ -641,6 +669,7 @@ export default function MyTasksPage() {
     setActionError("");
     setColleagueQuery("");
     setSelectedColleagueIds([]);
+    setMentionedColleagueIds([]);
     setReferNote("");
     setReferAttachment(null);
     if (colleagues.length > 0) return;
@@ -666,6 +695,9 @@ export default function MyTasksPage() {
         selectedColleagueIds.forEach((id) => {
           formData.append("to_user_ids", String(id));
         });
+        mentionedColleagueIds.forEach((id) => {
+          formData.append("cc_user_ids", String(id));
+        });
         formData.append("note", referNote.trim());
         formData.append(
           "allow_repeat",
@@ -682,6 +714,7 @@ export default function MyTasksPage() {
           `${endpoints.tasks}/${selected.id}/refer`,
           {
             to_user_ids: selectedColleagueIds,
+            cc_user_ids: mentionedColleagueIds,
             note: referNote.trim(),
             allow_repeat: (selected.referrals?.length ?? 0) > 0,
           },
@@ -692,6 +725,7 @@ export default function MyTasksPage() {
       setSelected((prev) => (prev ? { ...data, data: prev.data } : data));
       setReferOpen(false);
       setSelectedColleagueIds([]);
+      setMentionedColleagueIds([]);
       setReferAttachment(null);
       window.dispatchEvent(new Event("tasks:refresh-notifications"));
     } catch (err: unknown) {
@@ -772,6 +806,50 @@ export default function MyTasksPage() {
       return hay.includes(q);
     });
   }, [colleagues, colleagueQuery]);
+
+  const mentionMatch = referNote.match(/(?:^|\s)@([^\s@]*)$/);
+  const mentionQuery = mentionMatch?.[1]?.toLocaleLowerCase("fa") ?? "";
+  const mentionCandidates = useMemo(() => {
+    if (!mentionMatch) return [];
+    return colleagues
+      .filter(
+        (user) =>
+          !selectedColleagueIds.includes(user.id) &&
+          !mentionedColleagueIds.includes(user.id),
+      )
+      .filter((user) => {
+        if (!mentionQuery) return true;
+        return [user.display_name, user.username, user.department, user.job_title]
+          .join(" ")
+          .toLocaleLowerCase("fa")
+          .includes(mentionQuery);
+      })
+      .slice(0, 8);
+  }, [
+    colleagues,
+    mentionMatch,
+    mentionQuery,
+    mentionedColleagueIds,
+    selectedColleagueIds,
+  ]);
+
+  const mentionedColleagues = useMemo(
+    () =>
+      mentionedColleagueIds
+        .map((id) => colleagues.find((user) => user.id === id))
+        .filter((user): user is Colleague => Boolean(user)),
+    [colleagues, mentionedColleagueIds],
+  );
+
+  const addMention = (user: Colleague) => {
+    setMentionedColleagueIds((prev) =>
+      prev.includes(user.id) ? prev : [...prev, user.id],
+    );
+    const label = user.display_name || user.username;
+    setReferNote((prev) =>
+      prev.replace(/@[^\s@]*$/, `@${label} `),
+    );
+  };
 
   const isRepeatReferral = previouslyReferredColleagueIds.size > 0;
 
@@ -1501,6 +1579,62 @@ export default function MyTasksPage() {
                     placeholder="یادداشت ارجاع (اختیاری)"
                     className="min-h-20 rounded-xl bg-white"
                   />
+                  <div className="relative space-y-2">
+                    <p className="flex items-center gap-1.5 text-xs text-slate-500">
+                      <AtSign size={14} className="text-sky-600" />
+                      {"\u0628\u0631\u0627\u06cc \u0631\u0648\u0646\u0648\u0634\u062a (CC) \u0648 \u0646\u0645\u0627\u06cc\u0634 \u062f\u0631\u062e\u0648\u0627\u0633\u062a \u0628\u0631\u0627\u06cc \u062f\u06cc\u06af\u0631\u0627\u0646\u060c @ \u062a\u0627\u06cc\u067e \u06a9\u0646\u06cc\u062f."}
+                    </p>
+                    {mentionMatch && (
+                      <div className="max-h-44 overflow-y-auto rounded-xl border border-sky-200 bg-white p-1.5 shadow-lg">
+                        {mentionCandidates.length === 0 ? (
+                          <p className="px-3 py-4 text-center text-xs text-slate-500">
+                            {"\u0647\u0645\u06a9\u0627\u0631\u06cc \u0628\u0631\u0627\u06cc \u0631\u0648\u0646\u0648\u0634\u062a \u06cc\u0627\u0641\u062a \u0646\u0634\u062f."}
+                          </p>
+                        ) : (
+                          mentionCandidates.map((user) => (
+                            <button
+                              key={user.id}
+                              type="button"
+                              onClick={() => addMention(user)}
+                              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-right text-sm hover:bg-sky-50"
+                            >
+                              <span className="flex items-center gap-2 font-semibold text-slate-700">
+                                <AtSign size={14} className="text-sky-600" />
+                                <UserDisplayName user={user} />
+                              </span>
+                              <span className="text-xs text-slate-400">
+                                {user.job_title || user.department || user.username}
+                              </span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                    {mentionedColleagues.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {mentionedColleagues.map((user) => (
+                          <span
+                            key={user.id}
+                            className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-white px-2.5 py-1 text-xs font-semibold text-sky-700"
+                          >
+                            @{user.display_name || user.username}
+                            <button
+                              type="button"
+                              aria-label="Remove CC recipient"
+                              onClick={() =>
+                                setMentionedColleagueIds((prev) =>
+                                  prev.filter((id) => id !== user.id),
+                                )
+                              }
+                              className="rounded-full p-0.5 hover:bg-sky-100"
+                            >
+                              <X size={12} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <div className="space-y-2">
                     <label className="block text-xs font-semibold text-slate-600">
                       پیوست (اختیاری)
@@ -1618,6 +1752,28 @@ export default function MyTasksPage() {
                           className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-xs font-bold text-sky-700"
                         >
                           {name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {ccRecipientNames(selected).length > 0 && (
+                  <div className="flex items-start gap-2 sm:col-span-2">
+                    <AtSign
+                      size={16}
+                      className="mt-0.5 shrink-0 text-violet-600"
+                      aria-hidden="true"
+                    />
+                    <span className="shrink-0 text-slate-500">
+                      {"\u0631\u0648\u0646\u0648\u0634\u062a (CC):"}
+                    </span>
+                    <div className="flex min-w-0 flex-wrap gap-1.5">
+                      {ccRecipientNames(selected).map((name) => (
+                        <span
+                          key={name}
+                          className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-xs font-bold text-violet-700"
+                        >
+                          @{name}
                         </span>
                       ))}
                     </div>

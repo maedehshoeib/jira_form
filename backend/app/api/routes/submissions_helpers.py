@@ -10,6 +10,7 @@ from app.api.routes.reports_helpers import _format_dt, _verify_api_key
 from app.core.deps import get_optional_user
 from app.models.submission import (
     Submission,
+    SubmissionCcRecipient,
     SubmissionInitialAssignee,
     SubmissionReferral,
     SubmissionStatusHistory,
@@ -18,6 +19,7 @@ from app.models.submission import (
 from app.models.user import User
 from app.schemas.submission import (
     SubmissionAssigneeItem,
+    SubmissionCcRecipientItem,
     SubmissionListItem,
     SubmissionReferralItem,
     SubmissionResponse,
@@ -161,6 +163,7 @@ class SubmissionWorkflowContext:
         int, list[SubmissionInitialAssignee]
     ]
     referrals_by_submission: dict[int, list[SubmissionReferral]]
+    cc_recipients_by_submission: dict[int, list[SubmissionCcRecipient]]
     views_by_submission: dict[int, list[SubmissionView]]
     histories_by_submission: dict[int, list[SubmissionStatusHistory]]
     users_by_id: dict[int, User]
@@ -180,6 +183,7 @@ def build_submission_workflow_context(
         return SubmissionWorkflowContext(
             initial_assignees_by_submission={},
             referrals_by_submission={},
+            cc_recipients_by_submission={},
             views_by_submission={},
             histories_by_submission={},
             users_by_id={},
@@ -201,6 +205,15 @@ def build_submission_workflow_context(
         .order_by(
             SubmissionReferral.created_at.asc(),
             SubmissionReferral.id.asc(),
+        )
+        .all()
+    )
+    cc_recipients = (
+        db.query(SubmissionCcRecipient)
+        .filter(SubmissionCcRecipient.submission_id.in_(submission_ids))
+        .order_by(
+            SubmissionCcRecipient.created_at.asc(),
+            SubmissionCcRecipient.id.asc(),
         )
         .all()
     )
@@ -226,12 +239,15 @@ def build_submission_workflow_context(
         int, list[SubmissionInitialAssignee]
     ] = defaultdict(list)
     referrals_by_submission: dict[int, list[SubmissionReferral]] = defaultdict(list)
+    cc_recipients_by_submission: dict[int, list[SubmissionCcRecipient]] = defaultdict(list)
     views_by_submission: dict[int, list[SubmissionView]] = defaultdict(list)
     histories_by_submission: dict[int, list[SubmissionStatusHistory]] = defaultdict(list)
     for row in initial_assignees:
         initial_assignees_by_submission[row.submission_id].append(row)
     for row in referrals:
         referrals_by_submission[row.submission_id].append(row)
+    for row in cc_recipients:
+        cc_recipients_by_submission[row.submission_id].append(row)
     for row in views:
         views_by_submission[row.submission_id].append(row)
     for row in histories:
@@ -246,6 +262,8 @@ def build_submission_workflow_context(
     )
     for row in referrals:
         user_ids.update((row.from_user_id, row.to_user_id))
+    for row in cc_recipients:
+        user_ids.update((row.user_id, row.mentioned_by_id))
     user_ids.update(row.user_id for row in views)
     user_ids.update(row.changed_by_id for row in histories)
     users = {
@@ -257,6 +275,7 @@ def build_submission_workflow_context(
             initial_assignees_by_submission
         ),
         referrals_by_submission=dict(referrals_by_submission),
+        cc_recipients_by_submission=dict(cc_recipients_by_submission),
         views_by_submission=dict(views_by_submission),
         histories_by_submission=dict(histories_by_submission),
         users_by_id=users,
@@ -312,6 +331,28 @@ def _status_attachment_name(
         if history.to_status == submission.status and history.attachment_name:
             return history.attachment_name
     return None
+
+
+def _cc_recipient_items(
+    context: SubmissionWorkflowContext,
+    submission_id: int,
+) -> list[SubmissionCcRecipientItem]:
+    items: list[SubmissionCcRecipientItem] = []
+    for row in context.cc_recipients_by_submission.get(submission_id, []):
+        user = context.users_by_id.get(row.user_id)
+        items.append(
+            SubmissionCcRecipientItem(
+                user_id=row.user_id,
+                username=user.username if user else "",
+                display_name=_user_display(user),
+                mentioned_by_id=row.mentioned_by_id,
+                mentioned_by_name=_user_display(
+                    context.users_by_id.get(row.mentioned_by_id)
+                ),
+                created_at=_format_dt(row.created_at),
+            )
+        )
+    return items
 
 
 def _status_updated_by_name(
@@ -482,6 +523,7 @@ def _submission_to_list_item(
             else SubmissionWorkflowContext(
                 initial_assignees_by_submission={},
                 referrals_by_submission={},
+                cc_recipients_by_submission={},
                 views_by_submission={},
                 histories_by_submission={},
                 users_by_id={user.id: user} if user is not None else {},
@@ -494,6 +536,7 @@ def _submission_to_list_item(
     )
     initial_assignees = _initial_assignee_items(context, submission.id)
     referrals = _referral_items(context, submission.id)
+    cc_recipients = _cc_recipient_items(context, submission.id)
     workflow_status, is_read, first_viewed_at, last_viewed_at = (
         _workflow_fields(context, submission)
     )
@@ -530,6 +573,7 @@ def _submission_to_list_item(
         jira_status=submission.jira_status or "",
         initial_assignees=initial_assignees,
         referrals=referrals,
+        cc_recipients=cc_recipients,
         can_act=can_act,
     )
 
@@ -554,6 +598,7 @@ def _submission_to_response(
             else SubmissionWorkflowContext(
                 initial_assignees_by_submission={},
                 referrals_by_submission={},
+                cc_recipients_by_submission={},
                 views_by_submission={},
                 histories_by_submission={},
                 users_by_id={user.id: user} if user is not None else {},
@@ -566,6 +611,7 @@ def _submission_to_response(
     )
     initial_assignees = _initial_assignee_items(context, submission.id)
     referrals = _referral_items(context, submission.id)
+    cc_recipients = _cc_recipient_items(context, submission.id)
     workflow_status, is_read, first_viewed_at, last_viewed_at = (
         _workflow_fields(context, submission)
     )
@@ -603,6 +649,7 @@ def _submission_to_response(
         jira_status=submission.jira_status or "",
         initial_assignees=initial_assignees,
         referrals=referrals,
+        cc_recipients=cc_recipients,
         timeline=_submission_timeline(context, submission),
         can_act=can_act,
     )

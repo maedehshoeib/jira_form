@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import unittest
 from datetime import datetime
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -22,6 +22,7 @@ from app.models.department import Department  # noqa: F401
 from app.models.form_template import FormDutyAssignment  # noqa: F401
 from app.models.submission import (
     Submission,
+    SubmissionCcRecipient,
     SubmissionInitialAssignee,
     SubmissionReferral,
     SubmissionStatusHistory,
@@ -541,6 +542,63 @@ class TaskWorkflowMockTests(unittest.TestCase):
             {item["to_user_id"] for item in detail.json()["referrals"]},
             {self.colleague.id, second.id},
         )
+
+    def test_http_referral_cc_recipient_has_read_only_visibility(self):
+        self._as(self.handler)
+        save_attachment = AsyncMock(return_value=("C:/fake/brief.pdf", "brief.pdf"))
+        with patch(
+            "app.api.routes.portal._save_task_action_attachment",
+            new=save_attachment,
+        ):
+            referred = self.client.post(
+                f"/api/v1/tasks/{self.submission.id}/refer",
+                data={
+                    "to_user_ids": str(self.colleague.id),
+                    "cc_user_ids": str(self.outsider.id),
+                    "note": "Please review with @outsider in CC",
+                },
+                files={
+                    "attachment": ("brief.pdf", b"test-pdf", "application/pdf")
+                },
+            )
+        self.assertEqual(referred.status_code, 200, referred.text)
+        save_attachment.assert_awaited_once()
+        self.assertEqual(referred.json()["referrals"][0]["attachment_name"], "brief.pdf")
+        self.assertEqual(
+            [item["user_id"] for item in referred.json()["cc_recipients"]],
+            [self.outsider.id],
+        )
+        self.assertEqual(
+            self.db.query(SubmissionCcRecipient)
+            .filter(SubmissionCcRecipient.submission_id == self.submission.id)
+            .count(),
+            1,
+        )
+
+        self._as(self.outsider)
+        tasks = self.client.get("/api/v1/tasks")
+        self.assertEqual(tasks.status_code, 200, tasks.text)
+        self.assertEqual([item["id"] for item in tasks.json()], [self.submission.id])
+        self.assertFalse(tasks.json()[0]["can_act"])
+
+        detail = self.client.get(f"/api/v1/tasks/{self.submission.id}")
+        self.assertEqual(detail.status_code, 200, detail.text)
+        self.assertFalse(detail.json()["can_act"])
+
+        pending = self.client.get("/api/v1/tasks/pending-count")
+        self.assertEqual(pending.json(), {"count": 0, "ids": []})
+
+        forbidden_status = self.client.patch(
+            f"/api/v1/tasks/{self.submission.id}/status",
+            json={"status": "approved"},
+        )
+        self.assertEqual(forbidden_status.status_code, 403, forbidden_status.text)
+
+        forbidden_refer = self.client.post(
+            f"/api/v1/tasks/{self.submission.id}/refer",
+            json={"to_user_ids": [self.colleague.id]},
+        )
+        self.assertEqual(forbidden_refer.status_code, 403, forbidden_refer.text)
 
     def test_http_repeat_refer_accepts_mixed_old_and_new_recipients(self):
         second = self._user("colleague2", "همکار دوم")

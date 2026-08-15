@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models.submission import (
     Submission,
+    SubmissionCcRecipient,
     SubmissionReferral,
     SubmissionStatusHistory,
     SubmissionView,
@@ -43,7 +44,25 @@ def user_can_access_task(db: Session, user: User, submission: Submission) -> boo
     return user_is_referral_recipient(db, user.id, submission.id)
 
 
-def _task_access_conditions(db: Session, user_id: int):
+def user_is_cc_recipient(db: Session, user_id: int, submission_id: int) -> bool:
+    return (
+        db.query(SubmissionCcRecipient.id)
+        .filter(
+            SubmissionCcRecipient.submission_id == submission_id,
+            SubmissionCcRecipient.user_id == user_id,
+        )
+        .first()
+        is not None
+    )
+
+
+def user_can_view_task(db: Session, user: User, submission: Submission) -> bool:
+    return user_can_access_task(db, user, submission) or user_is_cc_recipient(
+        db, user.id, submission.id
+    )
+
+
+def _task_action_conditions(db: Session, user_id: int):
     assignments = list_user_duty_assignments(db, user_id)
     conditions = [
         and_(
@@ -65,6 +84,20 @@ def _task_access_conditions(db: Session, user_id: int):
     return conditions
 
 
+def _task_view_conditions(db: Session, user_id: int):
+    conditions = _task_action_conditions(db, user_id)
+    cc_ids = [
+        row.submission_id
+        for row in db.query(SubmissionCcRecipient.submission_id)
+        .filter(SubmissionCcRecipient.user_id == user_id)
+        .distinct()
+        .all()
+    ]
+    if cc_ids:
+        conditions.append(Submission.id.in_(cc_ids))
+    return conditions
+
+
 def list_task_submissions(
     db: Session,
     user_id: int,
@@ -75,7 +108,7 @@ def list_task_submissions(
     limit: int = 100,
     offset: int = 0,
 ) -> list[Submission]:
-    conditions = _task_access_conditions(db, user_id)
+    conditions = _task_view_conditions(db, user_id)
     if not conditions:
         return []
 
@@ -93,7 +126,7 @@ def list_task_submissions(
 
 def list_pending_task_ids(db: Session, user_id: int) -> list[int]:
     """IDs of non-terminal tasks the user can still act on."""
-    conditions = _task_access_conditions(db, user_id)
+    conditions = _task_action_conditions(db, user_id)
     if not conditions:
         return []
     rows = (
@@ -110,7 +143,7 @@ def list_pending_task_ids(db: Session, user_id: int) -> list[int]:
 
 def list_unseen_task_ids(db: Session, user_id: int) -> list[int]:
     """IDs of accessible tasks not opened since their latest referral."""
-    conditions = _task_access_conditions(db, user_id)
+    conditions = _task_view_conditions(db, user_id)
     if not conditions:
         return []
     newer_referral_exists = (
@@ -119,6 +152,15 @@ def list_unseen_task_ids(db: Session, user_id: int) -> list[int]:
             SubmissionReferral.submission_id == Submission.id,
             SubmissionReferral.to_user_id == user_id,
             SubmissionReferral.created_at > SubmissionView.last_viewed_at,
+        )
+        .exists()
+    )
+    newer_cc_exists = (
+        db.query(SubmissionCcRecipient.id)
+        .filter(
+            SubmissionCcRecipient.submission_id == Submission.id,
+            SubmissionCcRecipient.user_id == user_id,
+            SubmissionCcRecipient.created_at > SubmissionView.last_viewed_at,
         )
         .exists()
     )
@@ -133,7 +175,7 @@ def list_unseen_task_ids(db: Session, user_id: int) -> list[int]:
         )
         .filter(
             or_(*conditions),
-            or_(SubmissionView.id.is_(None), newer_referral_exists),
+            or_(SubmissionView.id.is_(None), newer_referral_exists, newer_cc_exists),
         )
         .order_by(Submission.created_at.desc())
         .all()
@@ -146,7 +188,7 @@ def mark_task_viewed(
     actor: User,
     submission: Submission,
 ) -> SubmissionView:
-    if not user_can_access_task(db, actor, submission):
+    if not user_can_view_task(db, actor, submission):
         raise PermissionError("شما به این وظیفه دسترسی ندارید.")
 
     now = datetime.utcnow()
@@ -291,6 +333,7 @@ def refer_task(
     allow_repeat: bool = False,
     attachment_path: str | None = None,
     attachment_name: str | None = None,
+    cc_user_ids: list[int] | None = None,
 ) -> SubmissionReferral:
     referrals = refer_tasks(
         db,
@@ -301,6 +344,7 @@ def refer_task(
         allow_repeat=allow_repeat,
         attachment_path=attachment_path,
         attachment_name=attachment_name,
+        cc_user_ids=cc_user_ids,
     )
     return referrals[0]
 
@@ -315,6 +359,7 @@ def refer_tasks(
     allow_repeat: bool = False,
     attachment_path: str | None = None,
     attachment_name: str | None = None,
+    cc_user_ids: list[int] | None = None,
 ) -> list[SubmissionReferral]:
     unique_ids: list[int] = []
     for user_id in to_user_ids:
@@ -333,6 +378,13 @@ def refer_tasks(
     if any(user_id == actor.id for user_id in unique_ids):
         raise ValueError("نمی‌توانید درخواست را به خودتان ارجاع دهید.")
 
+    unique_cc_ids: list[int] = []
+    for user_id in cc_user_ids or []:
+        if user_id not in unique_cc_ids and user_id not in unique_ids:
+            unique_cc_ids.append(user_id)
+    if actor.id in unique_cc_ids:
+        raise ValueError("You cannot mention yourself as a CC recipient.")
+
     targets = {
         user.id: user
         for user in db.query(User)
@@ -342,6 +394,15 @@ def refer_tasks(
     missing = [user_id for user_id in unique_ids if user_id not in targets]
     if missing:
         raise ValueError("کاربر مقصد یافت نشد یا غیرفعال است.")
+
+    cc_targets = {
+        user.id: user
+        for user in db.query(User)
+        .filter(User.id.in_(unique_cc_ids), User.is_active.is_(True))
+        .all()
+    }
+    if len(cc_targets) != len(unique_cc_ids):
+        raise ValueError("One or more CC recipients were not found or are inactive.")
 
     existing_ids = {
         row.to_user_id
@@ -372,6 +433,30 @@ def refer_tasks(
         for user_id in unique_ids
     ]
     db.add_all(referrals)
+    existing_cc_ids = (
+        {
+            row.user_id
+            for row in db.query(SubmissionCcRecipient.user_id)
+            .filter(
+                SubmissionCcRecipient.submission_id == submission.id,
+                SubmissionCcRecipient.user_id.in_(unique_cc_ids),
+            )
+            .all()
+        }
+        if unique_cc_ids
+        else set()
+    )
+    db.add_all(
+        [
+            SubmissionCcRecipient(
+                submission_id=submission.id,
+                user_id=user_id,
+                mentioned_by_id=actor.id,
+            )
+            for user_id in unique_cc_ids
+            if user_id not in existing_cc_ids
+        ]
+    )
     db.commit()
     for referral in referrals:
         db.refresh(referral)
