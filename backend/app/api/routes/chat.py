@@ -27,6 +27,7 @@ from app.core.birthday import is_birthday_today, user_display_name
 from app.core.config import settings
 from app.core.deps import get_current_user
 from app.core.security import decode_access_token
+from app.core.timezone import format_tehran_iso
 from app.db.session import SessionLocal, get_db
 from app.models.admin_session import AdminSession
 from app.models.chat import (
@@ -177,9 +178,9 @@ def _message_dict(
             if message.attachment_path and not deleted
             else None
         ),
-        "created_at": message.created_at.isoformat(),
-        "edited_at": message.edited_at.isoformat() if message.edited_at else None,
-        "deleted_at": message.deleted_at.isoformat() if message.deleted_at else None,
+        "created_at": format_tehran_iso(message.created_at),
+        "edited_at": format_tehran_iso(message.edited_at),
+        "deleted_at": format_tehran_iso(message.deleted_at),
         "reactions": reactions or [],
     }
 
@@ -282,8 +283,8 @@ def _conversation_dict(
         "is_pinned": membership.is_pinned,
         "is_archived": membership.is_archived,
         "role": membership.role,
-        "created_at": conversation.created_at.isoformat(),
-        "updated_at": conversation.updated_at.isoformat(),
+        "created_at": format_tehran_iso(conversation.created_at),
+        "updated_at": format_tehran_iso(conversation.updated_at),
     }
 
 

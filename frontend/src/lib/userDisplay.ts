@@ -1,3 +1,5 @@
+import { getTehranNowDate } from "./persianDate";
+
 export type UserNameFields = {
   display_name?: string | null;
   username?: string | null;
@@ -5,14 +7,14 @@ export type UserNameFields = {
   is_birthday?: boolean;
 };
 
-/** Compare month/day of an ISO date (YYYY-MM-DD) with the local calendar day. */
+/** Compare month/day of an ISO date (YYYY-MM-DD) with the Tehran calendar day. */
 export function isBirthdayToday(birthDate?: string | null): boolean {
   if (!birthDate) return false;
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(birthDate);
   if (!match) return false;
   const month = Number(match[2]);
   const day = Number(match[3]);
-  const now = new Date();
+  const now = getTehranNowDate();
   return now.getMonth() + 1 === month && now.getDate() === day;
 }
 

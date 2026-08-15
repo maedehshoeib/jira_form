@@ -26,7 +26,11 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import { API_BASE, FormField, FormTemplate } from "../config/portal";
-import { formatPersianDateTime } from "../lib/persianDate";
+import {
+  formatPersianDateTime,
+  getTehranNowDate,
+  parseTehranDateTime,
+} from "../lib/persianDate";
 import UserDisplayName from "../components/UserDisplayName";
 
 type ReferralItem = {
@@ -166,10 +170,7 @@ const STATUS_TABS: { id: StatusTab; label: string }[] = [
 ];
 
 function parseSubmittedAt(value: string) {
-  const match = value.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{1,2})$/);
-  if (!match) return null;
-  const [, year, month, day, hour, minute] = match.map(Number);
-  return new Date(year, month - 1, day, hour, minute);
+  return parseTehranDateTime(value);
 }
 
 function displayStatus(status: string) {
@@ -463,7 +464,7 @@ export default function MyTasksPage() {
 
   const filteredTasks = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLocaleLowerCase("fa");
-    const now = new Date();
+    const now = getTehranNowDate();
     let cutoff: Date | null = null;
 
     if (timeRange === "today") {

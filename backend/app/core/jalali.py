@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 
+from app.core.timezone import tehran_date_bounds_to_utc_naive, tehran_today
+
 
 def normalize_digits(value: str) -> str:
     """Convert Persian/Arabic digits to ASCII digits."""
@@ -88,19 +90,19 @@ def jalali_to_gregorian(value: str) -> date:
 
 
 def jalali_today() -> str:
-    return gregorian_to_jalali(date.today())
+    return gregorian_to_jalali(tehran_today())
 
 
 def default_analytics_range(days: int = 6) -> tuple[str, str]:
     """Return inclusive Jalali start/end covering today and the previous N days."""
-    end = date.today()
+    end = tehran_today()
     start = end - timedelta(days=days)
     return gregorian_to_jalali(start), gregorian_to_jalali(end)
 
 
 def jalali_range_to_datetimes(start_date: str, end_date: str) -> tuple[datetime, datetime]:
     """Convert inclusive Jalali dates to UTC-naive datetimes for SQL filtering."""
-    start = datetime.combine(jalali_to_gregorian(start_date), datetime.min.time())
-    end_day = jalali_to_gregorian(end_date)
-    end = datetime.combine(end_day + timedelta(days=1), datetime.min.time())
-    return start, end
+    return tehran_date_bounds_to_utc_naive(
+        jalali_to_gregorian(start_date),
+        jalali_to_gregorian(end_date),
+    )

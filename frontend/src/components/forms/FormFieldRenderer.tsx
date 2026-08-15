@@ -1,5 +1,5 @@
 import { FormField } from '../../config/portal';
-import { normalizePersianDate, PERSIAN_DATE_FORMAT } from '../../lib/persianDate';
+import { getTodayPersian, normalizePersianDate, PERSIAN_DATE_FORMAT } from '../../lib/persianDate';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import FormTableField from './FormTableField';
@@ -30,7 +30,12 @@ function resolveDateConstraint(
 ): DateObject | undefined {
   if (!value) return undefined;
   if (value === 'today') {
-    return new DateObject({ calendar: persian, locale: persian_fa });
+    return new DateObject({
+      date: getTodayPersian(),
+      format: PERSIAN_DATE_FORMAT,
+      calendar: persian,
+      locale: persian_fa,
+    });
   }
   try {
     return new DateObject({ date: value, calendar: persian });

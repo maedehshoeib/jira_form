@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 
 from app.core.config import settings
+from app.core.timezone import format_tehran_datetime
 from app.models.report import Report
 from app.models.user import User
 from app.schemas.report import ReportResponse
@@ -9,7 +10,7 @@ from app.services.performance_report_schema import PERFORMANCE_TABLE_COLUMNS
 
 
 def _format_dt(dt: datetime) -> str:
-    return dt.strftime("%Y/%m/%d %H:%M")
+    return format_tehran_datetime(dt)
 
 
 def _verify_api_key(x_api_key: str | None) -> bool:

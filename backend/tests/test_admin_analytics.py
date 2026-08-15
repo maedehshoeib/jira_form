@@ -26,9 +26,7 @@ class JalaliHelperTests(unittest.TestCase):
         self.assertEqual(jalali_to_gregorian("1403/01/01"), date(2024, 3, 20))
 
     def test_default_range_is_inclusive_week(self):
-        with patch("app.core.jalali.date") as mocked:
-            mocked.today.return_value = date(2026, 8, 3)
-            mocked.side_effect = lambda *args, **kwargs: date(*args, **kwargs)
+        with patch("app.core.jalali.tehran_today", return_value=date(2026, 8, 3)):
             start, end = default_analytics_range(6)
         self.assertEqual(end, gregorian_to_jalali(date(2026, 8, 3)))
         self.assertEqual(start, gregorian_to_jalali(date(2026, 7, 28)))

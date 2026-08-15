@@ -10,6 +10,7 @@ from app.core.deps import get_admin_user
 from app.core.config import settings
 from app.core.jalali import default_analytics_range, normalize_digits
 from app.core.security import hash_password
+from app.core.timezone import tehran_date_bounds_to_utc_naive, tehran_today
 from app.db.session import get_db
 from app.models.admin_session import AdminSession
 from app.models.department import Department
@@ -561,7 +562,8 @@ def dashboard(
     admin: User = Depends(get_admin_user),
 ):
     _expire_old_admin_sessions(db, admin.id)
-    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today = tehran_today()
+    today_start, tomorrow_start = tehran_date_bounds_to_utc_naive(today, today)
     status_rows = (
         db.query(Submission.status, func.count(Submission.id))
         .group_by(Submission.status)
@@ -575,19 +577,18 @@ def dashboard(
         .all()
     )
 
-    month_start = today.replace(day=1)
-    months: list[tuple[str, datetime, datetime]] = []
-    cursor = month_start
+    month_day = today.replace(day=1)
+    next_month_day = (month_day + timedelta(days=32)).replace(day=1)
+    next_month_start, _ = tehran_date_bounds_to_utc_naive(next_month_day, next_month_day)
+    months: list[tuple[str, datetime]] = []
     for _ in range(6):
-        previous = (cursor - timedelta(days=1)).replace(day=1)
-        months.append((cursor.strftime("%Y/%m"), cursor, datetime.max))
-        cursor = previous
+        month_start, _ = tehran_date_bounds_to_utc_naive(month_day, month_day)
+        months.append((month_day.strftime("%Y/%m"), month_start))
+        month_day = (month_day - timedelta(days=1)).replace(day=1)
     months.reverse()
     month_items: list[ChartItem] = []
-    for index, (label, start, _) in enumerate(months):
-        end = months[index + 1][1] if index + 1 < len(months) else (
-            month_start + timedelta(days=32)
-        ).replace(day=1)
+    for index, (label, start) in enumerate(months):
+        end = months[index + 1][1] if index + 1 < len(months) else next_month_start
         count = (
             db.query(Submission)
             .filter(Submission.created_at >= start, Submission.created_at < end)
@@ -610,7 +611,10 @@ def dashboard(
         ).count(),
         total_requests=db.query(Submission).count(),
         requests_today=db.query(Submission)
-        .filter(Submission.created_at >= today)
+        .filter(
+            Submission.created_at >= today_start,
+            Submission.created_at < tomorrow_start,
+        )
         .count(),
         active_admin_devices=db.query(AdminSession.device_id)
         .filter(AdminSession.user_id == admin.id, AdminSession.is_active.is_(True))

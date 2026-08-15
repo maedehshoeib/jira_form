@@ -1,5 +1,7 @@
 import React from 'react';
 
+import { getTehranTime } from '@/lib/persianDate';
+
 type AttendanceSegment = {
   id: number;
   check_in_time: string;
@@ -120,8 +122,7 @@ export function TasksGanttChart({ days }: GanttProps): JSX.Element {
     );
   }
 
-  const now = new Date();
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const nowMinutes = parseTimeToMinutes(getTehranTime());
   const dayRows = days.map((day) => {
     const attendanceRanges = mergeAttendanceRanges(
       day.attendance

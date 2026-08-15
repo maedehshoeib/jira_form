@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
 from pydantic import BaseModel
@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.api.routes.submissions_helpers import require_api_key_or_user
 from app.core.birthday import is_birthday_today, user_display_name
 from app.core.deps import get_current_user
+from app.core.timezone import format_tehran_datetime
 from app.db.session import get_db
 from app.models.user import User
 from app.services.management_letter_service import (
@@ -24,13 +25,10 @@ from app.services.management_letter_service import (
 
 
 router = APIRouter(prefix="/management-letters", tags=["management-letters"])
-IRAN_TZ = timezone(timedelta(hours=3, minutes=30))
 
 
 def _format_report_dt(value: datetime) -> str:
-    if value.tzinfo is None:
-        value = value.replace(tzinfo=timezone.utc)
-    return value.astimezone(IRAN_TZ).strftime("%Y/%m/%d %H:%M")
+    return format_tehran_datetime(value)
 
 
 class LetterRecipientResponse(BaseModel):

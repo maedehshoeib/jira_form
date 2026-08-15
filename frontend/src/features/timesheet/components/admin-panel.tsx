@@ -56,6 +56,7 @@ import { Button } from '@/features/timesheet/components/ui/button';
 import { Input } from '@/features/timesheet/components/ui/input';
 import { JalaliDateTimePicker } from '@/features/timesheet/components/jalali-date-time-picker';
 import { Logo } from '@/features/timesheet/components/logo';
+import { getTehranTime, getTodayPersian } from '@/lib/persianDate';
 
 type ReportTab = 'employees' | 'tasks' | 'attendance';
 type PeriodPreset = 'today' | 'week' | 'month' | 'custom';
@@ -64,7 +65,12 @@ type EditorMode = 'attendance' | 'task' | null;
 const numberFormatter = new Intl.NumberFormat('fa-IR');
 
 function jalaliToday(): DateObject {
-  return new DateObject({ calendar: persian, locale: persian_fa });
+  return new DateObject({
+    date: getTodayPersian(),
+    format: 'YYYY/MM/DD',
+    calendar: persian,
+    locale: persian_fa,
+  });
 }
 
 function asDate(value: DateObject): string {
@@ -104,7 +110,7 @@ function durationMinutes(start: string | null, end: string | null, workDate?: st
   if (!start) return 0;
   if (!end && workDate && workDate !== asDate(jalaliToday())) return 0;
   const [startHour, startMinute] = start.split(':').map(Number);
-  const [endHour, endMinute] = (end || new Date().toTimeString().slice(0, 5)).split(':').map(Number);
+  const [endHour, endMinute] = (end || getTehranTime()).split(':').map(Number);
   return Math.max(0, endHour * 60 + endMinute - startHour * 60 - startMinute);
 }
 

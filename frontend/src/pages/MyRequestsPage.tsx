@@ -27,7 +27,11 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { API_BASE, FormField, FormTemplate } from "../config/portal";
 import { useAuth } from "../context/AuthContext";
-import { formatPersianDateTime } from "../lib/persianDate";
+import {
+  formatPersianDateTime,
+  getTehranNowDate,
+  parseTehranDateTime,
+} from "../lib/persianDate";
 
 type WorkflowStatus =
   | "unseen"
@@ -170,10 +174,7 @@ const WORKFLOW_STATUS_META: Record<
 };
 
 function parseSubmittedAt(value: string) {
-  const match = value.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{1,2})$/);
-  if (!match) return null;
-  const [, year, month, day, hour, minute] = match.map(Number);
-  return new Date(year, month - 1, day, hour, minute);
+  return parseTehranDateTime(value);
 }
 
 function workflowStatusMeta(status: WorkflowStatus) {
@@ -539,7 +540,7 @@ export default function MyRequestsPage() {
 
   const filteredRequests = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLocaleLowerCase("fa");
-    const now = new Date();
+    const now = getTehranNowDate();
     let cutoff: Date | null = null;
 
     if (timeRange === "today") {

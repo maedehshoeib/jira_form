@@ -48,6 +48,7 @@ import { Textarea } from '@/features/timesheet/components/ui/textarea';
 import { JalaliDateTimePicker } from '@/features/timesheet/components/jalali-date-time-picker';
 import { TasksGanttChart } from '@/features/timesheet/components/tasks-gantt-chart';
 import logo from '@/assets/logo.png';
+import { getTehranTime, getTodayPersian } from '@/lib/persianDate';
 
 type WeekTimelineDay = {
   work_date: string;
@@ -59,7 +60,12 @@ type PeriodPreset = 'today' | 'week' | 'month' | 'custom';
 const ACTIVITY_PAGE_SIZE = 6;
 
 const today = () =>
-  new DateObject({ calendar: persian, locale: persianFa });
+  new DateObject({
+    date: getTodayPersian(),
+    format: 'YYYY/MM/DD',
+    calendar: persian,
+    locale: persianFa,
+  });
 
 function normalizeDigits(value: string): string {
   const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
@@ -98,9 +104,7 @@ function datesBetween(startDate: string, endDate: string): string[] {
 
 function segmentMinutes(start: string, end: string | null): number {
   const [startHour, startMinute] = start.split(':').map(Number);
-  const fallback = new Date();
-  const endValue =
-    end ?? `${String(fallback.getHours()).padStart(2, '0')}:${String(fallback.getMinutes()).padStart(2, '0')}`;
+  const endValue = end ?? getTehranTime();
   const [endHour, endMinute] = endValue.split(':').map(Number);
   return Math.max(0, endHour * 60 + endMinute - (startHour * 60 + startMinute));
 }

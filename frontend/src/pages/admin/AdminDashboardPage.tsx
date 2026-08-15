@@ -30,7 +30,7 @@ import {
   type DailyTimesheetPoint,
 } from "../../features/admin/analytics";
 import { JalaliDateTimePicker } from "../../features/timesheet/components/jalali-date-time-picker";
-import { formatPersianDateTime } from "../../lib/persianDate";
+import { formatPersianDateTime, getTodayPersian } from "../../lib/persianDate";
 
 type AnalyticsTab = "overview" | "employees" | "projects" | "departments" | "forms";
 type PeriodPreset = "today" | "week" | "month" | "custom";
@@ -42,7 +42,12 @@ const number = (value: number) => numberFmt.format(value);
 const dateTime = (value: string) => formatPersianDateTime(value);
 
 function jalaliToday(): DateObject {
-  return new DateObject({ calendar: persian, locale: persian_fa });
+  return new DateObject({
+    date: getTodayPersian(),
+    format: "YYYY/MM/DD",
+    calendar: persian,
+    locale: persian_fa,
+  });
 }
 
 function asDate(value: DateObject): string {

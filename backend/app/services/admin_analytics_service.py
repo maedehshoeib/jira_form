@@ -4,18 +4,21 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
-from functools import lru_cache
 from typing import DefaultDict, Literal
 
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.core.jalali import (
     gregorian_to_jalali,
     jalali_range_to_datetimes,
     jalali_today,
     normalize_digits,
+)
+from app.core.timezone import (
+    tehran_date_bounds_to_utc_naive,
+    tehran_now,
+    tehran_today,
+    utc_naive_to_tehran,
 )
 from app.models.admin_session import AdminSession
 from app.models.submission import Submission
@@ -48,18 +51,8 @@ from app.services.portal_service import DEPARTMENTS, FORM_TEMPLATES
 ProjectStatusFilter = Literal["active", "inactive"]
 
 
-@lru_cache(maxsize=1)
-def _timesheet_timezone():
-    try:
-        return ZoneInfo(settings.TIMESHEET_TIMEZONE)
-    except ZoneInfoNotFoundError:
-        from datetime import timezone
-
-        return timezone(timedelta(hours=3, minutes=30))
-
-
 def _local_now_time() -> str:
-    return datetime.now(_timesheet_timezone()).strftime("%H:%M")
+    return tehran_now().strftime("%H:%M")
 
 
 def _minutes(value: str) -> int:
@@ -147,7 +140,8 @@ def build_analytics(
         raise ValueError("وضعیت پروژه نامعتبر است.")
 
     form_start, form_end = jalali_range_to_datetimes(start, end)
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today = tehran_today()
+    today_start, today_end = tehran_date_bounds_to_utc_naive(today, today)
     today_jalali = jalali_today()
     now_time = _local_now_time()
 
@@ -277,7 +271,10 @@ def build_analytics(
             for submission, user in (
                 db.query(Submission, User)
                 .outerjoin(User, User.id == Submission.user_id)
-                .filter(Submission.created_at >= today_start)
+                .filter(
+                    Submission.created_at >= today_start,
+                    Submission.created_at < today_end,
+                )
                 .all()
             )
             if _submission_matches(submission, user)
@@ -285,7 +282,12 @@ def build_analytics(
     else:
         all_time_requests = db.query(Submission).count()
         requests_today = (
-            db.query(Submission).filter(Submission.created_at >= today_start).count()
+            db.query(Submission)
+            .filter(
+                Submission.created_at >= today_start,
+                Submission.created_at < today_end,
+            )
+            .count()
         )
 
     active_admin_devices = (
@@ -499,22 +501,20 @@ def build_analytics(
             (user.display_name or user.username) if user else "کاربر حذف‌شده"
         )
         submitter_counts[submitter_name] += 1
-        daily_form_counts[gregorian_to_jalali(submission.created_at.date())] += 1
+        daily_form_counts[gregorian_to_jalali(utc_naive_to_tehran(submission.created_at).date())] += 1
 
-    month_start = today_start.replace(day=1)
+    month_day = today.replace(day=1)
+    next_month_day = (month_day + timedelta(days=32)).replace(day=1)
+    next_month_start, _ = tehran_date_bounds_to_utc_naive(next_month_day, next_month_day)
     months: list[tuple[str, datetime]] = []
-    cursor = month_start
     for _ in range(6):
-        months.append((cursor.strftime("%Y/%m"), cursor))
-        cursor = (cursor - timedelta(days=1)).replace(day=1)
+        month_begin, _ = tehran_date_bounds_to_utc_naive(month_day, month_day)
+        months.append((month_day.strftime("%Y/%m"), month_begin))
+        month_day = (month_day - timedelta(days=1)).replace(day=1)
     months.reverse()
     monthly_items: list[ChartItem] = []
     for index, (label, month_begin) in enumerate(months):
-        month_end = (
-            months[index + 1][1]
-            if index + 1 < len(months)
-            else (month_start + timedelta(days=32)).replace(day=1)
-        )
+        month_end = months[index + 1][1] if index + 1 < len(months) else next_month_start
         month_rows = (
             db.query(Submission, User)
             .outerjoin(User, User.id == Submission.user_id)

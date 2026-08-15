@@ -1,13 +1,11 @@
-from datetime import datetime, timedelta, timezone
-from functools import lru_cache
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.core.deps import get_current_user
+from app.core.timezone import format_tehran_iso, tehran_now
 from app.db.session import get_db
 from app.models.timesheet import (
     TimesheetAttendance,
@@ -33,18 +31,8 @@ from app.schemas.timesheet import (
 router = APIRouter()
 
 
-@lru_cache(maxsize=1)
-def _timesheet_timezone():
-    """Return the business timezone even when the host has no tzdata package."""
-    try:
-        return ZoneInfo(settings.TIMESHEET_TIMEZONE)
-    except ZoneInfoNotFoundError:
-        # Iran has used a fixed UTC+03:30 offset since September 2022.
-        return timezone(timedelta(hours=3, minutes=30))
-
-
 def _local_now_time() -> str:
-    return datetime.now(_timesheet_timezone()).strftime("%H:%M")
+    return tehran_now().strftime("%H:%M")
 
 
 def _minutes(value: str) -> int:
@@ -68,8 +56,8 @@ def _serialize_attendance(item: TimesheetAttendance) -> dict:
         "work_date": item.work_date,
         "check_in_time": item.check_in_time,
         "check_out_time": item.check_out_time,
-        "created_at": item.created_at.isoformat() if item.created_at else None,
-        "updated_at": item.updated_at.isoformat() if item.updated_at else None,
+        "created_at": format_tehran_iso(item.created_at),
+        "updated_at": format_tehran_iso(item.updated_at),
     }
 
 
@@ -83,7 +71,7 @@ def _serialize_task(item: TimesheetTask) -> dict:
         "start_time": item.start_time,
         "end_time": item.end_time,
         "minutes_spent": item.minutes_spent,
-        "created_at": item.created_at.isoformat() if item.created_at else None,
+        "created_at": format_tehran_iso(item.created_at),
     }
 
 
@@ -98,7 +86,7 @@ def _serialize_subproject(
         "end_date": item.end_date,
         "is_active": item.is_active,
         "user_ids": user_ids if user_ids is not None else [],
-        "created_at": item.created_at.isoformat() if item.created_at else None,
+        "created_at": format_tehran_iso(item.created_at),
     }
 
 
@@ -116,7 +104,7 @@ def _serialize_project(
         "is_active": item.is_active,
         "user_ids": user_ids if user_ids is not None else [],
         "subprojects": subprojects if subprojects is not None else [],
-        "created_at": item.created_at.isoformat() if item.created_at else None,
+        "created_at": format_tehran_iso(item.created_at),
     }
 
 

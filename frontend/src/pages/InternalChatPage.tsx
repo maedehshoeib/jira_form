@@ -39,7 +39,7 @@ import AppShell from "../components/layout/AppShell";
 import UserAvatar from "../components/UserAvatar";
 import UserDisplayName, { BirthdayBadge } from "../components/UserDisplayName";
 import { useAuth } from "../context/AuthContext";
-import { formatPersianDateTime } from "../lib/persianDate";
+import { formatPersianDateTime, getTodayPersian } from "../lib/persianDate";
 import { formatUserDisplayName } from "../lib/userDisplay";
 import {
   ChatMessage,
@@ -69,21 +69,15 @@ function initials(name: string) {
 }
 
 function formatTime(value: string) {
-  const formatted = formatPersianDateTime(
-    value.endsWith("Z") ? value : `${value}Z`
-  );
+  const formatted = formatPersianDateTime(value);
   const parts = formatted.split(" ");
   return parts[1] || formatted;
 }
 
 function formatListTime(value: string) {
-  const iso = value.endsWith("Z") ? value : `${value}Z`;
-  const date = new Date(iso);
-  const today = new Date();
-  if (date.toDateString() === today.toDateString()) return formatTime(value);
-  const formatted = formatPersianDateTime(iso);
-  // Show MM/DD portion of Jalali date for conversation list
+  const formatted = formatPersianDateTime(value);
   const datePart = formatted.split(" ")[0] || formatted;
+  if (datePart === getTodayPersian()) return formatTime(value);
   const segments = datePart.split("/");
   if (segments.length === 3) return `${segments[1]}/${segments[2]}`;
   return datePart;

@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.deps import get_current_user
+from app.core.timezone import format_tehran_datetime
 from app.db.contracts_session import get_contracts_db
 from app.db.session import get_db as get_access_db
 from app.models.contract import Contract
@@ -22,8 +23,6 @@ CONTRACT_TYPE_LABELS = {
     "staff": "ستادی",
 }
 
-
-IRAN_TZ = timezone(timedelta(hours=3, minutes=30))
 
 
 def require_contract_archive_access(
@@ -40,11 +39,7 @@ def require_contract_archive_access(
 
 
 def _format_dt(value: datetime | None) -> str:
-    if not value:
-        return ""
-    if value.tzinfo is None:
-        value = value.replace(tzinfo=timezone.utc)
-    return value.astimezone(IRAN_TZ).strftime("%Y/%m/%d %H:%M")
+    return format_tehran_datetime(value)
 
 
 def _contract_to_list_item(contract: Contract) -> ContractListItem:
