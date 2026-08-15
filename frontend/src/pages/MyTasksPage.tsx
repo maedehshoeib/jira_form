@@ -154,6 +154,9 @@ type TimeRange = "all" | "today" | "7days" | "30days" | "90days";
 type SortOrder = "newest" | "oldest";
 type StatusTab = "pending" | "in_progress" | "rejected" | "approved" | "referred";
 
+const INTERNAL_LETTERS_FILTER = "internal-letters";
+const INTERNAL_LETTERS_TITLE = "نامه‌های درون‌سازمانی";
+
 const STATUS_TABS: { id: StatusTab; label: string }[] = [
   { id: "pending", label: "اقدام نشده" },
   { id: "in_progress", label: "\u062f\u0631 \u062d\u0627\u0644 \u0627\u0646\u062c\u0627\u0645" },
@@ -190,6 +193,13 @@ function matchesStatusTab(task: SubmissionListItem, tab: StatusTab) {
   if (tab === "rejected") return task.status === "rejected";
   if (tab === "approved") return task.status === "approved";
   return (task.referrals?.length ?? 0) > 0;
+}
+
+function isInternalLetterTask(task: SubmissionListItem) {
+  return (
+    task.department_title === INTERNAL_LETTERS_TITLE ||
+    task.section_title === INTERNAL_LETTERS_TITLE
+  );
 }
 
 function normalizedProgress(value: number | null | undefined, status?: string) {
@@ -410,6 +420,11 @@ export default function MyTasksPage() {
 
   const sections = useMemo(() => {
     const items = new Map<string, string>();
+    const hasInternalLetters = tasks.some(
+      (task) =>
+        (departmentFilter === "all" || task.department_id === departmentFilter) &&
+        isInternalLetterTask(task),
+    );
     tasks
       .filter(
         (task) => departmentFilter === "all" || task.department_id === departmentFilter,
@@ -420,6 +435,9 @@ export default function MyTasksPage() {
           items.set(key, task.section_title || task.form_title);
         }
       });
+    if (hasInternalLetters) {
+      items.set(INTERNAL_LETTERS_FILTER, INTERNAL_LETTERS_TITLE);
+    }
     return Array.from(items, ([id, title]) => ({ id, title })).sort((a, b) =>
       a.title.localeCompare(b.title, "fa"),
     );
@@ -489,8 +507,12 @@ export default function MyTasksPage() {
         }
         if (
           sectionFilter !== "all" &&
+          sectionFilter !== INTERNAL_LETTERS_FILTER &&
           `${task.department_id}::${task.section_id}` !== sectionFilter
         ) {
+          return false;
+        }
+        if (sectionFilter === INTERNAL_LETTERS_FILTER && !isInternalLetterTask(task)) {
           return false;
         }
         if (cutoff) {
