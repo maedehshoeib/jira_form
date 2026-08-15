@@ -7,6 +7,7 @@ from fastapi import (  # noqa: F401 — File/Form reserved for multipart signatu
     Depends,
     File,
     Form,
+    Header,
     HTTPException,
     Query,
     Request,
@@ -15,6 +16,7 @@ from fastapi import (  # noqa: F401 — File/Form reserved for multipart signatu
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+from app.api.routes.reports_helpers import _verify_api_key
 from app.api.routes.submissions_helpers import (
     _submission_to_list_item,
     _submission_to_response,
@@ -36,6 +38,8 @@ from app.models.site_news import SiteNews
 from app.models.user import User
 from app.schemas.admin import SiteBannerResponse, SiteNewsResponse
 from app.schemas.submission import (
+    JiraStatusResponse,
+    JiraStatusUpdate,
     SubmissionListItem,
     SubmissionResponse,
     TaskColleague,
@@ -594,6 +598,34 @@ def list_submissions(
             )
         )
     return result
+
+
+@router.put(
+    "/submissions/{submission_id}/jira-status",
+    response_model=JiraStatusResponse,
+)
+def update_submission_jira_status(
+    submission_id: int,
+    payload: JiraStatusUpdate,
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    db: Session = Depends(get_db),
+):
+    if not _verify_api_key(x_api_key):
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+    submission = db.query(Submission).filter(Submission.id == submission_id).first()
+    if not submission:
+        raise HTTPException(status_code=404, detail="Submission not found")
+
+    submission.jira_issue_key = payload.jira_issue_key.strip()
+    submission.jira_status = payload.jira_status.strip()
+    db.commit()
+    db.refresh(submission)
+    return JiraStatusResponse(
+        submission_id=submission.id,
+        jira_issue_key=submission.jira_issue_key or "",
+        jira_status=submission.jira_status or "",
+    )
 
 
 @router.get("/submissions/{submission_id}", response_model=SubmissionResponse)

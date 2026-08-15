@@ -1,4 +1,4 @@
-from datetime import datetime
+﻿from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
@@ -25,6 +25,8 @@ class Submission(Base):
     status_updated_by_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("users.id"), nullable=True
     )
+    jira_issue_key: Mapped[str] = mapped_column(String(64), default="")
+    jira_status: Mapped[str] = mapped_column(String(256), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
@@ -125,3 +127,4 @@ class SubmissionStatusHistory(Base):
     attachment_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
     attachment_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+

@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.api.routes.submissions_helpers import require_api_key_or_user
 from app.core.birthday import is_birthday_today, user_display_name
 from app.core.deps import get_current_user
 from app.db.session import get_db
@@ -251,7 +252,7 @@ async def send_management_letter(
 def management_letter_report(
     letter_type: LetterType = DEFAULT_LETTER_TYPE,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(require_api_key_or_user),
 ):
     try:
         rows = list_sent_letters(db, current_user, letter_type=letter_type)

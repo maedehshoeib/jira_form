@@ -196,6 +196,14 @@ def _migrate_submissions_db():
             "status_note",
             "ALTER TABLE submissions ADD COLUMN status_note VARCHAR(512) DEFAULT ''",
         ),
+        (
+            "jira_issue_key",
+            "ALTER TABLE submissions ADD COLUMN jira_issue_key VARCHAR(64) DEFAULT ''",
+        ),
+        (
+            "jira_status",
+            "ALTER TABLE submissions ADD COLUMN jira_status VARCHAR(256) DEFAULT ''",
+        ),
     ]
     with engine.begin() as conn:
         for column_name, ddl in migrations:

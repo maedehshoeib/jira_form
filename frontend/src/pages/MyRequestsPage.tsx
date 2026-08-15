@@ -85,6 +85,8 @@ type SubmissionListItem = {
   status: string;
   workflow_status: WorkflowStatus;
   progress_percent: number;
+  jira_issue_key?: string;
+  jira_status?: string;
   first_viewed_at: string | null;
   initial_assignees?: InitialAssignee[];
   referrals?: ReferralItem[];
@@ -1085,6 +1087,29 @@ export default function MyRequestsPage() {
               <div className="grid gap-3 rounded-2xl bg-slate-50 p-4 text-sm sm:grid-cols-2">
                 <div><span className="text-slate-500">تاریخ ثبت:</span> <span className="font-semibold text-slate-700">{formatPersianDateTime(selected.created_at)}</span></div>
                 <div><span className="text-slate-500">نوع فرم:</span> <span className="font-semibold text-slate-700">{selected.form_title}</span></div>
+                {(selected.jira_issue_key || selected.jira_status) && (
+                  <div className="sm:col-span-2 rounded-2xl border border-slate-200 bg-white p-3">
+                    <div className="mb-2 text-xs font-bold uppercase text-slate-500">Jira</div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {selected.jira_issue_key && (
+                        <div>
+                          <span className="text-slate-500">Jira Issue:</span>{" "}
+                          <span className="font-semibold text-slate-700">
+                            {selected.jira_issue_key}
+                          </span>
+                        </div>
+                      )}
+                      {selected.jira_status && (
+                        <div>
+                          <span className="text-slate-500">Jira Status:</span>{" "}
+                          <span className="whitespace-pre-wrap font-semibold text-slate-700">
+                            {selected.jira_status}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-start gap-2 sm:col-span-2">
                   <UserRound
                     size={16}

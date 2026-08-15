@@ -380,12 +380,12 @@ def create_management_letters(
 
 def list_sent_letters(
     db: Session,
-    user: User,
+    user: User | None,
     *,
     letter_type: str = DEFAULT_LETTER_TYPE,
 ) -> list[dict]:
     normalized_letter_type = validate_letter_type(letter_type)
-    if not user_can_use_management_workflow(
+    if user is not None and not user_can_use_management_workflow(
         db,
         user,
         letter_type=normalized_letter_type,
@@ -397,7 +397,7 @@ def list_sent_letters(
         Submission.section_id == MANAGEMENT_LETTER_SECTION,
         Submission.form_id == MANAGEMENT_LETTER_FORM_ID,
     )
-    if not user.is_admin:
+    if user is not None and not user.is_admin:
         query = query.filter(Submission.user_id == user.id)
 
     submissions = query.order_by(Submission.created_at.desc(), Submission.id.desc()).all()

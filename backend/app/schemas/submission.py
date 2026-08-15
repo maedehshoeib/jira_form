@@ -64,6 +64,8 @@ class SubmissionListItem(BaseModel):
     status_updated_at: str | None = None
     status_note: str = ""
     status_attachment_name: str | None = None
+    jira_issue_key: str = ""
+    jira_status: str = ""
     initial_assignees: list[SubmissionAssigneeItem] = Field(default_factory=list)
     referrals: list[SubmissionReferralItem] = Field(default_factory=list)
     can_act: bool = False
@@ -95,10 +97,24 @@ class SubmissionResponse(BaseModel):
     status_updated_at: str | None = None
     status_note: str = ""
     status_attachment_name: str | None = None
+    jira_issue_key: str = ""
+    jira_status: str = ""
     initial_assignees: list[SubmissionAssigneeItem] = Field(default_factory=list)
     referrals: list[SubmissionReferralItem] = Field(default_factory=list)
     timeline: list[SubmissionTimelineItem] = Field(default_factory=list)
     can_act: bool = False
+
+
+class JiraStatusUpdate(BaseModel):
+    jira_issue_key: str = Field(min_length=1, max_length=64)
+    jira_status: str = Field(min_length=1, max_length=256)
+
+
+class JiraStatusResponse(BaseModel):
+    submission_id: int
+    jira_issue_key: str
+    jira_status: str
+    updated: bool = True
 
 
 class TaskStatusUpdate(BaseModel):
@@ -136,3 +152,4 @@ class TaskColleague(BaseModel):
 class TaskPendingNotification(BaseModel):
     count: int
     ids: list[int] = Field(default_factory=list)
+
