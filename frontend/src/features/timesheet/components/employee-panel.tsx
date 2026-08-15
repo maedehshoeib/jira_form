@@ -443,16 +443,18 @@ export function EmployeePanel(): JSX.Element {
       const currentlyCheckedIn = freshSummary.is_currently_checked_in;
 
       if (currentlyCheckedIn) {
-        await saveCheckOut({
+        const updatedSummary = await saveCheckOut({
           work_date: currentWorkDate,
           check_out_time: currentTime,
         });
+        setSummary(updatedSummary);
         setStatus('خروج شما با موفقیت ثبت شد.');
       } else {
-        await saveCheckIn({
+        const updatedSummary = await saveCheckIn({
           work_date: currentWorkDate,
           check_in_time: currentTime,
         });
+        setSummary(updatedSummary);
         setStatus('ورود شما با موفقیت ثبت شد. روز خوبی داشته باشید!');
       }
 

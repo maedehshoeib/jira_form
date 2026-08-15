@@ -13,6 +13,8 @@ from app.api.routes.timesheet import (
     admin_create_task,
     admin_update_attendance,
     admin_update_task,
+    check_in,
+    check_out,
 )
 from app.db.base import Base
 from app.models.department import Department  # noqa: F401 - registers FK table
@@ -22,6 +24,8 @@ from app.schemas.timesheet import (
     AdminAttendancePayload,
     AdminAttendanceUpdatePayload,
     AdminTaskPayload,
+    CheckInPayload,
+    CheckOutPayload,
     TaskPayload,
 )
 
@@ -118,6 +122,93 @@ class TimesheetTaskIntervalTests(unittest.TestCase):
         ):
             summary = _day_summary(self.db, self.user.id, '1405/05/10')
         self.assertTrue(summary['is_currently_checked_in'])
+
+    def test_check_in_immediately_returns_checked_in_summary(self):
+        result = check_in(
+            CheckInPayload(work_date='1405/05/10', check_in_time='09:00'),
+            self.user,
+            self.db,
+        )
+        self.assertTrue(result['summary']['is_currently_checked_in'])
+        self.assertEqual(result['summary']['active_work_date'], '1405/05/10')
+        self.assertEqual(result['summary']['active_check_in_time'], '09:00')
+
+    def test_check_out_closes_entry_and_returns_inactive_summary(self):
+        check_in(
+            CheckInPayload(work_date='1405/05/10', check_in_time='09:00'),
+            self.user,
+            self.db,
+        )
+        result = check_out(
+            CheckOutPayload(work_date='1405/05/10', check_out_time='17:00'),
+            self.user,
+            self.db,
+        )
+        self.assertFalse(result['summary']['is_currently_checked_in'])
+        self.assertIsNone(result['summary']['active_work_date'])
+        self.assertEqual(
+            self.db.query(TimesheetAttendance).one().check_out_time,
+            '17:00',
+        )
+
+    def test_open_entry_from_another_day_is_visible_and_can_be_closed(self):
+        self.attendance('1405/05/09', '09:00')
+
+        today_summary = _day_summary(self.db, self.user.id, '1405/05/10')
+        self.assertTrue(today_summary['is_currently_checked_in'])
+        self.assertEqual(today_summary['active_work_date'], '1405/05/09')
+
+        result = check_out(
+            CheckOutPayload(work_date='1405/05/10', check_out_time='17:00'),
+            self.user,
+            self.db,
+        )
+        attendance = self.db.query(TimesheetAttendance).one()
+        self.assertFalse(result['summary']['is_currently_checked_in'])
+        self.assertEqual(attendance.work_date, '1405/05/09')
+        self.assertEqual(attendance.check_out_time, '17:00')
+
+    def test_second_check_in_is_rejected_until_exit(self):
+        check_in(
+            CheckInPayload(work_date='1405/05/10', check_in_time='09:00'),
+            self.user,
+            self.db,
+        )
+        with self.assertRaises(HTTPException) as raised:
+            check_in(
+                CheckInPayload(work_date='1405/05/10', check_in_time='09:01'),
+                self.user,
+                self.db,
+            )
+        self.assertEqual(raised.exception.status_code, 400)
+
+    def test_second_shift_can_start_after_exit(self):
+        check_in(
+            CheckInPayload(work_date='1405/05/10', check_in_time='09:00'),
+            self.user,
+            self.db,
+        )
+        check_out(
+            CheckOutPayload(work_date='1405/05/10', check_out_time='12:00'),
+            self.user,
+            self.db,
+        )
+        result = check_in(
+            CheckInPayload(work_date='1405/05/10', check_in_time='13:00'),
+            self.user,
+            self.db,
+        )
+        self.assertTrue(result['summary']['is_currently_checked_in'])
+        self.assertEqual(self.db.query(TimesheetAttendance).count(), 2)
+
+    def test_check_out_without_open_entry_is_rejected(self):
+        with self.assertRaises(HTTPException) as raised:
+            check_out(
+                CheckOutPayload(work_date='1405/05/10', check_out_time='17:00'),
+                self.user,
+                self.db,
+            )
+        self.assertEqual(raised.exception.status_code, 400)
 
 
     def test_task_accepts_matching_subproject(self):

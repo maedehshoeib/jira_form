@@ -609,6 +609,19 @@ def _create_task_for_user(
     }
 
 
+def _open_attendance(db: Session, user_id: int) -> TimesheetAttendance | None:
+    """Return the user's latest open attendance, regardless of work date."""
+    return (
+        db.query(TimesheetAttendance)
+        .filter(
+            TimesheetAttendance.user_id == user_id,
+            TimesheetAttendance.check_out_time.is_(None),
+        )
+        .order_by(TimesheetAttendance.id.desc())
+        .first()
+    )
+
+
 def _day_summary(db: Session, user_id: int, work_date: str) -> dict:
     attendance = (
         db.query(TimesheetAttendance)
@@ -619,6 +632,7 @@ def _day_summary(db: Session, user_id: int, work_date: str) -> dict:
         .order_by(TimesheetAttendance.check_in_time, TimesheetAttendance.id)
         .all()
     )
+    active_attendance = _open_attendance(db, user_id)
     tasks = (
         db.query(TimesheetTask)
         .filter(
@@ -639,8 +653,10 @@ def _day_summary(db: Session, user_id: int, work_date: str) -> dict:
         "work_date": work_date,
         "check_in_time": attendance[0].check_in_time if attendance else None,
         "check_out_time": attendance[-1].check_out_time if attendance else None,
-        "is_currently_checked_in": any(
-            item.check_out_time is None for item in attendance
+        "is_currently_checked_in": active_attendance is not None,
+        "active_work_date": active_attendance.work_date if active_attendance else None,
+        "active_check_in_time": (
+            active_attendance.check_in_time if active_attendance else None
         ),
         "attendance_minutes": attendance_minutes,
         "task_minutes": task_minutes,
@@ -690,28 +706,24 @@ def check_in(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    active = (
-        db.query(TimesheetAttendance)
-        .filter(
-            TimesheetAttendance.user_id == user.id,
-            TimesheetAttendance.check_out_time.is_(None),
-        )
-        .first()
-    )
+    active = _open_attendance(db, user.id)
     if active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="یک ورود باز دارید؛ ابتدا خروج را ثبت کنید.",
         )
-    db.add(
-        TimesheetAttendance(
-            user_id=user.id,
-            work_date=payload.work_date,
-            check_in_time=payload.check_in_time,
-        )
+    item = TimesheetAttendance(
+        user_id=user.id,
+        work_date=payload.work_date,
+        check_in_time=payload.check_in_time,
     )
+    db.add(item)
     db.commit()
-    return {"message": "ورود با موفقیت ثبت شد."}
+    return {
+        "message": "ورود با موفقیت ثبت شد.",
+        "attendance": _serialize_attendance(item),
+        "summary": _day_summary(db, user.id, payload.work_date),
+    }
 
 
 @router.post("/attendance/check-out")
@@ -720,26 +732,21 @@ def check_out(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    active = (
-        db.query(TimesheetAttendance)
-        .filter(
-            TimesheetAttendance.user_id == user.id,
-            TimesheetAttendance.work_date == payload.work_date,
-            TimesheetAttendance.check_out_time.is_(None),
-        )
-        .order_by(TimesheetAttendance.id.desc())
-        .first()
-    )
+    active = _open_attendance(db, user.id)
     if not active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="ورود بازی برای این روز پیدا نشد.",
+            detail="ورود بازی برای شما پیدا نشد.",
         )
     _duration(active.check_in_time, payload.check_out_time)
     active.check_out_time = payload.check_out_time
     active.updated_at = datetime.utcnow()
     db.commit()
-    return {"message": "خروج با موفقیت ثبت شد."}
+    return {
+        "message": "خروج با موفقیت ثبت شد.",
+        "attendance": _serialize_attendance(active),
+        "summary": _day_summary(db, user.id, payload.work_date),
+    }
 
 
 @router.post("/tasks")

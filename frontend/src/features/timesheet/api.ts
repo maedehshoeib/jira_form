@@ -8,6 +8,8 @@ export type DaySummary = {
   check_in_time: string | null;
   check_out_time: string | null;
   is_currently_checked_in: boolean;
+  active_work_date: string | null;
+  active_check_in_time: string | null;
   attendance_minutes: number;
   task_minutes: number;
   untracked_minutes: number;
@@ -127,15 +129,23 @@ export type AdminRangeRecords = {
 export async function saveCheckIn(payload: {
   work_date: string;
   check_in_time: string;
-}): Promise<void> {
-  await client.post(`${base}/attendance/check-in`, payload);
+}): Promise<DaySummary> {
+  const { data } = await client.post<{ summary: DaySummary }>(
+    `${base}/attendance/check-in`,
+    payload,
+  );
+  return data.summary;
 }
 
 export async function saveCheckOut(payload: {
   work_date: string;
   check_out_time: string;
-}): Promise<void> {
-  await client.post(`${base}/attendance/check-out`, payload);
+}): Promise<DaySummary> {
+  const { data } = await client.post<{ summary: DaySummary }>(
+    `${base}/attendance/check-out`,
+    payload,
+  );
+  return data.summary;
 }
 
 export async function saveTask(payload: {
@@ -156,7 +166,8 @@ export async function fetchProjects(): Promise<ProjectItem[]> {
 
 export async function fetchSummary(workDate: string): Promise<DaySummary> {
   const { data } = await client.get<DaySummary>(`${base}/me/day/summary`, {
-    params: { work_date: workDate },
+    params: { work_date: workDate, _: Date.now() },
+    headers: { 'Cache-Control': 'no-cache' },
   });
   return data;
 }
