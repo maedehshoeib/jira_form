@@ -9,9 +9,11 @@ import {
   EyeOff,
   FileText,
   Forward,
+  Grid2X2,
   Loader2,
   Paperclip,
   RefreshCw,
+  Rows3,
   Search,
   SlidersHorizontal,
   UserRound,
@@ -108,6 +110,7 @@ type SubmissionDetail = SubmissionListItem & {
 
 type TimeRange = "all" | "today" | "7days" | "30days" | "90days";
 type SortOrder = "newest" | "oldest";
+type ViewMode = "cards" | "table";
 
 const INTERNAL_LETTERS_FILTER = "internal-letters";
 const INTERNAL_LETTERS_TITLE = "نامه‌های درون‌سازمانی";
@@ -470,6 +473,7 @@ export default function MyRequestsPage() {
   const [timeRange, setTimeRange] = useState<TimeRange>("all");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
   const [statusTab, setStatusTab] = useState<StatusTab>("all");
+  const [viewMode, setViewMode] = useState<ViewMode>("cards");
 
   const loadRequests = async () => {
     setLoading(true);
@@ -867,9 +871,45 @@ export default function MyRequestsPage() {
             </select>
           </div>
 
-          <p className="mt-4 text-xs text-slate-500">
-            {filteredRequests.length.toLocaleString("fa-IR")} درخواست از {requests.length.toLocaleString("fa-IR")} درخواست
-          </p>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-slate-500">
+              {filteredRequests.length.toLocaleString("fa-IR")} درخواست از {requests.length.toLocaleString("fa-IR")} درخواست
+            </p>
+            <div
+              role="group"
+              aria-label="نوع نمایش درخواست‌ها"
+              className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1"
+            >
+              <button
+                type="button"
+                aria-pressed={viewMode === "cards"}
+                onClick={() => setViewMode("cards")}
+                className={[
+                  "flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400",
+                  viewMode === "cards"
+                    ? "bg-white text-red-600 shadow-sm"
+                    : "text-slate-500 hover:text-slate-800",
+                ].join(" ")}
+              >
+                <Grid2X2 size={15} aria-hidden="true" />
+                کارت‌ها
+              </button>
+              <button
+                type="button"
+                aria-pressed={viewMode === "table"}
+                onClick={() => setViewMode("table")}
+                className={[
+                  "flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400",
+                  viewMode === "table"
+                    ? "bg-white text-red-600 shadow-sm"
+                    : "text-slate-500 hover:text-slate-800",
+                ].join(" ")}
+              >
+                <Rows3 size={16} aria-hidden="true" />
+                جدول
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -892,7 +932,7 @@ export default function MyRequestsPage() {
             پاک کردن فیلترها
           </Button>
         </div>
-      ) : (
+      ) : viewMode === "cards" ? (
         <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
           {filteredRequests.map((request) => {
             const statusMeta = workflowStatusMeta(request.workflow_status);
@@ -1051,6 +1091,140 @@ export default function MyRequestsPage() {
               </button>
             );
           })}
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-md">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] text-right text-sm">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold text-slate-600">
+                <tr>
+                  <th scope="col" className="px-4 py-4">شناسه</th>
+                  <th scope="col" className="px-4 py-4">درخواست</th>
+                  <th scope="col" className="px-4 py-4">دسته‌بندی</th>
+                  <th scope="col" className="px-4 py-4">مسئول رسیدگی</th>
+                  {user?.is_admin && <th scope="col" className="px-4 py-4">ثبت‌کننده</th>}
+                  <th scope="col" className="px-4 py-4">وضعیت</th>
+                  <th scope="col" className="px-4 py-4">پیشرفت</th>
+                  <th scope="col" className="px-4 py-4">زمان ثبت</th>
+                  <th scope="col" className="px-4 py-4">
+                    <span className="sr-only">عملیات</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredRequests.map((request) => {
+                  const statusMeta = workflowStatusMeta(request.workflow_status);
+                  const progress = normalizedProgress(request.progress_percent);
+                  const requestTitle =
+                    request.subject || request.section_title || request.form_title;
+                  const initialAssigneeNames = uniqueNames(
+                    (request.initial_assignees ?? []).map(
+                      (assignee) => assignee.display_name || assignee.username,
+                    ),
+                  );
+                  const referralTargetNames = uniqueNames(
+                    (request.referrals ?? []).map((referral) => referral.to_user_name),
+                  );
+                  const currentAssignees =
+                    referralTargetNames.length > 0
+                      ? referralTargetNames
+                      : initialAssigneeNames;
+
+                  return (
+                    <tr
+                      key={request.id}
+                      className={
+                        request.workflow_status === "unseen"
+                          ? "bg-amber-50/30 transition hover:bg-amber-50/60"
+                          : "bg-white transition hover:bg-slate-50"
+                      }
+                    >
+                      <td className="whitespace-nowrap px-4 py-4 font-bold text-slate-500">
+                        {request.id.toLocaleString("fa-IR")}
+                      </td>
+                      <td className="max-w-64 px-4 py-4">
+                        <button
+                          type="button"
+                          onClick={() => void openRequest(request)}
+                          disabled={detailLoading}
+                          className="block max-w-full text-right font-bold text-slate-800 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-60"
+                        >
+                          <span className="block truncate" title={requestTitle}>
+                            {requestTitle}
+                          </span>
+                          <span className="mt-1 block truncate text-xs font-normal text-slate-500">
+                            {request.section_title || request.form_title}
+                          </span>
+                        </button>
+                      </td>
+                      <td className="max-w-48 px-4 py-4 text-slate-600">
+                        <span className="block truncate" title={request.department_title}>
+                          {request.department_title || "—"}
+                        </span>
+                      </td>
+                      <td className="max-w-52 px-4 py-4 text-slate-600">
+                        <span
+                          className="block truncate"
+                          title={currentAssignees.join("، ") || "نامشخص"}
+                        >
+                          {compactNames(currentAssignees)}
+                        </span>
+                        {referralTargetNames.length > 0 && (
+                          <span className="mt-1 block text-xs font-semibold text-violet-600">
+                            ارجاع‌شده
+                          </span>
+                        )}
+                      </td>
+                      {user?.is_admin && (
+                        <td className="max-w-40 px-4 py-4 text-slate-600">
+                          <span className="block truncate" title={request.submitted_by}>
+                            {request.submitted_by || "—"}
+                          </span>
+                        </td>
+                      )}
+                      <td className="whitespace-nowrap px-4 py-4">
+                        <Badge variant="outline" className={statusMeta.badgeClass}>
+                          {statusMeta.label}
+                        </Badge>
+                      </td>
+                      <td className="w-36 px-4 py-4">
+                        <span className="mb-1.5 block text-xs font-bold text-slate-700">
+                          {progress.toLocaleString("fa-IR")}٪
+                        </span>
+                        <div
+                          role="progressbar"
+                          aria-label={`پیشرفت درخواست ${request.id}`}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={progress}
+                          className="h-1.5 overflow-hidden rounded-full bg-slate-200"
+                        >
+                          <div
+                            className={"h-full rounded-full " + statusMeta.barClass}
+                            style={{ width: progress + "%" }}
+                          />
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-4 text-xs text-slate-500">
+                        {formatPersianDateTime(request.created_at)}
+                      </td>
+                      <td className="px-4 py-4">
+                        <button
+                          type="button"
+                          onClick={() => void openRequest(request)}
+                          disabled={detailLoading}
+                          aria-label={`مشاهده جزئیات درخواست ${requestTitle}`}
+                          className="flex h-9 w-9 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-60"
+                        >
+                          <ChevronLeft size={18} aria-hidden="true" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
