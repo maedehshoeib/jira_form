@@ -109,6 +109,9 @@ type SubmissionDetail = SubmissionListItem & {
 type TimeRange = "all" | "today" | "7days" | "30days" | "90days";
 type SortOrder = "newest" | "oldest";
 
+const INTERNAL_LETTERS_FILTER = "internal-letters";
+const INTERNAL_LETTERS_TITLE = "نامه‌های درون‌سازمانی";
+
 const STATUS_TABS: { id: StatusTab; label: string }[] = [
   { id: "all", label: "همه" },
   { id: "unseen", label: "دیده‌نشده" },
@@ -175,6 +178,13 @@ const WORKFLOW_STATUS_META: Record<
 
 function parseSubmittedAt(value: string) {
   return parseTehranDateTime(value);
+}
+
+function isInternalLetterRequest(request: SubmissionListItem) {
+  return (
+    request.department_title === INTERNAL_LETTERS_TITLE ||
+    request.section_title === INTERNAL_LETTERS_TITLE
+  );
 }
 
 function workflowStatusMeta(status: WorkflowStatus) {
@@ -504,6 +514,11 @@ export default function MyRequestsPage() {
 
   const sections = useMemo(() => {
     const items = new Map<string, string>();
+    const hasInternalLetters = requests.some(
+      (request) =>
+        (departmentFilter === "all" || request.department_id === departmentFilter) &&
+        isInternalLetterRequest(request),
+    );
     requests
       .filter(
         (request) =>
@@ -515,6 +530,9 @@ export default function MyRequestsPage() {
           items.set(key, request.section_title || request.form_title);
         }
       });
+    if (hasInternalLetters) {
+      items.set(INTERNAL_LETTERS_FILTER, INTERNAL_LETTERS_TITLE);
+    }
     return Array.from(items, ([id, title]) => ({ id, title })).sort((a, b) =>
       a.title.localeCompare(b.title, "fa")
     );
@@ -581,7 +599,14 @@ export default function MyRequestsPage() {
         }
         if (
           sectionFilter !== "all" &&
+          sectionFilter !== INTERNAL_LETTERS_FILTER &&
           `${request.department_id}::${request.section_id}` !== sectionFilter
+        ) {
+          return false;
+        }
+        if (
+          sectionFilter === INTERNAL_LETTERS_FILTER &&
+          !isInternalLetterRequest(request)
         ) {
           return false;
         }
