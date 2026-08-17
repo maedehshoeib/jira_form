@@ -1198,6 +1198,26 @@ export default function MyTasksPage() {
                   )}
                 </div>
               )}
+              {(task.jira_issue_key || task.jira_status) && (
+                <div className="mt-3 grid gap-2 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2.5 text-xs sm:grid-cols-2">
+                  {task.jira_issue_key && (
+                    <p className="flex min-w-0 items-center gap-1.5">
+                      <span className="shrink-0 text-slate-500">شماره Jira:</span>
+                      <span dir="ltr" className="min-w-0 truncate font-bold text-blue-700" title={task.jira_issue_key}>
+                        {task.jira_issue_key}
+                      </span>
+                    </p>
+                  )}
+                  {task.jira_status && (
+                    <p className="flex min-w-0 items-center gap-1.5">
+                      <span className="shrink-0 text-slate-500">وضعیت Jira:</span>
+                      <span className="min-w-0 truncate font-semibold text-slate-700" title={task.jira_status}>
+                        {task.jira_status}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
               {(task.status === "in_progress" ||
                 task.status === "approved" ||
                 normalizedProgress(task.progress_percent, task.status) > 0) && (
