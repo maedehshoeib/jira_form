@@ -124,26 +124,37 @@ class TimesheetTaskIntervalTests(unittest.TestCase):
         self.assertTrue(summary['is_currently_checked_in'])
 
     def test_check_in_immediately_returns_checked_in_summary(self):
-        result = check_in(
-            CheckInPayload(work_date='1405/05/10', check_in_time='09:00'),
-            self.user,
-            self.db,
-        )
+        with patch(
+            'app.api.routes.timesheet.jalali_today', return_value='1405/05/10'
+        ), patch(
+            'app.api.routes.timesheet._local_now_time', return_value='09:00'
+        ):
+            result = check_in(
+                CheckInPayload(work_date='1405/05/10', check_in_time='01:00'),
+                self.user,
+                self.db,
+            )
         self.assertTrue(result['summary']['is_currently_checked_in'])
         self.assertEqual(result['summary']['active_work_date'], '1405/05/10')
         self.assertEqual(result['summary']['active_check_in_time'], '09:00')
 
     def test_check_out_closes_entry_and_returns_inactive_summary(self):
-        check_in(
-            CheckInPayload(work_date='1405/05/10', check_in_time='09:00'),
-            self.user,
-            self.db,
-        )
-        result = check_out(
-            CheckOutPayload(work_date='1405/05/10', check_out_time='17:00'),
-            self.user,
-            self.db,
-        )
+        with patch(
+            'app.api.routes.timesheet.jalali_today', return_value='1405/05/10'
+        ), patch(
+            'app.api.routes.timesheet._local_now_time',
+            side_effect=['09:00', '09:00', '17:00', '17:00'],
+        ):
+            check_in(
+                CheckInPayload(work_date='1405/05/10', check_in_time='01:00'),
+                self.user,
+                self.db,
+            )
+            result = check_out(
+                CheckOutPayload(work_date='1405/05/10', check_out_time='00:00'),
+                self.user,
+                self.db,
+            )
         self.assertFalse(result['summary']['is_currently_checked_in'])
         self.assertIsNone(result['summary']['active_work_date'])
         self.assertEqual(
@@ -158,15 +169,35 @@ class TimesheetTaskIntervalTests(unittest.TestCase):
         self.assertTrue(today_summary['is_currently_checked_in'])
         self.assertEqual(today_summary['active_work_date'], '1405/05/09')
 
-        result = check_out(
-            CheckOutPayload(work_date='1405/05/10', check_out_time='17:00'),
-            self.user,
-            self.db,
-        )
+        with patch(
+            'app.api.routes.timesheet.jalali_today', return_value='1405/05/10'
+        ), patch(
+            'app.api.routes.timesheet._local_now_time', return_value='08:00'
+        ):
+            result = check_out(
+                CheckOutPayload(work_date='1405/05/10', check_out_time='00:00'),
+                self.user,
+                self.db,
+            )
         attendance = self.db.query(TimesheetAttendance).one()
         self.assertFalse(result['summary']['is_currently_checked_in'])
         self.assertEqual(attendance.work_date, '1405/05/09')
-        self.assertEqual(attendance.check_out_time, '17:00')
+        self.assertEqual(attendance.check_out_time, '08:00')
+
+    def test_corrupt_future_check_in_can_still_be_closed(self):
+        self.attendance('1405/05/10', '17:00')
+
+        with patch(
+            'app.api.routes.timesheet._local_now_time', return_value='08:00'
+        ):
+            check_out(
+                CheckOutPayload(work_date='1405/05/10', check_out_time='00:00'),
+                self.user,
+                self.db,
+            )
+
+        attendance = self.db.query(TimesheetAttendance).one()
+        self.assertEqual(attendance.check_out_time, '08:00')
 
     def test_second_check_in_is_rejected_until_exit(self):
         check_in(
@@ -183,21 +214,31 @@ class TimesheetTaskIntervalTests(unittest.TestCase):
         self.assertEqual(raised.exception.status_code, 400)
 
     def test_second_shift_can_start_after_exit(self):
-        check_in(
-            CheckInPayload(work_date='1405/05/10', check_in_time='09:00'),
-            self.user,
-            self.db,
-        )
-        check_out(
-            CheckOutPayload(work_date='1405/05/10', check_out_time='12:00'),
-            self.user,
-            self.db,
-        )
-        result = check_in(
-            CheckInPayload(work_date='1405/05/10', check_in_time='13:00'),
-            self.user,
-            self.db,
-        )
+        with patch(
+            'app.api.routes.timesheet.jalali_today', return_value='1405/05/10'
+        ), patch(
+            'app.api.routes.timesheet._local_now_time',
+            side_effect=[
+                '09:00', '09:00',
+                '12:00', '12:00',
+                '13:00', '13:00',
+            ],
+        ):
+            check_in(
+                CheckInPayload(work_date='1405/05/10', check_in_time='01:00'),
+                self.user,
+                self.db,
+            )
+            check_out(
+                CheckOutPayload(work_date='1405/05/10', check_out_time='02:00'),
+                self.user,
+                self.db,
+            )
+            result = check_in(
+                CheckInPayload(work_date='1405/05/10', check_in_time='03:00'),
+                self.user,
+                self.db,
+            )
         self.assertTrue(result['summary']['is_currently_checked_in'])
         self.assertEqual(self.db.query(TimesheetAttendance).count(), 2)
 

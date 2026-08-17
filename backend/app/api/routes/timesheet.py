@@ -5,6 +5,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
+from app.core.jalali import jalali_today
 from app.core.timezone import format_tehran_iso, tehran_now
 from app.db.session import get_db
 from app.models.timesheet import (
@@ -700,10 +701,14 @@ def check_in(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="یک ورود باز دارید؛ ابتدا خروج را ثبت کنید.",
         )
+    # Attendance is a live clock action. Never trust the browser timezone or
+    # a date-picker default hour for the value that is persisted.
+    work_date = jalali_today()
+    check_in_time = _local_now_time()
     item = TimesheetAttendance(
         user_id=user.id,
-        work_date=payload.work_date,
-        check_in_time=payload.check_in_time,
+        work_date=work_date,
+        check_in_time=check_in_time,
     )
     db.add(item)
     db.commit()
@@ -726,8 +731,11 @@ def check_out(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="ورود بازی برای شما پیدا نشد.",
         )
-    _duration(active.check_in_time, payload.check_out_time)
-    active.check_out_time = payload.check_out_time
+    check_out_time = _local_now_time()
+    # Always let a live checkout close the open row. Older clients may have
+    # persisted a bad/future check-in hour; applying the task-duration rule
+    # here would permanently trap those users in an open attendance state.
+    active.check_out_time = check_out_time
     active.updated_at = datetime.utcnow()
     db.commit()
     return {

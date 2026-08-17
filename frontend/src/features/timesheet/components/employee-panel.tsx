@@ -439,7 +439,9 @@ export function EmployeePanel(): JSX.Element {
     try {
       const now = today();
       const currentWorkDate = formatDate(now);
-      const currentTime = now.format('HH:mm');
+      // now is constructed from a date-only Jalali value, so its time can be
+      // midnight. Use the Tehran wall clock for attendance actions.
+      const currentTime = getTehranTime();
       // Revalidate immediately before mutating. This covers another tab having
       // changed attendance after this tab last rendered.
       const freshSummary = await fetchSummary(currentWorkDate);
