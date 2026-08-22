@@ -361,6 +361,8 @@ export default function MyTasksPage() {
   const [statusPanel, setStatusPanel] = useState<"approved" | "rejected" | null>(null);
   const [statusNote, setStatusNote] = useState("");
   const [progressDraft, setProgressDraft] = useState(0);
+  const [progressNote, setProgressNote] = useState("");
+  const [progressAttachment, setProgressAttachment] = useState<File | null>(null);
   const [colleagues, setColleagues] = useState<Colleague[]>([]);
   const [colleagueQuery, setColleagueQuery] = useState("");
   const [selectedColleagueIds, setSelectedColleagueIds] = useState<number[]>([]);
@@ -554,6 +556,8 @@ export default function MyTasksPage() {
     setStatusPanel(null);
     setStatusNote("");
     setStatusAttachment(null);
+    setProgressNote("");
+    setProgressAttachment(null);
     setReferAttachment(null);
     try {
       const [detailResponse, templateResponse] = await Promise.all([
@@ -650,9 +654,12 @@ export default function MyTasksPage() {
       return;
     }
     const nextProgress = Math.min(99, Math.max(0, Math.round(progressDraft)));
+    const note = progressNote.trim();
     if (
       selected.status === "in_progress" &&
-      nextProgress === normalizedProgress(selected.progress_percent, selected.status)
+      nextProgress === normalizedProgress(selected.progress_percent, selected.status) &&
+      !note &&
+      !progressAttachment
     ) {
       return;
     }
@@ -660,13 +667,30 @@ export default function MyTasksPage() {
     setActionLoading(true);
     setActionError("");
     try {
-      const { data } = await client.patch<SubmissionDetail>(
-        `${endpoints.tasks}/${selected.id}/status`,
-        { status: "in_progress", progress_percent: nextProgress },
-      );
+      let data: SubmissionDetail;
+      if (progressAttachment) {
+        const formData = new FormData();
+        formData.append("status", "in_progress");
+        formData.append("progress_percent", String(nextProgress));
+        formData.append("note", note);
+        formData.append("attachment", progressAttachment);
+        const response = await client.patch<SubmissionDetail>(
+          `${endpoints.tasks}/${selected.id}/status`,
+          formData,
+        );
+        data = response.data;
+      } else {
+        const response = await client.patch<SubmissionDetail>(
+          `${endpoints.tasks}/${selected.id}/status`,
+          { status: "in_progress", progress_percent: nextProgress, note },
+        );
+        data = response.data;
+      }
       syncTask(data);
       setSelected((prev) => (prev ? { ...data, data: prev.data } : data));
       setProgressDraft(normalizedProgress(data.progress_percent, data.status));
+      setProgressNote("");
+      setProgressAttachment(null);
       window.dispatchEvent(new Event("tasks:refresh-notifications"));
     } catch (err: unknown) {
       setActionError(
@@ -1354,6 +1378,43 @@ export default function MyTasksPage() {
                         onChange={(event) => setProgressDraft(Number(event.target.value))}
                         className="h-2 w-full cursor-pointer accent-blue-600"
                       />
+                      <Textarea
+                        value={progressNote}
+                        maxLength={512}
+                        onChange={(event) => setProgressNote(event.target.value)}
+                        placeholder={"\u062a\u0648\u0636\u06cc\u062d \u067e\u06cc\u0634\u0631\u0641\u062a \u0628\u0631\u0627\u06cc \u0627\u0631\u0633\u0627\u0644\u200c\u06a9\u0646\u0646\u062f\u0647 (\u0627\u062e\u062a\u06cc\u0627\u0631\u06cc)"}
+                        className="min-h-20 rounded-xl bg-slate-50"
+                      />
+                      <div className="space-y-2">
+                        <label
+                          htmlFor={`task-progress-attachment-${selected.id}`}
+                          className="block text-xs font-semibold text-slate-600"
+                        >
+                          {"\u067e\u06cc\u0648\u0633\u062a \u067e\u06cc\u0634\u0631\u0641\u062a (\u0627\u062e\u062a\u06cc\u0627\u0631\u06cc\u060c \u062d\u062f\u0627\u06a9\u062b\u0631 \u06f1\u06f5 \u0645\u06af\u0627\u0628\u0627\u06cc\u062a)"}
+                        </label>
+                        <Input
+                          id={`task-progress-attachment-${selected.id}`}
+                          type="file"
+                          onChange={(event) =>
+                            setProgressAttachment(event.target.files?.[0] ?? null)
+                          }
+                          className="h-10 rounded-xl bg-slate-50 file:ml-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-blue-700"
+                        />
+                        {progressAttachment ? (
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                            <Paperclip size={14} className="text-blue-600" />
+                            <span className="font-semibold">{progressAttachment.name}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => setProgressAttachment(null)}
+                              className="h-7 px-2 text-slate-500"
+                            >
+                              {"\u062d\u0630\u0641"}
+                            </Button>
+                          </div>
+                        ) : null}
+                      </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <Input
                           type="number"
@@ -1383,7 +1444,9 @@ export default function MyTasksPage() {
                                 normalizedProgress(
                                   selected.progress_percent,
                                   selected.status,
-                                ))
+                                ) &&
+                              !progressNote.trim() &&
+                              !progressAttachment)
                           }
                           className="h-10 gap-2 bg-blue-600 hover:bg-blue-700"
                         >

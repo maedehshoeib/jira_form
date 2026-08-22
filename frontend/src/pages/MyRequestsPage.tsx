@@ -232,6 +232,12 @@ function timelineEventLabel(item: TimelineItem) {
     reopened: "درخواست دوباره باز شد",
   };
   if (item.event_type === "status_changed") {
+    if (
+      item.from_status === "in_progress" &&
+      item.to_status === "in_progress"
+    ) {
+      return labels.progress_updated;
+    }
     const destinationLabels: Record<string, string> = {
       in_progress: "وضعیت به «در حال انجام» تغییر کرد",
       approved: "درخواست انجام شد",
@@ -251,7 +257,11 @@ function timelineEventDotClass(item: TimelineItem) {
   if (item.event_type === "referred") {
     return "bg-violet-500 ring-violet-100";
   }
-  if (item.event_type === "progress_updated" || item.event_type === "in_progress") {
+  if (
+    item.event_type === "progress_updated" ||
+    item.event_type === "in_progress" ||
+    (item.event_type === "status_changed" && item.to_status === "in_progress")
+  ) {
     return "bg-blue-600 ring-blue-100";
   }
   if (
