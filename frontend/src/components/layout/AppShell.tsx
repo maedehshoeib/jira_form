@@ -1,6 +1,7 @@
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import {
   Building2,
+  CalendarDays,
   ChevronLeft,
   ClipboardList,
   Home,
@@ -11,6 +12,7 @@ import {
   Volume2,
   VolumeX,
   BarChart3,
+  BellRing,
   GitBranch,
   History,
   Megaphone,
@@ -42,10 +44,22 @@ type TaskUnreadNotification = {
   ids: number[];
 };
 
+type CalendarNotification = {
+  id: number;
+  event_id: number;
+  title: string;
+  jalali_date: string;
+  start_time: string;
+  created_by_name: string;
+};
+
+type CalendarUnreadNotification = { count: number; items: CalendarNotification[] };
+
 const navigationItems: NavigationItem[] = [
   { label: "خانه", href: "/", icon: Home },
   { label: "درخواست‌های من", href: "/my-requests", icon: ClipboardList },
   { label: "وظایف من", href: "/my-tasks", icon: ListTodo },
+  { label: "تقویم من", href: "/my-calendar", icon: CalendarDays },
   { label: "گفتگو درون سازمانی", href: "/internal-chat", icon: MessagesSquare },
 ];
 
@@ -90,6 +104,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [taskUnreadCount, setTaskUnreadCount] = useState(0);
+  const [calendarUnreadCount, setCalendarUnreadCount] = useState(0);
+  const [calendarToast, setCalendarToast] = useState<CalendarNotification | null>(null);
   const [chatSoundMuted, setChatSoundMuted] = useState(
     () => localStorage.getItem("chat_notification_sound_muted") === "true",
   );
@@ -98,6 +114,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   );
   const knownUnreadRef = useRef<Map<number, number> | null>(null);
   const knownUnreadTaskIdsRef = useRef<Set<number> | null>(null);
+  const knownCalendarNotificationIdsRef = useRef<Set<number> | null>(null);
 
   const playChatNotificationSound = useCallback(() => {
     playTone(chatSoundMuted);
@@ -144,6 +161,24 @@ export default function AppShell({ children }: { children: ReactNode }) {
     }
   }, [playTaskNotificationSound]);
 
+  const refreshCalendarNotifications = useCallback(async () => {
+    try {
+      const { data } = await client.get<CalendarUnreadNotification>(endpoints.calendarNotifications);
+      const nextIds = new Set(data.items.map((item) => item.id));
+      const previous = knownCalendarNotificationIdsRef.current;
+      const newest = data.items.find((item) => previous === null || !previous.has(item.id));
+      knownCalendarNotificationIdsRef.current = nextIds;
+      setCalendarUnreadCount(data.count);
+      if (newest) {
+        setCalendarToast(newest);
+        if (previous !== null) playTone(false);
+      }
+      if (data.count === 0) setCalendarToast(null);
+    } catch {
+      // Keep navigation usable if calendar notifications are unavailable.
+    }
+  }, []);
+
   useEffect(() => {
     setSidebarOpen(false);
   }, [location.pathname]);
@@ -170,6 +205,16 @@ export default function AppShell({ children }: { children: ReactNode }) {
     };
   }, [refreshTaskNotifications]);
 
+  useEffect(() => {
+    void refreshCalendarNotifications();
+    const timer = window.setInterval(() => void refreshCalendarNotifications(), 8000);
+    window.addEventListener("calendar:refresh-notifications", refreshCalendarNotifications);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("calendar:refresh-notifications", refreshCalendarNotifications);
+    };
+  }, [refreshCalendarNotifications]);
+
   const toggleChatSound = () => {
     const next = !chatSoundMuted;
     setChatSoundMuted(next);
@@ -188,7 +233,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   };
 
   const isWideLayout =
-    location.pathname === "/" || location.pathname.startsWith("/departments/");
+    location.pathname === "/" || location.pathname === "/my-calendar" || location.pathname.startsWith("/departments/");
 
   const isActive = (href: string) =>
     href === "/" ? location.pathname === "/" : location.pathname.startsWith(href);
@@ -272,6 +317,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
               <span className="flex-1">{label}</span>
               {item.href === "/my-tasks" && taskUnreadCount > 0 &&
                 renderCountBadge(taskUnreadCount, active)}
+              {item.href === "/my-calendar" && calendarUnreadCount > 0 &&
+                renderCountBadge(calendarUnreadCount, active)}
               {item.href === "/my-tasks" &&
                 renderSoundToggle(
                   taskSoundMuted,
@@ -448,6 +495,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
           {children}
         </main>
       </div>
+      {calendarToast && location.pathname !== "/my-calendar" && (
+        <Link to="/my-calendar" className="no-print fixed bottom-5 left-5 z-[100] w-[min(24rem,calc(100vw-2.5rem))] rounded-2xl border border-blue-200 bg-white p-4 shadow-2xl dark:border-blue-800 dark:bg-slate-900">
+          <button type="button" onClick={(event) => { event.preventDefault(); setCalendarToast(null); }} className="absolute left-2 top-2 rounded p-1 text-slate-400 hover:bg-slate-100" aria-label="بستن اعلان"><X size={16} /></button>
+          <div className="flex gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-100 text-blue-700"><BellRing size={20} /></span><div className="min-w-0"><p className="text-xs font-bold text-blue-700">زمان جدید در تقویم شما</p><p className="mt-1 truncate font-bold">{calendarToast.title}</p><p className="mt-1 text-xs text-slate-500">{calendarToast.jalali_date}، ساعت {calendarToast.start_time} · ثبت توسط {calendarToast.created_by_name}</p></div></div>
+        </Link>
+      )}
     </div>
   );
 }

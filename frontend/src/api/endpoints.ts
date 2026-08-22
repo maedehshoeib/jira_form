@@ -37,4 +37,8 @@ export const endpoints = {
   managementLetterRecipients: "/management-letters/recipients",
   managementLetterReport: "/management-letters/report",
   managementLetterAccess: "/management-letters/access",
+  calendarEvents: "/calendar/events",
+  calendarUsers: "/calendar/users",
+  calendarNotifications: "/calendar/notifications/unread",
+  calendarNotificationsRead: "/calendar/notifications/read",
 };

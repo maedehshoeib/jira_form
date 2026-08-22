@@ -14,6 +14,7 @@ import TimeSheetPage from "./pages/TimeSheetPage";
 import InternalChatPage from "./pages/InternalChatPage";
 import PdfFormsPage from "./pages/PdfFormsPage";
 import PdfLibraryPage from "./pages/PdfLibraryPage";
+import MyCalendarPage from "./pages/MyCalendarPage";
 
 import ReportsHome from "./pages/reports/ReportsHome";
 import PerformanceReports from "./pages/reports/PerformanceReports";
@@ -102,6 +103,15 @@ export default function App() {
         element={
           <ProtectedRoute>
             <TimeSheetPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/my-calendar"
+        element={
+          <ProtectedRoute>
+            <MyCalendarPage />
           </ProtectedRoute>
         }
       />
