@@ -6,6 +6,9 @@ import FormFieldRenderer from "./FormFieldRenderer";
 
 import { Button } from "../ui/button";
 
+const MAX_ATTACHMENT_SIZE = 15 * 1024 * 1024;
+const SUBMISSION_TIMEOUT_MS = 90_000;
+
 function createEmptyValues(form: FormTemplate): Record<string, unknown> {
   const obj: Record<string, unknown> = {};
   form.fields.forEach((field) => {
@@ -41,6 +44,7 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
   const [formKey, setFormKey] = useState(0);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [reportId, setReportId] = useState<number | null>(null);
   const isSubmittingRef = useRef(false);
   const isPerformanceReport = form.id === "performance-report-form";
@@ -58,9 +62,21 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
     e.preventDefault();
     if (isSubmittingRef.current) return;
 
+    const oversizedFile = Object.values(values).find(
+      (value): value is File =>
+        value instanceof File && value.size > MAX_ATTACHMENT_SIZE,
+    );
+    if (oversizedFile) {
+      setSubmitError(
+        `حجم فایل «${oversizedFile.name}» بیشتر از ۱۵ مگابایت است.`,
+      );
+      return;
+    }
+
     isSubmittingRef.current = true;
     setLoading(true);
     setDone(false);
+    setSubmitError("");
 
     const fd = new FormData();
     fd.append("form_id", form.id);
@@ -78,24 +94,53 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
     });
 
     const token = localStorage.getItem("access_token");
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(
+      () => controller.abort(),
+      SUBMISSION_TIMEOUT_MS,
+    );
 
     try {
       const res = await fetch(`${API_BASE}/submissions`, {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: fd,
+        signal: controller.signal,
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (typeof data.report_id === "number") {
-          setReportId(data.report_id);
+      if (!res.ok) {
+        let message = "ثبت درخواست انجام نشد. لطفاً دوباره تلاش کنید.";
+        if (res.status === 413) {
+          message =
+            "حجم فایل برای سرور بیش از حد مجاز است. حداکثر حجم پیوست ۱۵ مگابایت است.";
+        } else {
+          try {
+            const body = (await res.json()) as { detail?: string };
+            if (body.detail) message = body.detail;
+          } catch {
+            // Proxies can return an HTML error page; keep the useful fallback.
+          }
         }
-        setDone(true);
-        setValues(createEmptyValues(form));
-        setFormKey((key) => key + 1);
+        throw new Error(message);
       }
+
+      const data = await res.json();
+      if (typeof data.report_id === "number") {
+        setReportId(data.report_id);
+      }
+      setDone(true);
+      setValues(createEmptyValues(form));
+      setFormKey((key) => key + 1);
+    } catch (error) {
+      setSubmitError(
+        error instanceof DOMException && error.name === "AbortError"
+          ? "زمان ثبت درخواست بیش از حد طول کشید. اتصال سرور یا تنظیمات بارگذاری را بررسی کنید و دوباره تلاش کنید."
+          : error instanceof Error
+            ? error.message
+            : "ثبت درخواست انجام نشد. لطفاً دوباره تلاش کنید.",
+      );
     } finally {
+      window.clearTimeout(timeoutId);
       setLoading(false);
       isSubmittingRef.current = false;
     }
@@ -135,6 +180,12 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
               </Link>
             </div>
           )}
+        </div>
+      )}
+
+      {submitError && (
+        <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+          {submitError}
         </div>
       )}
 

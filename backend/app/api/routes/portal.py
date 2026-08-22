@@ -83,6 +83,7 @@ from app.services.report_submission_service import (
 
 router = APIRouter()
 MAX_TASK_ACTION_ATTACHMENT_SIZE = 15 * 1024 * 1024
+MAX_SUBMISSION_ATTACHMENT_SIZE = 15 * 1024 * 1024
 
 
 async def _save_task_action_attachment(
@@ -98,6 +99,24 @@ async def _save_task_action_attachment(
     extension = Path(safe_name).suffix.lower()[:16]
     upload_dir = (Path(settings.UPLOAD_DIR) / "task-actions").resolve()
     upload_dir.mkdir(parents=True, exist_ok=True)
+    target = upload_dir / f"{uuid.uuid4().hex}{extension}"
+    target.write_bytes(content)
+    return str(target), safe_name
+
+
+async def _save_submission_attachment(
+    upload: UploadFile,
+    upload_dir: Path,
+) -> tuple[str, str]:
+    """Persist one submission attachment with a bounded memory read."""
+    safe_name = Path(upload.filename or "attachment").name[:256]
+    content = await upload.read(MAX_SUBMISSION_ATTACHMENT_SIZE + 1)
+    if len(content) > MAX_SUBMISSION_ATTACHMENT_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail="حداکثر حجم فایل پیوست ۱۵ مگابایت است.",
+        )
+    extension = Path(safe_name).suffix.lower()[:16]
     target = upload_dir / f"{uuid.uuid4().hex}{extension}"
     target.write_bytes(content)
     return str(target), safe_name
@@ -508,17 +527,13 @@ async def create_submission(
     for key, value in form.items():
         if key in {"form_id", "department_id", "section_id"}:
             continue
-        if hasattr(value, "filename") and value.filename:
-            ext = Path(value.filename).suffix
-            filename = f"{uuid.uuid4().hex}{ext}"
-            file_path = upload_dir / filename
-            content = await value.read()
-            file_path.write_bytes(content)
-            attachment_path = str(file_path)
-            attachment_name = value.filename
-            form_data[key] = value.filename
-        else:
-            form_data[key] = str(value)
+        if getattr(value, "filename", None):
+            attachment_path, attachment_name = await _save_submission_attachment(
+                value, upload_dir
+            )
+            form_data[key] = attachment_name
+            continue
+        form_data[key] = str(value)
 
     subject = form_data.get("subject", "")
 

@@ -34,6 +34,8 @@ def _parse_submission_data(raw: str) -> dict:
         data = json.loads(raw or "{}")
     except (json.JSONDecodeError, TypeError):
         return {}
+    if not isinstance(data, dict):
+        return {}
     parsed: dict = {}
     for key, value in data.items():
         if key in {"_report_id", "_attachments"}:
@@ -63,6 +65,8 @@ def _attachment_names(submission: Submission) -> list[str]:
         data = json.loads(submission.data or "{}")
     except (json.JSONDecodeError, TypeError):
         data = {}
+    if not isinstance(data, dict):
+        data = {}
     stored = data.get("_attachments")
     if isinstance(stored, list):
         names = [
@@ -85,7 +89,9 @@ def _attachment_names(submission: Submission) -> list[str]:
 def _report_id_from_data(raw: str) -> int | None:
     try:
         data = json.loads(raw or "{}")
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if not isinstance(data, dict):
         return None
     report_id = data.get("_report_id")
     if report_id is None:

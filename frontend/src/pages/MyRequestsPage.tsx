@@ -666,12 +666,23 @@ export default function MyRequestsPage() {
     setDetailLoading(true);
     setError("");
     try {
-      const [detailResponse, templateResponse] = await Promise.all([
-        client.get<SubmissionDetail>(`${endpoints.submissions}/${request.id}`),
-        client.get<FormTemplate>(`${endpoints.forms}/${request.form_id}`),
-      ]);
+      const detailResponse = await client.get<SubmissionDetail>(
+        `${endpoints.submissions}/${request.id}`,
+      );
       setSelected(detailResponse.data);
-      setTemplate(templateResponse.data);
+      setTemplate(null);
+
+      // Historical details remain available if form access changed or the
+      // original template is no longer available.
+      void client
+        .get<FormTemplate>(`${endpoints.forms}/${request.form_id}`, {
+          params: {
+            department: request.department_id,
+            section: request.section_id,
+          },
+        })
+        .then((response) => setTemplate(response.data))
+        .catch(() => undefined);
     } catch {
       setError("نمایش جزئیات این درخواست با مشکل مواجه شد.");
     } finally {
