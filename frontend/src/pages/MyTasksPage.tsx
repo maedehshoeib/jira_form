@@ -33,6 +33,8 @@ import {
 } from "../lib/persianDate";
 import UserDisplayName from "../components/UserDisplayName";
 
+const REFERRAL_NOTE_MAX_LENGTH = 512;
+
 type ReferralItem = {
   id: number;
   from_user_id: number;
@@ -870,7 +872,9 @@ export default function MyTasksPage() {
     );
     const label = user.display_name || user.username;
     setReferNote((prev) =>
-      prev.replace(/@[^\s@]*$/, `@${label} `),
+      prev
+        .replace(/@[^\s@]*$/, `@${label} `)
+        .slice(0, REFERRAL_NOTE_MAX_LENGTH),
     );
   };
 
@@ -1621,7 +1625,17 @@ export default function MyTasksPage() {
                     onChange={(event) => setReferNote(event.target.value)}
                     placeholder="یادداشت ارجاع (اختیاری)"
                     className="min-h-20 rounded-xl bg-white"
+                    maxLength={REFERRAL_NOTE_MAX_LENGTH}
+                    aria-describedby="referral-note-character-count"
                   />
+                  <p
+                    id="referral-note-character-count"
+                    className="text-left text-xs tabular-nums text-slate-500"
+                    aria-live="polite"
+                  >
+                    {referNote.length.toLocaleString("fa-IR")} {"\u0627\u0632"}{" "}
+                    {REFERRAL_NOTE_MAX_LENGTH.toLocaleString("fa-IR")} {"\u06a9\u0627\u0631\u0627\u06a9\u062a\u0631"}
+                  </p>
                   <div className="relative space-y-2">
                     <p className="flex items-center gap-1.5 text-xs text-slate-500">
                       <AtSign size={14} className="text-sky-600" />
