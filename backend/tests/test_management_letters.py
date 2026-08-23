@@ -18,6 +18,7 @@ from app.models.submission import (
     Submission,
     SubmissionInitialAssignee,
     SubmissionReferral,
+    SubmissionReminder,
 )
 from app.models.user import User
 from app.services.form_duty_service import backfill_submission_initial_assignees
@@ -101,6 +102,8 @@ class ManagementLetterServiceTests(unittest.TestCase):
         letter_type: str = "external",
         sender: str = "بانک",
         sender_detail: str = "",
+        needs_reply: str = "ندارد",
+        due_date: str | None = None,
     ) -> list[Submission]:
         return create_management_letters(
             self.db,
@@ -108,9 +111,17 @@ class ManagementLetterServiceTests(unittest.TestCase):
             subject="موضوع آزمایشی",
             description="توضیحات آزمایشی",
             letter_number=letter_number,
-            needs_reply="ندارد",
+            needs_reply=needs_reply,
             needs_action=needs_action,
-            due_date="",
+            due_date=(
+                due_date
+                if due_date is not None
+                else (
+                    "1405/10/10"
+                    if needs_reply == "دارد" or needs_action == "دارد"
+                    else ""
+                )
+            ),
             sender=sender,
             sender_detail=sender_detail,
             recipient_ids=recipient_ids or [self.first_recipient.id],
@@ -130,6 +141,38 @@ class ManagementLetterServiceTests(unittest.TestCase):
                 .all()
             )
         ]
+
+    def test_action_or_reply_required_schedules_two_deadline_reminders(self):
+        cases = (
+            ("دارد", "ندارد"),
+            ("ندارد(جهت اطلاع)", "دارد"),
+            ("دارد", "دارد"),
+        )
+        for needs_action, needs_reply in cases:
+            with self.subTest(needs_action=needs_action, needs_reply=needs_reply):
+                submission = self._create_letters(
+                    needs_action=needs_action,
+                    needs_reply=needs_reply,
+                    due_date="1405/10/10",
+                )[0]
+                reminders = (
+                    self.db.query(SubmissionReminder)
+                    .filter(SubmissionReminder.submission_id == submission.id)
+                    .order_by(SubmissionReminder.created_at.asc())
+                    .all()
+                )
+                self.assertEqual(len(reminders), 2)
+                self.assertEqual(reminders[0].recipient_id, self.first_recipient.id)
+                self.assertIn("یک روز تا مهلت انجام", reminders[0].message)
+                self.assertIn("امروز", reminders[1].message)
+
+    def test_due_date_is_required_when_action_is_required(self):
+        with self.assertRaisesRegex(ValueError, "مهلت انجام الزامی است"):
+            self._create_letters(needs_action="دارد", due_date="")
+
+    def test_no_deadline_reminders_when_neither_field_requires_work(self):
+        self._create_letters(needs_action="ندارد(جهت اطلاع)")
+        self.assertEqual(self.db.query(SubmissionReminder).count(), 0)
 
     def test_every_letter_copy_snapshots_all_batch_recipients(self):
         submissions = self._create_letters(

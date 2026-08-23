@@ -27,6 +27,7 @@ from app.api.routes.submissions_helpers import (
 from app.core.birthday import is_birthday_today
 from app.core.config import settings
 from app.core.deps import get_current_user
+from app.core.timezone import utc_now
 from app.db.session import get_db
 from app.models.submission import (
     Submission,
@@ -300,7 +301,10 @@ def _conversation_response(
     )
     reminders = (
         db.query(SubmissionReminder)
-        .filter(SubmissionReminder.submission_id == submission.id)
+        .filter(
+            SubmissionReminder.submission_id == submission.id,
+            SubmissionReminder.created_at <= utc_now(),
+        )
         .order_by(SubmissionReminder.created_at.asc(), SubmissionReminder.id.asc())
         .all()
     )

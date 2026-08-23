@@ -4,6 +4,7 @@ from pathlib import Path
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
+from app.core.timezone import utc_now
 from app.models.submission import (
     Submission,
     SubmissionCcRecipient,
@@ -201,6 +202,7 @@ def list_unseen_task_ids(db: Session, user_id: int) -> list[int]:
         .filter(
             SubmissionReminder.submission_id == Submission.id,
             SubmissionReminder.recipient_id == user_id,
+            SubmissionReminder.created_at <= utc_now(),
             SubmissionReminder.created_at > SubmissionView.last_viewed_at,
         )
         .exists()

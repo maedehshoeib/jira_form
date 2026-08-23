@@ -744,7 +744,7 @@ class TaskWorkflowMockTests(unittest.TestCase):
             letter_number="L-1",
             needs_reply="\u0646\u062f\u0627\u0631\u062f",
             needs_action="\u062f\u0627\u0631\u062f",
-            due_date="",
+            due_date="1405/10/10",
             sender="\u0628\u0627\u0646\u06a9",
             sender_detail="",
             recipient_ids=[self.handler.id, self.colleague.id],

@@ -1,5 +1,6 @@
 import json
 import uuid
+from datetime import timedelta
 from pathlib import Path
 from typing import Literal, cast
 
@@ -7,7 +8,9 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.models.submission import Submission, SubmissionReferral
+from app.core.jalali import jalali_to_gregorian
+from app.core.timezone import tehran_date_bounds_to_utc_naive
+from app.models.submission import Submission, SubmissionReferral, SubmissionReminder
 from app.models.user import User
 from app.services.form_access_service import can_access_restricted_department
 from app.services.form_duty_service import snapshot_submission_initial_assignees
@@ -179,6 +182,37 @@ NEEDS_ACTION_OPTIONS = {
 MAX_RECIPIENT_COMMENT_LENGTH = 4000
 
 
+def _deadline_reminders(
+    submission: Submission,
+    *,
+    sender_id: int,
+    recipient_id: int,
+    due_date: str,
+) -> list[SubmissionReminder]:
+    deadline_day = jalali_to_gregorian(due_date)
+    deadline_at, _ = tehran_date_bounds_to_utc_naive(deadline_day, deadline_day)
+    reminder_at, _ = tehran_date_bounds_to_utc_naive(
+        deadline_day - timedelta(days=1),
+        deadline_day - timedelta(days=1),
+    )
+    return [
+        SubmissionReminder(
+            submission_id=submission.id,
+            sender_id=sender_id,
+            recipient_id=recipient_id,
+            message=f"یک روز تا مهلت انجام نامه «{submission.subject}» باقی مانده است.",
+            created_at=reminder_at,
+        ),
+        SubmissionReminder(
+            submission_id=submission.id,
+            sender_id=sender_id,
+            recipient_id=recipient_id,
+            message=f"مهلت انجام نامه «{submission.subject}» امروز است.",
+            created_at=deadline_at,
+        ),
+    ]
+
+
 def _stored_letter_type(data: dict) -> LetterType:
     """Treat records created before letter types were introduced as external."""
     value = data.get("letter_type")
@@ -260,9 +294,16 @@ def create_management_letters(
         raise ValueError("مقدار «نیاز به پاسخ» نامعتبر است.")
     if cleaned_needs_action not in NEEDS_ACTION_OPTIONS:
         raise ValueError("مقدار «نیاز به اقدام» نامعتبر است.")
-    if cleaned_needs_reply == "دارد":
+    reminder_required = (
+        cleaned_needs_reply == "دارد" or cleaned_needs_action == "دارد"
+    )
+    if reminder_required:
         if not cleaned_due_date:
             raise ValueError("مهلت انجام الزامی است.")
+        try:
+            jalali_to_gregorian(cleaned_due_date)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError("مهلت انجام نامعتبر است.") from exc
     else:
         cleaned_due_date = ""
     if normalized_letter_type == "external":
@@ -370,6 +411,15 @@ def create_management_letters(
                 note="نامه‌های سازمانی",
             )
         )
+        if reminder_required:
+            db.add_all(
+                _deadline_reminders(
+                    submission,
+                    sender_id=actor.id,
+                    recipient_id=recipient.id,
+                    due_date=cleaned_due_date,
+                )
+            )
         submissions.append(submission)
 
     db.commit()

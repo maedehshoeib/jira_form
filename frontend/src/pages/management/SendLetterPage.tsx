@@ -424,7 +424,7 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
     if (!needsAction) {
       return "نیاز به اقدام را مشخص کنید.";
     }
-    if (needsReply === "دارد" && !dueDate.trim()) {
+    if ((needsReply === "دارد" || needsAction === "دارد") && !dueDate.trim()) {
       return "مهلت انجام را مشخص کنید.";
     }
     if (letterType === "external" && !sender) {
@@ -477,7 +477,10 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
     }
     fd.append("needs_reply", needsReply);
     fd.append("needs_action", needsAction);
-    fd.append("due_date", needsReply === "دارد" ? dueDate.trim() : "");
+    fd.append(
+      "due_date",
+      needsReply === "دارد" || needsAction === "دارد" ? dueDate.trim() : "",
+    );
     if (letterType === "external") {
       fd.append("sender", sender);
       fd.append("sender_detail", sender === "هلدینگ" ? holdingUnit : "");
@@ -640,7 +643,7 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
                 onValueChange={(value) => {
                   const next = value as NeedsReplyOption;
                   setNeedsReply(next);
-                  if (next !== "دارد") setDueDate("");
+                  if (next !== "دارد" && needsAction !== "دارد") setDueDate("");
                 }}
               >
                 <SelectTrigger className="h-12 w-full rounded-xl border-slate-200 bg-white text-right shadow-sm">
@@ -662,9 +665,11 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
               </label>
               <Select
                 value={needsAction || undefined}
-                onValueChange={(value) =>
-                  setNeedsAction(value as NeedsActionOption)
-                }
+                onValueChange={(value) => {
+                  const next = value as NeedsActionOption;
+                  setNeedsAction(next);
+                  if (next !== "دارد" && needsReply !== "دارد") setDueDate("");
+                }}
               >
                 <SelectTrigger className="h-12 w-full rounded-xl border-slate-200 bg-white text-right shadow-sm">
                   <SelectValue placeholder="انتخاب کنید" />
@@ -679,7 +684,7 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
               </Select>
             </div>
 
-            {needsReply === "دارد" && (
+            {(needsReply === "دارد" || needsAction === "دارد") && (
               <div>
                 <label className="mb-2 block text-sm font-bold text-slate-700">
                   مهلت انجام
@@ -1053,7 +1058,7 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
               />
               <ReviewRow label="نیاز به پاسخ" value={needsReply || "—"} />
               <ReviewRow label="نیاز به اقدام" value={needsAction || "—"} />
-              {needsReply === "دارد" && (
+              {(needsReply === "دارد" || needsAction === "دارد") && (
                 <ReviewRow label="مهلت انجام" value={dueDate || "—"} />
               )}
               {letterType === "external" && (
