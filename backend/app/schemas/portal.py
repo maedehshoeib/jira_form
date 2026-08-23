@@ -19,6 +19,8 @@ class FormField(BaseModel):
     section: Optional[str] = None
     columns: list[TableColumn] = []
     default_rows: list[dict[str, str]] = []
+    visible_when_field: Optional[str] = None
+    visible_when_value: Optional[str] = None
 
 class FormTemplate(BaseModel):
     id: str

@@ -1345,7 +1345,8 @@ export default function MyTasksPage() {
 
               {selected.can_act && (
                 <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  {(selected.status === "submitted" ||
+                  {selected.form_id !== "meeting-room-reservation-form" &&
+                    (selected.status === "submitted" ||
                     selected.status === "in_progress") && (
                     <div className="space-y-3 rounded-xl border border-blue-100 bg-white p-4">
                       <div className="flex items-start justify-between gap-4">
@@ -1460,8 +1461,13 @@ export default function MyTasksPage() {
                     </div>
                   )}
                   <p className="text-xs font-semibold text-slate-500">
-                    تغییر وضعیت درخواست
-                    {selected.status !== "submitted" ? " (در صورت اشتباه قابل اصلاح است)" : ""}
+                    {selected.form_id === "meeting-room-reservation-form"
+                      ? "تصمیم‌گیری درباره درخواست"
+                      : "تغییر وضعیت درخواست"}
+                    {selected.form_id !== "meeting-room-reservation-form" &&
+                    selected.status !== "submitted"
+                      ? " (در صورت اشتباه قابل اصلاح است)"
+                      : ""}
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <Button
@@ -1479,7 +1485,9 @@ export default function MyTasksPage() {
                       ) : (
                         <CheckCircle2 className="h-4 w-4" />
                       )}
-                      انجام شده
+                      {selected.form_id === "meeting-room-reservation-form"
+                        ? "تایید"
+                        : "انجام شده"}
                     </Button>
                     <Button
                       type="button"
@@ -1495,7 +1503,8 @@ export default function MyTasksPage() {
                       <XCircle className="h-4 w-4" />
                       {selected.status === "rejected" ? "رد شده" : "رد"}
                     </Button>
-                    {selected.status !== "submitted" && (
+                    {selected.form_id !== "meeting-room-reservation-form" &&
+                      selected.status !== "submitted" && (
                       <Button
                         type="button"
                         variant="outline"
@@ -1507,7 +1516,8 @@ export default function MyTasksPage() {
                         بازگشت به اقدام‌نشده
                       </Button>
                     )}
-                    {(selected.status === "submitted" ||
+                    {selected.form_id !== "meeting-room-reservation-form" &&
+                      (selected.status === "submitted" ||
                       selected.status === "in_progress") && (
                       <Button
                         type="button"
@@ -1534,7 +1544,9 @@ export default function MyTasksPage() {
                   <div className="flex items-center justify-between gap-3">
                     <h4 className="text-sm font-semibold text-slate-800">
                       {statusPanel === "approved"
-                        ? "ثبت انجام شده"
+                        ? selected.form_id === "meeting-room-reservation-form"
+                          ? "تایید درخواست"
+                          : "ثبت انجام شده"
                         : "ثبت رد درخواست"}
                     </h4>
                     <Button
@@ -1599,7 +1611,11 @@ export default function MyTasksPage() {
                     ) : (
                       <XCircle className="h-4 w-4" />
                     )}
-                    {statusPanel === "approved" ? "ثبت انجام شده" : "ثبت رد"}
+                    {statusPanel === "approved"
+                      ? selected.form_id === "meeting-room-reservation-form"
+                        ? "ثبت تایید"
+                        : "ثبت انجام شده"
+                      : "ثبت رد"}
                   </Button>
                 </div>
               )}

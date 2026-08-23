@@ -50,17 +50,43 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
   const isPerformanceReport = form.id === "performance-report-form";
 
   const handleChange = (name: string, value: unknown) => {
-    setValues((prev) => ({ ...prev, [name]: value }));
+    setValues((prev) => {
+      const next = { ...prev, [name]: value };
+      form.fields.forEach((field) => {
+        if (
+          field.visible_when_field === name &&
+          field.visible_when_value !== String(value)
+        ) {
+          next[field.name] = '';
+        }
+      });
+      return next;
+    });
   };
 
-  const completedFields = Object.values(values).filter(isFieldFilled).length;
+  const visibleFields = form.fields.filter(
+    (field) =>
+      !field.visible_when_field ||
+      String(values[field.visible_when_field] ?? '') === field.visible_when_value,
+  );
+  const completedFields = visibleFields.filter((field) =>
+    isFieldFilled(values[field.name]),
+  ).length;
 
   const progress =
-    form.fields.length === 0 ? 0 : (completedFields / form.fields.length) * 100;
+    visibleFields.length === 0 ? 0 : (completedFields / visibleFields.length) * 100;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmittingRef.current) return;
+
+    const missingField = visibleFields.find(
+      (field) => field.required && !isFieldFilled(values[field.name]),
+    );
+    if (missingField) {
+      setSubmitError(`تکمیل فیلد «${missingField.label}» الزامی است.`);
+      return;
+    }
 
     const oversizedFile = Object.values(values).find(
       (value): value is File =>
@@ -206,7 +232,7 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
       </div>
 
       <form key={formKey} onSubmit={handleSubmit} className="space-y-8">
-        {form.fields.map((field) => {
+        {visibleFields.map((field) => {
           const showSection = field.section && field.section !== lastSection;
           if (field.section) lastSection = field.section;
 
@@ -250,7 +276,11 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
           disabled={loading}
           className="h-12 w-full rounded-xl bg-red-600 text-base hover:bg-red-700"
         >
-          {loading ? "در حال ثبت..." : "ثبت گزارش"}
+          {loading
+            ? "در حال ثبت..."
+            : isPerformanceReport
+              ? "ثبت گزارش"
+              : "ثبت درخواست"}
         </Button>
       </form>
     </div>

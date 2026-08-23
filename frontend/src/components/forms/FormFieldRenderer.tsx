@@ -198,6 +198,7 @@ export default function FormFieldRenderer({
   return (
     <Input
       type={field.type}
+      required={field.required}
       className={commonClass}
       placeholder={field.placeholder || field.label}
       value={value || ''}

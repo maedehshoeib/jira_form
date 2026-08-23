@@ -38,7 +38,7 @@ def _parse_submission_data(raw: str) -> dict:
         return {}
     parsed: dict = {}
     for key, value in data.items():
-        if key in {"_report_id", "_attachments"}:
+        if key.startswith("_"):
             continue
         if isinstance(value, str) and value.strip()[:1] in ("[", "{"):
             try:

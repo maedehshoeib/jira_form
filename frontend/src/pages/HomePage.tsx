@@ -5,6 +5,7 @@ import {
   BookOpen,
   BriefcaseBusiness,
   Building2,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
   ClipboardCheck,
@@ -43,6 +44,15 @@ type HomeCard = {
 };
 
 const HOME_CARDS: HomeCard[] = [
+  {
+    id: "meeting-room",
+    title: "رزرو اتاق جلسات",
+    description: "ثبت و پیگیری درخواست رزرو اتاق جلسه",
+    href: "/forms/meeting-room-reservation-form?department=meeting-room&section=meeting-room-reservation",
+    icon: CalendarDays,
+    departmentIds: ["meeting-room"],
+    featured: true,
+  },
   {
     id: "internal-letters",
     title: LETTER_WORKFLOWS.internal.title,
@@ -146,6 +156,7 @@ const HOME_CARDS: HomeCard[] = [
 ];
 
 const HOME_ICON_STYLES: Record<string, string> = {
+  "meeting-room": "border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-400/40 dark:bg-teal-500/20 dark:text-teal-200",
   guidelines: "border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-400/40 dark:bg-cyan-500/20 dark:text-cyan-200",
   training: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-400/40 dark:bg-blue-500/20 dark:text-blue-200",
   forms: "border-red-200 bg-red-50 text-red-700 dark:border-red-400/40 dark:bg-red-500/20 dark:text-red-200",

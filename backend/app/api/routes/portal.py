@@ -14,6 +14,7 @@ from fastapi import (  # noqa: F401 — File/Form reserved for multipart signatu
     UploadFile,
 )
 from fastapi.responses import FileResponse
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.api.routes.reports_helpers import _format_dt, _verify_api_key
@@ -72,6 +73,11 @@ from app.services.portal_service import (
     FORM_TEMPLATES,
     MANAGEMENT_LETTER_FORM_ID,
     MANAGEMENT_WORKFLOW_ID,
+    MEETING_ROOM_FORM_ID,
+)
+from app.services.meeting_room_workflow_service import (
+    initialize_meeting_room_workflow,
+    prepare_meeting_room_data,
 )
 from app.services.task_workflow_service import (
     add_task_comment,
@@ -622,6 +628,15 @@ async def create_submission(
             continue
         form_data[key] = str(value)
 
+    meeting_room_approvers = []
+    if form_id == MEETING_ROOM_FORM_ID:
+        try:
+            form_data, meeting_room_approvers = prepare_meeting_room_data(
+                db, form_data
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
     subject = form_data.get("subject", "")
 
     submission = Submission(
@@ -636,7 +651,15 @@ async def create_submission(
     )
     db.add(submission)
     db.flush()
-    snapshot_submission_initial_assignees(db, submission)
+    if form_id == MEETING_ROOM_FORM_ID:
+        initialize_meeting_room_workflow(
+            db,
+            submission,
+            current_user,
+            meeting_room_approvers,
+        )
+    else:
+        snapshot_submission_initial_assignees(db, submission)
     db.commit()
     db.refresh(submission)
 
@@ -1023,7 +1046,13 @@ async def update_task_status(
                 status_code=422,
                 detail="بدنه درخواست نامعتبر است.",
             ) from exc
-        body = TaskStatusUpdate.model_validate(payload)
+        try:
+            body = TaskStatusUpdate.model_validate(payload)
+        except ValidationError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail="اطلاعات وضعیت نامعتبر است.",
+            ) from exc
         status = body.status
         note = body.note
         progress_percent = body.progress_percent

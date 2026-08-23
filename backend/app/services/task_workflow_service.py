@@ -17,6 +17,12 @@ from app.models.submission import (
 )
 from app.models.user import User
 from app.services.form_duty_service import list_user_duty_assignments, user_handles_target
+from app.services.meeting_room_workflow_service import (
+    active_meeting_room_approver_id,
+    approve_meeting_room_step,
+    is_meeting_room_submission,
+    user_is_meeting_room_participant,
+)
 
 ALLOWED_TASK_STATUSES = {"approved", "rejected", "submitted", "in_progress"}
 TERMINAL_TASK_STATUSES = {"approved", "rejected"}
@@ -35,6 +41,8 @@ def user_is_referral_recipient(db: Session, user_id: int, submission_id: int) ->
 
 
 def user_can_access_task(db: Session, user: User, submission: Submission) -> bool:
+    if is_meeting_room_submission(submission):
+        return user.is_admin or active_meeting_room_approver_id(submission) == user.id
     if user.is_admin:
         return True
     if user_handles_target(
@@ -61,6 +69,12 @@ def user_is_cc_recipient(db: Session, user_id: int, submission_id: int) -> bool:
 
 
 def user_can_view_task(db: Session, user: User, submission: Submission) -> bool:
+    if is_meeting_room_submission(submission):
+        return (
+            user.is_admin
+            or user_is_meeting_room_participant(db, user.id, submission)
+            or user_is_referral_recipient(db, user.id, submission.id)
+        )
     return user_can_access_task(db, user, submission) or user_is_cc_recipient(
         db, user.id, submission.id
     )
@@ -134,7 +148,7 @@ def list_pending_task_ids(db: Session, user_id: int) -> list[int]:
     if not conditions:
         return []
     rows = (
-        db.query(Submission.id)
+        db.query(Submission)
         .filter(
             or_(*conditions),
             Submission.status.in_({"submitted", "in_progress"}),
@@ -142,7 +156,12 @@ def list_pending_task_ids(db: Session, user_id: int) -> list[int]:
         .order_by(Submission.created_at.desc())
         .all()
     )
-    return [row.id for row in rows]
+    return [
+        row.id
+        for row in rows
+        if not is_meeting_room_submission(row)
+        or active_meeting_room_approver_id(row) == user_id
+    ]
 
 
 def list_unseen_task_ids(db: Session, user_id: int) -> list[int]:
@@ -297,6 +316,15 @@ def set_task_status(
     old_progress = int(submission.progress_percent or 0)
     if progress_percent is not None and not 0 <= progress_percent <= 100:
         raise ValueError("درصد پیشرفت باید بین صفر تا صد باشد.")
+    if status == "approved" and is_meeting_room_submission(submission):
+        return approve_meeting_room_step(
+            db,
+            actor,
+            submission,
+            note,
+            attachment_path=attachment_path,
+            attachment_name=attachment_name,
+        )
     if status == "approved":
         new_progress = 100
     elif status == "submitted":
@@ -401,6 +429,8 @@ def refer_tasks(
         raise LookupError("درخواست یافت نشد")
     if not user_can_access_task(db, actor, submission):
         raise PermissionError("شما به این وظیفه دسترسی ندارید.")
+    if is_meeting_room_submission(submission):
+        raise ValueError("ارجاع این درخواست به‌صورت خودکار و طبق زنجیره تایید انجام می‌شود.")
     if submission.status in TERMINAL_TASK_STATUSES:
         raise ValueError("پس از تایید یا رد، امکان ارجاع وجود ندارد.")
     if any(user_id == actor.id for user_id in unique_ids):

@@ -1,4 +1,4 @@
-export type FieldType = 'text' | 'textarea' | 'select' | 'date' | 'file' | 'email' | 'table';
+export type FieldType = 'text' | 'textarea' | 'select' | 'date' | 'time' | 'file' | 'email' | 'table';
 
 export type SelectOption = {
   label: string;
@@ -23,6 +23,8 @@ export type FormField = {
   /** For date fields: literal YYYY/MM/DD or `'today'` */
   maxDate?: 'today' | string;
   minDate?: string;
+  visible_when_field?: string;
+  visible_when_value?: string;
 };
 
 export type FormTemplate = {

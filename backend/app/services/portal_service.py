@@ -290,6 +290,53 @@ SOFTWARE_DEVELOPMENT_FIELDS = [
     FormField(name="description", label="\u0634\u0631\u062d \u062f\u0631\u062e\u0648\u0627\u0633\u062a", type="textarea", required=True),
 ]
 
+MEETING_ROOM_DEPARTMENT_ID = "meeting-room"
+MEETING_ROOM_SECTION_ID = "meeting-room-reservation"
+MEETING_ROOM_FORM_ID = "meeting-room-reservation-form"
+
+MEETING_ROOM_FIELDS = [
+    FormField(name="requester", label="درخواست‌کننده", type="text", required=True),
+    FormField(name="subject", label="موضوع جلسه", type="text", required=True),
+    FormField(
+        name="participant_scope",
+        label="شرکت‌کنندگان",
+        type="select",
+        required=True,
+        options=[
+            SelectOption(label="داخلی (درون سازمانی)", value="داخلی"),
+            SelectOption(label="خارجی (برون سازمانی)", value="خارجی"),
+        ],
+    ),
+    FormField(
+        name="participant_details",
+        label="شرکت‌کنندگان (نام و سمت)",
+        type="textarea",
+        required=True,
+        placeholder="نام و سمت هر شرکت‌کننده را وارد کنید",
+    ),
+    FormField(name="meeting_date", label="تاریخ جلسه", type="date", required=True),
+    FormField(name="start_time", label="ساعت شروع", type="time", required=True),
+    FormField(name="end_time", label="ساعت پایان", type="time", required=True),
+    FormField(
+        name="needs_catering",
+        label="نیاز به پذیرایی",
+        type="select",
+        required=True,
+        options=[
+            SelectOption(label="دارد", value="دارد"),
+            SelectOption(label="ندارد", value="ندارد"),
+        ],
+    ),
+    FormField(
+        name="catering_type",
+        label="نوع پذیرایی",
+        type="text",
+        required=True,
+        visible_when_field="needs_catering",
+        visible_when_value="دارد",
+    ),
+]
+
 DEPARTMENTS = [
     Department(id="it", title="معاونت فناوری اطلاعات", sections=[
         Section(id="it-support", title="پشتیبانی فنی", form_id="common-form"),
@@ -338,6 +385,13 @@ DEPARTMENTS = [
             id="management-report",
             title="گزارش عملکرد شورای معاونین و مدیران",
             form_id="performance-report-form",
+        ),
+    ]),
+    Department(id=MEETING_ROOM_DEPARTMENT_ID, title="رزرو اتاق جلسات", sections=[
+        Section(
+            id=MEETING_ROOM_SECTION_ID,
+            title="رزرو اتاق جلسات",
+            form_id=MEETING_ROOM_FORM_ID,
         ),
     ]),
     Department(id="contract-archive", title="ارشیو قراردادها", sections=[]),
@@ -429,6 +483,13 @@ MANAGEMENT_LETTER_FIELDS = [
 ]
 
 FORM_TEMPLATES = {
+    MEETING_ROOM_FORM_ID: FormTemplate(
+        id=MEETING_ROOM_FORM_ID,
+        title="رزرو اتاق جلسات",
+        department_id=MEETING_ROOM_DEPARTMENT_ID,
+        section_id=MEETING_ROOM_SECTION_ID,
+        fields=MEETING_ROOM_FIELDS,
+    ),
     "software-development-form": FormTemplate(
         id="software-development-form",
         title="\u062f\u0631\u062e\u0648\u0627\u0633\u062a \u062a\u0648\u0633\u0639\u0647 \u0646\u0631\u0645 \u0627\u0641\u0632\u0627\u0631",
