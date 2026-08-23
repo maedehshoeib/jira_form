@@ -89,12 +89,20 @@ function parseJalali(value?: string | null): DateObject | null {
 
 function parseTime(value?: string | null): DateObject | null {
   if (!value) return null;
+
+  const match = /^(\d{1,2}):(\d{2})/.exec(value);
+  if (!match) return null;
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour > 23 || minute > 59) return null;
+
+  // react-date-object cannot create a valid DateObject from a time-only
+  // string. Keep a real calendar date behind the picker and set its time.
   return new DateObject({
-    date: value,
-    format: 'HH:mm',
     calendar: persian,
     locale: persian_fa,
-  });
+  }).set({ hour, minute, second: 0, millisecond: 0 });
 }
 
 function formatMinutes(minutes: number): string {
