@@ -7,7 +7,11 @@ from sqlalchemy.orm import Session
 from app.models.submission import (
     Submission,
     SubmissionCcRecipient,
+    SubmissionComment,
+    SubmissionCommentMention,
+    SubmissionInitialAssignee,
     SubmissionReferral,
+    SubmissionReminder,
     SubmissionStatusHistory,
     SubmissionView,
 )
@@ -164,6 +168,24 @@ def list_unseen_task_ids(db: Session, user_id: int) -> list[int]:
         )
         .exists()
     )
+    newer_comment_exists = (
+        db.query(SubmissionComment.id)
+        .filter(
+            SubmissionComment.submission_id == Submission.id,
+            SubmissionComment.author_id != user_id,
+            SubmissionComment.created_at > SubmissionView.last_viewed_at,
+        )
+        .exists()
+    )
+    newer_reminder_exists = (
+        db.query(SubmissionReminder.id)
+        .filter(
+            SubmissionReminder.submission_id == Submission.id,
+            SubmissionReminder.recipient_id == user_id,
+            SubmissionReminder.created_at > SubmissionView.last_viewed_at,
+        )
+        .exists()
+    )
     rows = (
         db.query(Submission.id)
         .outerjoin(
@@ -175,7 +197,13 @@ def list_unseen_task_ids(db: Session, user_id: int) -> list[int]:
         )
         .filter(
             or_(*conditions),
-            or_(SubmissionView.id.is_(None), newer_referral_exists, newer_cc_exists),
+            or_(
+                SubmissionView.id.is_(None),
+                newer_referral_exists,
+                newer_cc_exists,
+                newer_comment_exists,
+                newer_reminder_exists,
+            ),
         )
         .order_by(Submission.created_at.desc())
         .all()
@@ -474,3 +502,110 @@ def list_colleagues(db: Session, exclude_user_id: int) -> list[User]:
         .order_by(User.display_name.asc(), User.username.asc())
         .all()
     )
+
+
+def task_participant_ids(db: Session, submission: Submission) -> set[int]:
+    """Return everyone allowed to take part in the task-card conversation."""
+    ids = {submission.user_id}
+    ids.update(
+        row.user_id
+        for row in db.query(SubmissionInitialAssignee.user_id)
+        .filter(SubmissionInitialAssignee.submission_id == submission.id)
+        .all()
+    )
+    for row in (
+        db.query(SubmissionReferral.from_user_id, SubmissionReferral.to_user_id)
+        .filter(SubmissionReferral.submission_id == submission.id)
+        .all()
+    ):
+        ids.update((row.from_user_id, row.to_user_id))
+    for row in (
+        db.query(SubmissionCcRecipient.user_id, SubmissionCcRecipient.mentioned_by_id)
+        .filter(SubmissionCcRecipient.submission_id == submission.id)
+        .all()
+    ):
+        ids.update((row.user_id, row.mentioned_by_id))
+    return ids
+
+
+def user_can_join_conversation(
+    db: Session, user: User, submission: Submission
+) -> bool:
+    return user.is_admin or user.id in task_participant_ids(db, submission)
+
+
+def add_task_comment(
+    db: Session,
+    actor: User,
+    submission: Submission,
+    body: str,
+    mention_user_ids: list[int] | None = None,
+) -> SubmissionComment:
+    if not user_can_join_conversation(db, actor, submission):
+        raise PermissionError("You do not have access to this conversation.")
+    cleaned_body = (body or "").strip()
+    if not cleaned_body:
+        raise ValueError("Message cannot be empty.")
+    if len(cleaned_body) > 2000:
+        raise ValueError("Message is too long.")
+    allowed_ids = task_participant_ids(db, submission)
+    mention_ids = list(dict.fromkeys(mention_user_ids or []))
+    if any(user_id not in allowed_ids for user_id in mention_ids):
+        raise ValueError("Only task participants can be mentioned.")
+    comment = SubmissionComment(
+        submission_id=submission.id,
+        author_id=actor.id,
+        body=cleaned_body,
+    )
+    db.add(comment)
+    db.flush()
+    db.add_all(
+        [
+            SubmissionCommentMention(comment_id=comment.id, user_id=user_id)
+            for user_id in mention_ids
+            if user_id != actor.id
+        ]
+    )
+    db.commit()
+    db.refresh(comment)
+    return comment
+
+
+def send_task_reminders(
+    db: Session,
+    actor: User,
+    submission: Submission,
+    message: str = "",
+) -> list[SubmissionReminder]:
+    if not actor.is_admin and submission.user_id != actor.id:
+        raise PermissionError("Only the requester can send a reminder.")
+    recipient_ids = {
+        row.user_id
+        for row in db.query(SubmissionInitialAssignee.user_id)
+        .filter(SubmissionInitialAssignee.submission_id == submission.id)
+        .all()
+    }
+    recipient_ids.update(
+        row.to_user_id
+        for row in db.query(SubmissionReferral.to_user_id)
+        .filter(SubmissionReferral.submission_id == submission.id)
+        .all()
+    )
+    recipient_ids.discard(actor.id)
+    if not recipient_ids:
+        raise ValueError("No assignee is available to remind.")
+    cleaned_message = (message or "").strip()[:512]
+    reminders = [
+        SubmissionReminder(
+            submission_id=submission.id,
+            sender_id=actor.id,
+            recipient_id=user_id,
+            message=cleaned_message,
+        )
+        for user_id in sorted(recipient_ids)
+    ]
+    db.add_all(reminders)
+    db.commit()
+    for reminder in reminders:
+        db.refresh(reminder)
+    return reminders

@@ -153,3 +153,37 @@ class SubmissionStatusHistory(Base):
     attachment_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
+
+class SubmissionComment(Base):
+    """A participant message attached to a request/task card."""
+
+    __tablename__ = "submission_comments"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    submission_id: Mapped[int] = mapped_column(ForeignKey("submissions.id", ondelete="CASCADE"), index=True)
+    author_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class SubmissionCommentMention(Base):
+    __tablename__ = "submission_comment_mentions"
+    __table_args__ = (UniqueConstraint("comment_id", "user_id", name="uq_submission_comment_mention_user"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    comment_id: Mapped[int] = mapped_column(ForeignKey("submission_comments.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+
+
+class SubmissionReminder(Base):
+    """An in-app bell/reminder sent by the requester to a task assignee."""
+
+    __tablename__ = "submission_reminders"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    submission_id: Mapped[int] = mapped_column(ForeignKey("submissions.id", ondelete="CASCADE"), index=True)
+    sender_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    recipient_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    message: Mapped[str] = mapped_column(String(512), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+

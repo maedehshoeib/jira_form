@@ -23,8 +23,11 @@ from app.models.form_template import FormDutyAssignment  # noqa: F401
 from app.models.submission import (
     Submission,
     SubmissionCcRecipient,
+    SubmissionComment,
+    SubmissionCommentMention,
     SubmissionInitialAssignee,
     SubmissionReferral,
+    SubmissionReminder,
     SubmissionStatusHistory,
     SubmissionView,
 )
@@ -164,6 +167,63 @@ class TaskWorkflowMockTests(unittest.TestCase):
     def test_outsider_sees_nothing(self):
         tasks = list_task_submissions(self.db, self.outsider.id)
         self.assertEqual(tasks, [])
+
+    def test_requester_can_ring_assignees_and_receiver_sees_reminder(self):
+        self._as(self.handler)
+        opened = self.client.get(f"/api/v1/tasks/{self.submission.id}")
+        self.assertEqual(opened.status_code, 200)
+
+        self._as(self.submitter)
+        response = self.client.post(
+            f"/api/v1/submissions/{self.submission.id}/reminders",
+            json={"message": "Please follow up"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()["reminders"]), 1)
+        self.assertEqual(response.json()["reminders"][0]["recipient_id"], self.handler.id)
+        self.assertEqual(self.db.query(SubmissionReminder).count(), 1)
+
+        self._as(self.handler)
+        unseen = self.client.get("/api/v1/tasks/unseen-count")
+        self.assertIn(self.submission.id, unseen.json()["ids"])
+
+    def test_participants_can_comment_and_mention_each_other(self):
+        self._as(self.handler)
+        response = self.client.post(
+            f"/api/v1/submissions/{self.submission.id}/comments",
+            json={
+                "body": "@submitter please check",
+                "mention_user_ids": [self.submitter.id],
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        comment = response.json()["comments"][0]
+        self.assertEqual(comment["author_id"], self.handler.id)
+        self.assertEqual(comment["mentions"][0]["id"], self.submitter.id)
+        self.assertEqual(self.db.query(SubmissionComment).count(), 1)
+        self.assertEqual(self.db.query(SubmissionCommentMention).count(), 1)
+
+        self._as(self.outsider)
+        denied = self.client.post(
+            f"/api/v1/submissions/{self.submission.id}/comments",
+            json={"body": "not allowed", "mention_user_ids": []},
+        )
+        self.assertEqual(denied.status_code, 403)
+
+    def test_cc_recipient_can_join_task_conversation(self):
+        refer_task(
+            self.db,
+            self.handler,
+            self.submission.id,
+            self.colleague.id,
+            cc_user_ids=[self.outsider.id],
+        )
+        self._as(self.outsider)
+        response = self.client.post(
+            f"/api/v1/submissions/{self.submission.id}/comments",
+            json={"body": "CC response", "mention_user_ids": [self.colleague.id]},
+        )
+        self.assertEqual(response.status_code, 200)
 
     def test_referral_only_inbox_without_duty(self):
         # Clear duties so handler no longer owns the form; colleague gets it only via ارجاع

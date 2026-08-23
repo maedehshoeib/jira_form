@@ -16,7 +16,7 @@ from fastapi import (  # noqa: F401 — File/Form reserved for multipart signatu
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from app.api.routes.reports_helpers import _verify_api_key
+from app.api.routes.reports_helpers import _format_dt, _verify_api_key
 from app.api.routes.submissions_helpers import (
     _submission_to_list_item,
     _submission_to_response,
@@ -29,7 +29,10 @@ from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.submission import (
     Submission,
+    SubmissionComment,
+    SubmissionCommentMention,
     SubmissionReferral,
+    SubmissionReminder,
     SubmissionStatusHistory,
 )
 from app.models.pdf_form import PdfForm
@@ -42,9 +45,15 @@ from app.schemas.submission import (
     JiraStatusUpdate,
     SubmissionListItem,
     SubmissionResponse,
+    TaskCommentCreate,
+    TaskCommentItem,
     TaskColleague,
+    TaskConversationResponse,
+    TaskConversationUser,
     TaskPendingNotification,
     TaskReferRequest,
+    TaskReminderCreate,
+    TaskReminderItem,
     TaskStatusUpdate,
 )
 from app.schemas.pdf_form import PdfFormResponse
@@ -65,6 +74,7 @@ from app.services.portal_service import (
     MANAGEMENT_WORKFLOW_ID,
 )
 from app.services.task_workflow_service import (
+    add_task_comment,
     list_colleagues,
     list_pending_task_ids,
     list_task_submissions,
@@ -72,8 +82,11 @@ from app.services.task_workflow_service import (
     mark_task_viewed,
     refer_tasks,
     set_task_status,
+    send_task_reminders,
+    task_participant_ids,
     user_can_access_task,
     user_can_view_task,
+    user_can_join_conversation,
 )
 from app.services.report_submission_service import (
     create_report_from_submission,
@@ -269,6 +282,80 @@ def _task_response(
     )
 
 
+def _conversation_response(
+    db: Session, submission: Submission
+) -> TaskConversationResponse:
+    participant_ids = task_participant_ids(db, submission)
+    comments = (
+        db.query(SubmissionComment)
+        .filter(SubmissionComment.submission_id == submission.id)
+        .order_by(SubmissionComment.created_at.asc(), SubmissionComment.id.asc())
+        .all()
+    )
+    reminders = (
+        db.query(SubmissionReminder)
+        .filter(SubmissionReminder.submission_id == submission.id)
+        .order_by(SubmissionReminder.created_at.asc(), SubmissionReminder.id.asc())
+        .all()
+    )
+    comment_ids = [comment.id for comment in comments]
+    mention_rows = (
+        db.query(SubmissionCommentMention)
+        .filter(SubmissionCommentMention.comment_id.in_(comment_ids))
+        .all()
+        if comment_ids
+        else []
+    )
+    user_ids = set(participant_ids)
+    user_ids.update(comment.author_id for comment in comments)
+    for reminder in reminders:
+        user_ids.update((reminder.sender_id, reminder.recipient_id))
+    user_ids.update(row.user_id for row in mention_rows)
+    users = {
+        user.id: user
+        for user in db.query(User).filter(User.id.in_(user_ids)).all()
+    }
+
+    def user_item(user_id: int) -> TaskConversationUser:
+        user = users.get(user_id)
+        return TaskConversationUser(
+            id=user_id,
+            username=user.username if user else "",
+            display_name=(user.display_name or user.username) if user else "Unknown user",
+        )
+
+    mentions_by_comment: dict[int, list[int]] = {}
+    for row in mention_rows:
+        mentions_by_comment.setdefault(row.comment_id, []).append(row.user_id)
+    return TaskConversationResponse(
+        participants=[user_item(user_id) for user_id in sorted(participant_ids)],
+        comments=[
+            TaskCommentItem(
+                id=comment.id,
+                author_id=comment.author_id,
+                author_name=user_item(comment.author_id).display_name,
+                body=comment.body,
+                mentions=[
+                    user_item(user_id)
+                    for user_id in mentions_by_comment.get(comment.id, [])
+                ],
+                created_at=_format_dt(comment.created_at),
+            )
+            for comment in comments
+        ],
+        reminders=[
+            TaskReminderItem(
+                id=reminder.id,
+                sender_id=reminder.sender_id,
+                sender_name=user_item(reminder.sender_id).display_name,
+                recipient_id=reminder.recipient_id,
+                recipient_name=user_item(reminder.recipient_id).display_name,
+                message=reminder.message or "",
+                created_at=_format_dt(reminder.created_at),
+            )
+            for reminder in reminders
+        ],
+    )
 @router.get("/health")
 def health_check():
     return {"status": "ok"}
@@ -674,6 +761,71 @@ def get_submission(
         db=db,
         workflow_context=workflow_context,
     )
+
+
+@router.get(
+    "/submissions/{submission_id}/conversation",
+    response_model=TaskConversationResponse,
+)
+def get_task_conversation(
+    submission_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    submission = db.query(Submission).filter(Submission.id == submission_id).first()
+    if not submission or not user_can_join_conversation(db, current_user, submission):
+        raise HTTPException(status_code=404, detail="Request not found")
+    return _conversation_response(db, submission)
+
+
+@router.post(
+    "/submissions/{submission_id}/comments",
+    response_model=TaskConversationResponse,
+)
+def create_task_comment(
+    submission_id: int,
+    payload: TaskCommentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    submission = db.query(Submission).filter(Submission.id == submission_id).first()
+    if not submission:
+        raise HTTPException(status_code=404, detail="Request not found")
+    try:
+        add_task_comment(
+            db,
+            current_user,
+            submission,
+            payload.body,
+            payload.mention_user_ids,
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return _conversation_response(db, submission)
+
+
+@router.post(
+    "/submissions/{submission_id}/reminders",
+    response_model=TaskConversationResponse,
+)
+def create_task_reminder(
+    submission_id: int,
+    payload: TaskReminderCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    submission = db.query(Submission).filter(Submission.id == submission_id).first()
+    if not submission:
+        raise HTTPException(status_code=404, detail="Request not found")
+    try:
+        send_task_reminders(db, current_user, submission, payload.message)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return _conversation_response(db, submission)
 
 
 def _serve_submission_attachment(

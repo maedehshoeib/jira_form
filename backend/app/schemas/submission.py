@@ -165,3 +165,43 @@ class TaskPendingNotification(BaseModel):
     count: int
     ids: list[int] = Field(default_factory=list)
 
+
+class TaskCommentCreate(BaseModel):
+    body: str = Field(min_length=1, max_length=2000)
+    mention_user_ids: list[int] = Field(default_factory=list)
+
+
+class TaskReminderCreate(BaseModel):
+    message: str = Field(default="", max_length=512)
+
+
+class TaskConversationUser(BaseModel):
+    id: int
+    username: str
+    display_name: str
+
+
+class TaskCommentItem(BaseModel):
+    id: int
+    author_id: int
+    author_name: str
+    body: str
+    mentions: list[TaskConversationUser] = Field(default_factory=list)
+    created_at: str
+
+
+class TaskReminderItem(BaseModel):
+    id: int
+    sender_id: int
+    sender_name: str
+    recipient_id: int
+    recipient_name: str
+    message: str
+    created_at: str
+
+
+class TaskConversationResponse(BaseModel):
+    participants: list[TaskConversationUser] = Field(default_factory=list)
+    comments: list[TaskCommentItem] = Field(default_factory=list)
+    reminders: list[TaskReminderItem] = Field(default_factory=list)
+

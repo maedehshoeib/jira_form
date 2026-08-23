@@ -24,6 +24,7 @@ import {
 import client from "../api/client";
 import { endpoints } from "../api/endpoints";
 import AppShell from "../components/layout/AppShell";
+import TaskConversation from "../components/tasks/TaskConversation";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -1444,6 +1445,8 @@ export default function MyRequestsPage() {
                   </div>
                 )}
               </div>
+
+              <TaskConversation submissionId={selected.id} canRemind />
 
               <section aria-labelledby="request-timeline-title" className="space-y-4">
                 <div>

@@ -21,6 +21,7 @@ import {
 import client from "../api/client";
 import { endpoints } from "../api/endpoints";
 import AppShell from "../components/layout/AppShell";
+import TaskConversation from "../components/tasks/TaskConversation";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -1972,6 +1973,8 @@ export default function MyTasksPage() {
                   </div>
                 )}
               </div>
+
+              <TaskConversation submissionId={selected.id} />
 
               {(selected.referrals?.length ?? 0) > 0 && (
                 <div className="space-y-2">
