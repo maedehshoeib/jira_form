@@ -124,7 +124,7 @@ const HOME_CARDS: HomeCard[] = [
   },
   {
     id: "reports",
-    title: "گزارشات",
+    title: "گزارش شورای معاونین و مدیران",
     description: "ثبت و مشاهده گزارشات",
     href: "/departments/reports",
     icon: BarChart3,
@@ -154,6 +154,13 @@ const HOME_CARDS: HomeCard[] = [
     departmentIds: [LETTER_WORKFLOWS.external.accessDepartmentId],
   },
 ];
+
+const HOME_CARD_ROWS = [
+  ["internal-letters", "timesheet", "external-letters"],
+  ["guidelines", "training", "forms", "documents"],
+  ["business", "it", "resource-development", "planning"],
+  ["reports", "contracts", "meeting-room"],
+] as const;
 
 const HOME_ICON_STYLES: Record<string, string> = {
   "meeting-room": "border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-400/40 dark:bg-teal-500/20 dark:text-teal-200",
@@ -411,6 +418,12 @@ export default function HomePage() {
     return true;
   });
 
+  const cardRows = HOME_CARD_ROWS.map((row) =>
+    row
+      .map((cardId) => cards.find((card) => card.id === cardId))
+      .filter((card): card is HomeCard => Boolean(card)),
+  ).filter((row) => row.length > 0);
+
   return (
     <AppShell>
       {banner?.is_active && banner.images.length > 0 && (
@@ -556,9 +569,21 @@ export default function HomePage() {
         </aside>
 
         <section dir="rtl" aria-label="خدمات سازمان" className="order-1 xl:order-2">
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {cards.map((card) => (
-              <DestinationCard key={card.id} card={card} />
+          <div className="space-y-8">
+            {cardRows.map((row, rowIndex) => (
+              <div
+                key={HOME_CARD_ROWS[rowIndex].join("-")}
+                className={cn(
+                  "grid gap-8 sm:grid-cols-2",
+                  HOME_CARD_ROWS[rowIndex].length === 3
+                    ? "lg:grid-cols-3"
+                    : "lg:grid-cols-4",
+                )}
+              >
+                {row.map((card) => (
+                  <DestinationCard key={card.id} card={card} />
+                ))}
+              </div>
             ))}
           </div>
         </section>
