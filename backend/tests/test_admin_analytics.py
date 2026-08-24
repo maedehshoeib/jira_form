@@ -170,6 +170,24 @@ class AdminAnalyticsServiceTests(unittest.TestCase):
         self.assertTrue(result.filter_options.forms)
         self.assertIn("فناوری اطلاعات", result.filter_options.departments)
 
+    def test_monthly_form_trend_uses_jalali_months(self):
+        with patch(
+            "app.services.admin_analytics_service.jalali_today",
+            return_value="1405/05/12",
+        ):
+            result = build_analytics(
+                self.db,
+                admin=self.admin,
+                start_date="1405/05/01",
+                end_date="1405/05/12",
+            )
+
+        self.assertEqual(
+            [item.label for item in result.forms.monthly_trend],
+            ["1404/12", "1405/01", "1405/02", "1405/03", "1405/04", "1405/05"],
+        )
+        self.assertEqual(result.forms.monthly_trend[-1].value, 2)
+
     def test_rejects_inverted_range(self):
         with self.assertRaises(ValueError):
             build_analytics(

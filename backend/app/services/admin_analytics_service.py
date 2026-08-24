@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import DefaultDict, Literal
 
 from sqlalchemy.orm import Session
@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.jalali import (
     gregorian_to_jalali,
     jalali_range_to_datetimes,
+    jalali_to_gregorian,
     jalali_today,
     normalize_digits,
 )
@@ -503,18 +504,25 @@ def build_analytics(
         submitter_counts[submitter_name] += 1
         daily_form_counts[gregorian_to_jalali(utc_naive_to_tehran(submission.created_at).date())] += 1
 
-    month_day = today.replace(day=1)
-    next_month_day = (month_day + timedelta(days=32)).replace(day=1)
-    next_month_start, _ = tehran_date_bounds_to_utc_naive(next_month_day, next_month_day)
-    months: list[tuple[str, datetime]] = []
-    for _ in range(6):
-        month_begin, _ = tehran_date_bounds_to_utc_naive(month_day, month_day)
-        months.append((month_day.strftime("%Y/%m"), month_begin))
-        month_day = (month_day - timedelta(days=1)).replace(day=1)
-    months.reverse()
+    jalali_year, jalali_month, _ = (
+        int(part) for part in jalali_today().split("/")
+    )
+    current_month_index = jalali_year * 12 + jalali_month - 1
+    month_starts: list[tuple[str, datetime]] = []
+    for month_offset in range(-5, 2):
+        month_index = current_month_index + month_offset
+        month_year, zero_based_month = divmod(month_index, 12)
+        month_label = f"{month_year:04d}/{zero_based_month + 1:02d}"
+        month_start_date = jalali_to_gregorian(f"{month_label}/01")
+        month_start, _ = tehran_date_bounds_to_utc_naive(
+            month_start_date,
+            month_start_date,
+        )
+        month_starts.append((month_label, month_start))
+
     monthly_items: list[ChartItem] = []
-    for index, (label, month_begin) in enumerate(months):
-        month_end = months[index + 1][1] if index + 1 < len(months) else next_month_start
+    for index, (label, month_begin) in enumerate(month_starts[:-1]):
+        month_end = month_starts[index + 1][1]
         month_rows = (
             db.query(Submission, User)
             .outerjoin(User, User.id == Submission.user_id)

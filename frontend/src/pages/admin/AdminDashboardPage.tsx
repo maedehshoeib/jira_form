@@ -8,7 +8,9 @@ import {
   BriefcaseBusiness,
   Building2,
   CalendarClock,
+  ChevronLeft,
   ChevronDown,
+  ChevronRight,
   Clock3,
   FileText,
   Hash,
@@ -30,16 +32,42 @@ import {
   type DailyTimesheetPoint,
 } from "../../features/admin/analytics";
 import { JalaliDateTimePicker } from "../../features/timesheet/components/jalali-date-time-picker";
-import { formatPersianDateTime, getTodayPersian } from "../../lib/persianDate";
+import { formatPersianDate, formatPersianDateTime, getTodayPersian } from "../../lib/persianDate";
 
 type AnalyticsTab = "overview" | "employees" | "projects" | "departments" | "forms";
 type PeriodPreset = "today" | "week" | "month" | "custom";
 type ProjectStatusFilter = "all" | AnalyticsProjectStatus;
+type EmployeeSortKey =
+  | "full_name"
+  | "department"
+  | "active_days"
+  | "attendance_minutes"
+  | "task_minutes"
+  | "task_count"
+  | "form_count"
+  | "efficiency_percent";
+type DepartmentSortKey =
+  | "name"
+  | "employee_count"
+  | "active_employees"
+  | "attendance_minutes"
+  | "task_minutes"
+  | "untracked_minutes"
+  | "task_count"
+  | "form_count"
+  | "efficiency_percent";
+type SortDirection = "asc" | "desc";
 
 const numberFmt = new Intl.NumberFormat("fa-IR");
 
 const number = (value: number) => numberFmt.format(value);
 const dateTime = (value: string) => formatPersianDateTime(value);
+
+function formatMonthlyTrendLabel(label: string): string {
+  const gregorianMonth = label.match(/^(\d{4})[/-](\d{2})$/);
+  if (!gregorianMonth || Number(gregorianMonth[1]) < 1700) return label;
+  return formatPersianDate(`${gregorianMonth[1]}-${gregorianMonth[2]}-01`).slice(0, 7);
+}
 
 function jalaliToday(): DateObject {
   return new DateObject({
@@ -223,6 +251,12 @@ export default function AdminDashboardPage() {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [hideInactiveEmployees, setHideInactiveEmployees] = useState(true);
+  const [employeeSortKey, setEmployeeSortKey] = useState<EmployeeSortKey>("task_minutes");
+  const [employeeSortDirection, setEmployeeSortDirection] = useState<SortDirection>("desc");
+  const [employeePage, setEmployeePage] = useState(1);
+  const [employeePageSize, setEmployeePageSize] = useState(10);
+  const [departmentSortKey, setDepartmentSortKey] = useState<DepartmentSortKey>("task_minutes");
+  const [departmentSortDirection, setDepartmentSortDirection] = useState<SortDirection>("desc");
   const [selectedDepartment, setSelectedDepartment] = useState("all");
   const [selectedEmployee, setSelectedEmployee] = useState("all");
   const [selectedProject, setSelectedProject] = useState("all");
@@ -296,6 +330,32 @@ export default function AdminDashboardPage() {
     });
   }, [data, query, hideInactiveEmployees]);
 
+  const sortedEmployees = useMemo(() => {
+    return [...filteredEmployees].sort((first, second) => {
+      const firstValue = first[employeeSortKey];
+      const secondValue = second[employeeSortKey];
+      const comparison =
+        typeof firstValue === "string" && typeof secondValue === "string"
+          ? firstValue.localeCompare(secondValue, "fa", { sensitivity: "base" })
+          : Number(firstValue) - Number(secondValue);
+      if (comparison !== 0) return employeeSortDirection === "asc" ? comparison : -comparison;
+      return first.full_name.localeCompare(second.full_name, "fa", { sensitivity: "base" });
+    });
+  }, [filteredEmployees, employeeSortKey, employeeSortDirection]);
+
+  const employeePageCount = Math.max(1, Math.ceil(sortedEmployees.length / employeePageSize));
+  const safeEmployeePage = Math.min(employeePage, employeePageCount);
+  const paginatedEmployees = sortedEmployees.slice(
+    (safeEmployeePage - 1) * employeePageSize,
+    safeEmployeePage * employeePageSize,
+  );
+  const employeeRangeStart = sortedEmployees.length ? (safeEmployeePage - 1) * employeePageSize + 1 : 0;
+  const employeeRangeEnd = Math.min(safeEmployeePage * employeePageSize, sortedEmployees.length);
+
+  useEffect(() => {
+    setEmployeePage(1);
+  }, [query, hideInactiveEmployees, employeeSortKey, employeeSortDirection, employeePageSize, data]);
+
   const filteredProjects = useMemo(() => {
     if (!data) return [];
     const normalized = query.trim().toLocaleLowerCase("fa");
@@ -313,6 +373,19 @@ export default function AdminDashboardPage() {
     if (!normalized) return data.departments;
     return data.departments.filter((row) => row.name.toLocaleLowerCase("fa").includes(normalized));
   }, [data, query]);
+
+  const sortedDepartments = useMemo(() => {
+    return [...filteredDepartments].sort((first, second) => {
+      const firstValue = first[departmentSortKey];
+      const secondValue = second[departmentSortKey];
+      const comparison =
+        typeof firstValue === "string" && typeof secondValue === "string"
+          ? firstValue.localeCompare(secondValue, "fa", { sensitivity: "base" })
+          : Number(firstValue) - Number(secondValue);
+      if (comparison !== 0) return departmentSortDirection === "asc" ? comparison : -comparison;
+      return first.name.localeCompare(second.name, "fa", { sensitivity: "base" });
+    });
+  }, [filteredDepartments, departmentSortKey, departmentSortDirection]);
 
   const formPeak = Math.max(...(data?.forms.monthly_trend.map((item) => item.value) || [1]), 1);
   const topEmployeeChart: ChartItem[] = filteredEmployees.slice(0, 8).map((row) => ({
@@ -624,10 +697,10 @@ export default function AdminDashboardPage() {
                       <div
                         className="w-full max-w-16 rounded-t-xl bg-gradient-to-t from-red-600 to-red-400 transition-all"
                         style={{ height: `${Math.max((item.value / formPeak) * 78, item.value ? 8 : 2)}%` }}
-                        title={`${item.label}: ${item.value}`}
+                        title={`${formatMonthlyTrendLabel(item.label)}: ${item.value}`}
                       />
                       <span className="whitespace-nowrap text-[11px] text-slate-400" dir="ltr">
-                        {item.label}
+                        {formatMonthlyTrendLabel(item.label)}
                       </span>
                     </div>
                   ))}
@@ -665,9 +738,40 @@ export default function AdminDashboardPage() {
                   <HorizontalChart items={topEmployeeChart} color="bg-red-500" valueFormatter={formatMinutes} />
                 </section>
                 <section className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm xl:col-span-3">
-                  <div className="border-b border-slate-100 p-5">
-                    <h3 className="font-bold text-slate-800">جدول عملکرد کارکنان</h3>
-                    <p className="mt-1 text-xs text-slate-400">{number(filteredEmployees.length)} نفر</p>
+                  <div className="flex flex-col gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <h3 className="font-bold text-slate-800">جدول عملکرد کارکنان</h3>
+                      <p className="mt-1 text-xs text-slate-400">{number(filteredEmployees.length)} نفر</p>
+                    </div>
+                    <div className="flex flex-wrap items-end gap-2">
+                      <label className="block">
+                        <span className="mb-1 block text-[11px] font-bold text-slate-500">مرتب‌سازی بر اساس</span>
+                        <select
+                          value={employeeSortKey}
+                          onChange={(event) => setEmployeeSortKey(event.target.value as EmployeeSortKey)}
+                          className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-50"
+                        >
+                          <option value="full_name">نام کارمند</option>
+                          <option value="department">واحد</option>
+                          <option value="active_days">روزهای فعال</option>
+                          <option value="attendance_minutes">زمان حضور</option>
+                          <option value="task_minutes">زمان تسک</option>
+                          <option value="task_count">تعداد تسک‌ها</option>
+                          <option value="form_count">تعداد فرم‌ها</option>
+                          <option value="efficiency_percent">نرخ ثبت</option>
+                        </select>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEmployeeSortDirection((direction) => (direction === "asc" ? "desc" : "asc"))
+                        }
+                        className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 transition hover:border-red-200 hover:text-red-700"
+                        aria-label="تغییر جهت مرتب‌سازی"
+                      >
+                        {employeeSortDirection === "asc" ? "صعودی ↑" : "نزولی ↓"}
+                      </button>
+                    </div>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">
@@ -684,7 +788,7 @@ export default function AdminDashboardPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {filteredEmployees.map((row) => (
+                        {paginatedEmployees.map((row) => (
                           <tr key={row.employee_id} className="hover:bg-slate-50">
                             <td className="px-4 py-3">
                               <p className="font-semibold text-slate-800">{row.full_name}</p>
@@ -714,6 +818,50 @@ export default function AdminDashboardPage() {
                     {!filteredEmployees.length && (
                       <p className="p-10 text-center text-sm text-slate-400">کارمندی مطابق فیلتر یافت نشد.</p>
                     )}
+                  </div>
+                  <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-2">
+                      <span>
+                        نمایش {number(employeeRangeStart)} تا {number(employeeRangeEnd)} از {number(sortedEmployees.length)}
+                      </span>
+                      <label className="flex items-center gap-1.5">
+                        <span>تعداد در صفحه:</span>
+                        <select
+                          value={employeePageSize}
+                          onChange={(event) => setEmployeePageSize(Number(event.target.value))}
+                          className="h-8 rounded-lg border border-slate-200 bg-white px-2 font-bold text-slate-700 outline-none focus:border-red-400"
+                        >
+                          {[10, 20, 50].map((size) => (
+                            <option key={size} value={size}>
+                              {number(size)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEmployeePage((page) => Math.max(1, page - 1))}
+                        disabled={safeEmployeePage === 1}
+                        className="flex h-8 items-center gap-1 rounded-lg border border-slate-200 px-2.5 font-bold text-slate-600 transition hover:border-red-200 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                        قبلی
+                      </button>
+                      <span className="min-w-20 text-center font-bold text-slate-700">
+                        صفحه {number(safeEmployeePage)} از {number(employeePageCount)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setEmployeePage((page) => Math.min(employeePageCount, page + 1))}
+                        disabled={safeEmployeePage === employeePageCount}
+                        className="flex h-8 items-center gap-1 rounded-lg border border-slate-200 px-2.5 font-bold text-slate-600 transition hover:border-red-200 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        بعدی
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 </section>
               </div>
@@ -816,18 +964,50 @@ export default function AdminDashboardPage() {
 
           {tab === "departments" && (
             <div className="space-y-6">
-              <label className="relative block sm:w-80">
-                <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white pr-10 pl-3 text-sm outline-none focus:border-red-400 focus:ring-4 focus:ring-red-50"
-                  placeholder="جستجوی واحد..."
-                />
-              </label>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <label className="relative block sm:w-80">
+                  <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white pr-10 pl-3 text-sm outline-none focus:border-red-400 focus:ring-4 focus:ring-red-50"
+                    placeholder="جستجوی واحد..."
+                  />
+                </label>
+                <div className="flex flex-wrap items-end gap-2">
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] font-bold text-slate-500">مرتب‌سازی بر اساس</span>
+                    <select
+                      value={departmentSortKey}
+                      onChange={(event) => setDepartmentSortKey(event.target.value as DepartmentSortKey)}
+                      className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-50"
+                    >
+                      <option value="name">نام واحد</option>
+                      <option value="employee_count">تعداد کارکنان</option>
+                      <option value="active_employees">کارکنان فعال</option>
+                      <option value="attendance_minutes">زمان حضور</option>
+                      <option value="task_minutes">زمان تسک</option>
+                      <option value="untracked_minutes">زمان ثبت‌نشده</option>
+                      <option value="task_count">تعداد تسک‌ها</option>
+                      <option value="form_count">تعداد فرم‌ها</option>
+                      <option value="efficiency_percent">نرخ ثبت</option>
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDepartmentSortDirection((direction) => (direction === "asc" ? "desc" : "asc"))
+                    }
+                    className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 transition hover:border-red-200 hover:text-red-700"
+                    aria-label="تغییر جهت مرتب‌سازی واحدها"
+                  >
+                    {departmentSortDirection === "asc" ? "صعودی ↑" : "نزولی ↓"}
+                  </button>
+                </div>
+              </div>
 
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {filteredDepartments.map((row) => (
+                {sortedDepartments.map((row) => (
                   <article key={row.name} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
                     <div className="mb-4 flex items-start justify-between gap-3">
                       <div>
@@ -881,7 +1061,7 @@ export default function AdminDashboardPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {filteredDepartments.map((row) => (
+                      {sortedDepartments.map((row) => (
                         <tr key={row.name} className="hover:bg-slate-50">
                           <td className="px-5 py-4 font-semibold text-slate-800">{row.name}</td>
                           <td className="px-5 py-4">
