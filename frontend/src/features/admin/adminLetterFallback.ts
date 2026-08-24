@@ -2,16 +2,12 @@ import client from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import type { ChartItem, LettersAnalytics } from "./analytics";
 
-type LegacyLetter = {
-  id: number;
-  form_id: string;
-  department_title: string;
-  section_title: string;
-  subject: string;
-  status: string;
-  submitted_by: string;
+type LetterReport = {
+  batch_id: string;
+  letter_type: "internal" | "external";
   created_at: string;
-  referrals?: Array<{ to_user_name: string }>;
+  sent_by: string;
+  recipients: Array<{ display_name: string; status: string }>;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -48,35 +44,26 @@ function chart(values: string[], limit?: number): ChartItem[] {
   return limit ? result.slice(0, limit) : result;
 }
 
-function letterType(row: LegacyLetter) {
-  return `${row.department_title} ${row.section_title}`.includes("درون")
-    ? "درون‌سازمانی"
-    : "برون‌سازمانی";
-}
-
 export async function fetchAdminLetterFallback(startDate: string, endDate: string): Promise<LettersAnalytics> {
-  const { data } = await client.get<LegacyLetter[]>(endpoints.submissions, {
-    params: { form_id: "management-letter-form", limit: 500 },
-  });
-  const copies = (Array.isArray(data) ? data : []).filter((row) => {
+  const [externalResponse, internalResponse] = await Promise.all([
+    client.get<LetterReport[]>(endpoints.managementLetterReport, { params: { letter_type: "external" } }),
+    client.get<LetterReport[]>(endpoints.managementLetterReport, { params: { letter_type: "internal" } }),
+  ]);
+  const letters = [...externalResponse.data, ...internalResponse.data].filter((row) => {
     const day = jalaliDay(row.created_at);
     return !day || (day >= startDate && day <= endDate);
   });
-  const batches = new Map<string, LegacyLetter>();
-  copies.forEach((row) => batches.set(`${row.subject}|${row.created_at.slice(0, 16)}`, row));
+  const copies = letters.flatMap((letter) => letter.recipients);
   const open = copies.filter((row) => row.status === "submitted" || row.status === "in_progress");
 
   return {
-    total_letters: batches.size,
+    total_letters: letters.length,
     recipient_copies: copies.length,
     open_copies: open.length,
     completed_copies: copies.filter((row) => row.status === "approved").length,
-    by_type: chart([...batches.values()].map(letterType)),
+    by_type: chart(letters.map((row) => row.letter_type === "internal" ? "درون‌سازمانی" : "برون‌سازمانی")),
     by_status: chart(copies.map((row) => STATUS_LABELS[row.status] || row.status || "نامشخص")),
-    top_senders: chart([...batches.values()].map((row) => row.submitted_by), 10),
-    top_recipients: chart(
-      copies.map((row) => row.referrals?.[0]?.to_user_name || "گیرنده نامشخص"),
-      10,
-    ),
+    top_senders: chart(letters.map((row) => row.sent_by), 10),
+    top_recipients: chart(copies.map((row) => row.display_name || "گیرنده نامشخص"), 10),
   };
 }

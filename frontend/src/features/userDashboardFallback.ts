@@ -13,6 +13,13 @@ type LegacySubmission = {
   submitted_by: string;
   created_at: string;
   initial_assignees?: Array<{ user_id: number; display_name: string; username: string }>;
+  referrals?: Array<{ to_user_id: number; to_user_name: string }>;
+};
+
+type LetterReport = {
+  batch_id: string;
+  letter_type: "internal" | "external";
+  recipients: Array<{ display_name: string; status: string }>;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -32,7 +39,7 @@ function chart(values: string[], limit?: number): DashboardChartItem[] {
   return limit ? items.slice(0, limit) : items;
 }
 
-function statusChart(rows: LegacySubmission[]) {
+function statusChart(rows: Array<{ status: string }>) {
   return chart(rows.map((row) => STATUS_LABELS[row.status] || row.status || "نامشخص"));
 }
 
@@ -63,22 +70,40 @@ function letterType(row: LegacySubmission) {
 }
 
 function sentLetterKey(row: LegacySubmission) {
-  // Recipient copies are created together and share subject/time in the legacy API.
-  return `${row.subject}|${row.created_at.slice(0, 16)}`;
+  return `${row.subject}|${row.created_at.slice(0, 16)}|${letterType(row)}`;
+}
+
+async function sentLetterReports(letterType: "internal" | "external") {
+  try {
+    const { data } = await client.get<LetterReport[]>(endpoints.managementLetterReport, {
+      params: { letter_type: letterType },
+    });
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchLegacyUserDashboard(): Promise<UserDashboardData> {
-  const [tasksResponse, requestsResponse, meResponse] = await Promise.all([
+  const [tasksResponse, requestsResponse, meResponse, externalSent, internalSent] = await Promise.all([
     client.get<LegacySubmission[]>(endpoints.tasks, { params: { limit: 500 } }),
     client.get<LegacySubmission[]>(endpoints.submissions, { params: { limit: 500 } }),
-    client.get<{ display_name?: string; username?: string }>(endpoints.me),
+    client.get<{ id: number; display_name?: string; username?: string }>(endpoints.me),
+    sentLetterReports("external"),
+    sentLetterReports("internal"),
   ]);
   const tasks = Array.isArray(tasksResponse.data) ? tasksResponse.data : [];
   const requests = Array.isArray(requestsResponse.data) ? requestsResponse.data : [];
+  const reportSentLetters = [...externalSent, ...internalSent];
   const sentLetterCopies = requests.filter(isLetter);
-  const receivedLetters = tasks.filter(isLetter);
-  const uniqueSentLetters = new Map<string, LegacySubmission>();
-  sentLetterCopies.forEach((row) => uniqueSentLetters.set(sentLetterKey(row), row));
+  const fallbackSentLetters = new Map<string, LegacySubmission>();
+  sentLetterCopies.forEach((row) => fallbackSentLetters.set(sentLetterKey(row), row));
+  const sentRecipients = reportSentLetters.length
+    ? reportSentLetters.flatMap((letter) => letter.recipients)
+    : sentLetterCopies;
+  const receivedLetters = tasks.filter(
+    (row) => isLetter(row) && row.referrals?.[0]?.to_user_id === meResponse.data.id,
+  );
 
   const recipientNames = requests.flatMap((row) =>
     (row.initial_assignees || []).map((assignee) => assignee.display_name || assignee.username),
@@ -94,7 +119,7 @@ export async function fetchLegacyUserDashboard(): Promise<UserDashboardData> {
       total_requests: requests.length,
       open_requests: requests.filter(isOpen).length,
       completed_requests: requests.filter((row) => row.status === "approved").length,
-      sent_letters: uniqueSentLetters.size,
+      sent_letters: reportSentLetters.length || fallbackSentLetters.size,
       received_letters: receivedLetters.length,
     },
     task_statuses: statusChart(tasks),
@@ -107,9 +132,13 @@ export async function fetchLegacyUserDashboard(): Promise<UserDashboardData> {
     monthly_tasks: monthly(tasks),
     monthly_requests: monthly(requests),
     letters: {
-      sent_by_type: chart([...uniqueSentLetters.values()].map(letterType)),
+      sent_by_type: chart(
+        reportSentLetters.length
+          ? reportSentLetters.map((letter) => letter.letter_type === "internal" ? "درون‌سازمانی" : "برون‌سازمانی")
+          : [...fallbackSentLetters.values()].map(letterType),
+      ),
       received_by_type: chart(receivedLetters.map(letterType)),
-      sent_by_status: statusChart(sentLetterCopies),
+      sent_by_status: statusChart(sentRecipients),
       received_by_status: statusChart(receivedLetters),
     },
   };
