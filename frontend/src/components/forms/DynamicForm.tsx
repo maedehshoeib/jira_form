@@ -7,7 +7,6 @@ import FormFieldRenderer from "./FormFieldRenderer";
 import { Button } from "../ui/button";
 
 const MAX_ATTACHMENT_SIZE = 15 * 1024 * 1024;
-const SUBMISSION_TIMEOUT_MS = 90_000;
 
 function createEmptyValues(form: FormTemplate): Record<string, unknown> {
   const obj: Record<string, unknown> = {};
@@ -120,18 +119,12 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
     });
 
     const token = localStorage.getItem("access_token");
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(
-      () => controller.abort(),
-      SUBMISSION_TIMEOUT_MS,
-    );
 
     try {
       const res = await fetch(`${API_BASE}/submissions`, {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: fd,
-        signal: controller.signal,
       });
 
       if (!res.ok) {
@@ -166,7 +159,6 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
             : "ثبت درخواست انجام نشد. لطفاً دوباره تلاش کنید.",
       );
     } finally {
-      window.clearTimeout(timeoutId);
       setLoading(false);
       isSubmittingRef.current = false;
     }
