@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 
 import { API_BASE, FormTemplate } from "../../config/portal";
 import FormFieldRenderer from "./FormFieldRenderer";
+import PurchaseRequestDocument from "./PurchaseRequestDocument";
 
 import { Button } from "../ui/button";
 
@@ -22,6 +23,42 @@ function createEmptyValues(form: FormTemplate): Record<string, unknown> {
   return obj;
 }
 
+
+function createPurchaseRequestValues(): Record<string, unknown> {
+  return {
+    requesting_unit: "",
+    request_number: "",
+    request_date: "",
+    items: Array.from({ length: 9 }, () => ({
+      item_title: "",
+      requested_quantity: "",
+      usage_reason: "",
+      technical_specs: "",
+      stock_quantity: "",
+      purchase_quantity: "",
+    })),
+    requester_name: "",
+    requester_signature_date: "",
+    approver_name: "",
+    approver_signature_date: "",
+    procurement_name: "",
+    procurement_signature_date: "",
+    finance_name: "",
+    finance_signature_date: "",
+    ceo_name: "",
+    ceo_signature_date: "",
+  };
+}
+
+function purchaseItems(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value)
+    ? value.filter(
+        (row): row is Record<string, unknown> =>
+          Boolean(row && typeof row === "object"),
+      )
+    : [];
+}
+
 function isFieldFilled(value: unknown): boolean {
   if (value === "" || value === null || value === undefined) return false;
   if (Array.isArray(value)) {
@@ -36,8 +73,13 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
   const [searchParams] = useSearchParams();
   const departmentId = searchParams.get("department") || form.department_id || "";
   const sectionId = searchParams.get("section") || form.section_id || "";
+  const isPurchaseRequest =
+    departmentId === "finance" && sectionId === "purchase-request";
 
-  const initialValues = useMemo(() => createEmptyValues(form), [form]);
+  const initialValues = useMemo(
+    () => isPurchaseRequest ? createPurchaseRequestValues() : createEmptyValues(form),
+    [form, isPurchaseRequest],
+  );
 
   const [values, setValues] = useState<Record<string, unknown>>(initialValues);
   const [formKey, setFormKey] = useState(0);
@@ -68,23 +110,58 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
       !field.visible_when_field ||
       String(values[field.visible_when_field] ?? '') === field.visible_when_value,
   );
-  const completedFields = visibleFields.filter((field) =>
-    isFieldFilled(values[field.name]),
-  ).length;
+  const requestedItems = purchaseItems(values.items);
+  const purchaseRequiredValues = [
+    values.requesting_unit,
+    values.request_date,
+    requestedItems.some(
+      (row) =>
+        String(row.item_title ?? "").trim() !== "" &&
+        String(row.requested_quantity ?? "").trim() !== "",
+    ),
+    values.requester_name,
+  ];
+  const completedFields = isPurchaseRequest
+    ? purchaseRequiredValues.filter(Boolean).length
+    : visibleFields.filter((field) => isFieldFilled(values[field.name])).length;
+  const totalFields = isPurchaseRequest
+    ? purchaseRequiredValues.length
+    : visibleFields.length;
 
   const progress =
-    visibleFields.length === 0 ? 0 : (completedFields / visibleFields.length) * 100;
+    totalFields === 0 ? 0 : (completedFields / totalFields) * 100;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmittingRef.current) return;
 
-    const missingField = visibleFields.find(
-      (field) => field.required && !isFieldFilled(values[field.name]),
-    );
-    if (missingField) {
-      setSubmitError(`تکمیل فیلد «${missingField.label}» الزامی است.`);
-      return;
+    if (isPurchaseRequest) {
+      const missingPurchaseField =
+        !isFieldFilled(values.requesting_unit)
+          ? "واحد درخواست‌کننده"
+          : !isFieldFilled(values.request_date)
+            ? "تاریخ درخواست"
+            : !requestedItems.some(
+                  (row) =>
+                    String(row.item_title ?? "").trim() !== "" &&
+                    String(row.requested_quantity ?? "").trim() !== "",
+                )
+              ? "عنوان کالا و تعداد درخواستی حداقل یک ردیف"
+              : !isFieldFilled(values.requester_name)
+                ? "نام و نام خانوادگی درخواست‌کننده"
+                : "";
+      if (missingPurchaseField) {
+        setSubmitError(`تکمیل فیلد «${missingPurchaseField}» الزامی است.`);
+        return;
+      }
+    } else {
+      const missingField = visibleFields.find(
+        (field) => field.required && !isFieldFilled(values[field.name]),
+      );
+      if (missingField) {
+        setSubmitError(`تکمیل فیلد «${missingField.label}» الزامی است.`);
+        return;
+      }
     }
 
     const oversizedFile = Object.values(values).find(
@@ -148,7 +225,7 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
         setReportId(data.report_id);
       }
       setDone(true);
-      setValues(createEmptyValues(form));
+      setValues(isPurchaseRequest ? createPurchaseRequestValues() : createEmptyValues(form));
       setFormKey((key) => key + 1);
     } catch (error) {
       setSubmitError(
@@ -222,7 +299,10 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
       </div>
 
       <form key={formKey} onSubmit={handleSubmit} className="space-y-8">
-        {visibleFields.map((field) => {
+        {isPurchaseRequest ? (
+          <PurchaseRequestDocument data={values} editable onChange={handleChange} />
+        ) : (
+          visibleFields.map((field) => {
           const showSection = field.section && field.section !== lastSection;
           if (field.section) lastSection = field.section;
 
@@ -259,7 +339,8 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
               </div>
             </div>
           );
-        })}
+        })
+        )}
 
         <Button
           type="submit"

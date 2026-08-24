@@ -11,6 +11,55 @@ COMMON_FIELDS = [
     FormField(name="attachment", label="پیوست", type="file", required=False),
 ]
 
+PURCHASE_REQUEST_FIELDS = [
+    FormField(name="requesting_unit", label="واحد درخواست‌کننده", type="text", required=True),
+    FormField(name="request_number", label="شماره درخواست", type="text", required=False),
+    FormField(name="request_date", label="تاریخ درخواست", type="date", required=True),
+    FormField(
+        name="items",
+        label="اقلام درخواستی",
+        type="table",
+        required=True,
+        columns=[
+            TableColumn(key="item_title", title="عنوان کالا"),
+            TableColumn(key="requested_quantity", title="تعداد درخواستی"),
+            TableColumn(key="usage_reason", title="علت / محل مصرف"),
+            TableColumn(key="technical_specs", title="مشخصات فنی / توضیحات"),
+            TableColumn(key="stock_quantity", title="*تعداد موجودی"),
+            TableColumn(key="purchase_quantity", title="*تعداد مورد نیاز برای خرید"),
+        ],
+        default_rows=[
+            {
+                "item_title": "",
+                "requested_quantity": "",
+                "usage_reason": "",
+                "technical_specs": "",
+                "stock_quantity": "",
+                "purchase_quantity": "",
+            }
+            for _ in range(9)
+        ],
+    ),
+    FormField(name="requester_name", label="نام و نام خانوادگی درخواست‌کننده", type="text", required=True),
+    FormField(name="requester_signature_date", label="تاریخ و امضای درخواست‌کننده", type="date"),
+    FormField(name="approver_name", label="تاییدکننده (معاونت یا مدیر مربوطه)", type="text"),
+    FormField(name="approver_signature_date", label="تاریخ و امضای تاییدکننده", type="date"),
+    FormField(name="procurement_name", label="واحد تدارکات", type="text"),
+    FormField(name="procurement_signature_date", label="تاریخ و امضای واحد تدارکات", type="date"),
+    FormField(name="finance_name", label="معاونت مالی/اقتصادی", type="text"),
+    FormField(name="finance_signature_date", label="تاریخ و امضای معاونت مالی/اقتصادی", type="date"),
+    FormField(name="ceo_name", label="مدیرعامل و عضو هیات مدیره", type="text"),
+    FormField(name="ceo_signature_date", label="تاریخ و امضای مدیرعامل", type="date"),
+]
+
+PURCHASE_REQUEST_FORM = FormTemplate(
+    id="common-form",
+    title="فرم درخواست تامین کالا",
+    department_id="finance",
+    section_id="purchase-request",
+    fields=PURCHASE_REQUEST_FIELDS,
+)
+
 DIGITAL_MARKETING_FIELDS = [
     FormField(name="row", label="ردیف", type="text", required=False),
     FormField(name="date", label="تاریخ", type="date", required=False),
@@ -363,7 +412,7 @@ DEPARTMENTS = [
         Section(id="training-request", title="درخواست آموزش", form_id="hr-form"),
     ]),
     Department(id="finance", title="مالی", sections=[
-        Section(id="purchase-request", title="درخواست خرید", form_id="common-form"),
+        Section(id="purchase-request", title="درخواست خرید کالا", form_id="common-form"),
         Section(id="collection-report", title="گزارش درخواست وصولی", form_id="common-form"),
         Section(id="advance-request", title="درخواست مساعده", form_id="common-form"),
         Section(id="warehouse-request", title="درخواست کالا از انبار", form_id="common-form"),

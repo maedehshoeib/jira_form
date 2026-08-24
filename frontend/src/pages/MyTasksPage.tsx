@@ -4,6 +4,8 @@ import {
   CalendarDays,
   CheckCircle2,
   ChevronLeft,
+  Download,
+  Eye,
   FileText,
   Forward,
   ListTodo,
@@ -21,6 +23,7 @@ import {
 import client from "../api/client";
 import { endpoints } from "../api/endpoints";
 import AppShell from "../components/layout/AppShell";
+import PurchaseRequestDocument from "../components/forms/PurchaseRequestDocument";
 import TaskConversation from "../components/tasks/TaskConversation";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -372,6 +375,7 @@ export default function MyTasksPage() {
   const [colleaguesLoading, setColleaguesLoading] = useState(false);
   const [statusAttachment, setStatusAttachment] = useState<File | null>(null);
   const [referAttachment, setReferAttachment] = useState<File | null>(null);
+  const [purchasePreviewOpen, setPurchasePreviewOpen] = useState(false);
 
   const syncTask = (updated: SubmissionListItem | SubmissionDetail) => {
     setTasks((prev) =>
@@ -825,6 +829,14 @@ export default function MyTasksPage() {
     );
   };
 
+  const downloadPurchaseRequest = async () => {
+    if (!selected) return;
+    await downloadAuthFile(
+      `${API_BASE}/tasks/${selected.id}/purchase-request.docx`,
+      `درخواست-تامین-کالا-${selected.id}.docx`,
+    );
+  };
+
   const downloadStatusAttachment = async () => {
     if (!selected?.status_attachment_name) return;
     await downloadAuthFile(
@@ -941,6 +953,10 @@ export default function MyTasksPage() {
       })
       .map(([name, value]) => ({ name, value, field: fieldsByName.get(name) }));
   }, [selected, template]);
+
+  const isSelectedPurchaseRequest =
+    selected?.department_id === "finance" &&
+    selected?.section_id === "purchase-request";
 
   return (
     <AppShell>
@@ -1286,7 +1302,7 @@ export default function MyTasksPage() {
             role="dialog"
             aria-modal="true"
             aria-label="جزئیات وظیفه"
-            className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl"
+            className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl"
             onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b bg-white/95 p-6 backdrop-blur">
@@ -1335,6 +1351,31 @@ export default function MyTasksPage() {
               {actionError && (
                 <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                   {actionError}
+                </div>
+              )}
+
+
+              {isSelectedPurchaseRequest && (
+                <div className="space-y-4 rounded-2xl border border-red-100 bg-red-50/40 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h4 className="font-bold text-slate-800">فرم درخواست تامین کالا</h4>
+                      <p className="mt-1 text-xs text-slate-500">
+                        نمایش و فایل Word بر اساس قالب رسمی EV-FF-FR-16
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="button" variant="outline" onClick={() => setPurchasePreviewOpen((open) => !open)} className="gap-2 rounded-xl bg-white">
+                        <Eye size={16} />
+                        {purchasePreviewOpen ? "بستن پیش‌نمایش" : "مشاهده فرم"}
+                      </Button>
+                      <Button type="button" onClick={() => void downloadPurchaseRequest()} className="gap-2 rounded-xl bg-red-600 hover:bg-red-700">
+                        <Download size={16} />
+                        دانلود Word
+                      </Button>
+                    </div>
+                  </div>
+                  {purchasePreviewOpen && <PurchaseRequestDocument data={selected.data} />}
                 </div>
               )}
 
@@ -2027,7 +2068,7 @@ export default function MyTasksPage() {
               )}
 
               <div className="space-y-4">
-                {visibleFields.map(({ name, value, field }) => (
+                {!isSelectedPurchaseRequest && visibleFields.map(({ name, value, field }) => (
                   <div key={name} className="rounded-2xl border border-slate-100 p-4">
                     <div className="mb-2 text-sm font-semibold text-slate-500">
                       {field?.label ?? name}

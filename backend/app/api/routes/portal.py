@@ -1,6 +1,7 @@
 import json
 import uuid
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import (  # noqa: F401 — File/Form reserved for multipart signatures
     APIRouter,
@@ -13,7 +14,7 @@ from fastapi import (  # noqa: F401 — File/Form reserved for multipart signatu
     Request,
     UploadFile,
 )
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
@@ -76,6 +77,7 @@ from app.services.portal_service import (
     MANAGEMENT_LETTER_FORM_ID,
     MANAGEMENT_WORKFLOW_ID,
     MEETING_ROOM_FORM_ID,
+    PURCHASE_REQUEST_FORM,
 )
 from app.services.meeting_room_workflow_service import (
     initialize_meeting_room_workflow,
@@ -95,6 +97,11 @@ from app.services.task_workflow_service import (
     user_can_access_task,
     user_can_view_task,
     user_can_join_conversation,
+)
+from app.services.purchase_request_document import (
+    build_purchase_request_docx,
+    is_purchase_request_target,
+    purchase_request_subject,
 )
 from app.services.report_submission_service import (
     create_report_from_submission,
@@ -581,6 +588,8 @@ def get_form(
         raise HTTPException(status_code=404, detail="Form not found")
     portal_department_id = department or form.department_id
     section_id = section or form.section_id
+    if is_purchase_request_target(form_id, portal_department_id, section_id):
+        form = PURCHASE_REQUEST_FORM
     if form_id == MANAGEMENT_LETTER_FORM_ID:
         portal_department_id = MANAGEMENT_WORKFLOW_ID
     handles = user_handles_target(
@@ -652,6 +661,9 @@ async def create_submission(
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     subject = form_data.get("subject", "")
+    if is_purchase_request_target(form_id, department_id, section_id):
+        subject = purchase_request_subject(form_data)
+        form_data["subject"] = subject
 
     submission = Submission(
         form_id=form_id,
@@ -881,6 +893,49 @@ def _serve_submission_attachment(
         filename=filename,
         media_type="application/octet-stream",
     )
+
+
+
+def _serve_purchase_request_document(submission: Submission) -> Response:
+    if not is_purchase_request_target(
+        submission.form_id,
+        submission.department_id,
+        submission.section_id,
+    ):
+        raise HTTPException(status_code=404, detail="فرم درخواست تامین کالا یافت نشد")
+    try:
+        data = json.loads(submission.data or "{}")
+    except (json.JSONDecodeError, TypeError):
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+
+    document = build_purchase_request_docx(data)
+    filename = f"درخواست-تامین-کالا-{submission.id}.docx"
+    fallback = f"purchase-request-{submission.id}.docx"
+    return Response(
+        content=document,
+        media_type=(
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        ),
+        headers={
+            "Content-Disposition": (
+                f"attachment; filename=\"{fallback}\"; "
+                f"filename*=UTF-8''{quote(filename)}"
+            )
+        },
+    )
+
+
+@router.get("/tasks/{submission_id}/purchase-request.docx")
+@router.get("/submissions/{submission_id}/purchase-request.docx")
+def download_purchase_request_document(
+    submission_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    submission = _get_viewable_submission(db, current_user, submission_id)
+    return _serve_purchase_request_document(submission)
 
 
 @router.get("/submissions/{submission_id}/attachment")
