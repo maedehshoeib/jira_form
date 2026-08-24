@@ -152,11 +152,9 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
       setFormKey((key) => key + 1);
     } catch (error) {
       setSubmitError(
-        error instanceof DOMException && error.name === "AbortError"
-          ? "زمان ثبت درخواست بیش از حد طول کشید. اتصال سرور یا تنظیمات بارگذاری را بررسی کنید و دوباره تلاش کنید."
-          : error instanceof Error
-            ? error.message
-            : "ثبت درخواست انجام نشد. لطفاً دوباره تلاش کنید.",
+        error instanceof Error
+          ? error.message
+          : "ثبت درخواست انجام نشد. لطفاً دوباره تلاش کنید.",
       );
     } finally {
       setLoading(false);
