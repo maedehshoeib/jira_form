@@ -7,7 +7,7 @@ type LetterReport = {
   letter_type: "internal" | "external";
   created_at: string;
   sent_by: string;
-  recipients: Array<{ display_name: string; status: string }>;
+  recipients: Array<{ display_name: string; status: string; is_read?: boolean }>;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -59,6 +59,8 @@ export async function fetchAdminLetterFallback(startDate: string, endDate: strin
   return {
     total_letters: letters.length,
     recipient_copies: copies.length,
+    seen_copies: copies.filter((row) => row.is_read).length,
+    unseen_copies: copies.filter((row) => !row.is_read).length,
     open_copies: open.length,
     completed_copies: copies.filter((row) => row.status === "approved").length,
     by_type: chart(letters.map((row) => row.letter_type === "internal" ? "درون‌سازمانی" : "برون‌سازمانی")),

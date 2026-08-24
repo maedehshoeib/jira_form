@@ -153,10 +153,10 @@ export default function UserDashboardPage() {
   const cards = summary ? [
     ["کل وظایف", summary.total_tasks, `${number(summary.open_tasks)} وظیفه باز`, Inbox, "bg-red-50 text-red-600"],
     ["وظایف انجام‌شده", summary.completed_tasks, "در وضعیت انجام‌شده", CheckCircle2, "bg-emerald-50 text-emerald-600"],
+    ["نامه‌های دریافتی", summary.received_letters, "نامه‌های خطاب به شما", ArrowDownToLine, "bg-cyan-50 text-cyan-600"],
     ["درخواست‌های من", summary.total_requests, `${number(summary.open_requests)} درخواست باز`, ClipboardList, "bg-blue-50 text-blue-600"],
     ["درخواست‌های انجام‌شده", summary.completed_requests, "در وضعیت انجام‌شده", MailCheck, "bg-violet-50 text-violet-600"],
     ["نامه‌های ارسالی", summary.sent_letters, "تعداد نامه‌های یکتا", Send, "bg-amber-50 text-amber-600"],
-    ["نامه‌های دریافتی", summary.received_letters, "نامه‌های خطاب به شما", ArrowDownToLine, "bg-cyan-50 text-cyan-600"],
   ] as const : [];
 
   return (

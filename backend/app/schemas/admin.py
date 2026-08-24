@@ -194,6 +194,8 @@ class FormsAnalytics(BaseModel):
 class LettersAnalytics(BaseModel):
     total_letters: int
     recipient_copies: int
+    seen_copies: int
+    unseen_copies: int
     open_copies: int
     completed_copies: int
     by_type: list[ChartItem]

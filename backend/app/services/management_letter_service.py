@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.jalali import jalali_to_gregorian
 from app.core.timezone import tehran_date_bounds_to_utc_naive
-from app.models.submission import Submission, SubmissionReferral, SubmissionReminder
+from app.models.submission import Submission, SubmissionReferral, SubmissionReminder, SubmissionView
 from app.models.user import User
 from app.services.form_access_service import can_access_restricted_department
 from app.services.form_duty_service import snapshot_submission_initial_assignees
@@ -451,6 +451,18 @@ def list_sent_letters(
         query = query.filter(Submission.user_id == user.id)
 
     submissions = query.order_by(Submission.created_at.desc(), Submission.id.desc()).all()
+    submission_ids = [item.id for item in submissions]
+    submission_view_pairs = (
+        {
+            (view.submission_id, view.user_id)
+            for view in db.query(SubmissionView)
+            .filter(SubmissionView.submission_id.in_(submission_ids))
+            .all()
+        }
+        if submission_ids
+        else set()
+    )
+    viewed_submission_ids = {submission_id for submission_id, _ in submission_view_pairs}
     sender_ids = {item.user_id for item in submissions}
     senders = {
         item.id: item
@@ -519,6 +531,17 @@ def list_sent_letters(
                 "referred_to": referred_to_name,
                 "comment": recipient_comment,
             }
+
+        recipient_user_id = recipient.get("user_id")
+        try:
+            normalized_recipient_id = int(recipient_user_id)
+        except (TypeError, ValueError):
+            normalized_recipient_id = None
+        recipient["is_read"] = (
+            (submission.id, normalized_recipient_id) in submission_view_pairs
+            if normalized_recipient_id is not None
+            else submission.id in viewed_submission_ids
+        )
 
         if batch_id not in groups:
             sender = senders.get(submission.user_id)

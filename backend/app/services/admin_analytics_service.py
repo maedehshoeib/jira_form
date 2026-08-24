@@ -23,7 +23,7 @@ from app.core.timezone import (
     utc_naive_to_tehran,
 )
 from app.models.admin_session import AdminSession
-from app.models.submission import Submission
+from app.models.submission import Submission, SubmissionView
 from app.models.timesheet import (
     TimesheetAttendance,
     TimesheetProject,
@@ -255,6 +255,19 @@ def build_analytics(
         and _user_matches_employee(user, employee_filter)
         and (not form_filter or submission.form_id == form_filter)
     ]
+
+    submission_ids_in_range = [submission.id for submission, _ in submissions_in_range]
+    submission_view_pairs = (
+        {
+            (view.submission_id, view.user_id)
+            for view in db.query(SubmissionView)
+            .filter(SubmissionView.submission_id.in_(submission_ids_in_range))
+            .all()
+        }
+        if submission_ids_in_range
+        else set()
+    )
+    viewed_submission_ids = {submission_id for submission_id, _ in submission_view_pairs}
 
     def _submission_matches(submission: Submission, user: User | None) -> bool:
         return (
@@ -501,6 +514,7 @@ def build_analytics(
     letter_status_counts: DefaultDict[str, int] = defaultdict(int)
     letter_recipient_counts: DefaultDict[str, int] = defaultdict(int)
     letter_batches: dict[str, tuple[Submission, User | None, dict]] = {}
+    seen_letter_copies = 0
 
     letter_status_labels = {
         "submitted": "اقدام‌نشده",
@@ -542,6 +556,19 @@ def build_analytics(
                 letter_data.get("recipient_name") or "گیرنده نامشخص"
             )
             letter_recipient_counts[recipient_name] += 1
+            recipient_id = letter_data.get("recipient_id")
+            try:
+                normalized_recipient_id = int(recipient_id)
+            except (TypeError, ValueError):
+                normalized_recipient_id = None
+            if (
+                normalized_recipient_id is not None
+                and (submission.id, normalized_recipient_id) in submission_view_pairs
+            ) or (
+                normalized_recipient_id is None
+                and submission.id in viewed_submission_ids
+            ):
+                seen_letter_copies += 1
 
     letter_type_counts: DefaultDict[str, int] = defaultdict(int)
     letter_sender_counts: DefaultDict[str, int] = defaultdict(int)
@@ -665,9 +692,12 @@ def build_analytics(
         ],
     )
 
+    recipient_copies = sum(letter_status_counts.values())
     letters = LettersAnalytics(
         total_letters=len(letter_batches),
-        recipient_copies=sum(letter_status_counts.values()),
+        recipient_copies=recipient_copies,
+        seen_copies=seen_letter_copies,
+        unseen_copies=recipient_copies - seen_letter_copies,
         open_copies=(
             letter_status_counts["اقدام‌نشده"]
             + letter_status_counts["در حال انجام"]

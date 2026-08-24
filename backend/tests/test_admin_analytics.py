@@ -15,7 +15,7 @@ from app.core.jalali import (
 from app.db.base import Base
 from app.models.admin_session import AdminSession  # noqa: F401
 from app.models.department import Department  # noqa: F401
-from app.models.submission import Submission
+from app.models.submission import Submission, SubmissionView
 from app.models.timesheet import TimesheetAttendance, TimesheetProject, TimesheetTask
 from app.models.user import User
 from app.services.admin_analytics_service import build_analytics
@@ -290,6 +290,7 @@ class AdminAnalyticsServiceTests(unittest.TestCase):
                 data=json.dumps({
                     "letter_batch_id": "batch-1",
                     "letter_type": "internal",
+                    "recipient_id": self.employee.id,
                     "recipient_name": "گیرنده اول",
                 }, ensure_ascii=False),
                 created_at=datetime(2026, 8, 1, 12, 0, 0),
@@ -304,11 +305,66 @@ class AdminAnalyticsServiceTests(unittest.TestCase):
                 data=json.dumps({
                     "letter_batch_id": "batch-1",
                     "letter_type": "internal",
+                    "recipient_id": self.employee_hr.id,
                     "recipient_name": "گیرنده دوم",
                 }, ensure_ascii=False),
                 created_at=datetime(2026, 8, 1, 12, 0, 1),
             ),
+            Submission(
+                form_id="management-letter-form",
+                department_id="management-workflow",
+                section_id="send-letter",
+                user_id=self.employee.id,
+                subject="نامه برون‌سازمانی",
+                status="submitted",
+                data=json.dumps({
+                    "letter_batch_id": "batch-2",
+                    "letter_type": "external",
+                    "recipient_id": self.employee.id,
+                    "recipient_name": "گیرنده سوم",
+                }, ensure_ascii=False),
+                created_at=datetime(2026, 8, 1, 12, 1, 0),
+            ),
         ])
+        self.db.commit()
+        viewed_letters = (
+            self.db.query(Submission)
+            .filter(
+                Submission.form_id == "management-letter-form",
+                Submission.data.contains('recipient_id'),
+            )
+            .filter(
+                (Submission.status == "approved")
+                | (Submission.data.contains('"letter_batch_id": "batch-2"'))
+            )
+            .order_by(Submission.id)
+            .all()
+        )
+        self.assertEqual(len(viewed_letters), 2)
+        self.db.add_all(
+            [
+                SubmissionView(
+                    submission_id=submission.id,
+                    user_id=json.loads(submission.data)["recipient_id"],
+                )
+                for submission in viewed_letters
+            ]
+        )
+        wrong_viewer_letter = (
+            self.db.query(Submission)
+            .filter(
+                Submission.form_id == "management-letter-form",
+                Submission.status == "submitted",
+                Submission.data.contains('"letter_batch_id": "batch-1"'),
+            )
+            .one()
+        )
+        self.db.add(
+            SubmissionView(
+                submission_id=wrong_viewer_letter.id,
+                user_id=self.admin.id,
+            )
+        )
         self.db.commit()
 
         result = build_analytics(
@@ -318,13 +374,24 @@ class AdminAnalyticsServiceTests(unittest.TestCase):
             end_date="1405/05/12",
         )
 
-        self.assertEqual(result.letters.total_letters, 1)
-        self.assertEqual(result.letters.recipient_copies, 2)
-        self.assertEqual(result.letters.open_copies, 1)
+        self.assertEqual(result.letters.total_letters, 2)
+        self.assertEqual(result.letters.recipient_copies, 3)
+        self.assertEqual(result.letters.seen_copies, 2)
+        self.assertEqual(result.letters.unseen_copies, 1)
+        self.assertEqual(
+            result.letters.seen_copies + result.letters.unseen_copies,
+            result.letters.recipient_copies,
+        )
+        self.assertEqual(
+            sum(item.value for item in result.letters.by_type),
+            result.letters.total_letters,
+        )
+        self.assertEqual(result.letters.open_copies, 2)
         self.assertEqual(result.letters.completed_copies, 1)
         self.assertEqual(result.letters.by_type[0].label, "درون‌سازمانی")
         self.assertEqual(result.letters.by_type[0].value, 1)
-        self.assertEqual(len(result.letters.top_recipients), 2)
+        self.assertEqual(len(result.letters.by_type), 2)
+        self.assertEqual(len(result.letters.top_recipients), 3)
 
 
 if __name__ == "__main__":

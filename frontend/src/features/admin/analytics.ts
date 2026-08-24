@@ -99,6 +99,8 @@ export type FormsAnalytics = {
 export type LettersAnalytics = {
   total_letters: number;
   recipient_copies: number;
+  seen_copies: number;
+  unseen_copies: number;
   open_copies: number;
   completed_copies: number;
   by_type: ChartItem[];

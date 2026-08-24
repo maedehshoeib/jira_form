@@ -13,6 +13,8 @@ import {
   ChevronRight,
   Clock3,
   FileText,
+  Eye,
+  EyeOff,
   Hash,
   Loader2,
   Mail,
@@ -1170,19 +1172,33 @@ export default function AdminDashboardPage() {
 
           {tab === "letters" && (
             <div className="space-y-6">
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 <KpiCard
-                  label="نامه‌های یکتا"
+                  label="تعداد نامه‌های ارسال‌شده"
                   value={number(data.letters.total_letters)}
-                  detail="ارسال‌شده در بازه انتخابی"
+                  detail="مجموع نامه‌های درون‌سازمانی و برون‌سازمانی"
                   icon={Mail}
                   color="bg-rose-50 text-rose-600"
                 />
                 <KpiCard
-                  label="نسخه‌های گیرندگان"
+                  label="تعداد نامه‌های دیده‌شده"
+                  value={number(data.letters.seen_copies)}
+                  detail="مشاهده‌شده توسط گیرندگان هر دو نوع نامه"
+                  icon={Eye}
+                  color="bg-blue-50 text-blue-600"
+                />
+                <KpiCard
+                  label="تعداد نامه‌های دیده‌نشده"
+                  value={number(data.letters.unseen_copies)}
+                  detail="مشاهده‌نشده توسط گیرندگان هر دو نوع نامه"
+                  icon={EyeOff}
+                  color="bg-slate-100 text-slate-600"
+                />
+                <KpiCard
+                  label="تعداد گیرندگان نامه"
                   value={number(data.letters.recipient_copies)}
-                  detail="مجموع ارسال به همه گیرندگان"
-                  icon={Send}
+                  detail="مجموع گیرندگان هر دو نوع نامه"
+                  icon={Users}
                   color="bg-cyan-50 text-cyan-600"
                 />
                 <KpiCard
