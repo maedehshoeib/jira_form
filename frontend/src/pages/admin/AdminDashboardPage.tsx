@@ -15,8 +15,11 @@ import {
   FileText,
   Hash,
   Loader2,
+  Mail,
+  MailCheck,
   MonitorSmartphone,
   Search,
+  Send,
   Target,
   TimerReset,
   Users,
@@ -34,7 +37,7 @@ import {
 import { JalaliDateTimePicker } from "../../features/timesheet/components/jalali-date-time-picker";
 import { formatPersianDate, formatPersianDateTime, getTodayPersian } from "../../lib/persianDate";
 
-type AnalyticsTab = "overview" | "employees" | "projects" | "departments" | "forms";
+type AnalyticsTab = "overview" | "employees" | "projects" | "departments" | "forms" | "letters";
 type PeriodPreset = "today" | "week" | "month" | "custom";
 type ProjectStatusFilter = "all" | AnalyticsProjectStatus;
 type EmployeeSortKey =
@@ -155,6 +158,38 @@ function HorizontalChart({
   );
 }
 
+const pieColors = ["#dc2626", "#2563eb", "#059669", "#d97706", "#7c3aed", "#0891b2"];
+
+function PieChart({ items }: { items: ChartItem[] }) {
+  const total = items.reduce((sum, item) => sum + item.value, 0);
+  if (!total) {
+    return <p className="py-16 text-center text-sm text-slate-400">هنوز داده‌ای ثبت نشده است.</p>;
+  }
+  let cursor = 0;
+  const stops = items.map((item, index) => {
+    const start = cursor;
+    cursor += (item.value / total) * 100;
+    return `${pieColors[index % pieColors.length]} ${start}% ${cursor}%`;
+  });
+  return (
+    <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-center">
+      <div className="relative h-44 w-44 shrink-0 rounded-full" style={{ background: `conic-gradient(${stops.join(",")})` }}>
+        <div className="absolute inset-8 grid place-items-center rounded-full bg-white shadow-inner">
+          <div className="text-center"><p className="text-2xl font-extrabold text-slate-900">{number(total)}</p><p className="text-xs text-slate-400">مجموع</p></div>
+        </div>
+      </div>
+      <div className="w-full max-w-xs space-y-2.5">
+        {items.map((item, index) => (
+          <div key={item.label} className="flex items-center justify-between gap-3 text-sm">
+            <span className="flex min-w-0 items-center gap-2 text-slate-600"><i className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: pieColors[index % pieColors.length] }} /><span className="truncate">{item.label}</span></span>
+            <b className="text-slate-800">{number(item.value)}</b>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TimesheetTrendChart({ data }: { data: DailyTimesheetPoint[] }) {
   const visible = data.slice(-14);
   const max = Math.max(...visible.flatMap((item) => [item.attendance_minutes, item.task_minutes]), 60);
@@ -237,6 +272,35 @@ function KpiCard({
       <p className="text-sm text-slate-500">{label}</p>
       <p className="mt-1 text-2xl font-extrabold text-slate-900 sm:text-3xl">{value}</p>
       <p className="mt-2 text-xs text-slate-400">{detail}</p>
+    </section>
+  );
+}
+
+function CompactKpiCard({
+  label,
+  value,
+  detail,
+  icon: Icon,
+  color,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  icon: typeof Users;
+  color: string;
+}) {
+  return (
+    <section className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${color}`}>
+        <Icon size={19} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="truncate text-xs font-semibold text-slate-500">{label}</p>
+          <p className="shrink-0 text-xl font-extrabold text-slate-900">{value}</p>
+        </div>
+        <p className="mt-1 truncate text-[11px] text-slate-400" title={detail}>{detail}</p>
+      </div>
     </section>
   );
 }
@@ -587,6 +651,7 @@ export default function AdminDashboardPage() {
                 ["projects", "پروژه‌ها"],
                 ["departments", "واحدها"],
                 ["forms", "فرم‌ها"],
+                ["letters", "نامه‌ها"],
               ] as Array<[AnalyticsTab, string]>
             ).map(([value, label]) => (
               <button
@@ -604,66 +669,84 @@ export default function AdminDashboardPage() {
 
           {tab === "overview" && (
             <div className="space-y-6">
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <KpiCard
+              <section className="rounded-3xl border border-slate-100 bg-slate-50/70 p-4 shadow-sm sm:p-5">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                  <div><h3 className="font-extrabold text-slate-800">شاخص‌های کلیدی</h3><p className="mt-1 text-xs text-slate-400">خلاصه وضعیت سامانه در بازه انتخابی</p></div>
+                  <span className="rounded-xl bg-white px-3 py-1.5 text-xs font-bold text-slate-500 shadow-sm">{number(data.overview.requests_in_range)} درخواست در بازه</span>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                <CompactKpiCard
                   label="کل کاربران"
                   value={number(data.overview.total_users)}
                   detail={`${number(data.overview.active_users)} کاربر فعال`}
                   icon={Users}
                   color="bg-blue-50 text-blue-600"
                 />
-                <KpiCard
+                <CompactKpiCard
                   label="درخواست‌های بازه"
                   value={number(data.overview.requests_in_range)}
                   detail={`امروز: ${number(data.overview.requests_today)} | کل: ${number(data.overview.total_requests)}`}
                   icon={FileText}
                   color="bg-red-50 text-red-600"
                 />
-                <KpiCard
+                <CompactKpiCard
                   label="زمان ثبت‌شده"
                   value={formatMinutes(data.overview.task_minutes)}
                   detail={`${number(data.overview.task_count)} تسک | حضور ${formatMinutes(data.overview.attendance_minutes)}`}
                   icon={Clock3}
                   color="bg-amber-50 text-amber-600"
                 />
-                <KpiCard
+                <CompactKpiCard
                   label="نرخ ثبت زمان"
                   value={`${number(Math.round(data.overview.efficiency_percent))}٪`}
                   detail={`${number(data.overview.active_employees)} کارمند فعال در تایم‌شیت`}
                   icon={Activity}
                   color="bg-emerald-50 text-emerald-600"
                 />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <KpiCard
+                <CompactKpiCard
                   label="پروژه‌های فعال"
                   value={number(data.overview.project_count)}
                   detail="با فعالیت ثبت‌شده در بازه"
                   icon={BriefcaseBusiness}
                   color="bg-violet-50 text-violet-600"
                 />
-                <KpiCard
+                <CompactKpiCard
                   label="واحدهای سازمانی"
                   value={number(data.overview.department_count)}
                   detail="در گزارش ترکیبی"
                   icon={Building2}
                   color="bg-sky-50 text-sky-600"
                 />
-                <KpiCard
+                <CompactKpiCard
                   label="حضور باز"
                   value={number(data.overview.open_check_ins)}
                   detail="بدون ثبت خروج"
                   icon={TimerReset}
                   color="bg-orange-50 text-orange-600"
                 />
-                <KpiCard
+                <CompactKpiCard
                   label="دستگاه‌های مدیر"
                   value={number(data.overview.active_admin_devices)}
                   detail="نشست‌های فعال"
                   icon={MonitorSmartphone}
                   color="bg-slate-100 text-slate-600"
                 />
-              </div>
+                <CompactKpiCard
+                  label="نامه‌های سازمانی"
+                  value={number(data.letters.total_letters)}
+                  detail="نامه یکتا در بازه انتخابی"
+                  icon={Mail}
+                  color="bg-rose-50 text-rose-600"
+                />
+                <CompactKpiCard
+                  label="گیرندگان نامه‌ها"
+                  value={number(data.letters.recipient_copies)}
+                  detail={`${number(data.letters.open_copies)} مورد باز`}
+                  icon={Send}
+                  color="bg-cyan-50 text-cyan-600"
+                />
+                </div>
+              </section>
 
               <div className="grid gap-6 xl:grid-cols-3">
                 <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm xl:col-span-2">
@@ -1082,6 +1165,65 @@ export default function AdminDashboardPage() {
                   )}
                 </div>
               </section>
+            </div>
+          )}
+
+          {tab === "letters" && (
+            <div className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <KpiCard
+                  label="نامه‌های یکتا"
+                  value={number(data.letters.total_letters)}
+                  detail="ارسال‌شده در بازه انتخابی"
+                  icon={Mail}
+                  color="bg-rose-50 text-rose-600"
+                />
+                <KpiCard
+                  label="نسخه‌های گیرندگان"
+                  value={number(data.letters.recipient_copies)}
+                  detail="مجموع ارسال به همه گیرندگان"
+                  icon={Send}
+                  color="bg-cyan-50 text-cyan-600"
+                />
+                <KpiCard
+                  label="در انتظار اقدام"
+                  value={number(data.letters.open_copies)}
+                  detail="اقدام‌نشده یا در حال انجام"
+                  icon={Clock3}
+                  color="bg-amber-50 text-amber-600"
+                />
+                <KpiCard
+                  label="انجام‌شده"
+                  value={number(data.letters.completed_copies)}
+                  detail="نسخه‌های تکمیل‌شده توسط گیرندگان"
+                  icon={MailCheck}
+                  color="bg-emerald-50 text-emerald-600"
+                />
+              </div>
+
+              <div className="grid gap-6 xl:grid-cols-2">
+                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+                  <h3 className="font-bold text-slate-800">نوع نامه‌ها</h3>
+                  <p className="mb-6 mt-1 text-xs text-slate-400">سهم نامه‌های درون‌سازمانی و برون‌سازمانی</p>
+                  <PieChart items={data.letters.by_type} />
+                </section>
+                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+                  <h3 className="font-bold text-slate-800">وضعیت گیرندگان نامه</h3>
+                  <p className="mb-6 mt-1 text-xs text-slate-400">وضعیت هر نسخه ارسال‌شده به گیرندگان</p>
+                  <PieChart items={data.letters.by_status} />
+                </section>
+              </div>
+
+              <div className="grid gap-6 xl:grid-cols-2">
+                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+                  <h3 className="mb-6 font-bold text-slate-800">بیشترین ارسال‌کنندگان نامه</h3>
+                  <HorizontalChart items={data.letters.top_senders} color="bg-rose-500" />
+                </section>
+                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+                  <h3 className="mb-6 font-bold text-slate-800">بیشترین گیرندگان نامه</h3>
+                  <HorizontalChart items={data.letters.top_recipients} color="bg-cyan-500" />
+                </section>
+              </div>
             </div>
           )}
 

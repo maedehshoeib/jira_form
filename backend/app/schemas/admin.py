@@ -191,6 +191,17 @@ class FormsAnalytics(BaseModel):
     recent_requests: list[DashboardRecentRequest]
 
 
+class LettersAnalytics(BaseModel):
+    total_letters: int
+    recipient_copies: int
+    open_copies: int
+    completed_copies: int
+    by_type: list[ChartItem]
+    by_status: list[ChartItem]
+    top_senders: list[ChartItem]
+    top_recipients: list[ChartItem]
+
+
 class AnalyticsFilterEmployee(BaseModel):
     employee_id: str
     full_name: str
@@ -220,6 +231,7 @@ class AnalyticsResponse(BaseModel):
     end_date: str
     overview: AnalyticsOverview
     forms: FormsAnalytics
+    letters: LettersAnalytics
     employees: list[EmployeeAnalyticsRow]
     projects: list[ProjectAnalyticsRow]
     departments: list[DepartmentAnalyticsRow]

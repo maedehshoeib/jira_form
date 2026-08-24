@@ -1,3 +1,4 @@
+import json
 import unittest
 from datetime import date, datetime
 from unittest.mock import patch
@@ -276,6 +277,54 @@ class AdminAnalyticsServiceTests(unittest.TestCase):
         self.assertEqual(len(result.forms.by_form), 1)
         self.assertTrue(all(item.form_id == "hr-form" for item in result.forms.recent_requests))
         self.assertTrue(result.filter_options.forms)
+
+    def test_letter_kpis_deduplicate_batches_and_count_recipient_statuses(self):
+        self.db.add_all([
+            Submission(
+                form_id="management-letter-form",
+                department_id="management-workflow",
+                section_id="send-letter",
+                user_id=self.employee.id,
+                subject="نامه آزمایشی",
+                status="submitted",
+                data=json.dumps({
+                    "letter_batch_id": "batch-1",
+                    "letter_type": "internal",
+                    "recipient_name": "گیرنده اول",
+                }, ensure_ascii=False),
+                created_at=datetime(2026, 8, 1, 12, 0, 0),
+            ),
+            Submission(
+                form_id="management-letter-form",
+                department_id="management-workflow",
+                section_id="send-letter",
+                user_id=self.employee.id,
+                subject="نامه آزمایشی",
+                status="approved",
+                data=json.dumps({
+                    "letter_batch_id": "batch-1",
+                    "letter_type": "internal",
+                    "recipient_name": "گیرنده دوم",
+                }, ensure_ascii=False),
+                created_at=datetime(2026, 8, 1, 12, 0, 1),
+            ),
+        ])
+        self.db.commit()
+
+        result = build_analytics(
+            self.db,
+            admin=self.admin,
+            start_date="1405/05/01",
+            end_date="1405/05/12",
+        )
+
+        self.assertEqual(result.letters.total_letters, 1)
+        self.assertEqual(result.letters.recipient_copies, 2)
+        self.assertEqual(result.letters.open_copies, 1)
+        self.assertEqual(result.letters.completed_copies, 1)
+        self.assertEqual(result.letters.by_type[0].label, "درون‌سازمانی")
+        self.assertEqual(result.letters.by_type[0].value, 1)
+        self.assertEqual(len(result.letters.top_recipients), 2)
 
 
 if __name__ == "__main__":

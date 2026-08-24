@@ -1,5 +1,6 @@
 import client from "../../api/client";
 import { endpoints } from "../../api/endpoints";
+import { fetchAdminLetterFallback } from "./adminLetterFallback";
 
 export type ChartItem = { label: string; value: number };
 
@@ -95,6 +96,17 @@ export type FormsAnalytics = {
   }[];
 };
 
+export type LettersAnalytics = {
+  total_letters: number;
+  recipient_copies: number;
+  open_copies: number;
+  completed_copies: number;
+  by_type: ChartItem[];
+  by_status: ChartItem[];
+  top_senders: ChartItem[];
+  top_recipients: ChartItem[];
+};
+
 export type AnalyticsFilterEmployee = {
   employee_id: string;
   full_name: string;
@@ -124,6 +136,7 @@ export type AnalyticsResponse = {
   end_date: string;
   overview: AnalyticsOverview;
   forms: FormsAnalytics;
+  letters: LettersAnalytics;
   employees: EmployeeAnalyticsRow[];
   projects: ProjectAnalyticsRow[];
   departments: DepartmentAnalyticsRow[];
@@ -153,5 +166,9 @@ export async function fetchAdminAnalytics(params: {
       form_id: params.formId,
     },
   });
-  return data;
+  const normalized = data as Partial<AnalyticsResponse>;
+  if (!normalized.letters) {
+    normalized.letters = await fetchAdminLetterFallback(params.startDate, params.endDate);
+  }
+  return normalized as AnalyticsResponse;
 }

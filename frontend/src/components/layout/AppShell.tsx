@@ -289,7 +289,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
       <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-6" aria-label="منوی اصلی">
         <p className="mb-3 px-3 text-xs font-semibold text-red-100/55">دسترسی سریع</p>
-        {navigationItems.map((item) => {
+        {navigationItems
+          .filter((item) => !user?.is_admin || item.href !== "/dashboard")
+          .map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
           const label =
@@ -347,7 +349,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               />
             </Link>
           );
-        })}
+          })}
         {user?.is_admin && (
           <>
             <div className="mx-3 my-5 border-t border-white/10" />

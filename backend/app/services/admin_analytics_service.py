@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections import defaultdict
 from datetime import datetime
 from typing import DefaultDict, Literal
@@ -44,10 +45,15 @@ from app.schemas.admin import (
     DepartmentAnalyticsRow,
     EmployeeAnalyticsRow,
     FormsAnalytics,
+    LettersAnalytics,
     ProjectAnalyticsRow,
     SubprojectAnalyticsRow,
 )
-from app.services.portal_service import DEPARTMENTS, FORM_TEMPLATES
+from app.services.portal_service import (
+    DEPARTMENTS,
+    FORM_TEMPLATES,
+    MANAGEMENT_LETTER_FORM_ID,
+)
 
 ProjectStatusFilter = Literal["active", "inactive"]
 
@@ -492,6 +498,16 @@ def build_analytics(
     form_type_counts: DefaultDict[str, int] = defaultdict(int)
     submitter_counts: DefaultDict[str, int] = defaultdict(int)
     daily_form_counts: DefaultDict[str, int] = defaultdict(int)
+    letter_status_counts: DefaultDict[str, int] = defaultdict(int)
+    letter_recipient_counts: DefaultDict[str, int] = defaultdict(int)
+    letter_batches: dict[str, tuple[Submission, User | None, dict]] = {}
+
+    letter_status_labels = {
+        "submitted": "اقدام‌نشده",
+        "in_progress": "در حال انجام",
+        "approved": "انجام‌شده",
+        "rejected": "ردشده",
+    }
 
     for submission, user in submissions_in_range:
         status_counts[submission.status or "نامشخص"] += 1
@@ -503,6 +519,43 @@ def build_analytics(
         )
         submitter_counts[submitter_name] += 1
         daily_form_counts[gregorian_to_jalali(utc_naive_to_tehran(submission.created_at).date())] += 1
+        if submission.form_id == MANAGEMENT_LETTER_FORM_ID:
+            try:
+                letter_data = json.loads(submission.data or "{}")
+            except (json.JSONDecodeError, TypeError):
+                letter_data = {}
+            if not isinstance(letter_data, dict):
+                letter_data = {}
+            letter_type = str(letter_data.get("letter_type") or "external")
+            batch_id = str(
+                letter_data.get("letter_batch_id") or f"single-{submission.id}"
+            )
+            letter_batches.setdefault(
+                f"{letter_type}:{batch_id}",
+                (submission, user, letter_data),
+            )
+            status_label = letter_status_labels.get(
+                submission.status, submission.status or "نامشخص"
+            )
+            letter_status_counts[status_label] += 1
+            recipient_name = str(
+                letter_data.get("recipient_name") or "گیرنده نامشخص"
+            )
+            letter_recipient_counts[recipient_name] += 1
+
+    letter_type_counts: DefaultDict[str, int] = defaultdict(int)
+    letter_sender_counts: DefaultDict[str, int] = defaultdict(int)
+    for _, sender, letter_data in letter_batches.values():
+        letter_type = str(letter_data.get("letter_type") or "external")
+        letter_type_counts[
+            "درون‌سازمانی" if letter_type == "internal" else "برون‌سازمانی"
+        ] += 1
+        sender_name = (
+            (sender.display_name or sender.username)
+            if sender
+            else "کاربر حذف‌شده"
+        )
+        letter_sender_counts[sender_name] += 1
 
     jalali_year, jalali_month, _ = (
         int(part) for part in jalali_today().split("/")
@@ -612,11 +665,26 @@ def build_analytics(
         ],
     )
 
+    letters = LettersAnalytics(
+        total_letters=len(letter_batches),
+        recipient_copies=sum(letter_status_counts.values()),
+        open_copies=(
+            letter_status_counts["اقدام‌نشده"]
+            + letter_status_counts["در حال انجام"]
+        ),
+        completed_copies=letter_status_counts["انجام‌شده"],
+        by_type=chart_from_counts(letter_type_counts),
+        by_status=chart_from_counts(letter_status_counts),
+        top_senders=chart_from_counts(letter_sender_counts, limit=10),
+        top_recipients=chart_from_counts(letter_recipient_counts, limit=10),
+    )
+
     return AnalyticsResponse(
         start_date=start,
         end_date=end,
         overview=overview,
         forms=forms,
+        letters=letters,
         employees=employees,
         projects=project_rows,
         departments=department_rows,
