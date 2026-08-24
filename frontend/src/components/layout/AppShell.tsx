@@ -57,6 +57,7 @@ type CalendarUnreadNotification = { count: number; items: CalendarNotification[]
 
 const navigationItems: NavigationItem[] = [
   { label: "خانه", href: "/", icon: Home },
+  { label: "داشبورد من", href: "/dashboard", icon: BarChart3 },
   { label: "درخواست‌های من", href: "/my-requests", icon: ClipboardList },
   { label: "وظایف من", href: "/my-tasks", icon: ListTodo },
   { label: "تقویم من", href: "/my-calendar", icon: CalendarDays },

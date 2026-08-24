@@ -15,6 +15,7 @@ import InternalChatPage from "./pages/InternalChatPage";
 import PdfFormsPage from "./pages/PdfFormsPage";
 import PdfLibraryPage from "./pages/PdfLibraryPage";
 import MyCalendarPage from "./pages/MyCalendarPage";
+import UserDashboardPage from "./pages/UserDashboardPage";
 
 import ReportsHome from "./pages/reports/ReportsHome";
 import PerformanceReports from "./pages/reports/PerformanceReports";
@@ -76,6 +77,15 @@ export default function App() {
         element={
           <ProtectedRoute>
             <FormPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <UserDashboardPage />
           </ProtectedRoute>
         }
       />

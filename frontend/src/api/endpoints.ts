@@ -15,6 +15,7 @@ export const endpoints = {
   reportsPerformance: "/reports/performance/latest",
   contracts: "/contracts",
   submissions: "/submissions",
+  userDashboard: "/user-dashboard",
   tasks: "/tasks",
   taskColleagues: "/tasks/colleagues",
   taskPendingCount: "/tasks/pending-count",

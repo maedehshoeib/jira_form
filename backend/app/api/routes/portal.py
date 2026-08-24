@@ -59,6 +59,7 @@ from app.schemas.submission import (
     TaskStatusUpdate,
 )
 from app.schemas.pdf_form import PdfFormResponse
+from app.schemas.user_dashboard import UserDashboardResponse
 from app.services.pdf_form_service import normalize_pdf_category
 from app.services.form_access_service import (
     RESTRICTED_PORTAL_DEPARTMENTS,
@@ -99,11 +100,20 @@ from app.services.report_submission_service import (
     create_report_from_submission,
     is_performance_report_submission,
 )
+from app.services.user_dashboard_builder import build_user_dashboard
 
 
 router = APIRouter()
 MAX_TASK_ACTION_ATTACHMENT_SIZE = 15 * 1024 * 1024
 MAX_SUBMISSION_ATTACHMENT_SIZE = 15 * 1024 * 1024
+
+
+@router.get("/user-dashboard", response_model=UserDashboardResponse)
+def user_dashboard(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return build_user_dashboard(db, current_user)
 
 
 async def _save_task_action_attachment(
