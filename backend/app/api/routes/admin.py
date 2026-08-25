@@ -178,14 +178,14 @@ def _banner_response(banner: SiteBanner, db: Session) -> SiteBannerResponse:
         images=[
             {
                 "id": image.id,
-                "image_url": f"/api/v1/banner/images/{image.id}",
+                "image_url": image.public_url,
                 "image_name": image.image_name,
             }
             for image in images
         ],
         interval_seconds=banner.interval_seconds,
         image_url=(
-            f"/api/v1/banner/images/{first_image.id}" if first_image else None
+            first_image.public_url if first_image else None
         ),
         image_name=first_image.image_name if first_image else "",
         updated_at=banner.updated_at,

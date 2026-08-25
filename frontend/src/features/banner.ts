@@ -20,3 +20,12 @@ export const emptyBanner: SiteBanner = {
   image_url: null,
   image_name: "",
 };
+
+export function bannerImageUrl(
+  imageUrl: string,
+  updatedAt?: string | null,
+): string {
+  if (!updatedAt) return imageUrl;
+  const separator = imageUrl.includes("?") ? "&" : "?";
+  return `${imageUrl}${separator}banner_updated=${encodeURIComponent(updatedAt)}`;
+}

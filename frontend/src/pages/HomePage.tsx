@@ -27,7 +27,7 @@ import { endpoints } from "../api/endpoints";
 import AppShell from "../components/layout/AppShell";
 import { Card, CardContent } from "../components/ui/card";
 import { API_BASE, Department } from "../config/portal";
-import { SiteBanner } from "../features/banner";
+import { bannerImageUrl, SiteBanner } from "../features/banner";
 import { SiteNews } from "../features/news";
 import { formatPersianDateTime } from "../lib/persianDate";
 import { cn } from "../lib/utils";
@@ -373,7 +373,7 @@ export default function HomePage() {
       .catch(() => setDepartments([]));
 
     client
-      .get<SiteBanner>(endpoints.banner)
+      .get<SiteBanner>(endpoints.banner, { params: { _ts: Date.now() } })
       .then(({ data }) => setBanner(data))
       .catch(() => setBanner(null));
 
@@ -444,7 +444,7 @@ export default function HomePage() {
             {banner.images.map((image, index) => (
               <img
                 key={image.id}
-                src={image.image_url}
+                src={bannerImageUrl(image.image_url, banner.updated_at)}
                 alt={image.image_name || `بنر ${index + 1} صفحه اصلی`}
                 aria-hidden={index !== activeSlide}
                 className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${

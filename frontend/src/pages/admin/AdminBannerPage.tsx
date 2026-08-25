@@ -16,7 +16,7 @@ import client from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import AppShell from "../../components/layout/AppShell";
 import { Button } from "../../components/ui/button";
-import { emptyBanner, SiteBanner } from "../../features/banner";
+import { bannerImageUrl, emptyBanner, SiteBanner } from "../../features/banner";
 import { SiteNews } from "../../features/news";
 import { formatPersianDateTime } from "../../lib/persianDate";
 
@@ -58,7 +58,7 @@ export default function AdminBannerPage() {
 
   useEffect(() => {
     client
-      .get<SiteBanner>(endpoints.adminBanner)
+      .get<SiteBanner>(endpoints.adminBanner, { params: { _ts: Date.now() } })
       .then(({ data }) => setBanner(data))
       .catch(() => setError("دریافت تنظیمات بنر با مشکل مواجه شد."))
       .finally(() => setLoading(false));
@@ -301,7 +301,7 @@ export default function AdminBannerPage() {
                     >
                       <div className="relative">
                         <img
-                          src={image.image_url}
+                          src={bannerImageUrl(image.image_url, banner.updated_at)}
                           alt={image.image_name || `بنر ${index + 1}`}
                           className="aspect-[16/7] w-full object-cover"
                         />

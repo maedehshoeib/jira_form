@@ -446,14 +446,14 @@ def get_home_banner(
         images=[
             {
                 "id": image.id,
-                "image_url": f"/api/v1/banner/images/{image.id}",
+                "image_url": image.public_url,
                 "image_name": image.image_name,
             }
             for image in images
         ],
         interval_seconds=banner.interval_seconds,
         image_url=(
-            f"/api/v1/banner/images/{first_image.id}" if first_image else None
+            first_image.public_url if first_image else None
         ),
         image_name=first_image.image_name if first_image else "",
         updated_at=banner.updated_at,
@@ -475,7 +475,10 @@ def get_home_banner_image(
     image_path = Path(image.image_path)
     if not image_path.is_file():
         raise HTTPException(status_code=404, detail="تصویر بنر یافت نشد.")
-    return FileResponse(image_path)
+    return FileResponse(
+        image_path,
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
 
 
 @router.get("/banner/images/{image_id}")
@@ -496,7 +499,10 @@ def get_home_banner_image_by_id(
     image_path = Path(image.image_path)
     if not image_path.is_file():
         raise HTTPException(status_code=404, detail="تصویر بنر یافت نشد.")
-    return FileResponse(image_path)
+    return FileResponse(
+        image_path,
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
 
 
 @router.get("/news", response_model=list[SiteNewsResponse])
