@@ -1,4 +1,22 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: jira-form-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-portal}
+      POSTGRES_USER: ${POSTGRES_USER:-portal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
   backend:
     build:
       context: .
@@ -8,8 +26,15 @@ services:
       - "8000:8000"
     volumes:
       - portal_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
-      DATABASE_URL: sqlite:///./data/portal.db
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+      CONTRACTS_DATABASE_URL: ${CONTRACTS_DATABASE_URL:?Set CONTRACTS_DATABASE_URL in .env}
+      SQLITE_MIGRATION_ENABLED: ${SQLITE_MIGRATION_ENABLED:-true}
+      SQLITE_SOURCE_DATABASE_URL: ${SQLITE_SOURCE_DATABASE_URL:-sqlite:////app/data/portal.db}
+      SQLITE_CONTRACTS_SOURCE_DATABASE_URL: ${SQLITE_CONTRACTS_SOURCE_DATABASE_URL:-sqlite:////app/data/contracts.db}
       UPLOAD_DIR: ./data/uploads
       SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
       USERS_SEED_ENABLED: ${USERS_SEED_ENABLED:-true}
@@ -44,3 +69,4 @@ services:
 
 volumes:
   portal_data:
+  postgres_data:

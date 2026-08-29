@@ -6,7 +6,7 @@ These instructions apply to every edit in this repository. Detailed role rules l
 
 | Area | Stack |
 |---|---|
-| Backend | Python 3.12, FastAPI, SQLAlchemy, Pydantic, SQLite |
+| Backend | Python 3.12, FastAPI, SQLAlchemy, Pydantic, PostgreSQL |
 | Frontend | Next.js App Router, TypeScript, Tailwind CSS, shadcn/ui |
 | Language and direction | Persian-first, RTL |
 | Local ports | web `3000`, API `8000` |

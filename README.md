@@ -5,7 +5,7 @@ Persian-first internal service portal for forms, requests, tasks, reports, times
 ## Stack
 
 - Frontend: Next.js App Router, TypeScript, Tailwind CSS, shadcn/ui
-- Backend: FastAPI, SQLAlchemy, Pydantic, SQLite
+- Backend: FastAPI, SQLAlchemy, Pydantic, PostgreSQL
 - Runtime: separate `web` and `backend` containers with Docker Compose
 
 ## Quick start with Docker
@@ -13,10 +13,15 @@ Persian-first internal service portal for forms, requests, tasks, reports, times
 ```bash
 copy .env.example .env
 docker compose up --build -d
-docker compose logs -f web backend
+docker compose logs -f postgres backend web
 ```
 
 Open the web portal at `http://localhost:8080`. FastAPI is available at `http://localhost:8000`, including OpenAPI at `/docs`.
+
+On the first production start, the backend automatically imports an existing
+`portal.db` and `contracts.db` from the preserved `portal_data` volume into an
+empty PostgreSQL database. Read [`docs/06-operations.md`](docs/06-operations.md)
+and back up the SQLite files before deploying this branch.
 
 ## Local development
 

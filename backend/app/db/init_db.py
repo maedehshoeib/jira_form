@@ -2,6 +2,7 @@ from pathlib import Path
 import shutil
 
 from sqlalchemy import inspect, text
+from sqlalchemy.engine import make_url
 
 from app.core.config import settings
 from app.db.base import Base
@@ -10,8 +11,10 @@ from app.db.contracts_session import contracts_engine
 from app.db.seed_users import seed_users
 from app.db.session import engine
 from app.db.session import SessionLocal
+from app.db.sqlite_import import import_sqlite_once
 from app.models import (  # noqa: F401
     admin_session,
+    calendar_event,
     chat,
     contract,
     department,
@@ -28,6 +31,16 @@ from app.models.department import Department
 from app.models.user import User
 from app.models.site_banner import SiteBanner, SiteBannerImage
 from app.models.pdf_form import PdfForm
+
+
+def _ensure_sqlite_parent(database_url: str) -> None:
+    url = make_url(database_url)
+    if (
+        url.drivername.startswith("sqlite")
+        and url.database
+        and url.database != ":memory:"
+    ):
+        Path(url.database).parent.mkdir(parents=True, exist_ok=True)
 
 
 def _migrate_contracts_db():
@@ -520,12 +533,18 @@ def _seed_pdf_forms():
 
 
 def init_db():
-    db_path = settings.DATABASE_URL.replace("sqlite:///", "")
-    Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+    _ensure_sqlite_parent(settings.DATABASE_URL)
     Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
     Path(settings.CONTRACTS_UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
     pdf_forms_table_existed = "pdf_forms" in inspect(engine).get_table_names()
     Base.metadata.create_all(bind=engine)
+    if settings.SQLITE_MIGRATION_ENABLED and engine.dialect.name != "sqlite":
+        import_sqlite_once(
+            source_url=settings.SQLITE_SOURCE_DATABASE_URL,
+            target_engine=engine,
+            target_metadata=Base.metadata,
+            migration_name="legacy-portal-sqlite-v1",
+        )
     _migrate_users_db()
     _migrate_submissions_db()
     _migrate_submission_referrals_db()
@@ -576,7 +595,13 @@ def init_db():
     if not pdf_forms_table_existed:
         _seed_pdf_forms()
 
-    contracts_db_path = settings.CONTRACTS_DATABASE_URL.replace("sqlite:///", "")
-    Path(contracts_db_path).parent.mkdir(parents=True, exist_ok=True)
+    _ensure_sqlite_parent(settings.CONTRACTS_DATABASE_URL)
     ContractsBase.metadata.create_all(bind=contracts_engine)
+    if settings.SQLITE_MIGRATION_ENABLED and contracts_engine.dialect.name != "sqlite":
+        import_sqlite_once(
+            source_url=settings.SQLITE_CONTRACTS_SOURCE_DATABASE_URL,
+            target_engine=contracts_engine,
+            target_metadata=ContractsBase.metadata,
+            migration_name="legacy-contracts-sqlite-v1",
+        )
     _migrate_contracts_db()

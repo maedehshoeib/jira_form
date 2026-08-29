@@ -3,6 +3,7 @@ uvicorn[standard]
 pydantic
 pydantic-settings
 sqlalchemy
+psycopg[binary]
 python-multipart
 python-dotenv
 python-jose[cryptography]

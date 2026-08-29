@@ -10,7 +10,8 @@ alwaysApply: false
 - Next.js uses server-only `BACKEND_URL` for API rewrites.
 - Browser WebSocket deployments configure `NEXT_PUBLIC_WS_BASE_URL` or provide an equivalent reverse proxy.
 - Use multi-stage builds, deterministic lockfiles, non-root runtime users where practical, and health checks.
-- Persist SQLite and uploads in `portal_data`; back it up before risky changes.
+- Persist PostgreSQL in `postgres_data`; keep uploads and legacy SQLite migration
+  sources in `portal_data`. Back up both volumes before risky changes.
 - Document every environment variable and never commit `.env` or secrets.
 - Keep generated files out of build contexts and Git.
 

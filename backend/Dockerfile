@@ -10,7 +10,6 @@ COPY users.xlsx /users.xlsx
 
 RUN mkdir -p data/uploads
 
-ENV DATABASE_URL=sqlite:///./data/portal.db
 ENV UPLOAD_DIR=./data/uploads
 
 EXPOSE 8000

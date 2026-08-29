@@ -3,7 +3,9 @@ from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
 
-connect_args = {"check_same_thread": False}
+connect_args = {}
+if settings.CONTRACTS_DATABASE_URL.startswith("sqlite"):
+    connect_args["check_same_thread"] = False
 contracts_engine = create_engine(
     settings.CONTRACTS_DATABASE_URL,
     connect_args=connect_args,
