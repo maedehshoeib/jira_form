@@ -48,6 +48,7 @@ import { Textarea } from '@/features/timesheet/components/ui/textarea';
 import { JalaliDateTimePicker } from '@/features/timesheet/components/jalali-date-time-picker';
 import { TasksGanttChart } from '@/features/timesheet/components/tasks-gantt-chart';
 import logo from '@/assets/logo.png';
+import { assetUrl } from '@/lib/assetUrl';
 import { getTehranTime, getTodayPersian } from '@/lib/persianDate';
 
 type WeekTimelineDay = {
@@ -564,7 +565,7 @@ export function EmployeePanel(): JSX.Element {
         <div className='mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8'>
           <div className='flex min-w-0 items-center gap-3'>
             <img
-              src={logo}
+              src={assetUrl(logo)}
               alt='توسعه اعتماد گستر وثوق'
               className='h-11 w-auto object-contain sm:h-14'
             />

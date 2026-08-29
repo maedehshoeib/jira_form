@@ -4,6 +4,7 @@ import { LogIn } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
 import logo from "../assets/logo.png";
+import { assetUrl } from "../lib/assetUrl";
 import ThemeToggle from "../components/ThemeToggle";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -55,7 +56,7 @@ export default function LoginPage() {
 
       <div className="w-full max-w-md rounded-3xl border border-transparent bg-white p-10 shadow-xl dark:border-slate-700 dark:bg-slate-900">
         <div className="mb-8 flex flex-col items-center text-center">
-          <img src={logo} alt="وثوق گستر" className="mb-4 h-20 object-contain" />
+          <img src={assetUrl(logo)} alt="وثوق گستر" className="mb-4 h-20 object-contain" />
           <h1 className="text-2xl font-bold text-red-600 dark:text-red-400">سامانه جامع خدمات</h1>
           <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
             با نام کاربری و رمز عبور سیستم سازمانی وارد شوید

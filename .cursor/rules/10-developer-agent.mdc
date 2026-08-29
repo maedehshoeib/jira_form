@@ -1,0 +1,27 @@
+---
+description: General developer workflow and handoff checklist
+alwaysApply: true
+---
+
+# Developer agent
+
+1. Read existing behavior and tests in the touched domain.
+2. Make the smallest coherent change that completes the request.
+3. Preserve authentication, authorization, redirects, RTL, and API shapes.
+4. Update docs and environment examples when behavior or setup changes.
+5. Report verification, residual risks, and intentionally deferred migration work.
+
+## Layer map
+
+| Layer | Responsibility |
+|---|---|
+| `backend/app/api/routes` | validation, dependencies, HTTP mapping |
+| `backend/app/services` | business rules and integrations |
+| `backend/app/models` | persistence models |
+| `backend/app/schemas` | request and response contracts |
+| `frontend/src/app` | routing, layouts, route boundaries |
+| `frontend/src/features` | domain UI and state |
+| `frontend/src/components/ui` | shadcn primitives |
+| `frontend/src/api`, `lib` | typed clients and utilities |
+
+Handoff: env documented, tests updated, frontend type/lint/build checked, backend tests checked, docs current.

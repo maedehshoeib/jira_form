@@ -1,0 +1,30 @@
+---
+description: Portal universal standards — boundaries, naming, size, and forbidden patterns
+alwaysApply: true
+---
+
+# Portal universal rules
+
+Read `AGENTS.md` first. Before changing configuration, inspect the relevant package manifest and `.env.example`.
+
+## Boundaries
+
+- Backend and frontend never cross-import.
+- Preserve `/api/v1` contracts and existing URLs during refactors.
+- Persian UI is RTL and must remain usable on mobile and desktop.
+- Keep files under 300 lines, route handlers under 60, and service functions under 80; split growing units.
+
+## Naming and imports
+
+- Python: `snake_case` functions/files and `PascalCase` classes.
+- TypeScript: `camelCase` values and `PascalCase` components/types.
+- TypeScript imports: framework, external packages, `@/*`, then relative modules.
+- Python imports: standard library, third-party packages, then `app.*`.
+
+## Forbidden
+
+- Secrets, tokens, passwords, databases, uploads, `node_modules`, or build output in Git.
+- Hardcoded service origins where an environment variable exists.
+- Business logic in FastAPI handlers or Next.js page modules.
+- New React Router routes; use Next.js App Router.
+- `console.log`, untyped API payloads, or unexplained TypeScript `any`.

@@ -1,35 +1,37 @@
+"use client";
+
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import AdminRoute from "./components/auth/AdminRoute";
-import HomePage from "./pages/HomePage";
-import DepartmentPage from "./pages/DepartmentPage";
-import FormPage from "./pages/FormPage";
-import LoginPage from "./pages/LoginPage";
-import MyRequestsPage from "./pages/MyRequestsPage";
-import MyTasksPage from "./pages/MyTasksPage";
-import ChangePasswordPage from "./pages/ChangePasswordPage";
-import ProfilePage from "./pages/ProfilePage";
-import TimeSheetPage from "./pages/TimeSheetPage";
-import InternalChatPage from "./pages/InternalChatPage";
-import PdfFormsPage from "./pages/PdfFormsPage";
-import PdfLibraryPage from "./pages/PdfLibraryPage";
-import MyCalendarPage from "./pages/MyCalendarPage";
-import UserDashboardPage from "./pages/UserDashboardPage";
+import HomePage from "./legacy-pages/HomePage";
+import DepartmentPage from "./legacy-pages/DepartmentPage";
+import FormPage from "./legacy-pages/FormPage";
+import LoginPage from "./legacy-pages/LoginPage";
+import MyRequestsPage from "./legacy-pages/MyRequestsPage";
+import MyTasksPage from "./legacy-pages/MyTasksPage";
+import ChangePasswordPage from "./legacy-pages/ChangePasswordPage";
+import ProfilePage from "./legacy-pages/ProfilePage";
+import TimeSheetPage from "./legacy-pages/TimeSheetPage";
+import InternalChatPage from "./legacy-pages/InternalChatPage";
+import PdfFormsPage from "./legacy-pages/PdfFormsPage";
+import PdfLibraryPage from "./legacy-pages/PdfLibraryPage";
+import MyCalendarPage from "./legacy-pages/MyCalendarPage";
+import UserDashboardPage from "./legacy-pages/UserDashboardPage";
 
-import ReportsHome from "./pages/reports/ReportsHome";
-import PerformanceReports from "./pages/reports/PerformanceReports";
-import ContractsArchiveHome from "./pages/contracts/ContractsArchiveHome";
-import ContractReportForm from "./pages/contracts/ContractReportForm";
-import ContractList from "./pages/contracts/ContractList";
-import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
-import AdminUsersPage from "./pages/admin/AdminUsersPage";
-import AdminDutiesPage from "./pages/admin/AdminDutiesPage";
-import AdminSessionsPage from "./pages/admin/AdminSessionsPage";
-import AdminBannerPage from "./pages/admin/AdminBannerPage";
-import ManagementWorkflowHome from "./pages/management/ManagementWorkflowHome";
-import SendLetterPage from "./pages/management/SendLetterPage";
-import LetterReportPage from "./pages/management/LetterReportPage";
+import ReportsHome from "./legacy-pages/reports/ReportsHome";
+import PerformanceReports from "./legacy-pages/reports/PerformanceReports";
+import ContractsArchiveHome from "./legacy-pages/contracts/ContractsArchiveHome";
+import ContractReportForm from "./legacy-pages/contracts/ContractReportForm";
+import ContractList from "./legacy-pages/contracts/ContractList";
+import AdminDashboardPage from "./legacy-pages/admin/AdminDashboardPage";
+import AdminUsersPage from "./legacy-pages/admin/AdminUsersPage";
+import AdminDutiesPage from "./legacy-pages/admin/AdminDutiesPage";
+import AdminSessionsPage from "./legacy-pages/admin/AdminSessionsPage";
+import AdminBannerPage from "./legacy-pages/admin/AdminBannerPage";
+import ManagementWorkflowHome from "./legacy-pages/management/ManagementWorkflowHome";
+import SendLetterPage from "./legacy-pages/management/SendLetterPage";
+import LetterReportPage from "./legacy-pages/management/LetterReportPage";
 
 export default function App() {
   return (

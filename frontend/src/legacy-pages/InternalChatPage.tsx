@@ -305,8 +305,11 @@ export default function InternalChatPage() {
     };
     const connect = () => {
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const configuredBase = process.env.NEXT_PUBLIC_WS_BASE_URL?.replace(/\/$/, "");
+      const websocketBase =
+        configuredBase || `${protocol}//${window.location.hostname}:8000`;
       socket = new WebSocket(
-        `${protocol}//${window.location.host}/api/v1/chat/ws?token=${encodeURIComponent(token)}`,
+        `${websocketBase}/api/v1/chat/ws?token=${encodeURIComponent(token)}`,
       );
       socketRef.current = socket;
       socket.onmessage = (event) => {

@@ -1,4 +1,5 @@
 import vesoughLogo from "../../assets/vesough-logo.png";
+import { assetUrl } from "../../lib/assetUrl";
 
 type PurchaseItem = {
   item_title?: string;
@@ -86,7 +87,7 @@ export default function PurchaseRequestDocument({
               </td>
               <td rowSpan={4} className="w-[29%] border border-slate-800 p-2 align-middle">
                 <img
-                  src={vesoughLogo}
+                  src={assetUrl(vesoughLogo)}
                   alt="توسعه اعتماد وثوق گستر"
                   className="mx-auto h-[70px] max-w-[190px] object-contain"
                 />

@@ -30,6 +30,7 @@ function getSystemTheme(): ResolvedTheme {
 }
 
 function readStoredTheme(): ThemePreference {
+  if (typeof window === "undefined") return "system";
   const stored = localStorage.getItem(STORAGE_KEY);
   if (stored === "light" || stored === "dark" || stored === "system") {
     return stored;

@@ -1,0 +1,13 @@
+---
+description: Backend and frontend verification standards
+globs: "{backend/tests/**,frontend/**/*.test.ts,frontend/**/*.test.tsx,frontend/**/*.spec.ts,frontend/**/*.spec.tsx}"
+alwaysApply: false
+---
+
+# QA agent
+
+Critical paths: login/logout/password change, protected/admin redirects, form submission, tasks, reports, uploads, and chat reconnect.
+
+Backend tests cover happy paths, authorization, validation, error mapping, and persistence. Frontend tests cover route refresh, loading/error states, RTL rendering, and form validation.
+
+Required frontend gates are lint, `tsc --noEmit`, and production build. Required backend gates are targeted pytest followed by the full suite when practical. Never weaken assertions or delete tests just to make a gate pass.

@@ -2,7 +2,6 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes.auth import router as auth_router
@@ -43,36 +42,7 @@ app.include_router(contracts_router, prefix="/api/v1/contracts", tags=["contract
 app.include_router(jira_router, prefix="/api/v1/jira", tags=["jira"])
 app.include_router(timesheet_router, prefix="/api/v1/timesheet", tags=["timesheet"])
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
-FRONTEND_INDEX = FRONTEND_DIST / "index.html"
 AVATAR_DIR = (Path(settings.UPLOAD_DIR) / "avatars").resolve()
 AVATAR_DIR.mkdir(parents=True, exist_ok=True)
 
 app.mount("/api/v1/avatars", StaticFiles(directory=AVATAR_DIR), name="avatars")
-
-if (FRONTEND_DIST / "assets").exists():
-    app.mount(
-        "/assets",
-        StaticFiles(directory=FRONTEND_DIST / "assets"),
-        name="assets",
-    )
-
-favicon = FRONTEND_DIST / "favicon.ico"
-if favicon.exists():
-
-    @app.get("/favicon.ico", include_in_schema=False)
-    async def favicon_icon():
-        return FileResponse(favicon)
-
-
-if FRONTEND_INDEX.exists():
-
-    @app.get("/{full_path:path}", include_in_schema=False)
-    async def react_app(full_path: str):
-        requested = FRONTEND_DIST / full_path
-
-        if requested.exists() and requested.is_file():
-            return FileResponse(requested)
-
-        return FileResponse(FRONTEND_INDEX)

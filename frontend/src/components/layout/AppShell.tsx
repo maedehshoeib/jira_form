@@ -24,6 +24,7 @@ import UserDisplayName from "../UserDisplayName";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import logo from "../../assets/logo.png";
+import { assetUrl } from "../../lib/assetUrl";
 import client from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../context/AuthContext";
@@ -278,7 +279,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <div className="border-b border-white/10 px-5 py-6">
         <Link to="/" className="flex items-center gap-3">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white p-2 shadow-lg shadow-red-950/20">
-            <img src={logo} alt="وثوق گستر" className="max-h-full max-w-full object-contain" />
+            <img src={assetUrl(logo)} alt="وثوق گستر" className="max-h-full max-w-full object-contain" />
           </div>
           <div className="min-w-0">
             <h1 className="text-lg font-extrabold leading-7 text-white">سامانه جامع خدمات</h1>
@@ -468,7 +469,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <div className="lg:mr-72">
         <div className="no-print sticky top-0 z-40 flex items-center justify-between border-b border-slate-200/80 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-lg dark:border-slate-700 dark:bg-slate-900/90 lg:hidden">
           <Link to="/" className="flex items-center gap-2.5">
-            <img src={logo} alt="وثوق گستر" className="h-10 w-10 object-contain" />
+            <img src={assetUrl(logo)} alt="وثوق گستر" className="h-10 w-10 object-contain" />
             <div>
               <p className="text-sm font-extrabold text-slate-800 dark:text-slate-100">سامانه جامع خدمات</p>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">ثبت و پیگیری درخواست‌ها</p>

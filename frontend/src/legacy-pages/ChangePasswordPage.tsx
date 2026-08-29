@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import client from "../api/client";
 import { endpoints } from "../api/endpoints";
 import logo from "../assets/logo.png";
+import { assetUrl } from "../lib/assetUrl";
 import ThemeToggle from "../components/ThemeToggle";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -63,7 +64,7 @@ export default function ChangePasswordPage() {
 
       <div className="w-full max-w-md rounded-3xl border border-transparent bg-white p-8 shadow-xl dark:border-slate-700 dark:bg-slate-900 sm:p-10">
         <div className="mb-7 flex flex-col items-center text-center">
-          <img src={logo} alt="وثوق گستر" className="mb-4 h-16 object-contain" />
+          <img src={assetUrl(logo)} alt="وثوق گستر" className="mb-4 h-16 object-contain" />
           <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-600 dark:bg-red-950/60 dark:text-red-300">
             <KeyRound size={24} />
           </div>

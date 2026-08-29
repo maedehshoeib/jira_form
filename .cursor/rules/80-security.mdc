@@ -1,0 +1,16 @@
+---
+description: Authentication, secrets, validation, CORS, uploads, and browser security
+alwaysApply: true
+---
+
+# Security rules
+
+- Never commit or log passwords, JWTs, Jira credentials, API keys, or private employee data.
+- Replace Docker Compose defaults in production; defaults are local-development conveniences only.
+- Validate and authorize every protected operation server-side.
+- Use parameterized ORM queries and Pydantic boundary validation.
+- Restrict production CORS to explicit origins.
+- Validate upload MIME, size, extension, and destination; do not expose arbitrary filesystem paths.
+- Keep tokens out of URLs except the existing WebSocket handshake until it can be replaced safely.
+- Do not expose server-only environment variables through `NEXT_PUBLIC_*`.
+- Return safe error messages without stack traces or internal paths.

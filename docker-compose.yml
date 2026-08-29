@@ -1,28 +1,45 @@
 services:
-  portal:
-    build: .
-    container_name: jira-form-portal
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: jira-form-backend
     ports:
-      - "8080:8000"
+      - "8000:8000"
     volumes:
-      - portal_data:/app/backend/data
+      - portal_data:/app/data
     environment:
-      - DATABASE_URL=sqlite:///./data/portal.db
-      - UPLOAD_DIR=./data/uploads
-      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
-      - USERS_SEED_ENABLED=${USERS_SEED_ENABLED:-true}
-      - USERS_SEED_FILE=${USERS_SEED_FILE:-../users.xlsx}
-      - DEFAULT_USER_PASSWORD=${DEFAULT_USER_PASSWORD:-Secure@1234567}
-      - TIMESHEET_DEMO_USERNAME=${TIMESHEET_DEMO_USERNAME:-ma.shoeib}
-      - ADMIN_USERNAME=${ADMIN_USERNAME:-Vosouq.admin}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-Jethro@2003}
-      - ADMIN_MAX_DEVICES=${ADMIN_MAX_DEVICES:-4}
-      - JIRA_BASE_URL=${JIRA_BASE_URL:-https://jira.vosouq.me}
-      - JIRA_ENABLED=${JIRA_ENABLED:-true}
-      - JIRA_USERNAME=${JIRA_USERNAME:-}
-      - JIRA_PASSWORD=${JIRA_PASSWORD:-}
-      - REPORTS_API_KEY=${REPORTS_API_KEY:-jira-admin-reports-key}
-      - BACKEND_CORS_ORIGINS=http://localhost:8080,http://localhost:5173
+      DATABASE_URL: sqlite:///./data/portal.db
+      UPLOAD_DIR: ./data/uploads
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      USERS_SEED_ENABLED: ${USERS_SEED_ENABLED:-true}
+      USERS_SEED_FILE: ${USERS_SEED_FILE:-/users.xlsx}
+      DEFAULT_USER_PASSWORD: ${DEFAULT_USER_PASSWORD:-change-me-before-production}
+      TIMESHEET_DEMO_USERNAME: ${TIMESHEET_DEMO_USERNAME:-ma.shoeib}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-portal.admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-change-me-before-production}
+      ADMIN_MAX_DEVICES: ${ADMIN_MAX_DEVICES:-4}
+      JIRA_BASE_URL: ${JIRA_BASE_URL:-https://jira.vosouq.me}
+      JIRA_ENABLED: ${JIRA_ENABLED:-true}
+      JIRA_USERNAME: ${JIRA_USERNAME:-}
+      JIRA_PASSWORD: ${JIRA_PASSWORD:-}
+      REPORTS_API_KEY: ${REPORTS_API_KEY:-change-me-before-production}
+      BACKEND_CORS_ORIGINS: http://localhost:3000,http://localhost:8080
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        BACKEND_URL: http://backend:8000
+    container_name: jira-form-web
+    depends_on:
+      - backend
+    ports:
+      - "8080:3000"
+    environment:
+      BACKEND_URL: http://backend:8000
     restart: unless-stopped
 
 volumes:

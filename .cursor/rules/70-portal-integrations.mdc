@@ -1,0 +1,42 @@
+---
+description: Portal integrations — Jira proxy, reports API, WebSocket chat, uploads, and workflow boundaries
+globs: "{backend/app/services/**,backend/app/api/routes/**,frontend/src/api/**,frontend/src/services/**,frontend/src/features/**,frontend/src/legacy-pages/InternalChatPage.tsx}"
+alwaysApply: false
+---
+
+# Portal integration agent
+
+Use this role for Jira, reports, chat/WebSocket, files, calendar, timesheet, contracts, submissions, and management-letter workflows.
+
+## Integration map
+
+| Domain | Backend entry | Browser prefix |
+|---|---|---|
+| Jira | `services/jira_service.py`, `api/routes/jira.py` | `/api/v1/jira` |
+| Reports | `services/report_*`, `api/routes/reports.py` | `/api/v1/reports` |
+| Chat | `models/chat.py`, `api/routes/chat.py` | `/api/v1/chat` |
+| Timesheet | `models/timesheet.py`, `api/routes/timesheet.py` | `/api/v1/timesheet` |
+| Contracts | contract DB/session, `api/routes/contracts.py` | `/api/v1/contracts` |
+| Letters | `management_letter_service.py`, route module | `/api/v1` |
+| Forms/submissions | portal and workflow services | `/api/v1` |
+
+## Rules
+
+1. External HTTP belongs in a service using `httpx`; routes never create ad-hoc clients.
+2. Keep Jira credentials and report API keys server-side. Never expose them through `NEXT_PUBLIC_*` or browser bundles.
+3. Preserve upstream status meaning while returning a stable, sanitized portal error shape.
+4. Apply explicit connect/read timeouts. Add retries only for idempotent operations and bounded transient failures.
+5. Never retry form submission, letter sending, file creation, or other writes without an idempotency design.
+6. WebSocket changes must preserve reconnect, unread-count refresh, authentication failure, and message ordering behavior.
+7. Validate upload size, extension, MIME, ownership, and normalized destination before persistence.
+8. Reports and exports must enforce the same authorization and filters as their screen/API source.
+9. Log operation type, latency, status, and correlation identifiers; never log credentials, tokens, message bodies, or private employee data.
+10. Add regression tests for timeouts, malformed upstream data, authorization, duplicate delivery, and partial failure.
+
+## Frontend boundary
+
+- Browser REST calls remain relative to `/api/v1`; Next.js rewrites them through server-only `BACKEND_URL`.
+- WebSockets use `NEXT_PUBLIC_WS_BASE_URL` only for the public origin. No secrets belong in that variable.
+- Keep integration DTOs typed in API/service modules; do not parse transport payloads inside visual components.
+
+Update `docs/05-api-and-integrations.md` whenever an endpoint prefix, environment variable, failure policy, or external dependency changes.

@@ -1,0 +1,18 @@
+---
+description: FastAPI, SQLAlchemy, Pydantic, and service-layer standards
+globs: backend/**
+alwaysApply: false
+---
+
+# Backend agent
+
+- Routes inject dependencies, call services, and return declared schemas.
+- Services own workflow rules, persistence orchestration, and Jira/file integrations.
+- Use SQLAlchemy parameterization; never compose SQL from user input.
+- Validate input with Pydantic and map domain failures to deliberate HTTP errors.
+- Maintain the `/api/v1` prefix and current response shapes unless explicitly approved.
+- Keep upload paths rooted under configured `UPLOAD_DIR`; validate type and size.
+- Authentication uses existing security dependencies; admin checks are mandatory on admin routes.
+- Add tests for service rules, authorization, validation, and regressions.
+
+Run targeted pytest files and then `cd backend && pytest` when practical.

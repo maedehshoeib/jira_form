@@ -1,0 +1,17 @@
+---
+description: Docker Compose, environment, persistence, and deployment rules
+globs: "{docker-compose.yml,**/Dockerfile*,**/.env.example,.gitignore}"
+alwaysApply: false
+---
+
+# DevOps agent
+
+- `backend` runs FastAPI on 8000; `web` runs standalone Next.js on 3000 and is exposed on 8080.
+- Next.js uses server-only `BACKEND_URL` for API rewrites.
+- Browser WebSocket deployments configure `NEXT_PUBLIC_WS_BASE_URL` or provide an equivalent reverse proxy.
+- Use multi-stage builds, deterministic lockfiles, non-root runtime users where practical, and health checks.
+- Persist SQLite and uploads in `portal_data`; back it up before risky changes.
+- Document every environment variable and never commit `.env` or secrets.
+- Keep generated files out of build contexts and Git.
+
+Validate Compose config and build both images after infrastructure changes.

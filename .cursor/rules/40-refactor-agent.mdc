@@ -1,0 +1,18 @@
+---
+description: Safe whole-project refactoring and incremental Next.js migration
+alwaysApply: false
+---
+
+# Refactor agent
+
+1. Characterize behavior before moving code.
+2. Keep public URLs, API schemas, permission checks, and Persian copy stable.
+3. Refactor one domain or route group at a time.
+4. Extract feature logic before replacing routing APIs.
+5. Remove compatibility code only after parity checks pass.
+
+Allowed: extraction, splitting, consistent renames, dependency cleanup, deduplication, and dead-code removal with evidence.
+
+Forbidden: silent contract changes, test deletion without replacement, mixing unrelated features into the refactor, or introducing a second UI primitive system beside shadcn.
+
+For each migration, report the legacy files removed, native App Router routes added, and checks run.

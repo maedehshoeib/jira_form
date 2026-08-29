@@ -4,6 +4,7 @@ import { Building2, ChevronLeft, FileArchive, Landmark, Users, Wallet } from "lu
 import AppShell from "../components/layout/AppShell";
 import { API_BASE, Department } from "../config/portal";
 import bankLogo from "../assets/bankmellat_logo_01_s2.png";
+import { assetUrl } from "../lib/assetUrl";
 import { Card, CardContent } from "../components/ui/card";
 import { cn } from "../lib/utils";
 
@@ -147,7 +148,7 @@ export default function DepartmentPage() {
           <div className="flex items-center gap-4">
             {isBank && (
               <img
-                src={bankLogo}
+                src={assetUrl(bankLogo)}
                 alt="بانک ملت"
                 className="h-14 object-contain"
               />
@@ -217,7 +218,7 @@ export default function DepartmentPage() {
                 <CardContent className="p-8 text-right">
                   {isBank && (
                     <img
-                      src={bankLogo}
+                      src={assetUrl(bankLogo)}
                       alt="بانک ملت"
                       className="mb-4 h-10 object-contain"
                     />
