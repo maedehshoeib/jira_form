@@ -1,6 +1,7 @@
 import { Label } from "@/components/ui/label";
 import { useMemo, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 import { API_BASE, FormTemplate } from "../../config/portal";
 import FormFieldRenderer from "./FormFieldRenderer";
@@ -71,7 +72,7 @@ function isFieldFilled(value: unknown): boolean {
 }
 
 export default function DynamicForm({ form }: { form: FormTemplate }) {
-  const [searchParams] = useSearchParams();
+  const searchParams = useSearchParams();
   const departmentId = searchParams.get("department") || form.department_id || "";
   const sectionId = searchParams.get("section") || form.section_id || "";
   const isPurchaseRequest =
@@ -252,7 +253,7 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
           {isPerformanceReport && (
             <div className="mt-3">
               <Link
-                to="/reports/performance"
+                href="/reports/performance"
                 className="font-semibold text-primary hover:text-primary"
               >
                 مشاهده گزارش ثبت‌شده
@@ -267,7 +268,7 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
           {!isPerformanceReport && (
             <div className="mt-3">
               <Link
-                to="/my-requests"
+                href="/my-requests"
                 className="font-semibold text-primary hover:text-primary"
               >
                 مشاهده درخواست‌های من

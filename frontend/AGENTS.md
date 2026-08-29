@@ -14,14 +14,14 @@ src/features/        Domain UI, hooks, state, typed transport adapters
 src/components/ui/   shadcn primitives
 src/components/      Shared composition components
 src/api/, src/lib/   Typed clients and framework-neutral utilities
-src/legacy-pages/    Temporary compatibility screens only
 ```
 
-- Add new routes under `src/app`; never add routes to `src/App.tsx`.
+- Add routes under `src/app` as thin composition modules.
+- Import domains through `src/features/<domain>/index.ts`; do not reach into another feature's private screen files.
 - Prefer Server Components. Use `"use client"` only for hooks, events, browser APIs, or client-only libraries.
 - Keep page modules focused on routing and data wiring; feature modules own interaction logic.
 - Use `next/link` and `next/navigation` in migrated routes.
-- Remove a legacy route only after direct navigation, refresh, redirects, and authorization reach parity.
+- Preserve direct navigation, refresh, redirects, and authorization behavior.
 
 Follow the staged process in `docs/04-nextjs-migration.md`.
 

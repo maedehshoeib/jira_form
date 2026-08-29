@@ -9,15 +9,15 @@ alwaysApply: false
 Stack: Next.js App Router, strict TypeScript, Tailwind CSS, shadcn/ui, React Query, React Hook Form, and Zod.
 
 - Read installed Next.js docs before framework-sensitive changes.
-- Add new routes under `src/app`; do not extend legacy `src/App.tsx`.
+- Keep `src/app` pages thin and import features through their public `index.ts` APIs.
 - Prefer Server Components; add `"use client"` only for state, events, browser APIs, or client libraries.
 - Use shadcn primitives from `components/ui` and `cn()` from `lib/utils`.
 - Keep raw buttons, inputs, textareas, selects, labels, and tables inside
   `components/ui`; screens and features must consume shared primitives.
 - Style with theme tokens and RTL-safe logical layout; avoid new hardcoded palette values.
-- Put remote data access in typed API helpers/hooks, not page components.
+- Put remote data access in each domain's typed `api/` helpers or hooks, not page components.
 - Forms use React Hook Form plus Zod and show server and field errors.
 - Every route needs meaningful loading, empty, error, and unauthorized behavior.
 - Use `next/link` and `next/navigation` for migrated routes.
 
-Migration instructions are in `docs/04-nextjs-migration.md`. Verify with lint, TypeScript, and a production build.
+The completed migration record is in `docs/04-nextjs-migration.md`. Verify with lint, TypeScript, and a production build.

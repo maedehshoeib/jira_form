@@ -12,6 +12,7 @@ from app.db.seed_users import seed_users
 from app.db.session import engine
 from app.db.session import SessionLocal
 from app.db.sqlite_import import import_sqlite_once
+from app.db.migrations import upgrade_database
 from app.models import (  # noqa: F401
     admin_session,
     calendar_event,
@@ -537,6 +538,8 @@ def init_db():
     Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
     Path(settings.CONTRACTS_UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
     pdf_forms_table_existed = "pdf_forms" in inspect(engine).get_table_names()
+    if settings.DATABASE_MIGRATIONS_ENABLED and engine.dialect.name != "sqlite":
+        upgrade_database(engine)
     Base.metadata.create_all(bind=engine)
     if settings.SQLITE_MIGRATION_ENABLED and engine.dialect.name != "sqlite":
         import_sqlite_once(

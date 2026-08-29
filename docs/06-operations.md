@@ -35,7 +35,7 @@ The migration is automatic, but prepare the server before starting this branch:
    docker compose logs -f postgres backend
    ```
 
-The backend creates the current PostgreSQL schema, locks the import so only one
+The backend upgrades PostgreSQL to the current Alembic revision, locks the import so only one
 container can run it, copies all recognized tables in a single transaction,
 resets identity sequences, verifies every copied row count, and only then writes
 the `legacy-portal-sqlite-v1` and `legacy-contracts-sqlite-v1` markers. A failure
@@ -57,6 +57,11 @@ If PostgreSQL already contains application rows but has no marker, startup stops
 instead of merging or overwriting data. Restore an empty `postgres_data` volume
 from a controlled backup before retrying; never remove a production volume just
 to bypass this guard.
+
+`DATABASE_MIGRATIONS_ENABLED=true` must remain enabled in production. The
+Alembic schema upgrade runs before SQLite rows are copied. Schema versioning and
+the SQLite importer solve different problems: Alembic changes structure; the
+importer preserves legacy data.
 
 ## Required production checks
 

@@ -16,12 +16,12 @@ These instructions apply to every edit in this repository. Detailed role rules l
 ## Repository layout
 
 ```text
-backend/app/          FastAPI routes, services, models, schemas, core
+backend/app/          FastAPI routes, services, repositories, models, schemas, core
+backend/alembic/      versioned PostgreSQL schema migrations
 backend/tests/        pytest suite
-frontend/src/app/     Next.js layouts, route boundary, loading and errors
-frontend/src/legacy-pages/   legacy screens being migrated feature by feature
+frontend/src/app/     thin native Next.js App Router pages and layouts
 frontend/src/components/ui/  shadcn primitives
-frontend/src/features/       feature modules
+frontend/src/features/       domain screens, components, API adapters, types
 docs/                 architecture, operation, and migration guidance
 .cursor/rules/        scoped agent rules
 backend/AGENTS.md     Codex backend-specific instruction layer
@@ -43,9 +43,12 @@ The two systems express the same boundaries. If duplicated guidance differs, thi
 5. Document environment, architecture, or user-flow changes in `docs/`.
 6. Run the narrowest relevant tests, then TypeScript and production builds.
 
-## Current frontend migration boundary
+## Module boundaries
 
-`frontend/src/app/[[...slug]]/page.tsx` hosts the legacy React Router tree so every existing URL remains functional. New screens use native App Router routes. Migrate legacy routes incrementally according to `docs/04-nextjs-migration.md`; do not add new routes to `src/App.tsx`.
+App Router pages are composition-only and import each domain through
+`frontend/src/features/<domain>/index.ts`. Backend dependencies flow from routes
+to services to repositories/models. New schema changes require Alembic revisions;
+the SQLite importer is a data migration and must remain idempotent.
 
 ## Quality gates
 
@@ -53,7 +56,7 @@ The two systems express the same boundaries. If duplicated guidance differs, thi
 cd frontend && npm run lint
 cd frontend && npx tsc --noEmit
 cd frontend && npm run build
-cd backend && pytest
+cd backend && python -m pytest
 ```
 
 Never commit secrets, generated dependency folders, `.next`, databases, uploads, or local environment files.

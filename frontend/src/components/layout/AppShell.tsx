@@ -1,4 +1,6 @@
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Building2,
   CalendarDays,
@@ -21,7 +23,6 @@ import {
 } from "lucide-react";
 import UserAvatar from "../UserAvatar";
 import UserDisplayName from "../UserDisplayName";
-import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import logo from "../../assets/logo.png";
 import { assetUrl } from "../../lib/assetUrl";
@@ -32,7 +33,7 @@ import { formatUserDisplayName } from "../../lib/userDisplay";
 import { cn } from "../../lib/utils";
 import ThemeToggle from "../ThemeToggle";
 import { Button } from "../ui/button";
-import { chatService } from "../../services/chat.service";
+import { chatService } from "@/features/chat";
 
 type NavigationItem = {
   label: string;
@@ -101,8 +102,8 @@ function playTone(muted: boolean) {
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
+  const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [taskUnreadCount, setTaskUnreadCount] = useState(0);
@@ -183,7 +184,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setSidebarOpen(false);
-  }, [location.pathname]);
+  }, [pathname]);
 
   useEffect(() => {
     void refreshChatNotifications();
@@ -231,14 +232,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   const handleLogout = () => {
     logout();
-    navigate("/login");
+    router.push("/login");
   };
 
   const isWideLayout =
-    location.pathname === "/" || location.pathname === "/my-calendar" || location.pathname.startsWith("/departments/");
+    pathname === "/" || pathname === "/my-calendar" || pathname.startsWith("/departments/");
 
   const isActive = (href: string) =>
-    href === "/" ? location.pathname === "/" : location.pathname.startsWith(href);
+    href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   const renderCountBadge = (count: number, active: boolean) => (
     <span className={cn(
@@ -278,7 +279,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const sidebar = (
     <div className="flex h-full flex-col">
       <div className="border-b border-sidebar-border px-5 py-6">
-        <Link to="/" className="flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-3">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-sidebar-border bg-background p-2 shadow-sm">
             <img src={assetUrl(logo)} alt="وثوق گستر" className="max-h-full max-w-full object-contain" />
           </div>
@@ -303,7 +304,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           return (
             <Link
               key={item.href}
-              to={item.href}
+              href={item.href}
               className={cn(
                 "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                 active
@@ -362,7 +363,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               return (
                 <Link
                   key={item.href}
-                  to={item.href}
+                  href={item.href}
                   className={cn(
                     "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                     active
@@ -385,7 +386,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <div className="border-t border-sidebar-border p-4">
         {user && (
           <Link
-            to="/profile"
+            href="/profile"
             className="mb-3 block rounded-xl border border-sidebar-border bg-sidebar-accent/50 p-3 transition-colors hover:bg-sidebar-accent"
           >
             <div className="flex items-center gap-3">
@@ -470,7 +471,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
       <div className="lg:mr-72">
         <div className="no-print sticky top-0 z-40 flex items-center justify-between border-b bg-background/90 px-4 py-3 backdrop-blur-lg lg:hidden">
-          <Link to="/" className="flex items-center gap-2.5">
+          <Link href="/" className="flex items-center gap-2.5">
             <img src={assetUrl(logo)} alt="وثوق گستر" className="h-10 w-10 object-contain" />
             <div>
               <p className="text-sm font-bold text-foreground">سامانه جامع خدمات</p>
@@ -501,8 +502,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
           {children}
         </main>
       </div>
-      {calendarToast && location.pathname !== "/my-calendar" && (
-        <Link to="/my-calendar" className="no-print fixed bottom-5 left-5 z-[100] w-[min(24rem,calc(100vw-2.5rem))] rounded-2xl border border-blue-200 bg-card p-4 shadow-2xl dark:border-blue-800 dark:bg-slate-900">
+      {calendarToast && pathname !== "/my-calendar" && (
+        <Link href="/my-calendar" className="no-print fixed bottom-5 left-5 z-[100] w-[min(24rem,calc(100vw-2.5rem))] rounded-2xl border border-blue-200 bg-card p-4 shadow-2xl dark:border-blue-800 dark:bg-slate-900">
           <Button type="button" onClick={(event) => { event.preventDefault(); setCalendarToast(null); }} className="absolute left-2 top-2 rounded p-1 text-muted-foreground hover:bg-muted" aria-label="بستن اعلان"><X size={16} /></Button>
           <div className="flex gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-100 text-blue-700"><BellRing size={20} /></span><div className="min-w-0"><p className="text-xs font-bold text-blue-700">زمان جدید در تقویم شما</p><p className="mt-1 truncate font-bold">{calendarToast.title}</p><p className="mt-1 text-xs text-muted-foreground">{calendarToast.jalali_date}، ساعت {calendarToast.start_time} · ثبت توسط {calendarToast.created_by_name}</p></div></div>
         </Link>

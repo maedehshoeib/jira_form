@@ -1,6 +1,6 @@
 ---
 description: Portal integrations — Jira proxy, reports API, WebSocket chat, uploads, and workflow boundaries
-globs: "{backend/app/services/**,backend/app/api/routes/**,frontend/src/api/**,frontend/src/services/**,frontend/src/features/**,frontend/src/legacy-pages/InternalChatPage.tsx}"
+globs: "{backend/app/services/**,backend/app/repositories/**,backend/app/api/routes/**,frontend/src/api/**,frontend/src/features/**}"
 alwaysApply: false
 ---
 

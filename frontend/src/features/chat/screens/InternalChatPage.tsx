@@ -1,0 +1,1194 @@
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Archive,
+  ArrowRight,
+  Check,
+  CheckCheck,
+  ChevronDown,
+  Download,
+  File as FileIcon,
+  Forward,
+  Loader2,
+  MessageCircle,
+  MoreVertical,
+  Paperclip,
+  Pencil,
+  Pin,
+  Plus,
+  Reply,
+  Search,
+  Send,
+  Smile,
+  Trash2,
+  UserPlus,
+  Users,
+  Volume2,
+  VolumeX,
+  X,
+} from "lucide-react";
+import {
+  FormEvent,
+  KeyboardEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
+import AppShell from "@/components/layout/AppShell";
+import UserAvatar from "@/components/UserAvatar";
+import UserDisplayName, { BirthdayBadge } from "@/components/UserDisplayName";
+import { useAuth } from "@/context/AuthContext";
+import { formatUserDisplayName } from "@/lib/userDisplay";
+import {
+  ChatMessage,
+  ChatUser,
+  Conversation,
+  chatService,
+} from "@/features/chat/api/chat-service";
+
+import { ConversationTitle } from "../components/ConversationTitle";
+import { ConversationInfoModal } from "../components/ConversationInfoModal";
+import { ForwardModal } from "../components/ForwardModal";
+import { NewConversationModal } from "../components/NewConversationModal";
+
+import { COMPOSER_EMOJIS, REACTIONS } from "../constants";
+import { errorText, fileSize, formatListTime, formatTime, initials } from "../utils";
+
+export default function InternalChatPage() {
+  const { user } = useAuth();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [users, setUsers] = useState<ChatUser[]>([]);
+  const [activeId, setActiveId] = useState<number | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [conversationSearch, setConversationSearch] = useState("");
+  const [messageSearch, setMessageSearch] = useState("");
+  const [showMessageSearch, setShowMessageSearch] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [newChatOpen, setNewChatOpen] = useState(false);
+  const [forwardMessage, setForwardMessage] = useState<ChatMessage | null>(null);
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+  const [editing, setEditing] = useState<ChatMessage | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  const [reactionMessageId, setReactionMessageId] = useState<number | null>(null);
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [typingUser, setTypingUser] = useState<{
+    name: string;
+    isBirthday?: boolean;
+  } | null>(null);
+  const [error, setError] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const activeIdRef = useRef<number | null>(null);
+  const socketRef = useRef<WebSocket | null>(null);
+  const typingTimerRef = useRef(0);
+  const typingSentAtRef = useRef(0);
+
+  const active = conversations.find((item) => item.id === activeId) || null;
+  activeIdRef.current = activeId;
+
+  const loadConversations = useCallback(
+    async (quiet = false) => {
+      if (!quiet) setLoading(true);
+      try {
+        const data = await chatService.conversations(showArchived);
+        setConversations(data);
+        setActiveId((current) => {
+          if (current && data.some((item) => item.id === current)) return current;
+          return data[0]?.id ?? null;
+        });
+        setError("");
+      } catch (requestError) {
+        setError(errorText(requestError));
+      } finally {
+        if (!quiet) setLoading(false);
+      }
+    },
+    [showArchived],
+  );
+
+  const loadMessages = useCallback(
+    async (conversationId: number, quiet = false, search = "") => {
+      if (!quiet) setMessagesLoading(true);
+      try {
+        const data = await chatService.messages(
+          conversationId,
+          undefined,
+          search,
+        );
+        if (activeIdRef.current !== conversationId) return;
+        setMessages(data.items);
+        setHasMore(data.has_more);
+        if (!search) void chatService.markRead(conversationId);
+        setConversations((items) =>
+          items.map((item) =>
+            item.id === conversationId ? { ...item, unread_count: 0 } : item,
+          ),
+        );        if (!search) {
+          window.dispatchEvent(new Event("chat:refresh-notifications"));
+        }
+      } catch (requestError) {
+        setError(errorText(requestError));
+      } finally {
+        if (!quiet) setMessagesLoading(false);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    void Promise.all([
+      loadConversations(),
+      chatService.users().then(setUsers).catch(() => setUsers([])),
+    ]);
+  }, [loadConversations]);
+
+  useEffect(() => {
+    setMessages([]);
+    setReplyingTo(null);
+    setEditing(null);
+    setTypingUser(null);
+    setMessageSearch("");
+    setShowMessageSearch(false);
+    setEmojiPickerOpen(false);
+    if (activeId) void loadMessages(activeId, false, "");
+  }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!activeId || !showMessageSearch) return;
+    const timer = window.setTimeout(
+      () => void loadMessages(activeId, false, messageSearch),
+      350,
+    );
+    return () => window.clearTimeout(timer);
+  }, [messageSearch, showMessageSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!messagesLoading && !messageSearch) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages.length, messagesLoading, messageSearch]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (!token) return;
+    let socket: WebSocket | null = null;
+    let retryTimer = 0;
+    let pollTimer = 0;
+    let disposed = false;
+
+    const refresh = (conversationId?: number) => {
+      void loadConversations(true);
+      if (conversationId && conversationId === activeIdRef.current) {
+        void loadMessages(conversationId, true, "");
+      }
+    };
+    const connect = () => {
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const configuredBase = process.env.NEXT_PUBLIC_WS_BASE_URL?.replace(/\/$/, "");
+      const websocketBase =
+        configuredBase || `${protocol}//${window.location.hostname}:8000`;
+      socket = new WebSocket(
+        `${websocketBase}/api/v1/chat/ws?token=${encodeURIComponent(token)}`,
+      );
+      socketRef.current = socket;
+      socket.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data) as {
+            type: string;
+            conversation_id?: number;
+            message?: ChatMessage;
+          };
+          if (
+            payload.type === "message.created" &&
+            payload.message?.sender.id !== user?.id
+          ) {
+            window.dispatchEvent(new Event("chat:new-message"));
+          }
+          if (
+            payload.type === "typing" &&
+            payload.conversation_id === activeIdRef.current
+          ) {
+            const typingPayload = payload as typeof payload & {
+              user_id?: number;
+              user_name?: string;
+              is_birthday?: boolean;
+            };
+            if (typingPayload.user_id !== user?.id) {
+              setTypingUser({
+                name: typingPayload.user_name || "همکار شما",
+                isBirthday: Boolean(typingPayload.is_birthday),
+              });
+              window.clearTimeout(typingTimerRef.current);
+              typingTimerRef.current = window.setTimeout(
+                () => setTypingUser(null),
+                2200,
+              );
+            }
+          } else if (payload.type === "conversation.read") {
+            // Refresh read receipts without re-marking the same conversation.
+            void loadConversations(true);
+          } else if (payload.type !== "pong") {
+            refresh(payload.conversation_id);
+          }
+        } catch {
+          // Ignore malformed server notifications; polling remains active.
+        }
+      };
+      socket.onclose = () => {
+        if (!disposed) retryTimer = window.setTimeout(connect, 3000);
+      };
+    };
+    connect();
+    pollTimer = window.setInterval(
+      () => refresh(activeIdRef.current || undefined),
+      12000,
+    );
+    return () => {
+      disposed = true;
+      window.clearTimeout(retryTimer);
+      window.clearInterval(pollTimer);
+      socket?.close();
+      socketRef.current = null;
+      window.clearTimeout(typingTimerRef.current);
+    };
+  }, [loadConversations, loadMessages, user?.id]);
+
+  const filteredConversations = useMemo(() => {
+    const term = conversationSearch.trim().toLocaleLowerCase("fa");
+    const matching = !term ? conversations : conversations.filter(
+      (item) =>
+        item.title.toLocaleLowerCase("fa").includes(term) ||
+        item.members.some(
+          (member) =>
+            member.display_name.toLocaleLowerCase("fa").includes(term) ||
+            member.department.toLocaleLowerCase("fa").includes(term),
+        ),
+    );
+    return [...matching].sort(
+      (a, b) =>
+        new Date(b.last_message?.created_at || b.updated_at).getTime() -
+        new Date(a.last_message?.created_at || a.updated_at).getTime(),
+    );
+  }, [conversationSearch, conversations]);
+
+  const send = async (event?: FormEvent) => {
+    event?.preventDefault();
+    if (!active || sending) return;
+    const text = draft.trim();
+    if (!text && !attachment) return;
+    setSending(true);
+    try {
+      if (editing) {
+        const updated = await chatService.editMessage(editing.id, text);
+        setMessages((items) =>
+          items.map((item) => (item.id === updated.id ? updated : item)),
+        );
+      } else {
+        const created = await chatService.sendMessage(
+          active.id,
+          text,
+          replyingTo?.id,
+          attachment || undefined,
+        );
+        setMessages((items) =>
+          items.some((item) => item.id === created.id)
+            ? items
+            : [...items, created],
+        );
+      }
+      setDraft("");
+      setAttachment(null);
+      setReplyingTo(null);
+      setEditing(null);
+      setEmojiPickerOpen(false);
+      setError("");
+      await loadConversations(true);
+    } catch (requestError) {
+      setError(errorText(requestError));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleComposerKey = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      void send();
+    }
+  };
+
+  const insertEmoji = (emoji: string) => {
+    const textarea = composerRef.current;
+    if (!textarea) {
+      setDraft((current) => `${current}${emoji}`);
+      notifyTyping();
+      return;
+    }
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const next = `${draft.slice(0, start)}${emoji}${draft.slice(end)}`;
+    if (next.length > 5000) return;
+    setDraft(next);
+    notifyTyping();
+    requestAnimationFrame(() => {
+      const cursor = start + emoji.length;
+      textarea.focus();
+      textarea.setSelectionRange(cursor, cursor);
+    });
+  };
+
+  useEffect(() => {
+    if (!emojiPickerOpen) return;
+    const close = (event: MouseEvent) => {
+      if (
+        emojiPickerRef.current &&
+        !emojiPickerRef.current.contains(event.target as Node)
+      ) {
+        setEmojiPickerOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [emojiPickerOpen]);
+
+  const notifyTyping = () => {
+    const now = Date.now();
+    if (
+      !activeId ||
+      !socketRef.current ||
+      socketRef.current.readyState !== WebSocket.OPEN ||
+      now - typingSentAtRef.current < 900
+    )
+      return;
+    typingSentAtRef.current = now;
+    socketRef.current.send(
+      JSON.stringify({ type: "typing", conversation_id: activeId }),
+    );
+  };
+
+  const loadOlder = async () => {
+    if (!active || !messages.length) return;
+    try {
+      const data = await chatService.messages(active.id, messages[0].id);
+      setMessages((items) => [...data.items, ...items]);
+      setHasMore(data.has_more);
+    } catch (requestError) {
+      setError(errorText(requestError));
+    }
+  };
+
+  const deleteMessage = async (message: ChatMessage) => {
+    if (!window.confirm("این پیام برای همه حذف شود؟")) return;
+    try {
+      await chatService.deleteMessage(message.id);
+      await loadMessages(message.conversation_id, true, "");
+    } catch (requestError) {
+      setError(errorText(requestError));
+    }
+  };
+
+  const toggleReaction = async (message: ChatMessage, emoji: string) => {
+    try {
+      const reactions = await chatService.react(message.id, emoji);
+      setMessages((items) =>
+        items.map((item) =>
+          item.id === message.id ? { ...item, reactions } : item,
+        ),
+      );
+      setReactionMessageId(null);
+    } catch (requestError) {
+      setError(errorText(requestError));
+    }
+  };
+
+  const updateSetting = async (
+    values: Partial<
+      Pick<Conversation, "is_muted" | "is_pinned" | "is_archived">
+    >,
+  ) => {
+    if (!active) return;
+    try {
+      await chatService.updateConversation(active.id, values);
+      if (values.is_archived !== undefined) setActiveId(null);
+      await loadConversations(true);
+    } catch (requestError) {
+      setError(errorText(requestError));
+    }
+  };
+
+  return (
+    <AppShell>
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        {error && (
+          <div className="flex items-center justify-between bg-primary/10 px-4 py-2.5 text-sm text-primary">
+            <span>{error}</span>
+            <Button variant="ghost" type="button" onClick={() => setError("")}>
+              <X size={17} />
+            </Button>
+          </div>
+        )}
+        <div className="flex h-[calc(100vh-8rem)] min-h-[560px]">
+          <aside
+            className={`${active ? "hidden md:flex" : "flex"} w-full shrink-0 flex-col border-l border-border md:w-[360px]`}
+          >
+            <header className="border-b border-border p-4">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h1 className="text-lg font-extrabold text-foreground">
+                    گفتگوی درون‌سازمانی
+                  </h1>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    ارتباط امن با همکاران
+                  </p>
+                </div>
+                <Button variant="ghost"
+                  type="button"
+                  onClick={() => setNewChatOpen(true)}
+                  title="گفتگوی جدید"
+                  className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-white shadow-lg shadow-red-200 transition hover:bg-primary/90"
+                >
+                  <Plus size={21} />
+                </Button>
+              </div>
+              <Label className="flex items-center gap-2 rounded-lg border border-input bg-background px-3 focus-within:ring-2 focus-within:ring-ring/50">
+                <Search size={18} className="text-muted-foreground" />
+                <Input
+                  value={conversationSearch}
+                  onChange={(event) => setConversationSearch(event.target.value)}
+                  placeholder="جستجو در گفتگوها"
+                  className="min-w-0 flex-1 border-0 bg-transparent text-sm shadow-none outline-none placeholder:text-muted-foreground focus-visible:ring-0"
+                />
+              </Label>
+              <Button variant="ghost"
+                type="button"
+                onClick={() => setShowArchived((value) => !value)}
+                className="mt-3 flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-primary"
+              >
+                <Archive size={15} />
+                {showArchived ? "بازگشت به گفتگوها" : "گفتگوهای بایگانی‌شده"}
+              </Button>
+            </header>
+
+            <div className="flex-1 overflow-y-auto p-2">
+              {loading ? (
+                <div className="flex h-40 items-center justify-center text-muted-foreground">
+                  <Loader2 className="animate-spin" />
+                </div>
+              ) : filteredConversations.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center px-8 text-center">
+                  <div className="mb-4 rounded-3xl bg-primary/10 p-5 text-red-500">
+                    <MessageCircle size={34} />
+                  </div>
+                  <p className="font-bold text-foreground">
+                    {showArchived ? "بایگانی خالی است" : "هنوز گفتگویی ندارید"}
+                  </p>
+                  {!showArchived && (
+                    <Button variant="ghost"
+                      type="button"
+                      onClick={() => setNewChatOpen(true)}
+                      className="mt-3 text-sm font-semibold text-primary"
+                    >
+                      شروع گفتگوی جدید
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                filteredConversations.map((conversation) => (
+                  <Button variant="ghost"
+                    key={conversation.id}
+                    type="button"
+                    onClick={() => setActiveId(conversation.id)}
+                    className={`mb-1 h-auto min-h-[4.75rem] w-full items-center justify-start gap-3 whitespace-normal rounded-lg p-3 text-right transition ${
+                      activeId === conversation.id
+                        ? "bg-primary/10 text-foreground"
+                        : conversation.unread_count > 0
+                          ? "border border-amber-200 bg-amber-50 text-foreground hover:bg-amber-100"
+                          : "hover:bg-muted/40"
+                    }`}
+                  >
+                    <div className="relative shrink-0">
+                      {conversation.kind === "group" ? (
+                        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-red-500 to-red-700 font-bold text-white">
+                        <Users size={21} />
+                        </span>
+                      ) : (
+                        <UserAvatar
+                          name={conversation.title}
+                          avatarUrl={conversation.members.find((member) => member.id !== user?.id)?.avatar_url}
+                          className="h-12 w-12 rounded-2xl"
+                          fallbackClassName="bg-gradient-to-br from-red-500 to-red-700 text-white"
+                        />
+                      )}
+                      {conversation.unread_count > 0 && (
+                        <span className="absolute -bottom-1 -left-1 min-w-5 rounded-full border-2 border-white bg-primary px-1 text-center text-[10px] leading-4 text-white">
+                          {conversation.unread_count.toLocaleString("fa-IR")}
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1">
+                        <p className="truncate text-sm font-bold text-foreground">
+                          <ConversationTitle
+                            conversation={conversation}
+                            currentUserId={user?.id}
+                          />
+                        </p>
+                        {conversation.is_pinned && (
+                          <Pin size={12} className="text-red-500" />
+                        )}
+                        {conversation.is_muted && (
+                          <VolumeX size={12} className="text-muted-foreground" />
+                        )}
+                        <span className="mr-auto shrink-0 text-[10px] text-muted-foreground">
+                          {conversation.last_message
+                            ? formatListTime(
+                                conversation.last_message.created_at,
+                              )
+                            : ""}
+                        </span>
+                      </div>
+                      <p className={`mt-1 truncate text-xs ${conversation.unread_count > 0 ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                        {conversation.last_message?.deleted_at
+                          ? "پیام حذف شده"
+                          : conversation.last_message?.attachment
+                            ? `📎 ${conversation.last_message.attachment.name}`
+                            : conversation.last_message?.body ||
+                              (conversation.kind === "group"
+                                ? `${conversation.members.length.toLocaleString("fa-IR")} عضو`
+                                : "گفتگو را آغاز کنید")}
+                      </p>
+                    </div>
+                  </Button>
+                ))
+              )}
+            </div>
+          </aside>
+
+          <section
+            className={`${active ? "flex" : "hidden md:flex"} min-w-0 flex-1 flex-col bg-muted/40`}
+          >
+            {!active ? (
+              <div className="flex h-full flex-col items-center justify-center text-center">
+                <div className="mb-5 rounded-[2rem] bg-card p-7 text-red-500 shadow-sm">
+                  <MessageCircle size={48} />
+                </div>
+                <h2 className="text-xl font-extrabold text-foreground">
+                  یک گفتگو انتخاب کنید
+                </h2>
+                <p className="mt-2 max-w-sm text-sm leading-7 text-muted-foreground">
+                  از فهرست همکاران یک گفتگوی جدید بسازید یا یکی از گفتگوهای
+                  قبلی را ادامه دهید.
+                </p>
+              </div>
+            ) : (
+              <>
+                <header className="flex h-[73px] items-center gap-3 border-b border-border bg-card px-3 sm:px-5">
+                  <Button variant="ghost"
+                    type="button"
+                    onClick={() => setActiveId(null)}
+                    className="rounded-xl p-2 text-muted-foreground hover:bg-muted md:hidden"
+                  >
+                    <ArrowRight size={20} />
+                  </Button>
+                  <Button variant="ghost"
+                    type="button"
+                    onClick={() => setInfoOpen(true)}
+                    className="h-auto min-w-0 flex-1 items-center justify-start gap-3 whitespace-normal py-2 text-right"
+                  >
+                    {active.kind === "group" ? (
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary font-bold text-white">
+                        <Users size={20} />
+                      </div>
+                    ) : (
+                      <UserAvatar
+                        name={active.title}
+                        avatarUrl={active.members.find((member) => member.id !== user?.id)?.avatar_url}
+                        className="h-11 w-11 rounded-2xl"
+                        fallbackClassName="bg-primary text-white"
+                      />
+                    )}
+                    <div className="min-w-0">
+                      <p className="truncate font-bold text-foreground">
+                        <ConversationTitle
+                          conversation={active}
+                          currentUserId={user?.id}
+                        />
+                      </p>
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {typingUser ? (
+                          <span className="inline-flex items-center gap-1">
+                            <span className="inline-flex items-center gap-1 font-medium text-muted-foreground">
+                              {typingUser.name}
+                              {typingUser.isBirthday ? (
+                                <BirthdayBadge className="h-3.5 w-3.5" />
+                              ) : null}
+                            </span>
+                            در حال نوشتن است...
+                          </span>
+                        ) : active.kind === "group" ? (
+                          `${active.members.length.toLocaleString("fa-IR")} عضو`
+                        ) : (
+                          active.members.find(
+                            (member) => member.id !== user?.id,
+                          )?.job_title || "همکار سازمانی"
+                        )}
+                      </p>
+                    </div>
+                  </Button>
+                  <Button variant="ghost"
+                    type="button"
+                    onClick={() => setShowMessageSearch((value) => !value)}
+                    className="rounded-xl p-2.5 text-muted-foreground hover:bg-muted"
+                    title="جستجو در پیام‌ها"
+                  >
+                    <Search size={19} />
+                  </Button>
+                  <Button variant="ghost"
+                    type="button"
+                    onClick={() => setInfoOpen(true)}
+                    className="rounded-xl p-2.5 text-muted-foreground hover:bg-muted"
+                    title="جزئیات گفتگو"
+                  >
+                    <MoreVertical size={19} />
+                  </Button>
+                </header>
+
+                {showMessageSearch && (
+                  <div className="border-b bg-card px-4 py-2.5">
+                    <Label className="mx-auto flex max-w-xl items-center gap-2 rounded-xl bg-muted px-3 py-2">
+                      <Search size={16} className="text-muted-foreground" />
+                      <Input
+                        autoFocus
+                        value={messageSearch}
+                        onChange={(event) => setMessageSearch(event.target.value)}
+                        placeholder="عبارتی از متن پیام را بنویسید..."
+                        className="flex-1 border-0 bg-transparent text-sm shadow-none outline-none focus-visible:ring-0"
+                      />
+                      <Button variant="ghost"
+                        type="button"
+                        onClick={() => {
+                          setShowMessageSearch(false);
+                          setMessageSearch("");
+                          void loadMessages(active.id, false, "");
+                        }}
+                      >
+                        <X size={16} />
+                      </Button>
+                    </Label>
+                  </div>
+                )}
+
+                <div
+                  className="chat-scroll flex-1 overflow-y-auto px-3 py-5 sm:px-6"
+                  onClick={() => {
+                    setOpenMenuId(null);
+                    setReactionMessageId(null);
+                  }}
+                >
+                  {messagesLoading ? (
+                    <div className="flex h-full items-center justify-center text-red-500">
+                      <Loader2 className="animate-spin" />
+                    </div>
+                  ) : messages.length === 0 ? (
+                    <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
+                      <MessageCircle
+                        size={40}
+                        className="mb-3 text-slate-300"
+                      />
+                      <p className="font-semibold">
+                        {messageSearch
+                          ? "پیامی با این عبارت پیدا نشد"
+                          : "اولین پیام را شما بفرستید"}
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      {hasMore && !messageSearch && (
+                        <div className="mb-4 text-center">
+                          <Button variant="ghost"
+                            type="button"
+                            onClick={() => void loadOlder()}
+                            className="rounded-full bg-card px-4 py-2 text-xs font-semibold text-primary shadow-sm"
+                          >
+                            نمایش پیام‌های قدیمی‌تر
+                          </Button>
+                        </div>
+                      )}
+                      {messages.map((message) => {
+                        const mine = message.sender.id === user?.id;
+                        return (
+                          <article
+                            key={message.id}
+                            className={`group relative mb-3 flex items-end gap-2 ${
+                              mine ? "justify-start" : "justify-end"
+                            }`}
+                          >
+                            {!mine && (
+                              <UserAvatar
+                                name={formatUserDisplayName(message.sender)}
+                                avatarUrl={message.sender.avatar_url}
+                                className="h-8 w-8 rounded-lg"
+                              />
+                            )}
+                            <div
+                              className={`relative max-w-[86%] rounded-2xl px-3.5 py-2.5 shadow-sm sm:max-w-[70%] ${
+                                message.deleted_at
+                                  ? "border border-dashed border-border bg-muted text-muted-foreground"
+                                  : mine
+                                    ? "rounded-br-md bg-primary text-white"
+                                    : "rounded-bl-md border border-border bg-card text-foreground"
+                              }`}
+                            >
+                              {!mine && active.kind === "group" && (
+                                <p className="mb-1 text-xs font-bold text-primary">
+                                  <UserDisplayName
+                                    user={message.sender}
+                                    badgeClassName="h-4 w-4"
+                                  />
+                                </p>
+                              )}
+                              {message.is_forwarded && !message.deleted_at && (
+                                <p
+                                  className={`mb-1 flex items-center gap-1 text-[11px] ${
+                                    mine ? "text-red-100" : "text-muted-foreground"
+                                  }`}
+                                >
+                                  <Forward size={12} />
+                                  هدایت‌شده
+                                </p>
+                              )}
+                              {message.reply_to && !message.deleted_at && (
+                                <Button variant="ghost"
+                                  type="button"
+                                  className={`mb-2 h-auto w-full whitespace-normal rounded-xl border-r-4 p-2 text-right text-xs ${
+                                    mine
+                                      ? "border-white/70 bg-red-700/45 text-red-50"
+                                      : "border-red-400 bg-muted/40 text-muted-foreground"
+                                  }`}
+                                >
+                                  <span className="block font-bold">
+                                    {message.reply_to.sender_name}
+                                  </span>
+                                  <span className="mt-0.5 block max-w-xs truncate">
+                                    {message.reply_to.body ||
+                                      (message.reply_to.has_attachment
+                                        ? "فایل پیوست"
+                                        : "")}
+                                  </span>
+                                </Button>
+                              )}
+                              {message.deleted_at ? (
+                                <p className="flex items-center gap-2 text-sm italic">
+                                  <Trash2 size={14} />
+                                  پیام حذف شده است
+                                </p>
+                              ) : (
+                                <>
+                                  {message.body && (
+                                    <p className="whitespace-pre-wrap break-words text-sm leading-7">
+                                      {message.body}
+                                    </p>
+                                  )}
+                                  {message.attachment && (
+                                    <Button variant="ghost"
+                                      type="button"
+                                      onClick={() =>
+                                        void chatService.downloadAttachment(
+                                          message,
+                                        )
+                                      }
+                                      className={`mt-2 h-auto w-full items-center justify-start gap-3 whitespace-normal rounded-xl p-2.5 text-right ${
+                                        mine
+                                          ? "bg-card/15 hover:bg-card/20"
+                                          : "bg-muted/40 hover:bg-muted"
+                                      }`}
+                                    >
+                                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-card/90 text-primary">
+                                        <FileIcon size={19} />
+                                      </span>
+                                      <span className="min-w-0 flex-1">
+                                        <span className="block max-w-[210px] truncate text-xs font-bold">
+                                          {message.attachment.name}
+                                        </span>
+                                        <span
+                                          className={`mt-1 block text-[10px] ${
+                                            mine
+                                              ? "text-red-100"
+                                              : "text-muted-foreground"
+                                          }`}
+                                        >
+                                          {fileSize(message.attachment.size)}
+                                        </span>
+                                      </span>
+                                      <Download size={17} />
+                                    </Button>
+                                  )}
+                                </>
+                              )}
+                              <div
+                                className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${
+                                  mine ? "text-red-100" : "text-muted-foreground"
+                                }`}
+                              >
+                                {message.edited_at && <span>ویرایش‌شده</span>}
+                                <span>{formatTime(message.created_at)}</span>
+                                {mine &&
+                                  (active.members.some(
+                                    (member) =>
+                                      member.id !== user?.id &&
+                                      (member.last_read_message_id || 0) >=
+                                        message.id,
+                                  ) ? (
+                                    <CheckCheck size={13} />
+                                  ) : (
+                                    <Check size={13} />
+                                  ))}
+                              </div>
+
+                              {message.reactions.length > 0 && (
+                                <div
+                                  className={`absolute -bottom-4 flex gap-1 ${
+                                    mine ? "right-2" : "left-2"
+                                  }`}
+                                >
+                                  {message.reactions.map((reaction) => (
+                                    <Button variant="ghost"
+                                      type="button"
+                                      title={reaction.users.join("، ")}
+                                      key={reaction.emoji}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        void toggleReaction(
+                                          message,
+                                          reaction.emoji,
+                                        );
+                                      }}
+                                      className={`rounded-full border bg-card px-1.5 py-0.5 text-[11px] shadow-sm ${
+                                        reaction.user_ids.includes(user?.id || 0)
+                                          ? "border-red-300"
+                                          : "border-border"
+                                      }`}
+                                    >
+                                      {reaction.emoji}{" "}
+                                      {reaction.user_ids.length.toLocaleString(
+                                        "fa-IR",
+                                      )}
+                                    </Button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {!message.deleted_at && (
+                              <div className="relative opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
+                                <Button variant="ghost"
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    setOpenMenuId(
+                                      openMenuId === message.id
+                                        ? null
+                                        : message.id,
+                                    );
+                                  }}
+                                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-card hover:text-foreground"
+                                >
+                                  <ChevronDown size={16} />
+                                </Button>
+                                {openMenuId === message.id && (
+                                  <div
+                                    onClick={(event) => event.stopPropagation()}
+                                    className={`absolute bottom-7 z-20 w-40 overflow-hidden rounded-2xl border bg-card py-1.5 text-sm text-foreground shadow-xl ${
+                                      mine ? "right-0" : "left-0"
+                                    }`}
+                                  >
+                                    <Button variant="ghost"
+                                      type="button"
+                                      onClick={() => {
+                                        setReplyingTo(message);
+                                        setEditing(null);
+                                        setOpenMenuId(null);
+                                      }}
+                                      className="flex w-full items-center gap-2 px-3 py-2 hover:bg-muted/40"
+                                    >
+                                      <Reply size={15} /> پاسخ
+                                    </Button>
+                                    <Button variant="ghost"
+                                      type="button"
+                                      onClick={() => {
+                                        setForwardMessage(message);
+                                        setOpenMenuId(null);
+                                      }}
+                                      className="flex w-full items-center gap-2 px-3 py-2 hover:bg-muted/40"
+                                    >
+                                      <Forward size={15} /> هدایت
+                                    </Button>
+                                    <Button variant="ghost"
+                                      type="button"
+                                      onClick={() => {
+                                        setReactionMessageId(message.id);
+                                        setOpenMenuId(null);
+                                      }}
+                                      className="flex w-full items-center gap-2 px-3 py-2 hover:bg-muted/40"
+                                    >
+                                      <Smile size={15} /> واکنش
+                                    </Button>
+                                    {mine && message.body && (
+                                      <Button variant="ghost"
+                                        type="button"
+                                        onClick={() => {
+                                          setEditing(message);
+                                          setReplyingTo(null);
+                                          setDraft(message.body);
+                                          setOpenMenuId(null);
+                                        }}
+                                        className="flex w-full items-center gap-2 px-3 py-2 hover:bg-muted/40"
+                                      >
+                                        <Pencil size={15} /> ویرایش
+                                      </Button>
+                                    )}
+                                    {mine && (
+                                      <Button variant="ghost"
+                                        type="button"
+                                        onClick={() =>
+                                          void deleteMessage(message)
+                                        }
+                                        className="flex w-full items-center gap-2 px-3 py-2 text-primary hover:bg-primary/10 text-foreground"
+                                      >
+                                        <Trash2 size={15} /> حذف
+                                      </Button>
+                                    )}
+                                  </div>
+                                )}
+                                {reactionMessageId === message.id && (
+                                  <div
+                                    onClick={(event) => event.stopPropagation()}
+                                    className={`absolute bottom-7 z-20 flex gap-1 rounded-full border bg-card p-1.5 shadow-xl ${
+                                      mine ? "right-0" : "left-0"
+                                    }`}
+                                  >
+                                    {REACTIONS.map((emoji) => (
+                                      <Button variant="ghost"
+                                        type="button"
+                                        key={emoji}
+                                        onClick={() =>
+                                          void toggleReaction(message, emoji)
+                                        }
+                                        className="rounded-full p-1 text-lg hover:bg-muted"
+                                      >
+                                        {emoji}
+                                      </Button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </article>
+                        );
+                      })}
+                      <div ref={messagesEndRef} />
+                    </>
+                  )}
+                </div>
+
+                {!messageSearch && (
+                  <footer className="border-t border-border bg-card p-3 sm:p-4">
+                    {(replyingTo || editing || attachment) && (
+                      <div className="mb-2 flex items-center gap-3 rounded-2xl bg-muted/40 px-3 py-2 text-xs">
+                        <div className="h-8 w-1 rounded-full bg-primary/100" />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-primary">
+                            {editing
+                              ? "ویرایش پیام"
+                              : attachment
+                                ? "فایل پیوست"
+                                : (
+                                    <span className="inline-flex items-center gap-1">
+                                      پاسخ به
+                                      <UserDisplayName
+                                        user={replyingTo?.sender}
+                                        badgeClassName="h-3.5 w-3.5"
+                                      />
+                                    </span>
+                                  )}
+                          </p>
+                          <p className="mt-0.5 truncate text-muted-foreground">
+                            {attachment?.name ||
+                              editing?.body ||
+                              replyingTo?.body ||
+                              "فایل پیوست"}
+                          </p>
+                        </div>
+                        <Button variant="ghost"
+                          type="button"
+                          onClick={() => {
+                            setReplyingTo(null);
+                            setEditing(null);
+                            setAttachment(null);
+                            if (editing) setDraft("");
+                          }}
+                          className="rounded-lg p-1 text-muted-foreground hover:bg-slate-200"
+                        >
+                          <X size={17} />
+                        </Button>
+                      </div>
+                    )}
+                    <form
+                      onSubmit={(event) => void send(event)}
+                      className="flex items-end gap-2"
+                    >
+                      {!editing && (
+                        <>
+                          <Input
+                            ref={fileRef}
+                            type="file"
+                            className="hidden"
+                            onChange={(event) =>
+                              setAttachment(event.target.files?.[0] || null)
+                            }
+                          />
+                          <Button variant="ghost"
+                            type="button"
+                            title="افزودن فایل (حداکثر ۱۵ مگابایت)"
+                            onClick={() => fileRef.current?.click()}
+                            className="mb-1 rounded-xl p-2.5 text-muted-foreground hover:bg-muted hover:text-primary"
+                          >
+                            <Paperclip size={20} />
+                          </Button>
+                        </>
+                      )}
+                      <div ref={emojiPickerRef} className="relative min-w-0 flex-1">
+                        {emojiPickerOpen && (
+                          <div className="absolute bottom-full left-0 right-0 z-20 mb-2 rounded-2xl border border-border bg-card p-3 shadow-xl">
+                            <div className="grid grid-cols-8 gap-1 sm:grid-cols-10">
+                              {COMPOSER_EMOJIS.map((emoji) => (
+                                <Button variant="ghost"
+                                  key={emoji}
+                                  type="button"
+                                  onClick={() => insertEmoji(emoji)}
+                                  className="rounded-xl p-1.5 text-xl transition hover:bg-orange-50"
+                                  title={emoji}
+                                >
+                                  {emoji}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <div className="flex items-end gap-1">
+                          <Textarea
+                            ref={composerRef}
+                            value={draft}
+                            onChange={(event) => {
+                              setDraft(event.target.value);
+                              notifyTyping();
+                            }}
+                            onKeyDown={handleComposerKey}
+                            rows={1}
+                            maxLength={5000}
+                            placeholder={
+                              editing ? "متن جدید پیام..." : "پیام خود را بنویسید..."
+                            }
+                            className="max-h-32 min-h-[46px] flex-1 resize-none rounded-2xl border border-border bg-muted/40 px-4 py-3 text-sm leading-6 outline-none transition focus:border-red-300 focus:bg-card focus:ring-2 focus:ring-red-100"
+                          />
+                          <Button variant="ghost"
+                            type="button"
+                            title="ایموجی"
+                            onClick={() => setEmojiPickerOpen((open) => !open)}
+                            className={`mb-1 rounded-xl p-2.5 transition ${
+                              emojiPickerOpen
+                                ? "bg-orange-100 text-orange-600"
+                                : "text-muted-foreground hover:bg-muted hover:text-orange-600"
+                            }`}
+                          >
+                            <Smile size={20} />
+                          </Button>
+                        </div>
+                      </div>
+                      <Button variant="ghost"
+                        type="submit"
+                        disabled={
+                          sending ||
+                          (!draft.trim() && !attachment) ||
+                          (!!editing && !draft.trim())
+                        }
+                        className="mb-0.5 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-white shadow-md shadow-red-200 transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {sending ? (
+                          <Loader2 size={19} className="animate-spin" />
+                        ) : editing ? (
+                          <Check size={20} />
+                        ) : (
+                          <Send size={19} className="rotate-180" />
+                        )}
+                      </Button>
+                    </form>
+                    <p className="mt-1.5 px-12 text-[10px] text-muted-foreground">
+                      Enter برای ارسال، Shift + Enter برای خط جدید
+                    </p>
+                  </footer>
+                )}
+              </>
+            )}
+          </section>
+        </div>
+      </div>
+
+      {newChatOpen && (
+        <NewConversationModal
+          users={users}
+          onClose={() => setNewChatOpen(false)}
+          onCreated={async (conversation) => {
+            setNewChatOpen(false);
+            setShowArchived(false);
+            await loadConversations(true);
+            setActiveId(conversation.id);
+          }}
+          onError={setError}
+        />
+      )}
+
+      {forwardMessage && (
+        <ForwardModal
+          message={forwardMessage}
+          conversations={conversations.filter((item) => !item.is_archived)}
+          onClose={() => setForwardMessage(null)}
+          onDone={() => {
+            setForwardMessage(null);
+            void loadConversations(true);
+          }}
+          onError={setError}
+        />
+      )}
+
+      {infoOpen && active && (
+        <ConversationInfoModal
+          conversation={active}
+          users={users}
+          currentUserId={user?.id || 0}
+          onClose={() => setInfoOpen(false)}
+          onChanged={async () => {
+            await loadConversations(true);
+            await loadMessages(active.id, true, "");
+          }}
+          onSetting={updateSetting}
+          onError={setError}
+        />
+      )}
+    </AppShell>
+  );
+}

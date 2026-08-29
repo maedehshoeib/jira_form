@@ -1,6 +1,6 @@
 import { FileSpreadsheet, Printer, ArrowRight } from "lucide-react";
 import { Button } from "../ui/button";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { formatPersianDateTime } from "../../lib/persianDate";
 
 interface Props {
@@ -28,7 +28,7 @@ export default function ReportHeader({
         <div>
 
           <Link
-            to="/departments/reports"
+            href="/departments/reports"
             className="no-print mb-4 inline-flex items-center gap-2 text-primary hover:text-primary"
           >
             <ArrowRight size={18} />

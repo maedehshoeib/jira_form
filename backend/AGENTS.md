@@ -11,15 +11,15 @@ Before editing, inspect the touched route, its schema, service, model, and relev
 The required flow is:
 
 ```text
-FastAPI route -> service -> SQLAlchemy model/session
+FastAPI route -> service -> repository -> SQLAlchemy model/session
               -> Pydantic request/response schema
 ```
 
 - Routes own HTTP validation, dependency injection, authorization, and response mapping.
 - Services own business rules, transaction orchestration, workflow state, and external HTTP.
-- Models own persistence declarations only.
+- Repositories own reusable query construction; models own declarations only.
 - Schemas define stable request and response contracts.
-- Extract a repository only when query complexity or duplication justifies it; do not add abstraction by default.
+- Domain services must not add new repeated SQLAlchemy query construction; extract it to `app/repositories`.
 
 Keep route handlers at most 60 lines, service functions at most 80 lines, and modules at most 300 lines. Split by domain responsibility when limits are exceeded.
 
@@ -28,7 +28,7 @@ Keep route handlers at most 60 lines, service functions at most 80 lines, and mo
 - Preserve the `/api/v1` prefix, response fields, status codes, and authorization behavior unless explicitly approved.
 - Use dependency-provided sessions and parameterized SQLAlchemy queries.
 - Make transaction ownership obvious; avoid commits scattered across helpers.
-- Database changes require an idempotent migration strategy compatible with existing SQLite data.
+- Database schema changes require an Alembic revision compatible with PostgreSQL and the existing SQLite data importer.
 - Never edit or delete user databases, uploads, or seed sources during tests.
 - Dates and times follow `app/core/timezone.py` and the existing Jalali/Gregorian boundaries.
 

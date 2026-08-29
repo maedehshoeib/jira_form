@@ -8,7 +8,7 @@ Start FastAPI:
 cd backend
 python -m venv .venv
 .venv/Scripts/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -26,6 +26,7 @@ Open `http://localhost:3000`. Next.js forwards `/api/*` to `BACKEND_URL`, which 
 ## Frontend conventions
 
 - Use native App Router routes for new pages.
+- Import a feature through `src/features/<domain>/index.ts`; treat its other files as private.
 - Add `"use client"` only at interactive/browser boundaries.
 - Use `@/` imports, shadcn primitives, CSS variables, and logical RTL-safe spacing.
 - Page code must use shared controls from `src/components/ui`; do not add raw
@@ -41,4 +42,8 @@ Open `http://localhost:3000`. Next.js forwards `/api/*` to `BACKEND_URL`, which 
 
 ## Verification
 
-Run `npm run lint`, `npx tsc --noEmit`, and `npm run build` for frontend changes. Run targeted pytest files first, then the full backend suite for backend changes.
+Run `npm run lint`, `npx tsc --noEmit`, and `npm run build` for frontend changes.
+Run targeted pytest files first, then `python -m pytest` for backend changes.
+For a schema change, create a revision from `backend` with
+`python -m alembic revision --autogenerate -m "description"` and inspect the
+generated upgrade and downgrade before committing it.

@@ -7,8 +7,9 @@ from sqlalchemy.orm import Session
 
 from app.core.jalali import gregorian_to_jalali
 from app.core.timezone import utc_naive_to_tehran
-from app.models.submission import Submission, SubmissionInitialAssignee
+from app.models.submission import Submission
 from app.models.user import User
+from app.repositories import SubmissionRepository, UserRepository
 from app.schemas.user_dashboard import (
     UserDashboardChartItem,
     UserDashboardLetters,
@@ -66,13 +67,13 @@ def _monthly(submissions: list[Submission]):
 
 
 def build_user_dashboard(db: Session, user: User) -> UserDashboardResponse:
-    requests = db.query(Submission).filter(Submission.user_id == user.id).all()
+    submissions = SubmissionRepository(db)
+    users_repository = UserRepository(db)
+    requests = submissions.owned_by(user.id)
     tasks = list_task_submissions(db, user.id, limit=1_000_000)
 
     user_ids = {item.user_id for item in tasks}
-    users = {
-        item.id: item for item in db.query(User).filter(User.id.in_(user_ids)).all()
-    } if user_ids else {}
+    users = users_repository.by_ids(user_ids)
     requester_counts: dict[str, int] = defaultdict(int)
     requester_departments: dict[str, int] = defaultdict(int)
     for submission in tasks:
@@ -86,12 +87,7 @@ def build_user_dashboard(db: Session, user: User) -> UserDashboardResponse:
 
     recipient_counts: dict[str, int] = defaultdict(int)
     request_ids = {item.id for item in requests}
-    assignees = (
-        db.query(SubmissionInitialAssignee, User)
-        .join(User, User.id == SubmissionInitialAssignee.user_id)
-        .filter(SubmissionInitialAssignee.submission_id.in_(request_ids)).all()
-        if request_ids else []
-    )
+    assignees = submissions.assignees_for(request_ids)
     seen: set[tuple[int, int]] = set()
     for assignee, recipient in assignees:
         key = (assignee.submission_id, assignee.user_id)

@@ -30,7 +30,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import UserDisplayName from '@/components/UserDisplayName';
 import {
@@ -246,7 +246,7 @@ function TrendChart({
 
 export function AdminPanel(): JSX.Element {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const today = useMemo(() => jalaliToday(), []);
   const [startDate, setStartDate] = useState<DateObject>(new DateObject(today).subtract(6, 'days'));
   const [endDate, setEndDate] = useState<DateObject>(new DateObject(today));
@@ -925,7 +925,7 @@ export function AdminPanel(): JSX.Element {
               </p>
               <p className='text-[10px] text-muted-foreground dark:text-muted-foreground'>مدیر تایم‌شیت</p>
             </div>
-            <Button variant='outline' size='sm' onClick={() => navigate('/')} className='gap-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'>
+            <Button variant='outline' size='sm' onClick={() => router.push('/')} className='gap-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'>
               <ArrowRight className='h-4 w-4' /> بازگشت
             </Button>
           </div>

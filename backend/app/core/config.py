@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     SQLITE_MIGRATION_ENABLED: bool = True
     SQLITE_SOURCE_DATABASE_URL: str = "sqlite:///./data/portal.db"
     SQLITE_CONTRACTS_SOURCE_DATABASE_URL: str = "sqlite:///./data/contracts.db"
+    DATABASE_MIGRATIONS_ENABLED: bool = True
 
     # JWT
     SECRET_KEY: str = "change-me-in-production-use-a-long-random-string"

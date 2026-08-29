@@ -21,10 +21,22 @@ copy.
 
 ## Backend layers
 
-`api/routes` performs validation and dependency injection, `services` owns business rules and integrations, `models` owns persistence, and `schemas` defines API contracts.
+`api/router.py` is the API composition root. `api/routes` owns HTTP validation,
+authorization, and dependency injection; `services` owns workflows and
+transactions; `repositories` owns reusable query construction; `models` declares
+persistence; and `schemas` defines stable API contracts.
+
+Alembic owns PostgreSQL schema versions under `backend/alembic`. Application
+startup upgrades the schema before the idempotent SQLite-to-PostgreSQL data import.
 
 ## Frontend layers
 
-`app` owns routing and layouts, `components/ui` contains shadcn primitives, `features` owns domain modules, `lib` contains shared utilities and clients, and `context` contains narrowly scoped client providers.
+`app` contains thin native route compositions and layouts, `components/ui`
+contains shadcn primitives, and `features/<domain>` owns screens, components,
+types, constants, utilities, and transport adapters. Every feature exposes a
+public `index.ts`; cross-domain consumers should use that public API. `lib` and
+`api` contain framework-neutral shared infrastructure, while `context` contains
+narrowly scoped client providers.
 
-During migration, `app/[[...slug]]` is a compatibility boundary for the existing `legacy-pages` screen tree. It is not the target architecture for new work.
+The React Router compatibility tree has been removed. All supported URLs are
+native App Router routes.

@@ -27,7 +27,7 @@ import {
   TimerReset,
   UserRound,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import UserDisplayName from '@/components/UserDisplayName';
 
@@ -195,7 +195,7 @@ function SummaryCard({ label, value, icon, color, hint }: SummaryCardProps) {
 
 export function EmployeePanel(): JSX.Element {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const initialDate = useMemo(() => today(), []);
 
   const [taskDate, setTaskDate] = useState<DateObject | null>(initialDate);
@@ -583,7 +583,7 @@ export function EmployeePanel(): JSX.Element {
 
           <Button
             variant='outline'
-            onClick={() => navigate('/')}
+            onClick={() => router.push('/')}
             className='h-10 shrink-0 gap-2 border-border bg-card text-foreground shadow-none hover:bg-muted/40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'
             aria-label='بازگشت به صفحه اصلی'
           >
