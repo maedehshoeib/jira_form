@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -166,7 +167,7 @@ const HOME_ICON_STYLES: Record<string, string> = {
   "meeting-room": "border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-400/40 dark:bg-teal-500/20 dark:text-teal-200",
   guidelines: "border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-400/40 dark:bg-cyan-500/20 dark:text-cyan-200",
   training: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-400/40 dark:bg-blue-500/20 dark:text-blue-200",
-  forms: "border-red-200 bg-red-50 text-red-700 dark:border-red-400/40 dark:bg-red-500/20 dark:text-red-200",
+  forms: "border-primary/30 bg-primary/10 text-primary dark:border-red-400/40 dark:bg-primary/20 dark:text-red-200",
   documents: "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-400/40 dark:bg-purple-500/20 dark:text-purple-200",
   it: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/40 dark:bg-emerald-500/20 dark:text-emerald-200",
   business: "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-400/40 dark:bg-violet-500/20 dark:text-violet-200",
@@ -203,7 +204,7 @@ function NewsDetailModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" dir="rtl">
-      <button
+      <Button variant="ghost"
         type="button"
         aria-label="بستن"
         onClick={onClose}
@@ -213,44 +214,44 @@ function NewsDetailModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="news-detail-title"
-        className="relative z-10 flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-white/20 dark:bg-slate-950/95 dark:ring-1 dark:ring-white/10"
+        className="relative z-10 flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-2xl dark:border-white/20 dark:bg-slate-950/95 dark:ring-1 dark:ring-white/10"
       >
-        <header className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 dark:border-white/10">
+        <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-4 dark:border-white/10">
           <div className="min-w-0">
             <h2
               id="news-detail-title"
-              className="text-lg font-extrabold leading-8 text-slate-900 dark:text-white"
+              className="text-lg font-extrabold leading-8 text-foreground dark:text-white"
             >
               {news.title}
             </h2>
-            <p className="mt-1 text-xs text-slate-500 dark:text-white/45">
+            <p className="mt-1 text-xs text-muted-foreground dark:text-white/45">
               تاریخ انتشار: {formatNewsDate(news.created_at)}
             </p>
           </div>
-          <button
+          <Button variant="ghost"
             type="button"
             onClick={onClose}
-            className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white"
+            className="rounded-xl p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground dark:text-white/60 dark:hover:bg-card/10 dark:hover:text-white"
             aria-label="بستن جزئیات خبر"
           >
             <X size={20} />
-          </button>
+          </Button>
         </header>
         <div className="overflow-y-auto px-5 py-5">
           {news.image_url && (
             <img
               src={news.image_url}
               alt={news.title}
-              className="mb-5 max-h-[28rem] w-full rounded-2xl bg-slate-100 object-contain dark:bg-black/30"
+              className="mb-5 max-h-[28rem] w-full rounded-2xl bg-muted object-contain dark:bg-black/30"
             />
           )}
           {news.body ? (
-            <p className="whitespace-pre-wrap text-sm leading-8 text-slate-700 dark:text-white/80">
+            <p className="whitespace-pre-wrap text-sm leading-8 text-foreground dark:text-white/80">
               {news.body}
             </p>
           ) : (
             !news.image_url && (
-              <p className="text-sm text-slate-400 dark:text-white/45">جزئیات بیشتری ثبت نشده است.</p>
+              <p className="text-sm text-muted-foreground dark:text-white/45">جزئیات بیشتری ثبت نشده است.</p>
             )
           )}
         </div>
@@ -269,8 +270,8 @@ function DestinationCard({ card }: { card: HomeCard }) {
         card.href
           ? isFeatured
             ? "border-indigo-200/90 bg-gradient-to-br from-indigo-50 via-white to-sky-50 shadow-[0_12px_32px_-20px_rgba(79,70,229,0.55)] hover:-translate-y-2 hover:border-indigo-300 hover:shadow-[0_18px_38px_-20px_rgba(79,70,229,0.65)] focus-within:-translate-y-1 dark:border-indigo-300/45 dark:from-indigo-950/80 dark:via-slate-800 dark:to-sky-950/60 dark:shadow-[0_16px_36px_-20px_rgba(129,140,248,0.5)] dark:hover:border-indigo-300/70"
-            : "border-slate-200 bg-white shadow-sm hover:-translate-y-2 hover:border-red-200 hover:shadow-lg hover:shadow-red-100/60 focus-within:-translate-y-1 dark:border-slate-600 dark:bg-slate-800/90 dark:shadow-lg dark:shadow-black/30 dark:hover:border-red-400/50 dark:hover:bg-slate-800 dark:hover:shadow-red-950/40"
-          : "border-dashed border-slate-300 bg-slate-50 shadow-none dark:border-slate-600 dark:bg-slate-800/50",
+            : "border-border bg-card shadow-sm hover:-translate-y-2 hover:border-primary/30 hover:shadow-lg hover:shadow-red-100/60 focus-within:-translate-y-1 dark:border-slate-600 dark:bg-slate-800/90 dark:shadow-lg dark:shadow-black/30 dark:hover:border-red-400/50 dark:hover:bg-slate-800 dark:hover:shadow-red-950/40"
+          : "border-dashed border-border bg-muted/40 shadow-none dark:border-slate-600 dark:bg-slate-800/50",
       )}
     >
       {isFeatured && (
@@ -281,7 +282,7 @@ function DestinationCard({ card }: { card: HomeCard }) {
           "pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full blur-3xl transition-all duration-500",
           isFeatured
             ? "bg-indigo-500/20 group-hover:bg-indigo-400/30 dark:bg-indigo-400/20 dark:group-hover:bg-indigo-300/30"
-            : "bg-red-500/10 group-hover:bg-red-400/20 dark:bg-red-500/15 dark:group-hover:bg-red-400/25",
+            : "bg-primary/10 group-hover:bg-red-400/20 dark:bg-primary/15 dark:group-hover:bg-red-400/25",
         )}
       />
       <div
@@ -294,12 +295,12 @@ function DestinationCard({ card }: { card: HomeCard }) {
       />
       <CardContent className="relative flex h-full min-h-56 flex-col items-center justify-center p-7 text-center sm:p-8">
         {isFeatured && (
-          <span className="absolute right-4 top-4 rounded-full border border-indigo-200/80 bg-white/75 px-2.5 py-1 text-[11px] font-bold text-indigo-700 shadow-sm backdrop-blur dark:border-indigo-300/30 dark:bg-indigo-300/10 dark:text-indigo-200">
+          <span className="absolute right-4 top-4 rounded-full border border-indigo-200/80 bg-card/75 px-2.5 py-1 text-[11px] font-bold text-indigo-700 shadow-sm backdrop-blur dark:border-indigo-300/30 dark:bg-indigo-300/10 dark:text-indigo-200">
             دسترسی سریع
           </span>
         )}
         {!card.href && (
-          <span className="absolute left-4 top-4 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500 dark:border-white/20 dark:bg-black/20 dark:text-white/50 dark:backdrop-blur-md">
+          <span className="absolute left-4 top-4 rounded-full border border-border bg-muted px-2.5 py-1 text-[11px] font-bold text-muted-foreground dark:border-white/20 dark:bg-black/20 dark:text-white/50 dark:backdrop-blur-md">
             به‌زودی
           </span>
         )}
@@ -309,7 +310,7 @@ function DestinationCard({ card }: { card: HomeCard }) {
             "relative z-10 mb-6 flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border shadow-sm transition-transform duration-500",
             card.href
               ? cn(HOME_ICON_STYLES[card.id], "group-hover:scale-110 group-hover:-rotate-3")
-              : "border-slate-200 bg-slate-100 text-slate-400 dark:border-white/20 dark:bg-white/10 dark:text-white/40",
+              : "border-border bg-muted text-muted-foreground dark:border-white/20 dark:bg-card/10 dark:text-white/40",
           )}
         >
           <Icon className="h-8 w-8 shrink-0" strokeWidth={2} />
@@ -320,13 +321,13 @@ function DestinationCard({ card }: { card: HomeCard }) {
             "text-xl font-bold leading-8",
             isFeatured
               ? "text-indigo-950 dark:text-indigo-50"
-              : "text-slate-900 dark:text-white",
+              : "text-foreground dark:text-white",
           )}
         >
           {card.title}
         </h3>
-        <div className="mt-3 flex items-center justify-center gap-1 text-sm font-medium text-red-600 dark:text-red-200">
-          <span className={card.href ? "text-slate-500 dark:text-white/70" : "text-slate-400 dark:text-white/35"}>
+        <div className="mt-3 flex items-center justify-center gap-1 text-sm font-medium text-primary dark:text-red-200">
+          <span className={card.href ? "text-muted-foreground dark:text-white/70" : "text-muted-foreground dark:text-white/35"}>
             {card.description}
           </span>
           {card.href && (
@@ -334,8 +335,8 @@ function DestinationCard({ card }: { card: HomeCard }) {
               className={cn(
                 "absolute bottom-4 left-4 h-9 w-9 shrink-0 rounded-full border p-2 transition-all group-hover:-translate-x-1 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_0_14px_rgba(255,255,255,0.08)] dark:backdrop-blur",
                 isFeatured
-                  ? "border-indigo-200 bg-white/80 text-indigo-600 group-hover:border-indigo-300 group-hover:bg-indigo-100 dark:border-indigo-300/30 dark:bg-indigo-300/10 dark:text-indigo-100 dark:group-hover:border-indigo-200/60 dark:group-hover:bg-indigo-300/20"
-                  : "border-slate-200 bg-slate-50 text-slate-500 group-hover:border-red-200 group-hover:bg-red-50 group-hover:text-red-600 dark:border-white/25 dark:bg-white/10 dark:text-white/80 dark:group-hover:border-red-200/60 dark:group-hover:bg-red-400/20 dark:group-hover:text-white/80",
+                  ? "border-indigo-200 bg-card/80 text-indigo-600 group-hover:border-indigo-300 group-hover:bg-indigo-100 dark:border-indigo-300/30 dark:bg-indigo-300/10 dark:text-indigo-100 dark:group-hover:border-indigo-200/60 dark:group-hover:bg-indigo-300/20"
+                  : "border-border bg-muted/40 text-muted-foreground group-hover:border-primary/30 group-hover:bg-primary/10 group-hover:text-primary dark:border-white/25 dark:bg-card/10 dark:text-white/80 dark:group-hover:border-primary/60 dark:group-hover:bg-red-400/20 dark:group-hover:text-white/80",
               )}
             />
           )}
@@ -430,7 +431,7 @@ export default function HomePage() {
         <section
           aria-label="بنرهای صفحه اصلی"
           aria-roledescription="carousel"
-          className="group relative mb-6 overflow-hidden rounded-[1.5rem] border border-slate-200 bg-slate-900 shadow-[0_16px_50px_-24px_rgba(15,23,42,0.55)] ring-1 ring-slate-900/5 dark:border-white/60"
+          className="group relative mb-6 overflow-hidden rounded-[1.5rem] border border-border bg-slate-900 shadow-[0_16px_50px_-24px_rgba(15,23,42,0.55)] ring-1 ring-slate-900/5 dark:border-white/60"
           onMouseEnter={() => setIsCarouselPaused(true)}
           onMouseLeave={() => setIsCarouselPaused(false)}
           onFocus={() => setIsCarouselPaused(true)}
@@ -456,7 +457,7 @@ export default function HomePage() {
 
           {banner.images.length > 1 && (
             <>
-              <button
+              <Button variant="ghost"
                 type="button"
                 aria-label="تصویر قبلی"
                 onClick={() =>
@@ -468,8 +469,8 @@ export default function HomePage() {
                 className="absolute right-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white opacity-0 backdrop-blur transition hover:bg-black/55 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white group-hover:opacity-100"
               >
                 <ChevronRight className="h-5 w-5" />
-              </button>
-              <button
+              </Button>
+              <Button variant="ghost"
                 type="button"
                 aria-label="تصویر بعدی"
                 onClick={() =>
@@ -478,17 +479,17 @@ export default function HomePage() {
                 className="absolute left-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white opacity-0 backdrop-blur transition hover:bg-black/55 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white group-hover:opacity-100"
               >
                 <ChevronLeft className="h-5 w-5" />
-              </button>
+              </Button>
               <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2 rounded-full bg-black/30 px-3 py-2 backdrop-blur">
                 {banner.images.map((image, index) => (
-                  <button
+                  <Button variant="ghost"
                     key={image.id}
                     type="button"
                     aria-label={`نمایش بنر ${index + 1}`}
                     aria-current={index === activeSlide}
                     onClick={() => setActiveSlide(index)}
                     className={`h-2 rounded-full transition-all ${
-                      index === activeSlide ? "w-6 bg-white" : "w-2 bg-white/55"
+                      index === activeSlide ? "w-6 bg-card" : "w-2 bg-card/55"
                     }`}
                   />
                 ))}
@@ -504,64 +505,65 @@ export default function HomePage() {
       >
         <aside
           dir="rtl"
-          className="order-2 overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm dark:border-white/65 dark:bg-gradient-to-br dark:from-white/[0.22] dark:via-slate-100/[0.10] dark:to-cyan-100/[0.05] dark:shadow-[inset_1px_1px_0_rgba(255,255,255,0.82),inset_-1px_-1px_0_rgba(186,230,253,0.12),0_0_28px_rgba(224,242,254,0.1),0_24px_55px_-26px_rgba(0,0,0,0.8)] dark:ring-1 dark:ring-cyan-100/20 dark:backdrop-blur-2xl dark:saturate-150 xl:order-1 xl:sticky xl:top-8"
+          className="order-2 overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm xl:order-1 xl:sticky xl:top-8"
         >
-          <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-5 py-5 dark:border-white/15 dark:bg-white/[0.04]">
+          <div className="flex items-center justify-between border-b border-border bg-muted/40 px-4 py-4">
             <div>
-              <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">آخرین اخبار</h2>
-              <p className="mt-1 text-xs text-slate-500 dark:text-white/45">تازه‌ترین اطلاعیه‌های سازمان</p>
+              <h2 className="text-base font-bold text-foreground">آخرین اخبار</h2>
+              <p className="mt-1 text-xs text-muted-foreground">تازه‌ترین اطلاعیه‌های سازمان</p>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-100 bg-red-50 text-red-600 shadow-sm dark:border-red-200/40 dark:bg-red-500/15 dark:text-red-300 dark:shadow-[0_0_22px_rgba(248,113,113,0.25)] dark:backdrop-blur">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Megaphone className="h-5 w-5" />
             </div>
           </div>
 
           {newsItems.length === 0 ? (
             <div className="flex min-h-64 flex-col items-center justify-center px-6 py-10 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-400 shadow-sm dark:border-white/20 dark:bg-white/[0.08] dark:text-white/35 dark:backdrop-blur">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-muted/40 text-muted-foreground">
                 <BookOpen className="h-6 w-6" />
               </div>
-              <p className="mt-4 text-sm font-bold text-slate-600 dark:text-white/70">
+              <p className="mt-4 text-sm font-bold text-muted-foreground">
                 خبری منتشر نشده است
               </p>
-              <p className="mt-1 text-xs leading-6 text-slate-400 dark:text-white/40">
+              <p className="mt-1 text-xs leading-6 text-muted-foreground">
                 تازه‌ترین اطلاعیه‌ها در این بخش نمایش داده می‌شوند.
               </p>
             </div>
           ) : (
-            <ul className="max-h-[36rem] divide-y divide-slate-100 overflow-y-auto dark:divide-white/10">
+            <ul className="max-h-[36rem] divide-y divide-border overflow-y-auto">
               {newsItems.map((item) => (
                 <li key={item.id}>
-                  <button
+                  <Button
+                    variant="ghost"
                     type="button"
                     onClick={() => setSelectedNews(item)}
-                    className="flex w-full gap-3 px-4 py-4 text-right transition hover:bg-slate-50 focus:outline-none focus-visible:bg-slate-100 dark:hover:bg-white/[0.06] dark:focus-visible:bg-white/[0.08]"
+                    className="h-auto min-h-24 w-full items-start justify-start gap-3 rounded-none px-4 py-4 text-right whitespace-normal hover:bg-muted/60 focus-visible:bg-muted"
                   >
                     {item.image_url ? (
                       <img
                         src={item.image_url}
                         alt=""
-                        className="h-16 w-16 shrink-0 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-white/15"
+                        className="h-16 w-16 shrink-0 rounded-lg object-cover ring-1 ring-border"
                       />
                     ) : (
-                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-red-50 text-red-500 dark:border-white/15 dark:bg-white/[0.06] dark:text-red-300/80">
+                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-border bg-primary/10 text-primary">
                         <Megaphone className="h-5 w-5" />
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <h3 className="line-clamp-2 text-sm font-bold leading-6 text-slate-900 dark:text-white">
+                      <h3 className="line-clamp-2 text-sm font-bold leading-6 text-foreground">
                         {item.title}
                       </h3>
                       {item.body && (
-                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500 dark:text-white/45">
+                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
                           {item.body}
                         </p>
                       )}
-                      <p className="mt-2 text-[11px] text-slate-400 dark:text-white/35">
+                      <p className="mt-2 text-[11px] text-muted-foreground">
                         {formatNewsDate(item.created_at)}
                       </p>
                     </div>
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ul>

@@ -1,3 +1,5 @@
+import { NativeSelect } from "@/components/ui/native-select";
+import { Table } from "@/components/ui/table";
 import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
@@ -174,9 +176,9 @@ const WORKFLOW_STATUS_META: Record<
   rejected: {
     label: "رد‌شده",
     description: "درخواست توسط مسئول مربوطه رد شده است.",
-    badgeClass: "border-red-200 bg-red-50 text-red-700",
-    activeTabClass: "bg-red-600 text-white shadow-red-600/20",
-    barClass: "bg-red-500",
+    badgeClass: "border-primary/30 bg-primary/10 text-primary",
+    activeTabClass: "bg-primary text-white shadow-red-600/20",
+    barClass: "bg-primary/100",
   },
 };
 
@@ -277,9 +279,9 @@ function timelineEventDotClass(item: TimelineItem) {
     item.event_type === "rejected" ||
     (item.event_type === "status_changed" && item.to_status === "rejected")
   ) {
-    return "bg-red-600 ring-red-100";
+    return "bg-primary ring-red-100";
   }
-  return "bg-slate-500 ring-slate-100";
+  return "bg-muted ring-slate-100";
 }
 
 function parseTimelineEntityId(itemId: number | string, prefix: string) {
@@ -350,7 +352,7 @@ function WorkflowOverview({ status }: { status: WorkflowStatus }) {
   return (
     <section
       aria-label="جایگاه فعلی درخواست در فرایند رسیدگی"
-      className="rounded-3xl border border-slate-100 bg-slate-50/70 p-4 sm:p-5"
+      className="rounded-3xl border border-border bg-muted/40 p-4 sm:p-5"
     >
       <div className="mb-5 flex items-start gap-3">
         <div
@@ -362,10 +364,10 @@ function WorkflowOverview({ status }: { status: WorkflowStatus }) {
           <WorkflowStatusIcon status={status} size={19} />
         </div>
         <div>
-          <h4 className="font-bold text-slate-800">
+          <h4 className="font-bold text-foreground">
             جایگاه فعلی: {statusMeta.label}
           </h4>
-          <p className="mt-1 text-sm leading-6 text-slate-500">
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
             {statusMeta.description}
           </p>
         </div>
@@ -385,7 +387,7 @@ function WorkflowOverview({ status }: { status: WorkflowStatus }) {
                   ? "border-emerald-100 bg-emerald-50 text-emerald-700"
                   : current
                     ? statusMeta.badgeClass
-                    : "border-slate-200 bg-white text-slate-400",
+                    : "border-border bg-card text-muted-foreground",
               ].join(" ")}
             >
               <span
@@ -394,8 +396,8 @@ function WorkflowOverview({ status }: { status: WorkflowStatus }) {
                   passed
                     ? "bg-emerald-600 text-white"
                     : current
-                      ? "bg-white/80"
-                      : "bg-slate-100 text-slate-400",
+                      ? "bg-card/80"
+                      : "bg-muted text-muted-foreground",
                 ].join(" ")}
               >
                 {passed ? (
@@ -417,7 +419,7 @@ function WorkflowOverview({ status }: { status: WorkflowStatus }) {
 
 function displayValue(value: unknown, field?: FormField) {
   if (value === null || value === undefined || value === "") {
-    return <span className="text-slate-400">ثبت نشده</span>;
+    return <span className="text-muted-foreground">ثبت نشده</span>;
   }
 
   if (field?.type === "select") {
@@ -429,36 +431,36 @@ function displayValue(value: unknown, field?: FormField) {
     const rows = value.filter(
       (row) => row && typeof row === "object" && Object.values(row).some(Boolean)
     ) as Record<string, unknown>[];
-    if (!rows.length) return <span className="text-slate-400">ثبت نشده</span>;
+    if (!rows.length) return <span className="text-muted-foreground">ثبت نشده</span>;
 
     const columns = field?.columns?.length
       ? field.columns
       : Object.keys(rows[0]).map((key) => ({ key, title: key }));
 
     return (
-      <div className="overflow-x-auto rounded-xl border border-slate-200">
-        <table className="min-w-full divide-y divide-slate-200 text-sm">
-          <thead className="bg-slate-50">
+      <div className="overflow-x-auto rounded-xl border border-border">
+        <Table className="min-w-full divide-y divide-slate-200 text-sm">
+          <thead className="bg-muted/40">
             <tr>
               {columns.map((column) => (
-                <th key={column.key} className="whitespace-nowrap px-3 py-2 text-right font-semibold text-slate-600">
+                <th key={column.key} className="whitespace-nowrap px-3 py-2 text-right font-semibold text-muted-foreground">
                   {column.title}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 bg-white">
+          <tbody className="divide-y divide-slate-100 bg-card">
             {rows.map((row, index) => (
               <tr key={index}>
                 {columns.map((column) => (
-                  <td key={column.key} className="whitespace-pre-wrap px-3 py-2 text-slate-700">
+                  <td key={column.key} className="whitespace-pre-wrap px-3 py-2 text-foreground">
                     {String(row[column.key] ?? "—")}
                   </td>
                 ))}
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
       </div>
     );
   }
@@ -746,14 +748,14 @@ export default function MyRequestsPage() {
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <ClipboardList size={25} />
             </div>
             <div>
-              <h2 className="text-3xl font-extrabold text-slate-900">
+              <h2 className="text-3xl font-extrabold text-foreground">
                 {user?.is_admin ? "همه درخواست‌ها" : "درخواست‌های من"}
               </h2>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-muted-foreground">
                 {user?.is_admin
                   ? "مشاهده و پایش درخواست‌های ثبت‌شده توسط همه کاربران"
                   : "فرم‌هایی که تاکنون ثبت کرده‌اید"}
@@ -767,13 +769,13 @@ export default function MyRequestsPage() {
         </Button>
       </div>
 
-      {error && <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>}
+      {error && <div className="mb-5 rounded-2xl border border-primary/30 bg-primary/10 p-4 text-primary">{error}</div>}
 
       {!loading && requests.length > 0 && (
         <div
           role="tablist"
           aria-label="فیلتر درخواست‌ها بر اساس وضعیت"
-          className="mb-6 flex gap-2 overflow-x-auto rounded-3xl border border-slate-100 bg-white p-2 shadow-md"
+          className="mb-6 flex gap-2 overflow-x-auto rounded-3xl border border-border bg-card p-2 shadow-md"
         >
           {STATUS_TABS.map((tab) => {
             const active = statusTab === tab.id;
@@ -782,7 +784,7 @@ export default function MyRequestsPage() {
                 ? "bg-slate-900 text-white shadow-slate-900/20"
                 : workflowStatusMeta(tab.id).activeTabClass;
             return (
-              <button
+              <Button
                 key={tab.id}
                 type="button"
                 role="tab"
@@ -792,37 +794,37 @@ export default function MyRequestsPage() {
                   "flex min-w-max items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2",
                   active
                     ? activeClass + " shadow-md"
-                    : "text-slate-600 hover:bg-slate-50",
+                    : "text-muted-foreground hover:bg-muted/40",
                 ].join(" ")}
               >
                 <span>{tab.label}</span>
                 <span
                   className={[
                     "min-w-7 rounded-full px-2 py-0.5 text-center text-xs font-extrabold",
-                    active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600",
+                    active ? "bg-card/20 text-white" : "bg-muted text-muted-foreground",
                   ].join(" ")}
                 >
                   {tabCounts[tab.id].toLocaleString("fa-IR")}
                 </span>
-              </button>
+              </Button>
             );
           })}
         </div>
       )}
 
       {!loading && requests.length > 0 && (
-        <div className="mb-6 rounded-3xl border border-slate-100 bg-white p-5 shadow-md">
+        <div className="mb-6 rounded-3xl border border-border bg-card p-5 shadow-md">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 font-bold text-slate-700">
-              <SlidersHorizontal size={18} className="text-red-600" />
+            <div className="flex items-center gap-2 font-bold text-foreground">
+              <SlidersHorizontal size={18} className="text-primary" />
               جستجو و فیلتر
             </div>
             {hasActiveFilters && (
               <Button
-                type="button"
                 variant="ghost"
+                type="button"
                 onClick={resetFilters}
-                className="gap-1.5 text-slate-500 hover:text-red-600"
+                className="gap-1.5 text-muted-foreground hover:text-primary"
               >
                 <X size={15} />
                 پاک کردن فیلترها
@@ -832,7 +834,7 @@ export default function MyRequestsPage() {
 
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
             <div className="relative md:col-span-2 xl:col-span-1">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
               <Input
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
@@ -842,114 +844,114 @@ export default function MyRequestsPage() {
               />
             </div>
 
-            <select
+            <NativeSelect
               value={departmentFilter}
               onChange={(event) => {
                 setDepartmentFilter(event.target.value);
                 setSectionFilter("all");
               }}
               aria-label="فیلتر دسته‌بندی سازمانی"
-              className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+              className="h-11 rounded-xl border border-border bg-card px-3 text-sm text-foreground outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
             >
               <option value="all">همه دسته‌بندی‌ها</option>
               {departments.map((department) => (
                 <option key={department.id} value={department.id}>{department.title}</option>
               ))}
-            </select>
+            </NativeSelect>
 
-            <select
+            <NativeSelect
               value={sectionFilter}
               onChange={(event) => setSectionFilter(event.target.value)}
               aria-label="فیلتر نوع درخواست"
-              className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+              className="h-11 rounded-xl border border-border bg-card px-3 text-sm text-foreground outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
             >
               <option value="all">همه نوع‌های درخواست</option>
               {sections.map((section) => (
                 <option key={section.id} value={section.id}>{section.title}</option>
               ))}
-            </select>
+            </NativeSelect>
 
-            <select
+            <NativeSelect
               value={timeRange}
               onChange={(event) => setTimeRange(event.target.value as TimeRange)}
               aria-label="فیلتر زمان ثبت"
-              className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+              className="h-11 rounded-xl border border-border bg-card px-3 text-sm text-foreground outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
             >
               <option value="all">همه زمان‌ها</option>
               <option value="today">امروز</option>
               <option value="7days">۷ روز گذشته</option>
               <option value="30days">۳۰ روز گذشته</option>
               <option value="90days">۹۰ روز گذشته</option>
-            </select>
+            </NativeSelect>
 
-            <select
+            <NativeSelect
               value={sortOrder}
               onChange={(event) => setSortOrder(event.target.value as SortOrder)}
               aria-label="ترتیب نمایش"
-              className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+              className="h-11 rounded-xl border border-border bg-card px-3 text-sm text-foreground outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
             >
               <option value="newest">جدیدترین ابتدا</option>
               <option value="oldest">قدیمی‌ترین ابتدا</option>
-            </select>
+            </NativeSelect>
           </div>
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               {filteredRequests.length.toLocaleString("fa-IR")} درخواست از {requests.length.toLocaleString("fa-IR")} درخواست
             </p>
             <div
               role="group"
               aria-label="نوع نمایش درخواست‌ها"
-              className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1"
+              className="flex items-center rounded-xl border border-border bg-muted/40 p-1"
             >
-              <button
+              <Button
                 type="button"
                 aria-pressed={viewMode === "cards"}
                 onClick={() => setViewMode("cards")}
                 className={[
                   "flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400",
                   viewMode === "cards"
-                    ? "bg-white text-red-600 shadow-sm"
-                    : "text-slate-500 hover:text-slate-800",
+                    ? "bg-card text-primary shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
                 ].join(" ")}
               >
                 <Grid2X2 size={15} aria-hidden="true" />
                 کارت‌ها
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 aria-pressed={viewMode === "table"}
                 onClick={() => setViewMode("table")}
                 className={[
                   "flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400",
                   viewMode === "table"
-                    ? "bg-white text-red-600 shadow-sm"
-                    : "text-slate-500 hover:text-slate-800",
+                    ? "bg-card text-primary shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
                 ].join(" ")}
               >
                 <Rows3 size={16} aria-hidden="true" />
                 جدول
-              </button>
+              </Button>
             </div>
           </div>
         </div>
       )}
 
       {loading ? (
-        <div className="flex min-h-64 items-center justify-center gap-3 text-slate-500">
+        <div className="flex min-h-64 items-center justify-center gap-3 text-muted-foreground">
           <Loader2 className="animate-spin" /> در حال دریافت درخواست‌ها...
         </div>
       ) : requests.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-14 text-center shadow-sm">
+        <div className="rounded-3xl border border-dashed border-border bg-card p-14 text-center shadow-sm">
           <FileText className="mx-auto mb-4 text-slate-300" size={48} />
-          <h3 className="text-xl font-bold text-slate-700">هنوز درخواستی ثبت نکرده‌اید</h3>
-          <p className="mt-2 text-slate-500">پس از ثبت هر فرم، آن را در این صفحه خواهید دید.</p>
+          <h3 className="text-xl font-bold text-foreground">هنوز درخواستی ثبت نکرده‌اید</h3>
+          <p className="mt-2 text-muted-foreground">پس از ثبت هر فرم، آن را در این صفحه خواهید دید.</p>
         </div>
       ) : filteredRequests.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-14 text-center shadow-sm">
+        <div className="rounded-3xl border border-dashed border-border bg-card p-14 text-center shadow-sm">
           <Search className="mx-auto mb-4 text-slate-300" size={48} />
-          <h3 className="text-xl font-bold text-slate-700">درخواستی با این مشخصات پیدا نشد</h3>
-          <p className="mt-2 text-slate-500">عبارت جستجو یا فیلترها را تغییر دهید.</p>
+          <h3 className="text-xl font-bold text-foreground">درخواستی با این مشخصات پیدا نشد</h3>
+          <p className="mt-2 text-muted-foreground">عبارت جستجو یا فیلترها را تغییر دهید.</p>
           <Button variant="outline" onClick={resetFilters} className="mt-5 rounded-xl px-5">
             پاک کردن فیلترها
           </Button>
@@ -974,7 +976,8 @@ export default function MyRequestsPage() {
               (request.referrals ?? []).map((referral) => referral.to_user_name),
             );
             return (
-              <button
+              <Button
+                variant="ghost"
                 type="button"
                 key={request.id}
                 onClick={() => void openRequest(request)}
@@ -990,16 +993,16 @@ export default function MyRequestsPage() {
                     : "")
                 }
                 className={[
-                  "group relative overflow-hidden rounded-3xl border p-6 text-right shadow-md transition hover:-translate-y-1 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 disabled:opacity-60",
+                  "group relative h-auto min-h-[22rem] w-full flex-col items-stretch justify-start overflow-hidden whitespace-normal rounded-xl border p-5 text-right shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60",
                   request.workflow_status === "unseen"
                     ? "border-amber-200 bg-amber-50/30 hover:border-amber-300"
-                    : "border-slate-100 bg-white hover:border-red-100",
+                    : "border-border bg-card hover:border-primary/20",
                 ].join(" ")}
                 disabled={detailLoading}
               >
                 <div className={"absolute inset-x-0 top-0 h-1 " + statusMeta.barClass} />
-                <div className="mb-5 flex items-start justify-between gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600">
+                <div className="mb-4 flex w-full items-start justify-between gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                     <FileText size={21} />
                   </div>
                   <Badge
@@ -1010,29 +1013,29 @@ export default function MyRequestsPage() {
                     {statusMeta.label}
                   </Badge>
                 </div>
-                <h3 className="line-clamp-2 text-lg font-bold text-slate-800">
+                <h3 className="w-full line-clamp-2 text-base font-bold leading-7 text-foreground">
                   {requestTitle}
                 </h3>
-                <p className="mt-2 text-sm text-slate-500">
+                <p className="mt-2 w-full text-sm leading-6 text-muted-foreground">
                   {request.section_title || request.form_title}
                 </p>
                 {request.department_title && (
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 w-full text-xs leading-5 text-muted-foreground">
                     {request.department_title}
                   </p>
                 )}
-                <div className="mt-3 space-y-1.5 rounded-xl bg-slate-50/80 px-3 py-2.5 text-xs">
+                <div className="mt-3 w-full space-y-1.5 rounded-lg border border-border/60 bg-muted/40 px-3 py-2.5 text-xs">
                   <p className="flex min-w-0 items-center gap-1.5">
                     <UserRound
                       size={13}
-                      className="shrink-0 text-slate-500"
+                      className="shrink-0 text-muted-foreground"
                       aria-hidden="true"
                     />
-                    <span className="shrink-0 text-slate-500">
+                    <span className="shrink-0 text-muted-foreground">
                       ارسال اولیه به:
                     </span>
                     <span
-                      className="min-w-0 truncate font-semibold text-slate-700"
+                      className="min-w-0 truncate font-semibold text-foreground"
                       title={initialAssigneeNames.join("، ") || "نامشخص"}
                     >
                       {compactNames(initialAssigneeNames)}
@@ -1052,10 +1055,10 @@ export default function MyRequestsPage() {
                   )}
                 </div>
                 {(request.jira_issue_key || request.jira_status) && (
-                  <div className="mt-3 grid gap-2 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2.5 text-xs sm:grid-cols-2">
+                  <div className="mt-3 grid w-full gap-2 rounded-lg border border-blue-100 bg-blue-50/70 px-3 py-2.5 text-xs sm:grid-cols-2">
                     {request.jira_issue_key && (
                       <p className="flex min-w-0 items-center gap-1.5">
-                        <span className="shrink-0 text-slate-500">شماره Jira:</span>
+                        <span className="shrink-0 text-muted-foreground">شماره Jira:</span>
                         <span dir="ltr" className="min-w-0 truncate font-bold text-blue-700" title={request.jira_issue_key}>
                           {request.jira_issue_key}
                         </span>
@@ -1063,8 +1066,8 @@ export default function MyRequestsPage() {
                     )}
                     {request.jira_status && (
                       <p className="flex min-w-0 items-center gap-1.5">
-                        <span className="shrink-0 text-slate-500">وضعیت Jira:</span>
-                        <span className="min-w-0 truncate font-semibold text-slate-700" title={request.jira_status}>
+                        <span className="shrink-0 text-muted-foreground">وضعیت Jira:</span>
+                        <span className="min-w-0 truncate font-semibold text-foreground" title={request.jira_status}>
                           {request.jira_status}
                         </span>
                       </p>
@@ -1072,16 +1075,16 @@ export default function MyRequestsPage() {
                   </div>
                 )}
                 {user?.is_admin && request.submitted_by && (
-                  <p className="mt-2 text-xs font-medium text-slate-500">
+                  <p className="mt-2 text-xs font-medium text-muted-foreground">
                     ثبت‌کننده: {request.submitted_by}
                   </p>
                 )}
 
                 {showProgress && (
-                  <div className="mt-5 rounded-2xl bg-slate-50 p-3">
+                  <div className="mt-5 w-full rounded-lg bg-muted/40 p-3">
                     <div className="mb-2 flex items-center justify-between text-xs">
-                      <span className="font-semibold text-slate-600">میزان پیشرفت</span>
-                      <span className="font-extrabold text-slate-800">
+                      <span className="font-semibold text-muted-foreground">میزان پیشرفت</span>
+                      <span className="font-extrabold text-foreground">
                         {progress.toLocaleString("fa-IR")}٪
                       </span>
                     </div>
@@ -1101,24 +1104,24 @@ export default function MyRequestsPage() {
                   </div>
                 )}
 
-                <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4 text-xs text-slate-500">
+                <div className="mt-auto flex w-full flex-wrap items-center justify-between gap-2 border-t border-border pt-4 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1.5">
                     <CalendarDays size={14} />
                     {formatPersianDateTime(request.created_at)}
                   </span>
-                  <span className="flex items-center gap-1 font-medium text-red-600">
+                  <span className="flex items-center gap-1 font-medium text-primary">
                     مشاهده جزئیات <ChevronLeft size={15} />
                   </span>
                 </div>
-              </button>
+              </Button>
             );
           })}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-md">
+        <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-md">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] text-right text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold text-slate-600">
+            <Table className="w-full min-w-[980px] text-right text-sm">
+              <thead className="border-b border-border bg-muted/40 text-xs font-bold text-muted-foreground">
                 <tr>
                   <th scope="col" className="px-4 py-4">شناسه</th>
                   <th scope="col" className="px-4 py-4">درخواست</th>
@@ -1158,33 +1161,33 @@ export default function MyRequestsPage() {
                       className={
                         request.workflow_status === "unseen"
                           ? "bg-amber-50/30 transition hover:bg-amber-50/60"
-                          : "bg-white transition hover:bg-slate-50"
+                          : "bg-card transition hover:bg-muted/40"
                       }
                     >
-                      <td className="whitespace-nowrap px-4 py-4 font-bold text-slate-500">
+                      <td className="whitespace-nowrap px-4 py-4 font-bold text-muted-foreground">
                         {request.id.toLocaleString("fa-IR")}
                       </td>
                       <td className="max-w-64 px-4 py-4">
-                        <button
+                        <Button
                           type="button"
                           onClick={() => void openRequest(request)}
                           disabled={detailLoading}
-                          className="block max-w-full text-right font-bold text-slate-800 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-60"
+                          className="block max-w-full text-right font-bold text-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-60"
                         >
                           <span className="block truncate" title={requestTitle}>
                             {requestTitle}
                           </span>
-                          <span className="mt-1 block truncate text-xs font-normal text-slate-500">
+                          <span className="mt-1 block truncate text-xs font-normal text-muted-foreground">
                             {request.section_title || request.form_title}
                           </span>
-                        </button>
+                        </Button>
                       </td>
-                      <td className="max-w-48 px-4 py-4 text-slate-600">
+                      <td className="max-w-48 px-4 py-4 text-muted-foreground">
                         <span className="block truncate" title={request.department_title}>
                           {request.department_title || "—"}
                         </span>
                       </td>
-                      <td className="max-w-52 px-4 py-4 text-slate-600">
+                      <td className="max-w-52 px-4 py-4 text-muted-foreground">
                         <span
                           className="block truncate"
                           title={currentAssignees.join("، ") || "نامشخص"}
@@ -1198,7 +1201,7 @@ export default function MyRequestsPage() {
                         )}
                       </td>
                       {user?.is_admin && (
-                        <td className="max-w-40 px-4 py-4 text-slate-600">
+                        <td className="max-w-40 px-4 py-4 text-muted-foreground">
                           <span className="block truncate" title={request.submitted_by}>
                             {request.submitted_by || "—"}
                           </span>
@@ -1210,7 +1213,7 @@ export default function MyRequestsPage() {
                         </Badge>
                       </td>
                       <td className="w-36 px-4 py-4">
-                        <span className="mb-1.5 block text-xs font-bold text-slate-700">
+                        <span className="mb-1.5 block text-xs font-bold text-foreground">
                           {progress.toLocaleString("fa-IR")}٪
                         </span>
                         <div
@@ -1227,25 +1230,25 @@ export default function MyRequestsPage() {
                           />
                         </div>
                       </td>
-                      <td className="whitespace-nowrap px-4 py-4 text-xs text-slate-500">
+                      <td className="whitespace-nowrap px-4 py-4 text-xs text-muted-foreground">
                         {formatPersianDateTime(request.created_at)}
                       </td>
                       <td className="px-4 py-4">
-                        <button
+                        <Button
                           type="button"
                           onClick={() => void openRequest(request)}
                           disabled={detailLoading}
                           aria-label={`مشاهده جزئیات درخواست ${requestTitle}`}
-                          className="flex h-9 w-9 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-60"
+                          className="flex h-9 w-9 items-center justify-center rounded-lg text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-60"
                         >
                           <ChevronLeft size={18} aria-hidden="true" />
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
-            </table>
+            </Table>
           </div>
         </div>
       )}
@@ -1256,10 +1259,10 @@ export default function MyRequestsPage() {
             role="dialog"
             aria-modal="true"
             aria-label="جزئیات درخواست"
-            className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl"
+            className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-t-3xl bg-card shadow-2xl sm:rounded-3xl"
             onMouseDown={(event) => event.stopPropagation()}
           >
-            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b bg-white/95 p-6 backdrop-blur">
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b bg-card/95 p-6 backdrop-blur">
               <div>
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <Badge
@@ -1276,10 +1279,10 @@ export default function MyRequestsPage() {
                     <WorkflowStatusIcon status={selected.workflow_status} />
                     {workflowStatusMeta(selected.workflow_status).label}
                   </Badge>
-                  <span className="text-xs text-slate-400">شناسه درخواست: {selected.id}</span>
+                  <span className="text-xs text-muted-foreground">شناسه درخواست: {selected.id}</span>
                 </div>
-                <h3 className="text-2xl font-bold text-slate-900">{selected.subject || selected.section_title || selected.form_title}</h3>
-                <p className="mt-1 text-sm text-slate-500">{selected.department_title} / {selected.section_title || selected.form_title}</p>
+                <h3 className="text-2xl font-bold text-foreground">{selected.subject || selected.section_title || selected.form_title}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{selected.department_title} / {selected.section_title || selected.form_title}</p>
               </div>
               <Button variant="outline" onClick={() => setSelected(null)} className="shrink-0 rounded-xl">بستن</Button>
             </div>
@@ -1289,20 +1292,20 @@ export default function MyRequestsPage() {
 
               <section
                 aria-label="میزان پیشرفت رسیدگی"
-                className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm"
+                className="rounded-3xl border border-border bg-card p-5 shadow-sm"
               >
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
-                    <h4 className="font-bold text-slate-800">
+                    <h4 className="font-bold text-foreground">
                       {selected.workflow_status === "rejected"
                         ? "پیشرفت ثبت‌شده تا زمان رد"
                         : "میزان پیشرفت رسیدگی"}
                     </h4>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       آخرین درصدی که مسئول رسیدگی ثبت کرده است
                     </p>
                   </div>
-                  <span className="text-2xl font-extrabold text-slate-900">
+                  <span className="text-2xl font-extrabold text-foreground">
                     {normalizedProgress(selected.progress_percent).toLocaleString("fa-IR")}٪
                   </span>
                 </div>
@@ -1312,7 +1315,7 @@ export default function MyRequestsPage() {
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-valuenow={normalizedProgress(selected.progress_percent)}
-                  className="h-3 overflow-hidden rounded-full bg-slate-100"
+                  className="h-3 overflow-hidden rounded-full bg-muted"
                 >
                   <div
                     className={
@@ -1326,25 +1329,25 @@ export default function MyRequestsPage() {
                 </div>
               </section>
 
-              <div className="grid gap-3 rounded-2xl bg-slate-50 p-4 text-sm sm:grid-cols-2">
-                <div><span className="text-slate-500">تاریخ ثبت:</span> <span className="font-semibold text-slate-700">{formatPersianDateTime(selected.created_at)}</span></div>
-                <div><span className="text-slate-500">نوع فرم:</span> <span className="font-semibold text-slate-700">{selected.form_title}</span></div>
+              <div className="grid gap-3 rounded-2xl bg-muted/40 p-4 text-sm sm:grid-cols-2">
+                <div><span className="text-muted-foreground">تاریخ ثبت:</span> <span className="font-semibold text-foreground">{formatPersianDateTime(selected.created_at)}</span></div>
+                <div><span className="text-muted-foreground">نوع فرم:</span> <span className="font-semibold text-foreground">{selected.form_title}</span></div>
                 {(selected.jira_issue_key || selected.jira_status) && (
-                  <div className="sm:col-span-2 rounded-2xl border border-slate-200 bg-white p-3">
-                    <div className="mb-2 text-xs font-bold uppercase text-slate-500">Jira</div>
+                  <div className="sm:col-span-2 rounded-2xl border border-border bg-card p-3">
+                    <div className="mb-2 text-xs font-bold uppercase text-muted-foreground">Jira</div>
                     <div className="grid gap-2 sm:grid-cols-2">
                       {selected.jira_issue_key && (
                         <div>
-                          <span className="text-slate-500">Jira Issue:</span>{" "}
-                          <span className="font-semibold text-slate-700">
+                          <span className="text-muted-foreground">Jira Issue:</span>{" "}
+                          <span className="font-semibold text-foreground">
                             {selected.jira_issue_key}
                           </span>
                         </div>
                       )}
                       {selected.jira_status && (
                         <div>
-                          <span className="text-slate-500">Jira Status:</span>{" "}
-                          <span className="whitespace-pre-wrap font-semibold text-slate-700">
+                          <span className="text-muted-foreground">Jira Status:</span>{" "}
+                          <span className="whitespace-pre-wrap font-semibold text-foreground">
                             {selected.jira_status}
                           </span>
                         </div>
@@ -1355,10 +1358,10 @@ export default function MyRequestsPage() {
                 <div className="flex items-start gap-2 sm:col-span-2">
                   <UserRound
                     size={16}
-                    className="mt-0.5 shrink-0 text-slate-500"
+                    className="mt-0.5 shrink-0 text-muted-foreground"
                     aria-hidden="true"
                   />
-                  <span className="shrink-0 text-slate-500">
+                  <span className="shrink-0 text-muted-foreground">
                     ارسال اولیه به:
                   </span>
                   <div className="flex min-w-0 flex-wrap gap-1.5">
@@ -1366,13 +1369,13 @@ export default function MyRequestsPage() {
                       selectedInitialAssigneeNames.map((name) => (
                         <span
                           key={name}
-                          className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-700"
+                          className="rounded-full border border-border bg-card px-2.5 py-0.5 text-xs font-semibold text-foreground"
                         >
                           {name}
                         </span>
                       ))
                     ) : (
-                      <span className="font-semibold text-slate-500">نامشخص</span>
+                      <span className="font-semibold text-muted-foreground">نامشخص</span>
                     )}
                   </div>
                 </div>
@@ -1383,7 +1386,7 @@ export default function MyRequestsPage() {
                       className="mt-0.5 shrink-0 text-violet-600"
                       aria-hidden="true"
                     />
-                    <span className="shrink-0 text-slate-500">
+                    <span className="shrink-0 text-muted-foreground">
                       ارجاع‌شده به:
                     </span>
                     <div className="flex min-w-0 flex-wrap gap-1.5">
@@ -1404,8 +1407,8 @@ export default function MyRequestsPage() {
                   ) : (
                     <EyeOff size={16} className="text-amber-600" aria-hidden="true" />
                   )}
-                  <span className="text-slate-500">اولین مشاهده توسط مسئول:</span>
-                  <span className="font-semibold text-slate-700">
+                  <span className="text-muted-foreground">اولین مشاهده توسط مسئول:</span>
+                  <span className="font-semibold text-foreground">
                     {selected.first_viewed_at
                       ? formatPersianDateTime(selected.first_viewed_at)
                       : "هنوز مشاهده نشده"}
@@ -1414,8 +1417,8 @@ export default function MyRequestsPage() {
                 {selected.attachment_name && (
                   <div className="flex items-center gap-2 sm:col-span-2">
                     <Paperclip size={16} className="text-red-500" />
-                    <span className="text-slate-500">پیوست:</span>
-                    <button
+                    <span className="text-muted-foreground">پیوست:</span>
+                    <Button
                       type="button"
                       onClick={async () => {
                         const token = localStorage.getItem("access_token");
@@ -1438,10 +1441,10 @@ export default function MyRequestsPage() {
                         link.remove();
                         window.URL.revokeObjectURL(url);
                       }}
-                      className="font-semibold text-red-600 underline-offset-2 hover:underline"
+                      className="font-semibold text-primary underline-offset-2 hover:underline"
                     >
                       {selected.attachment_name}
-                    </button>
+                    </Button>
                   </div>
                 )}
               </div>
@@ -1452,11 +1455,11 @@ export default function MyRequestsPage() {
                 <div>
                   <h4
                     id="request-timeline-title"
-                    className="text-lg font-extrabold text-slate-800"
+                    className="text-lg font-extrabold text-foreground"
                   >
                     مسیر درخواست
                   </h4>
-                  <p className="mt-1 text-sm text-slate-500">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     همه تغییرات از زمان ثبت تا وضعیت فعلی
                   </p>
                 </div>
@@ -1475,18 +1478,18 @@ export default function MyRequestsPage() {
                             }
                             aria-hidden="true"
                           />
-                          <div className="min-w-0 flex-1 rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
+                          <div className="min-w-0 flex-1 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
                             <div className="flex flex-wrap items-start justify-between gap-2">
                               <div>
-                                <p className="font-bold text-slate-800">
+                                <p className="font-bold text-foreground">
                                   {timelineEventLabel(item)}
                                 </p>
-                                <p className="mt-1 text-xs text-slate-500">
+                                <p className="mt-1 text-xs text-muted-foreground">
                                   {item.event_type === "referred" &&
                                   item.to_user_name ? (
                                     <>
                                       از{" "}
-                                      <span className="font-semibold text-slate-700">
+                                      <span className="font-semibold text-foreground">
                                         {item.actor_name || "سامانه"}
                                       </span>{" "}
                                       به{" "}
@@ -1499,7 +1502,7 @@ export default function MyRequestsPage() {
                                   )}
                                 </p>
                               </div>
-                              <time className="whitespace-nowrap text-xs text-slate-400">
+                              <time className="whitespace-nowrap text-xs text-muted-foreground">
                                 {formatPersianDateTime(item.created_at)}
                               </time>
                             </div>
@@ -1518,12 +1521,12 @@ export default function MyRequestsPage() {
                                   </span>
                                 )}
                                 {item.note && (
-                                  <p className="min-w-0 flex-1 whitespace-pre-wrap rounded-xl bg-slate-50 px-3 py-2 text-xs leading-6 text-slate-600">
+                                  <p className="min-w-0 flex-1 whitespace-pre-wrap rounded-xl bg-muted/40 px-3 py-2 text-xs leading-6 text-muted-foreground">
                                     {item.note}
                                   </p>
                                 )}
                                 {item.attachment_name && (
-                                  <button
+                                  <Button
                                     type="button"
                                     onClick={() => {
                                       void (async () => {
@@ -1556,7 +1559,7 @@ export default function MyRequestsPage() {
                                   >
                                     <Paperclip size={12} />
                                     {item.attachment_name}
-                                  </button>
+                                  </Button>
                                 )}
                               </div>
                             )}
@@ -1566,7 +1569,7 @@ export default function MyRequestsPage() {
                     })}
                   </ol>
                 ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center text-sm text-slate-500">
+                  <div className="rounded-2xl border border-dashed border-border bg-muted/40 p-5 text-center text-sm text-muted-foreground">
                     هنوز رویدادی برای این درخواست ثبت نشده است.
                   </div>
                 )}
@@ -1574,9 +1577,9 @@ export default function MyRequestsPage() {
 
               <div className="space-y-4">
                 {visibleFields.map(({ name, value, field }) => (
-                  <div key={name} className="rounded-2xl border border-slate-100 p-4">
-                    <div className="mb-2 text-sm font-semibold text-slate-500">{field?.label ?? name}</div>
-                    <div className="text-slate-800">{displayValue(value, field)}</div>
+                  <div key={name} className="rounded-2xl border border-border p-4">
+                    <div className="mb-2 text-sm font-semibold text-muted-foreground">{field?.label ?? name}</div>
+                    <div className="text-foreground">{displayValue(value, field)}</div>
                   </div>
                 ))}
               </div>
@@ -1587,7 +1590,7 @@ export default function MyRequestsPage() {
 
       {detailLoading && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/20">
-          <div className="flex items-center gap-3 rounded-2xl bg-white px-5 py-4 shadow-xl"><Loader2 className="animate-spin text-red-600" />در حال دریافت جزئیات...</div>
+          <div className="flex items-center gap-3 rounded-2xl bg-card px-5 py-4 shadow-xl"><Loader2 className="animate-spin text-primary" />در حال دریافت جزئیات...</div>
         </div>
       )}
     </AppShell>

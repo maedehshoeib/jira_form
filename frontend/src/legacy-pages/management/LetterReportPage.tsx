@@ -1,3 +1,5 @@
+import { Table } from "@/components/ui/table";
+import { Label } from "@/components/ui/label";
 import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import {
@@ -60,7 +62,7 @@ type LetterReportItem = {
 };
 
 const datePickerInputClass =
-  "h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-right text-sm shadow-sm outline-none transition focus:border-red-500";
+  "h-11 w-full rounded-xl border border-border bg-card px-4 text-right text-sm shadow-sm outline-none transition focus:border-red-500";
 
 function formatLetterSender(item: LetterReportItem) {
   const sender = (item.sender || "").trim();
@@ -82,7 +84,7 @@ function displayStatus(status: string) {
 function statusBadgeClass(status: string) {
   if (status === "in_progress") return "border-sky-200 bg-sky-50 text-sky-700";
   if (status === "approved") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (status === "rejected") return "border-red-200 bg-red-50 text-red-700";
+  if (status === "rejected") return "border-primary/30 bg-primary/10 text-primary";
   if (status === "referred") return "border-blue-200 bg-blue-50 text-blue-700";
   return "border-amber-200 bg-amber-50 text-amber-700";
 }
@@ -231,7 +233,7 @@ export default function LetterReportPage({ letterType }: { letterType: LetterTyp
           <div>
             <Link
               to={workflow.homePath}
-              className="inline-flex items-center gap-2 font-semibold text-red-600 hover:text-red-700"
+              className="inline-flex items-center gap-2 font-semibold text-primary hover:text-primary"
             >
               <ChevronLeft size={18} />
               بازگشت
@@ -241,10 +243,10 @@ export default function LetterReportPage({ letterType }: { letterType: LetterTyp
                 <BarChart3 size={24} />
               </div>
               <div>
-                <h1 className="text-2xl font-extrabold text-slate-900">
+                <h1 className="text-2xl font-extrabold text-foreground">
                   {workflow.reportTitle}
                 </h1>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-muted-foreground">
                   وضعیت انجام نامه‌های ارسال‌شده برای هر گیرنده
                 </p>
               </div>
@@ -263,7 +265,7 @@ export default function LetterReportPage({ letterType }: { letterType: LetterTyp
         <div className="mb-5 relative max-w-md">
           <Search
             size={16}
-            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
           />
           <Input
             value={search}
@@ -273,27 +275,27 @@ export default function LetterReportPage({ letterType }: { letterType: LetterTyp
           />
         </div>
 
-        <div className='mb-5 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm'>
+        <div className='mb-5 rounded-2xl border border-border bg-card p-4 shadow-sm'>
           <div className='mb-3 flex flex-wrap items-center justify-between gap-3'>
-            <div className='flex items-center gap-2 text-sm font-bold text-slate-700'>
-              <CalendarRange size={18} className='text-red-600' />
+            <div className='flex items-center gap-2 text-sm font-bold text-foreground'>
+              <CalendarRange size={18} className='text-primary' />
               بازه زمانی ارسال
             </div>
             {hasActiveFilters && (
-              <button
+              <Button
                 type='button'
                 onClick={clearFilters}
-                className='inline-flex items-center gap-1 text-xs font-bold text-slate-500 transition hover:text-red-600'
+                className='inline-flex items-center gap-1 text-xs font-bold text-muted-foreground transition hover:text-primary'
               >
                 <X size={14} />
                 پاک کردن فیلترها
-              </button>
+              </Button>
             )}
           </div>
 
           <div className='grid gap-3 sm:grid-cols-2'>
-            <label>
-              <span className='mb-1.5 block text-xs font-bold text-slate-500'>
+            <Label>
+              <span className='mb-1.5 block text-xs font-bold text-muted-foreground'>
                 از تاریخ ارسال
               </span>
               <DatePicker
@@ -308,10 +310,10 @@ export default function LetterReportPage({ letterType }: { letterType: LetterTyp
                 calendarPosition='bottom-right'
                 placeholder='انتخاب تاریخ شروع'
               />
-            </label>
+            </Label>
 
-            <label>
-              <span className='mb-1.5 block text-xs font-bold text-slate-500'>
+            <Label>
+              <span className='mb-1.5 block text-xs font-bold text-muted-foreground'>
                 تا تاریخ ارسال
               </span>
               <DatePicker
@@ -326,15 +328,15 @@ export default function LetterReportPage({ letterType }: { letterType: LetterTyp
                 calendarPosition='bottom-right'
                 placeholder='انتخاب تاریخ پایان'
               />
-            </label>
+            </Label>
           </div>
 
           {hasInvalidRange ? (
-            <p className='mt-3 text-xs font-semibold text-red-600'>
+            <p className='mt-3 text-xs font-semibold text-primary'>
               تاریخ شروع نمی‌تواند بعد از تاریخ پایان باشد.
             </p>
           ) : hasActiveFilters ? (
-            <p className='mt-3 text-xs text-slate-500'>
+            <p className='mt-3 text-xs text-muted-foreground'>
               نمایش {filtered.length.toLocaleString('fa-IR')} نامه از{' '}
               {items.length.toLocaleString('fa-IR')} نامه
             </p>
@@ -342,42 +344,42 @@ export default function LetterReportPage({ letterType }: { letterType: LetterTyp
         </div>
 
         {error && (
-          <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+          <div className="mb-5 rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm font-semibold text-primary">
             {error}
           </div>
         )}
 
         {loading ? (
-          <div className="flex min-h-48 items-center justify-center rounded-3xl bg-white shadow-sm">
-            <Loader2 className="animate-spin text-red-600" />
+          <div className="flex min-h-48 items-center justify-center rounded-3xl bg-card shadow-sm">
+            <Loader2 className="animate-spin text-primary" />
           </div>
         ) : filtered.length === 0 && hasActiveFilters ? (
-          <div className='rounded-3xl border border-dashed border-slate-200 bg-white p-12 text-center shadow-sm'>
+          <div className='rounded-3xl border border-dashed border-border bg-card p-12 text-center shadow-sm'>
             <Users className='mx-auto text-slate-300' size={36} />
-            <p className='mt-4 font-bold text-slate-600'>
+            <p className='mt-4 font-bold text-muted-foreground'>
               نامه‌ای در بازه یا فیلتر انتخاب‌شده پیدا نشد
             </p>
-            <p className='mt-1 text-sm text-slate-400'>
+            <p className='mt-1 text-sm text-muted-foreground'>
               بازه زمانی یا عبارت جستجو را تغییر دهید.
             </p>
-            <button
+            <Button
               type='button'
               onClick={clearFilters}
-              className='mt-5 font-bold text-red-600 hover:text-red-700'
+              className='mt-5 font-bold text-primary hover:text-primary'
             >
               پاک کردن فیلترها
-            </button>
+            </Button>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-12 text-center shadow-sm">
+          <div className="rounded-3xl border border-dashed border-border bg-card p-12 text-center shadow-sm">
             <Users className="mx-auto text-slate-300" size={36} />
-            <p className="mt-4 font-bold text-slate-600">نامه‌ای ثبت نشده است</p>
-            <p className="mt-1 text-sm text-slate-400">
+            <p className="mt-4 font-bold text-muted-foreground">نامه‌ای ثبت نشده است</p>
+            <p className="mt-1 text-sm text-muted-foreground">
               پس از ارسال نامه از بخش «ارسال نامه»، وضعیت اینجا نمایش داده می‌شود.
             </p>
             <Link
               to={`${workflow.homePath}/send`}
-              className="mt-5 inline-block font-bold text-red-600"
+              className="mt-5 inline-block font-bold text-primary"
             >
               ارسال نامه جدید
             </Link>
@@ -389,17 +391,17 @@ export default function LetterReportPage({ letterType }: { letterType: LetterTyp
               return (
                 <article
                   key={item.batch_id}
-                  className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm"
+                  className="rounded-3xl border border-border bg-card p-6 shadow-sm"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <h2 className="text-lg font-extrabold text-slate-900">
+                      <h2 className="text-lg font-extrabold text-foreground">
                         {item.subject}
                       </h2>
-                      <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-600">
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
                         {item.description}
                       </p>
-                      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+                      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                         {letterType === "external" && item.letter_number && (
                           <span>شماره نامه: {item.letter_number}</span>
                         )}
@@ -431,20 +433,20 @@ export default function LetterReportPage({ letterType }: { letterType: LetterTyp
                             ? [item.attachment_name]
                             : []
                         ).map((name, index) => (
-                          <button
+                          <Button
                             key={`${item.batch_id}-${name}-${index}`}
                             type="button"
                             onClick={() => void downloadAttachment(item, index)}
-                            className="inline-flex items-center gap-1 font-semibold text-red-600 hover:underline"
+                            className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
                           >
                             <Paperclip size={12} />
                             {name}
-                          </button>
+                          </Button>
                         ))}
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Badge className="border-slate-200 bg-slate-50 text-slate-600">
+                      <Badge className="border-border bg-muted/40 text-muted-foreground">
                         {summary.total.toLocaleString("fa-IR")} گیرنده
                       </Badge>
                       <Badge className="border-amber-200 bg-amber-50 text-amber-700">
@@ -464,16 +466,16 @@ export default function LetterReportPage({ letterType }: { letterType: LetterTyp
                         {summary.done.toLocaleString("fa-IR")} انجام‌شده
                       </Badge>
                       {summary.rejected > 0 && (
-                        <Badge className="border-red-200 bg-red-50 text-red-700">
+                        <Badge className="border-primary/30 bg-primary/10 text-primary">
                           {summary.rejected.toLocaleString("fa-IR")} رد‌شده
                         </Badge>
                       )}
                     </div>
                   </div>
 
-                  <div className="mt-5 overflow-x-auto rounded-2xl border border-slate-100">
-                    <table className="min-w-[850px] w-full text-sm">
-                      <thead className="bg-slate-50 text-slate-500">
+                  <div className="mt-5 overflow-x-auto rounded-2xl border border-border">
+                    <Table className="min-w-[850px] w-full text-sm">
+                      <thead className="bg-muted/40 text-muted-foreground">
                         <tr>
                           <th className="px-4 py-3 text-right font-bold">گیرنده</th>
                           <th className="px-4 py-3 text-right font-bold">یادداشت</th>
@@ -485,10 +487,10 @@ export default function LetterReportPage({ letterType }: { letterType: LetterTyp
                       <tbody className="divide-y divide-slate-100">
                         {item.recipients.map((recipient) => (
                           <tr key={recipient.submission_id}>
-                            <td className="px-4 py-3 font-semibold text-slate-800">
+                            <td className="px-4 py-3 font-semibold text-foreground">
                               {recipient.display_name}
                             </td>
-                            <td className="max-w-xs whitespace-pre-wrap break-words px-4 py-3 leading-6 text-slate-600">
+                            <td className="max-w-xs whitespace-pre-wrap break-words px-4 py-3 leading-6 text-muted-foreground">
                               {recipient.comment || "—"}
                             </td>
                             <td className="px-4 py-3">
@@ -496,17 +498,17 @@ export default function LetterReportPage({ letterType }: { letterType: LetterTyp
                                 {displayStatus(recipient.status)}
                               </Badge>
                             </td>
-                            <td className="px-4 py-3 text-slate-500">
+                            <td className="px-4 py-3 text-muted-foreground">
                               {recipient.referred_to || "—"}
                             </td>
-                            <td className="px-4 py-3 text-slate-500">
+                            <td className="px-4 py-3 text-muted-foreground">
                               {formatPersianDateTime(recipient.status_updated_at) ||
                                 "—"}
                             </td>
                           </tr>
                         ))}
                       </tbody>
-                    </table>
+                    </Table>
                   </div>
                 </article>
               );

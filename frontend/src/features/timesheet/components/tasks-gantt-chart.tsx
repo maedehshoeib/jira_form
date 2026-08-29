@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import React from 'react';
 
 import { getTehranTime } from '@/lib/persianDate';
@@ -118,7 +119,7 @@ export function TasksGanttChart({ days }: GanttProps): JSX.Element {
 
   if (!days.length) {
     return (
-      <div className='p-8 text-center text-sm text-slate-500'>{COPY.empty}</div>
+      <div className='p-8 text-center text-sm text-muted-foreground'>{COPY.empty}</div>
     );
   }
 
@@ -188,9 +189,9 @@ export function TasksGanttChart({ days }: GanttProps): JSX.Element {
     ((minute - domainMin) / domainSpan) * 100;
 
   return (
-    <div className='overflow-hidden rounded-2xl border border-slate-200 bg-white' dir='ltr'>
-      <div className='flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3' dir='rtl'>
-        <div className='flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-600'>
+    <div className='overflow-hidden rounded-2xl border border-border bg-card' dir='ltr'>
+      <div className='flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/40 px-4 py-3' dir='rtl'>
+        <div className='flex flex-wrap items-center gap-4 text-xs font-semibold text-muted-foreground'>
           <span className='flex items-center gap-2'>
             <span className='h-3 w-7 rounded border border-sky-400 bg-sky-100' />
             {COPY.attendance}
@@ -200,26 +201,26 @@ export function TasksGanttChart({ days }: GanttProps): JSX.Element {
             {COPY.task}
           </span>
         </div>
-        <span className='text-[11px] text-slate-400'>
+        <span className='text-[11px] text-muted-foreground'>
           {formatMinutesToTime(domainMin)} — {formatMinutesToTime(domainMax)}
         </span>
       </div>
 
       <div className='overflow-x-auto'>
         <div className='min-w-[920px]'>
-          <div className='grid grid-cols-[minmax(0,1fr)_140px] border-b border-slate-200 bg-white'>
+          <div className='grid grid-cols-[minmax(0,1fr)_140px] border-b border-border bg-card'>
             <div className='relative h-10'>
               {ticks.map((tick) => (
                 <span
                   key={tick}
-                  className='absolute top-3 -translate-x-1/2 font-mono text-[11px] font-semibold text-slate-500'
+                  className='absolute top-3 -translate-x-1/2 font-mono text-[11px] font-semibold text-muted-foreground'
                   style={{ left: `${position(tick)}%` }}
                 >
                   {formatMinutesToTime(tick)}
                 </span>
               ))}
             </div>
-            <div className='border-l border-slate-200' />
+            <div className='border-l border-border' />
           </div>
 
           {dayRows.map((day, rowIndex) => {
@@ -230,21 +231,21 @@ export function TasksGanttChart({ days }: GanttProps): JSX.Element {
             return (
               <div
                 key={day.workDate}
-                className={`grid grid-cols-[minmax(0,1fr)_140px] border-b border-slate-100 last:border-b-0 ${
-                  rowIndex % 2 === 0 ? 'bg-slate-50/50' : 'bg-white'
+                className={`grid grid-cols-[minmax(0,1fr)_140px] border-b border-border last:border-b-0 ${
+                  rowIndex % 2 === 0 ? 'bg-muted/40' : 'bg-card'
                 }`}
               >
                 <div className='relative' style={{ height: rowHeight }}>
                   {ticks.map((tick) => (
                     <span
                       key={`${day.workDate}-${tick}`}
-                      className='pointer-events-none absolute inset-y-0 border-l border-dashed border-slate-200'
+                      className='pointer-events-none absolute inset-y-0 border-l border-dashed border-border'
                       style={{ left: `${position(tick)}%` }}
                     />
                   ))}
 
                   {!hasRecords && (
-                    <div className='absolute inset-0 flex items-center justify-center text-xs text-slate-400' dir='rtl'>
+                    <div className='absolute inset-0 flex items-center justify-center text-xs text-muted-foreground' dir='rtl'>
                       {COPY.noRecords}
                     </div>
                   )}
@@ -273,7 +274,7 @@ export function TasksGanttChart({ days }: GanttProps): JSX.Element {
                   {day.taskRanges.map((segment) => {
                     const width = position(segment.end) - position(segment.start);
                     return (
-                      <button
+                      <Button variant="ghost"
                         type='button'
                         key={`task-${day.workDate}-${segment.id}`}
                         className='absolute flex h-6 items-center overflow-hidden rounded-md bg-indigo-500 px-2 text-left text-[10px] font-bold text-white shadow-sm outline-none transition hover:z-10 hover:bg-indigo-600 focus:z-10 focus:ring-2 focus:ring-indigo-300'
@@ -309,16 +310,16 @@ export function TasksGanttChart({ days }: GanttProps): JSX.Element {
                         onBlur={() => setHoverTask(null)}
                       >
                         {width >= 6 && <span className='truncate'>{segment.title}</span>}
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>
 
-                <div className='flex flex-col items-end justify-center border-l border-slate-200 px-4 text-right' dir='rtl'>
-                  <span className='font-mono text-xs font-extrabold text-slate-800'>
+                <div className='flex flex-col items-end justify-center border-l border-border px-4 text-right' dir='rtl'>
+                  <span className='font-mono text-xs font-extrabold text-foreground'>
                     {day.workDate}
                   </span>
-                  <span className='mt-1 text-[10px] text-slate-400'>
+                  <span className='mt-1 text-[10px] text-muted-foreground'>
                     {day.taskRanges.length} {COPY.tasks}
                   </span>
                 </div>
@@ -330,7 +331,7 @@ export function TasksGanttChart({ days }: GanttProps): JSX.Element {
 
       {hoverTask && (
         <div
-          className='pointer-events-none fixed z-50 w-72 rounded-xl border border-slate-200 bg-slate-950 p-3 text-xs text-white shadow-2xl'
+          className='pointer-events-none fixed z-50 w-72 rounded-xl border border-border bg-slate-950 p-3 text-xs text-white shadow-2xl'
           style={{ left: hoverTask.x, top: hoverTask.y }}
           dir='rtl'
         >

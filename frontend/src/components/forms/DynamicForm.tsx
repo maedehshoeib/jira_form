@@ -1,3 +1,4 @@
+import { Label } from "@/components/ui/label";
 import { useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
@@ -242,7 +243,7 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
   let lastSection = "";
 
   return (
-    <div className="rounded-3xl border-0 bg-white p-8 shadow-xl">
+    <div className="rounded-3xl border-0 bg-card p-8 shadow-xl">
       {done && (
         <div className="mb-6 rounded-2xl border border-green-200 bg-green-50 p-4 text-green-700">
           {isPerformanceReport
@@ -252,12 +253,12 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
             <div className="mt-3">
               <Link
                 to="/reports/performance"
-                className="font-semibold text-red-600 hover:text-red-700"
+                className="font-semibold text-primary hover:text-primary"
               >
                 مشاهده گزارش ثبت‌شده
               </Link>
               {reportId !== null && (
-                <span className="mr-2 text-sm text-slate-500">
+                <span className="mr-2 text-sm text-muted-foreground">
                   (شناسه گزارش: {reportId})
                 </span>
               )}
@@ -267,7 +268,7 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
             <div className="mt-3">
               <Link
                 to="/my-requests"
-                className="font-semibold text-red-600 hover:text-red-700"
+                className="font-semibold text-primary hover:text-primary"
               >
                 مشاهده درخواست‌های من
               </Link>
@@ -277,22 +278,22 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
       )}
 
       {submitError && (
-        <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+        <div className="mb-6 rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm font-semibold text-primary">
           {submitError}
         </div>
       )}
 
       <div className="mb-8">
         <div className="mb-2 flex justify-between">
-          <span className="text-sm text-slate-600">پیشرفت تکمیل فرم</span>
-          <span className="text-sm font-semibold text-red-600">
+          <span className="text-sm text-muted-foreground">پیشرفت تکمیل فرم</span>
+          <span className="text-sm font-semibold text-primary">
             {Math.round(progress)}%
           </span>
         </div>
 
         <div className="h-3 overflow-hidden rounded-full bg-slate-200">
           <div
-            className="h-full rounded-full bg-red-600 transition-all duration-500"
+            className="h-full rounded-full bg-primary transition-all duration-500"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -312,7 +313,7 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
           return (
             <div key={field.name}>
               {showSection && (
-                <h2 className="mb-4 border-r-4 border-red-600 pr-3 text-lg font-bold text-slate-800">
+                <h2 className="mb-4 border-r-4 border-red-600 pr-3 text-lg font-bold text-foreground">
                   {field.section}
                 </h2>
               )}
@@ -323,12 +324,12 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
                 }
               >
                 {field.type !== "table" && (
-                  <label className="text-sm font-semibold text-slate-700">
+                  <Label className="text-sm font-semibold text-foreground">
                     {field.label}
                     {field.required && (
                       <span className="mr-1 text-red-500">*</span>
                     )}
-                  </label>
+                  </Label>
                 )}
 
                 <FormFieldRenderer
@@ -345,7 +346,7 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
         <Button
           type="submit"
           disabled={loading}
-          className="h-12 w-full rounded-xl bg-red-600 text-base hover:bg-red-700"
+          className="h-12 w-full rounded-xl bg-primary text-base hover:bg-primary/90"
         >
           {loading
             ? "در حال ثبت..."

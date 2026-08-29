@@ -20,7 +20,7 @@ export default function UserAvatar({
   name,
   avatarUrl,
   className = "h-10 w-10 rounded-xl",
-  fallbackClassName = "bg-red-50 text-red-600",
+  fallbackClassName = "bg-primary/10 text-primary",
 }: UserAvatarProps) {
   if (avatarUrl) {
     // Older uploads used /avatars, which bypasses Vite's /api development proxy.

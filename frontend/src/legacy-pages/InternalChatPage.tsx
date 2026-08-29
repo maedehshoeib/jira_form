@@ -1,3 +1,7 @@
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   Archive,
   ArrowRight,
@@ -143,22 +147,22 @@ function Modal({ title, children, onClose }: ModalProps) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <button
+      <Button variant="ghost"
         type="button"
         aria-label="بستن"
         onClick={onClose}
         className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm"
       />
-      <section className="relative z-10 max-h-[85vh] w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl">
+      <section className="relative z-10 max-h-[85vh] w-full max-w-lg overflow-hidden rounded-3xl bg-card shadow-2xl">
         <header className="flex items-center justify-between border-b px-5 py-4">
-          <h2 className="font-bold text-slate-800">{title}</h2>
-          <button
+          <h2 className="font-bold text-foreground">{title}</h2>
+          <Button variant="ghost"
             type="button"
             onClick={onClose}
-            className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"
+            className="rounded-xl p-2 text-muted-foreground hover:bg-muted"
           >
             <X size={20} />
-          </button>
+          </Button>
         </header>
         {children}
       </section>
@@ -539,92 +543,92 @@ export default function InternalChatPage() {
 
   return (
     <AppShell>
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/60">
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         {error && (
-          <div className="flex items-center justify-between bg-red-50 px-4 py-2.5 text-sm text-red-700">
+          <div className="flex items-center justify-between bg-primary/10 px-4 py-2.5 text-sm text-primary">
             <span>{error}</span>
-            <button type="button" onClick={() => setError("")}>
+            <Button variant="ghost" type="button" onClick={() => setError("")}>
               <X size={17} />
-            </button>
+            </Button>
           </div>
         )}
         <div className="flex h-[calc(100vh-8rem)] min-h-[560px]">
           <aside
-            className={`${active ? "hidden md:flex" : "flex"} w-full shrink-0 flex-col border-l border-slate-200 md:w-[340px]`}
+            className={`${active ? "hidden md:flex" : "flex"} w-full shrink-0 flex-col border-l border-border md:w-[360px]`}
           >
-            <header className="border-b border-slate-100 p-4">
+            <header className="border-b border-border p-4">
               <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <h1 className="text-lg font-extrabold text-slate-900">
+                  <h1 className="text-lg font-extrabold text-foreground">
                     گفتگوی درون‌سازمانی
                   </h1>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     ارتباط امن با همکاران
                   </p>
                 </div>
-                <button
+                <Button variant="ghost"
                   type="button"
                   onClick={() => setNewChatOpen(true)}
                   title="گفتگوی جدید"
-                  className="flex h-11 w-11 items-center justify-center rounded-2xl bg-red-600 text-white shadow-lg shadow-red-200 transition hover:bg-red-700"
+                  className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-white shadow-lg shadow-red-200 transition hover:bg-primary/90"
                 >
                   <Plus size={21} />
-                </button>
+                </Button>
               </div>
-              <label className="flex items-center gap-2 rounded-2xl bg-slate-100 px-3.5 py-2.5 focus-within:ring-2 focus-within:ring-red-100">
-                <Search size={18} className="text-slate-400" />
-                <input
+              <Label className="flex items-center gap-2 rounded-lg border border-input bg-background px-3 focus-within:ring-2 focus-within:ring-ring/50">
+                <Search size={18} className="text-muted-foreground" />
+                <Input
                   value={conversationSearch}
                   onChange={(event) => setConversationSearch(event.target.value)}
                   placeholder="جستجو در گفتگوها"
-                  className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
+                  className="min-w-0 flex-1 border-0 bg-transparent text-sm shadow-none outline-none placeholder:text-muted-foreground focus-visible:ring-0"
                 />
-              </label>
-              <button
+              </Label>
+              <Button variant="ghost"
                 type="button"
                 onClick={() => setShowArchived((value) => !value)}
-                className="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-red-600"
+                className="mt-3 flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-primary"
               >
                 <Archive size={15} />
                 {showArchived ? "بازگشت به گفتگوها" : "گفتگوهای بایگانی‌شده"}
-              </button>
+              </Button>
             </header>
 
             <div className="flex-1 overflow-y-auto p-2">
               {loading ? (
-                <div className="flex h-40 items-center justify-center text-slate-400">
+                <div className="flex h-40 items-center justify-center text-muted-foreground">
                   <Loader2 className="animate-spin" />
                 </div>
               ) : filteredConversations.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center px-8 text-center">
-                  <div className="mb-4 rounded-3xl bg-red-50 p-5 text-red-500">
+                  <div className="mb-4 rounded-3xl bg-primary/10 p-5 text-red-500">
                     <MessageCircle size={34} />
                   </div>
-                  <p className="font-bold text-slate-700">
+                  <p className="font-bold text-foreground">
                     {showArchived ? "بایگانی خالی است" : "هنوز گفتگویی ندارید"}
                   </p>
                   {!showArchived && (
-                    <button
+                    <Button variant="ghost"
                       type="button"
                       onClick={() => setNewChatOpen(true)}
-                      className="mt-3 text-sm font-semibold text-red-600"
+                      className="mt-3 text-sm font-semibold text-primary"
                     >
                       شروع گفتگوی جدید
-                    </button>
+                    </Button>
                   )}
                 </div>
               ) : (
                 filteredConversations.map((conversation) => (
-                  <button
+                  <Button variant="ghost"
                     key={conversation.id}
                     type="button"
                     onClick={() => setActiveId(conversation.id)}
-                    className={`mb-1 flex w-full items-center gap-3 rounded-2xl p-3 text-right transition ${
+                    className={`mb-1 h-auto min-h-[4.75rem] w-full items-center justify-start gap-3 whitespace-normal rounded-lg p-3 text-right transition ${
                       activeId === conversation.id
-                        ? "bg-red-50"
+                        ? "bg-primary/10 text-foreground"
                         : conversation.unread_count > 0
-                          ? "border-2 border-orange-500 bg-orange-200 hover:bg-orange-300"
-                          : "hover:bg-slate-50"
+                          ? "border border-amber-200 bg-amber-50 text-foreground hover:bg-amber-100"
+                          : "hover:bg-muted/40"
                     }`}
                   >
                     <div className="relative shrink-0">
@@ -641,14 +645,14 @@ export default function InternalChatPage() {
                         />
                       )}
                       {conversation.unread_count > 0 && (
-                        <span className="absolute -bottom-1 -left-1 min-w-5 rounded-full border-2 border-white bg-red-600 px-1 text-center text-[10px] leading-4 text-white">
+                        <span className="absolute -bottom-1 -left-1 min-w-5 rounded-full border-2 border-white bg-primary px-1 text-center text-[10px] leading-4 text-white">
                           {conversation.unread_count.toLocaleString("fa-IR")}
                         </span>
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1">
-                        <p className={`truncate text-sm font-extrabold ${conversation.unread_count > 0 ? "text-orange-950" : "text-slate-800"}`}>
+                        <p className="truncate text-sm font-bold text-foreground">
                           <ConversationTitle
                             conversation={conversation}
                             currentUserId={user?.id}
@@ -658,9 +662,9 @@ export default function InternalChatPage() {
                           <Pin size={12} className="text-red-500" />
                         )}
                         {conversation.is_muted && (
-                          <VolumeX size={12} className="text-slate-400" />
+                          <VolumeX size={12} className="text-muted-foreground" />
                         )}
-                        <span className="mr-auto shrink-0 text-[10px] text-slate-400">
+                        <span className="mr-auto shrink-0 text-[10px] text-muted-foreground">
                           {conversation.last_message
                             ? formatListTime(
                                 conversation.last_message.created_at,
@@ -668,7 +672,7 @@ export default function InternalChatPage() {
                             : ""}
                         </span>
                       </div>
-                      <p className={`mt-1 truncate text-xs ${conversation.unread_count > 0 ? "font-bold text-orange-900" : "text-slate-500"}`}>
+                      <p className={`mt-1 truncate text-xs ${conversation.unread_count > 0 ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
                         {conversation.last_message?.deleted_at
                           ? "پیام حذف شده"
                           : conversation.last_message?.attachment
@@ -679,45 +683,45 @@ export default function InternalChatPage() {
                                 : "گفتگو را آغاز کنید")}
                       </p>
                     </div>
-                  </button>
+                  </Button>
                 ))
               )}
             </div>
           </aside>
 
           <section
-            className={`${active ? "flex" : "hidden md:flex"} min-w-0 flex-1 flex-col bg-slate-50/70`}
+            className={`${active ? "flex" : "hidden md:flex"} min-w-0 flex-1 flex-col bg-muted/40`}
           >
             {!active ? (
               <div className="flex h-full flex-col items-center justify-center text-center">
-                <div className="mb-5 rounded-[2rem] bg-white p-7 text-red-500 shadow-sm">
+                <div className="mb-5 rounded-[2rem] bg-card p-7 text-red-500 shadow-sm">
                   <MessageCircle size={48} />
                 </div>
-                <h2 className="text-xl font-extrabold text-slate-800">
+                <h2 className="text-xl font-extrabold text-foreground">
                   یک گفتگو انتخاب کنید
                 </h2>
-                <p className="mt-2 max-w-sm text-sm leading-7 text-slate-500">
+                <p className="mt-2 max-w-sm text-sm leading-7 text-muted-foreground">
                   از فهرست همکاران یک گفتگوی جدید بسازید یا یکی از گفتگوهای
                   قبلی را ادامه دهید.
                 </p>
               </div>
             ) : (
               <>
-                <header className="flex h-[73px] items-center gap-3 border-b border-slate-200 bg-white px-3 sm:px-5">
-                  <button
+                <header className="flex h-[73px] items-center gap-3 border-b border-border bg-card px-3 sm:px-5">
+                  <Button variant="ghost"
                     type="button"
                     onClick={() => setActiveId(null)}
-                    className="rounded-xl p-2 text-slate-500 hover:bg-slate-100 md:hidden"
+                    className="rounded-xl p-2 text-muted-foreground hover:bg-muted md:hidden"
                   >
                     <ArrowRight size={20} />
-                  </button>
-                  <button
+                  </Button>
+                  <Button variant="ghost"
                     type="button"
                     onClick={() => setInfoOpen(true)}
-                    className="flex min-w-0 flex-1 items-center gap-3 text-right"
+                    className="h-auto min-w-0 flex-1 items-center justify-start gap-3 whitespace-normal py-2 text-right"
                   >
                     {active.kind === "group" ? (
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-red-600 font-bold text-white">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary font-bold text-white">
                         <Users size={20} />
                       </div>
                     ) : (
@@ -725,20 +729,20 @@ export default function InternalChatPage() {
                         name={active.title}
                         avatarUrl={active.members.find((member) => member.id !== user?.id)?.avatar_url}
                         className="h-11 w-11 rounded-2xl"
-                        fallbackClassName="bg-red-600 text-white"
+                        fallbackClassName="bg-primary text-white"
                       />
                     )}
                     <div className="min-w-0">
-                      <p className="truncate font-bold text-slate-800">
+                      <p className="truncate font-bold text-foreground">
                         <ConversationTitle
                           conversation={active}
                           currentUserId={user?.id}
                         />
                       </p>
-                      <p className="mt-0.5 truncate text-xs text-slate-500">
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
                         {typingUser ? (
                           <span className="inline-flex items-center gap-1">
-                            <span className="inline-flex items-center gap-1 font-medium text-slate-600">
+                            <span className="inline-flex items-center gap-1 font-medium text-muted-foreground">
                               {typingUser.name}
                               {typingUser.isBirthday ? (
                                 <BirthdayBadge className="h-3.5 w-3.5" />
@@ -755,37 +759,37 @@ export default function InternalChatPage() {
                         )}
                       </p>
                     </div>
-                  </button>
-                  <button
+                  </Button>
+                  <Button variant="ghost"
                     type="button"
                     onClick={() => setShowMessageSearch((value) => !value)}
-                    className="rounded-xl p-2.5 text-slate-500 hover:bg-slate-100"
+                    className="rounded-xl p-2.5 text-muted-foreground hover:bg-muted"
                     title="جستجو در پیام‌ها"
                   >
                     <Search size={19} />
-                  </button>
-                  <button
+                  </Button>
+                  <Button variant="ghost"
                     type="button"
                     onClick={() => setInfoOpen(true)}
-                    className="rounded-xl p-2.5 text-slate-500 hover:bg-slate-100"
+                    className="rounded-xl p-2.5 text-muted-foreground hover:bg-muted"
                     title="جزئیات گفتگو"
                   >
                     <MoreVertical size={19} />
-                  </button>
+                  </Button>
                 </header>
 
                 {showMessageSearch && (
-                  <div className="border-b bg-white px-4 py-2.5">
-                    <label className="mx-auto flex max-w-xl items-center gap-2 rounded-xl bg-slate-100 px-3 py-2">
-                      <Search size={16} className="text-slate-400" />
-                      <input
+                  <div className="border-b bg-card px-4 py-2.5">
+                    <Label className="mx-auto flex max-w-xl items-center gap-2 rounded-xl bg-muted px-3 py-2">
+                      <Search size={16} className="text-muted-foreground" />
+                      <Input
                         autoFocus
                         value={messageSearch}
                         onChange={(event) => setMessageSearch(event.target.value)}
                         placeholder="عبارتی از متن پیام را بنویسید..."
-                        className="flex-1 bg-transparent text-sm outline-none"
+                        className="flex-1 border-0 bg-transparent text-sm shadow-none outline-none focus-visible:ring-0"
                       />
-                      <button
+                      <Button variant="ghost"
                         type="button"
                         onClick={() => {
                           setShowMessageSearch(false);
@@ -794,8 +798,8 @@ export default function InternalChatPage() {
                         }}
                       >
                         <X size={16} />
-                      </button>
-                    </label>
+                      </Button>
+                    </Label>
                   </div>
                 )}
 
@@ -811,7 +815,7 @@ export default function InternalChatPage() {
                       <Loader2 className="animate-spin" />
                     </div>
                   ) : messages.length === 0 ? (
-                    <div className="flex h-full flex-col items-center justify-center text-center text-slate-500">
+                    <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
                       <MessageCircle
                         size={40}
                         className="mb-3 text-slate-300"
@@ -826,13 +830,13 @@ export default function InternalChatPage() {
                     <>
                       {hasMore && !messageSearch && (
                         <div className="mb-4 text-center">
-                          <button
+                          <Button variant="ghost"
                             type="button"
                             onClick={() => void loadOlder()}
-                            className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-red-600 shadow-sm"
+                            className="rounded-full bg-card px-4 py-2 text-xs font-semibold text-primary shadow-sm"
                           >
                             نمایش پیام‌های قدیمی‌تر
-                          </button>
+                          </Button>
                         </div>
                       )}
                       {messages.map((message) => {
@@ -854,14 +858,14 @@ export default function InternalChatPage() {
                             <div
                               className={`relative max-w-[86%] rounded-2xl px-3.5 py-2.5 shadow-sm sm:max-w-[70%] ${
                                 message.deleted_at
-                                  ? "border border-dashed border-slate-300 bg-slate-100 text-slate-400"
+                                  ? "border border-dashed border-border bg-muted text-muted-foreground"
                                   : mine
-                                    ? "rounded-br-md bg-red-600 text-white"
-                                    : "rounded-bl-md border border-slate-100 bg-white text-slate-800"
+                                    ? "rounded-br-md bg-primary text-white"
+                                    : "rounded-bl-md border border-border bg-card text-foreground"
                               }`}
                             >
                               {!mine && active.kind === "group" && (
-                                <p className="mb-1 text-xs font-bold text-red-600">
+                                <p className="mb-1 text-xs font-bold text-primary">
                                   <UserDisplayName
                                     user={message.sender}
                                     badgeClassName="h-4 w-4"
@@ -871,7 +875,7 @@ export default function InternalChatPage() {
                               {message.is_forwarded && !message.deleted_at && (
                                 <p
                                   className={`mb-1 flex items-center gap-1 text-[11px] ${
-                                    mine ? "text-red-100" : "text-slate-400"
+                                    mine ? "text-red-100" : "text-muted-foreground"
                                   }`}
                                 >
                                   <Forward size={12} />
@@ -879,12 +883,12 @@ export default function InternalChatPage() {
                                 </p>
                               )}
                               {message.reply_to && !message.deleted_at && (
-                                <button
+                                <Button variant="ghost"
                                   type="button"
-                                  className={`mb-2 block w-full rounded-xl border-r-4 p-2 text-right text-xs ${
+                                  className={`mb-2 h-auto w-full whitespace-normal rounded-xl border-r-4 p-2 text-right text-xs ${
                                     mine
                                       ? "border-white/70 bg-red-700/45 text-red-50"
-                                      : "border-red-400 bg-slate-50 text-slate-600"
+                                      : "border-red-400 bg-muted/40 text-muted-foreground"
                                   }`}
                                 >
                                   <span className="block font-bold">
@@ -896,7 +900,7 @@ export default function InternalChatPage() {
                                         ? "فایل پیوست"
                                         : "")}
                                   </span>
-                                </button>
+                                </Button>
                               )}
                               {message.deleted_at ? (
                                 <p className="flex items-center gap-2 text-sm italic">
@@ -911,20 +915,20 @@ export default function InternalChatPage() {
                                     </p>
                                   )}
                                   {message.attachment && (
-                                    <button
+                                    <Button variant="ghost"
                                       type="button"
                                       onClick={() =>
                                         void chatService.downloadAttachment(
                                           message,
                                         )
                                       }
-                                      className={`mt-2 flex w-full items-center gap-3 rounded-xl p-2.5 text-right ${
+                                      className={`mt-2 h-auto w-full items-center justify-start gap-3 whitespace-normal rounded-xl p-2.5 text-right ${
                                         mine
-                                          ? "bg-white/15 hover:bg-white/20"
-                                          : "bg-slate-50 hover:bg-slate-100"
+                                          ? "bg-card/15 hover:bg-card/20"
+                                          : "bg-muted/40 hover:bg-muted"
                                       }`}
                                     >
-                                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/90 text-red-600">
+                                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-card/90 text-primary">
                                         <FileIcon size={19} />
                                       </span>
                                       <span className="min-w-0 flex-1">
@@ -935,20 +939,20 @@ export default function InternalChatPage() {
                                           className={`mt-1 block text-[10px] ${
                                             mine
                                               ? "text-red-100"
-                                              : "text-slate-400"
+                                              : "text-muted-foreground"
                                           }`}
                                         >
                                           {fileSize(message.attachment.size)}
                                         </span>
                                       </span>
                                       <Download size={17} />
-                                    </button>
+                                    </Button>
                                   )}
                                 </>
                               )}
                               <div
                                 className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${
-                                  mine ? "text-red-100" : "text-slate-400"
+                                  mine ? "text-red-100" : "text-muted-foreground"
                                 }`}
                               >
                                 {message.edited_at && <span>ویرایش‌شده</span>}
@@ -973,7 +977,7 @@ export default function InternalChatPage() {
                                   }`}
                                 >
                                   {message.reactions.map((reaction) => (
-                                    <button
+                                    <Button variant="ghost"
                                       type="button"
                                       title={reaction.users.join("، ")}
                                       key={reaction.emoji}
@@ -984,17 +988,17 @@ export default function InternalChatPage() {
                                           reaction.emoji,
                                         );
                                       }}
-                                      className={`rounded-full border bg-white px-1.5 py-0.5 text-[11px] shadow-sm ${
+                                      className={`rounded-full border bg-card px-1.5 py-0.5 text-[11px] shadow-sm ${
                                         reaction.user_ids.includes(user?.id || 0)
                                           ? "border-red-300"
-                                          : "border-slate-200"
+                                          : "border-border"
                                       }`}
                                     >
                                       {reaction.emoji}{" "}
                                       {reaction.user_ids.length.toLocaleString(
                                         "fa-IR",
                                       )}
-                                    </button>
+                                    </Button>
                                   ))}
                                 </div>
                               )}
@@ -1002,7 +1006,7 @@ export default function InternalChatPage() {
 
                             {!message.deleted_at && (
                               <div className="relative opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
-                                <button
+                                <Button variant="ghost"
                                   type="button"
                                   onClick={(event) => {
                                     event.stopPropagation();
@@ -1012,50 +1016,50 @@ export default function InternalChatPage() {
                                         : message.id,
                                     );
                                   }}
-                                  className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-slate-700"
+                                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-card hover:text-foreground"
                                 >
                                   <ChevronDown size={16} />
-                                </button>
+                                </Button>
                                 {openMenuId === message.id && (
                                   <div
                                     onClick={(event) => event.stopPropagation()}
-                                    className={`absolute bottom-7 z-20 w-40 overflow-hidden rounded-2xl border bg-white py-1.5 text-sm text-slate-700 shadow-xl ${
+                                    className={`absolute bottom-7 z-20 w-40 overflow-hidden rounded-2xl border bg-card py-1.5 text-sm text-foreground shadow-xl ${
                                       mine ? "right-0" : "left-0"
                                     }`}
                                   >
-                                    <button
+                                    <Button variant="ghost"
                                       type="button"
                                       onClick={() => {
                                         setReplyingTo(message);
                                         setEditing(null);
                                         setOpenMenuId(null);
                                       }}
-                                      className="flex w-full items-center gap-2 px-3 py-2 hover:bg-slate-50"
+                                      className="flex w-full items-center gap-2 px-3 py-2 hover:bg-muted/40"
                                     >
                                       <Reply size={15} /> پاسخ
-                                    </button>
-                                    <button
+                                    </Button>
+                                    <Button variant="ghost"
                                       type="button"
                                       onClick={() => {
                                         setForwardMessage(message);
                                         setOpenMenuId(null);
                                       }}
-                                      className="flex w-full items-center gap-2 px-3 py-2 hover:bg-slate-50"
+                                      className="flex w-full items-center gap-2 px-3 py-2 hover:bg-muted/40"
                                     >
                                       <Forward size={15} /> هدایت
-                                    </button>
-                                    <button
+                                    </Button>
+                                    <Button variant="ghost"
                                       type="button"
                                       onClick={() => {
                                         setReactionMessageId(message.id);
                                         setOpenMenuId(null);
                                       }}
-                                      className="flex w-full items-center gap-2 px-3 py-2 hover:bg-slate-50"
+                                      className="flex w-full items-center gap-2 px-3 py-2 hover:bg-muted/40"
                                     >
                                       <Smile size={15} /> واکنش
-                                    </button>
+                                    </Button>
                                     {mine && message.body && (
-                                      <button
+                                      <Button variant="ghost"
                                         type="button"
                                         onClick={() => {
                                           setEditing(message);
@@ -1063,42 +1067,42 @@ export default function InternalChatPage() {
                                           setDraft(message.body);
                                           setOpenMenuId(null);
                                         }}
-                                        className="flex w-full items-center gap-2 px-3 py-2 hover:bg-slate-50"
+                                        className="flex w-full items-center gap-2 px-3 py-2 hover:bg-muted/40"
                                       >
                                         <Pencil size={15} /> ویرایش
-                                      </button>
+                                      </Button>
                                     )}
                                     {mine && (
-                                      <button
+                                      <Button variant="ghost"
                                         type="button"
                                         onClick={() =>
                                           void deleteMessage(message)
                                         }
-                                        className="flex w-full items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50"
+                                        className="flex w-full items-center gap-2 px-3 py-2 text-primary hover:bg-primary/10 text-foreground"
                                       >
                                         <Trash2 size={15} /> حذف
-                                      </button>
+                                      </Button>
                                     )}
                                   </div>
                                 )}
                                 {reactionMessageId === message.id && (
                                   <div
                                     onClick={(event) => event.stopPropagation()}
-                                    className={`absolute bottom-7 z-20 flex gap-1 rounded-full border bg-white p-1.5 shadow-xl ${
+                                    className={`absolute bottom-7 z-20 flex gap-1 rounded-full border bg-card p-1.5 shadow-xl ${
                                       mine ? "right-0" : "left-0"
                                     }`}
                                   >
                                     {REACTIONS.map((emoji) => (
-                                      <button
+                                      <Button variant="ghost"
                                         type="button"
                                         key={emoji}
                                         onClick={() =>
                                           void toggleReaction(message, emoji)
                                         }
-                                        className="rounded-full p-1 text-lg hover:bg-slate-100"
+                                        className="rounded-full p-1 text-lg hover:bg-muted"
                                       >
                                         {emoji}
-                                      </button>
+                                      </Button>
                                     ))}
                                   </div>
                                 )}
@@ -1113,12 +1117,12 @@ export default function InternalChatPage() {
                 </div>
 
                 {!messageSearch && (
-                  <footer className="border-t border-slate-200 bg-white p-3 sm:p-4">
+                  <footer className="border-t border-border bg-card p-3 sm:p-4">
                     {(replyingTo || editing || attachment) && (
-                      <div className="mb-2 flex items-center gap-3 rounded-2xl bg-slate-50 px-3 py-2 text-xs">
-                        <div className="h-8 w-1 rounded-full bg-red-500" />
+                      <div className="mb-2 flex items-center gap-3 rounded-2xl bg-muted/40 px-3 py-2 text-xs">
+                        <div className="h-8 w-1 rounded-full bg-primary/100" />
                         <div className="min-w-0 flex-1">
-                          <p className="font-bold text-red-600">
+                          <p className="font-bold text-primary">
                             {editing
                               ? "ویرایش پیام"
                               : attachment
@@ -1133,14 +1137,14 @@ export default function InternalChatPage() {
                                     </span>
                                   )}
                           </p>
-                          <p className="mt-0.5 truncate text-slate-500">
+                          <p className="mt-0.5 truncate text-muted-foreground">
                             {attachment?.name ||
                               editing?.body ||
                               replyingTo?.body ||
                               "فایل پیوست"}
                           </p>
                         </div>
-                        <button
+                        <Button variant="ghost"
                           type="button"
                           onClick={() => {
                             setReplyingTo(null);
@@ -1148,10 +1152,10 @@ export default function InternalChatPage() {
                             setAttachment(null);
                             if (editing) setDraft("");
                           }}
-                          className="rounded-lg p-1 text-slate-400 hover:bg-slate-200"
+                          className="rounded-lg p-1 text-muted-foreground hover:bg-slate-200"
                         >
                           <X size={17} />
-                        </button>
+                        </Button>
                       </div>
                     )}
                     <form
@@ -1160,7 +1164,7 @@ export default function InternalChatPage() {
                     >
                       {!editing && (
                         <>
-                          <input
+                          <Input
                             ref={fileRef}
                             type="file"
                             className="hidden"
@@ -1168,22 +1172,22 @@ export default function InternalChatPage() {
                               setAttachment(event.target.files?.[0] || null)
                             }
                           />
-                          <button
+                          <Button variant="ghost"
                             type="button"
                             title="افزودن فایل (حداکثر ۱۵ مگابایت)"
                             onClick={() => fileRef.current?.click()}
-                            className="mb-1 rounded-xl p-2.5 text-slate-500 hover:bg-slate-100 hover:text-red-600"
+                            className="mb-1 rounded-xl p-2.5 text-muted-foreground hover:bg-muted hover:text-primary"
                           >
                             <Paperclip size={20} />
-                          </button>
+                          </Button>
                         </>
                       )}
                       <div ref={emojiPickerRef} className="relative min-w-0 flex-1">
                         {emojiPickerOpen && (
-                          <div className="absolute bottom-full left-0 right-0 z-20 mb-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+                          <div className="absolute bottom-full left-0 right-0 z-20 mb-2 rounded-2xl border border-border bg-card p-3 shadow-xl">
                             <div className="grid grid-cols-8 gap-1 sm:grid-cols-10">
                               {COMPOSER_EMOJIS.map((emoji) => (
-                                <button
+                                <Button variant="ghost"
                                   key={emoji}
                                   type="button"
                                   onClick={() => insertEmoji(emoji)}
@@ -1191,13 +1195,13 @@ export default function InternalChatPage() {
                                   title={emoji}
                                 >
                                   {emoji}
-                                </button>
+                                </Button>
                               ))}
                             </div>
                           </div>
                         )}
                         <div className="flex items-end gap-1">
-                          <textarea
+                          <Textarea
                             ref={composerRef}
                             value={draft}
                             onChange={(event) => {
@@ -1210,30 +1214,30 @@ export default function InternalChatPage() {
                             placeholder={
                               editing ? "متن جدید پیام..." : "پیام خود را بنویسید..."
                             }
-                            className="max-h-32 min-h-[46px] flex-1 resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 outline-none transition focus:border-red-300 focus:bg-white focus:ring-2 focus:ring-red-100"
+                            className="max-h-32 min-h-[46px] flex-1 resize-none rounded-2xl border border-border bg-muted/40 px-4 py-3 text-sm leading-6 outline-none transition focus:border-red-300 focus:bg-card focus:ring-2 focus:ring-red-100"
                           />
-                          <button
+                          <Button variant="ghost"
                             type="button"
                             title="ایموجی"
                             onClick={() => setEmojiPickerOpen((open) => !open)}
                             className={`mb-1 rounded-xl p-2.5 transition ${
                               emojiPickerOpen
                                 ? "bg-orange-100 text-orange-600"
-                                : "text-slate-500 hover:bg-slate-100 hover:text-orange-600"
+                                : "text-muted-foreground hover:bg-muted hover:text-orange-600"
                             }`}
                           >
                             <Smile size={20} />
-                          </button>
+                          </Button>
                         </div>
                       </div>
-                      <button
+                      <Button variant="ghost"
                         type="submit"
                         disabled={
                           sending ||
                           (!draft.trim() && !attachment) ||
                           (!!editing && !draft.trim())
                         }
-                        className="mb-0.5 flex h-11 w-11 items-center justify-center rounded-2xl bg-red-600 text-white shadow-md shadow-red-200 transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="mb-0.5 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-white shadow-md shadow-red-200 transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {sending ? (
                           <Loader2 size={19} className="animate-spin" />
@@ -1242,9 +1246,9 @@ export default function InternalChatPage() {
                         ) : (
                           <Send size={19} className="rotate-180" />
                         )}
-                      </button>
+                      </Button>
                     </form>
-                    <p className="mt-1.5 px-12 text-[10px] text-slate-400">
+                    <p className="mt-1.5 px-12 text-[10px] text-muted-foreground">
                       Enter برای ارسال، Shift + Enter برای خط جدید
                     </p>
                   </footer>
@@ -1346,31 +1350,31 @@ function NewConversationModal({
   return (
     <Modal title="گفتگوی جدید" onClose={onClose}>
       <div className="p-4">
-        <div className="mb-3 flex rounded-2xl bg-slate-100 p-1">
-          <button
+        <div className="mb-3 flex rounded-2xl bg-muted p-1">
+          <Button variant="ghost"
             type="button"
             onClick={() => {
               setGroup(false);
               setSelected((items) => items.slice(0, 1));
             }}
             className={`flex-1 rounded-xl py-2 text-sm font-semibold ${
-              !group ? "bg-white text-red-600 shadow-sm" : "text-slate-500"
+              !group ? "bg-card text-primary shadow-sm" : "text-muted-foreground"
             }`}
           >
             گفتگوی شخصی
-          </button>
-          <button
+          </Button>
+          <Button variant="ghost"
             type="button"
             onClick={() => setGroup(true)}
             className={`flex-1 rounded-xl py-2 text-sm font-semibold ${
-              group ? "bg-white text-red-600 shadow-sm" : "text-slate-500"
+              group ? "bg-card text-primary shadow-sm" : "text-muted-foreground"
             }`}
           >
             ساخت گروه
-          </button>
+          </Button>
         </div>
         {group && (
-          <input
+          <Input
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             maxLength={256}
@@ -1378,22 +1382,22 @@ function NewConversationModal({
             className="mb-3 w-full rounded-xl border px-3 py-2.5 text-sm outline-none focus:border-red-300"
           />
         )}
-        <label className="flex items-center gap-2 rounded-xl border px-3 py-2.5">
-          <Search size={17} className="text-slate-400" />
-          <input
+        <Label className="flex items-center gap-2 rounded-xl border px-3 py-2.5">
+          <Search size={17} className="text-muted-foreground" />
+          <Input
             autoFocus
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="جستجوی نام، واحد یا نام کاربری"
             className="flex-1 text-sm outline-none"
           />
-        </label>
+        </Label>
       </div>
       <div className="max-h-[45vh] overflow-y-auto border-y p-2">
         {filtered.map((item) => {
           const checked = selected.includes(item.id);
           return (
-            <button
+            <Button variant="ghost"
               key={item.id}
               type="button"
               onClick={() =>
@@ -1405,48 +1409,48 @@ function NewConversationModal({
                       : [item.id],
                 )
               }
-              className="flex w-full items-center gap-3 rounded-2xl p-2.5 text-right hover:bg-slate-50"
+              className="flex w-full items-center gap-3 rounded-2xl p-2.5 text-right hover:bg-muted/40"
             >
               <UserAvatar
                 name={formatUserDisplayName(item)}
                 avatarUrl={item.avatar_url}
               />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-bold text-slate-800">
+                <span className="block truncate text-sm font-bold text-foreground">
                   <UserDisplayName user={item} />
                 </span>
-                <span className="mt-0.5 block truncate text-xs text-slate-500">
+                <span className="mt-0.5 block truncate text-xs text-muted-foreground">
                   {[item.job_title, item.department].filter(Boolean).join(" • ")}
                 </span>
               </span>
               <span
                 className={`flex h-5 w-5 items-center justify-center rounded-md border ${
                   checked
-                    ? "border-red-600 bg-red-600 text-white"
-                    : "border-slate-300"
+                    ? "border-red-600 bg-primary text-white"
+                    : "border-border"
                 }`}
               >
                 {checked && <Check size={13} />}
               </span>
-            </button>
+            </Button>
           );
         })}
       </div>
       <div className="flex items-center justify-between p-4">
-        <span className="text-xs text-slate-500">
+        <span className="text-xs text-muted-foreground">
           {selected.length.toLocaleString("fa-IR")} نفر انتخاب شده
         </span>
-        <button
+        <Button variant="ghost"
           type="button"
           onClick={() => void create()}
           disabled={
             !selected.length || (group && !title.trim()) || submitting
           }
-          className="flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+          className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50"
         >
           {submitting && <Loader2 size={16} className="animate-spin" />}
           ایجاد گفتگو
-        </button>
+        </Button>
       </div>
     </Modal>
   );
@@ -1484,7 +1488,7 @@ function ForwardModal({
         {conversations.map((item) => {
           const checked = selected.includes(item.id);
           return (
-            <button
+            <Button variant="ghost"
               type="button"
               key={item.id}
               onClick={() =>
@@ -1494,9 +1498,9 @@ function ForwardModal({
                     : [...values, item.id],
                 )
               }
-              className="flex w-full items-center gap-3 rounded-2xl p-3 hover:bg-slate-50"
+              className="flex w-full items-center gap-3 rounded-2xl p-3 hover:bg-muted/40"
             >
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 font-bold text-red-600">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 font-bold text-primary">
                 {item.kind === "group" ? (
                   <Users size={18} />
                 ) : (
@@ -1508,21 +1512,21 @@ function ForwardModal({
               </span>
               <span
                 className={`flex h-5 w-5 items-center justify-center rounded-md border ${
-                  checked ? "border-red-600 bg-red-600 text-white" : ""
+                  checked ? "border-red-600 bg-primary text-white" : ""
                 }`}
               >
                 {checked && <Check size={13} />}
               </span>
-            </button>
+            </Button>
           );
         })}
       </div>
       <div className="flex justify-end border-t p-4">
-        <button
+        <Button variant="ghost"
           type="button"
           disabled={!selected.length || submitting}
           onClick={() => void submit()}
-          className="flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+          className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50"
         >
           {submitting ? (
             <Loader2 size={16} className="animate-spin" />
@@ -1530,7 +1534,7 @@ function ForwardModal({
             <Forward size={16} />
           )}
           هدایت
-        </button>
+        </Button>
       </div>
     </Modal>
   );
@@ -1596,11 +1600,11 @@ function ConversationInfoModal({
       <div className="max-h-[70vh] overflow-y-auto p-5">
         <div className="mb-5 flex flex-col items-center">
           {conversation.kind === "group" ? (
-            <span className="flex h-20 w-20 items-center justify-center rounded-3xl bg-red-600 text-2xl font-bold text-white">
+            <span className="flex h-20 w-20 items-center justify-center rounded-3xl bg-primary text-2xl font-bold text-white">
               <Users size={30} />
             </span>
           ) : (
-            <button
+            <Button variant="ghost"
               type="button"
               disabled={!headerAvatarUrl}
               onClick={() =>
@@ -1622,42 +1626,42 @@ function ConversationInfoModal({
                 }
                 avatarUrl={headerAvatarUrl || null}
                 className="h-20 w-20 rounded-3xl text-2xl"
-                fallbackClassName="bg-red-600 text-white"
+                fallbackClassName="bg-primary text-white"
               />
-            </button>
+            </Button>
           )}
           {conversation.kind === "group" &&
           conversation.role === "owner" ? (
             <div className="mt-3 flex w-full max-w-xs gap-2">
-              <input
+              <Input
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-center font-bold outline-none"
               />
-              <button
+              <Button variant="ghost"
                 type="button"
                 onClick={() => void rename()}
-                className="rounded-xl bg-slate-100 p-2.5 text-slate-600"
+                className="rounded-xl bg-muted p-2.5 text-muted-foreground"
               >
                 <Check size={18} />
-              </button>
+              </Button>
             </div>
           ) : (
-            <p className="mt-3 font-extrabold text-slate-800">
+            <p className="mt-3 font-extrabold text-foreground">
               {conversation.title}
             </p>
           )}
           {conversation.kind === "direct" && otherMember?.job_title && (
-            <p className="mt-1 text-sm text-slate-500">{otherMember.job_title}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{otherMember.job_title}</p>
           )}
         </div>
         <div className="mb-5 grid grid-cols-3 gap-2">
-          <button
+          <Button variant="ghost"
             type="button"
             onClick={() =>
               void onSetting({ is_muted: !conversation.is_muted })
             }
-            className="flex flex-col items-center gap-2 rounded-2xl bg-slate-50 p-3 text-xs font-semibold text-slate-600 hover:bg-red-50 hover:text-red-600"
+            className="flex flex-col items-center gap-2 rounded-2xl bg-muted/40 p-3 text-xs font-semibold text-muted-foreground hover:bg-primary/10 hover:text-primary"
           >
             {conversation.is_muted ? (
               <Volume2 size={20} />
@@ -1665,50 +1669,50 @@ function ConversationInfoModal({
               <VolumeX size={20} />
             )}
             {conversation.is_muted ? "با صدا" : "بی‌صدا"}
-          </button>
-          <button
+          </Button>
+          <Button variant="ghost"
             type="button"
             onClick={() =>
               void onSetting({ is_pinned: !conversation.is_pinned })
             }
-            className="flex flex-col items-center gap-2 rounded-2xl bg-slate-50 p-3 text-xs font-semibold text-slate-600 hover:bg-red-50 hover:text-red-600"
+            className="flex flex-col items-center gap-2 rounded-2xl bg-muted/40 p-3 text-xs font-semibold text-muted-foreground hover:bg-primary/10 hover:text-primary"
           >
             <Pin size={20} />
             {conversation.is_pinned ? "برداشتن سنجاق" : "سنجاق"}
-          </button>
-          <button
+          </Button>
+          <Button variant="ghost"
             type="button"
             onClick={() => {
               void onSetting({ is_archived: !conversation.is_archived });
               onClose();
             }}
-            className="flex flex-col items-center gap-2 rounded-2xl bg-slate-50 p-3 text-xs font-semibold text-slate-600 hover:bg-red-50 hover:text-red-600"
+            className="flex flex-col items-center gap-2 rounded-2xl bg-muted/40 p-3 text-xs font-semibold text-muted-foreground hover:bg-primary/10 hover:text-primary"
           >
             <Archive size={20} />
             {conversation.is_archived ? "بازگردانی" : "بایگانی"}
-          </button>
+          </Button>
         </div>
         {conversation.kind === "group" && (
           <>
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-sm font-bold text-slate-700">
+              <p className="text-sm font-bold text-foreground">
                 اعضا ({conversation.members.length.toLocaleString("fa-IR")})
               </p>
               {conversation.role === "owner" && availableUsers.length > 0 && (
-                <button
+                <Button variant="ghost"
                   type="button"
                   onClick={() => setAddOpen((value) => !value)}
-                  className="flex items-center gap-1 text-xs font-bold text-red-600"
+                  className="flex items-center gap-1 text-xs font-bold text-primary"
                 >
                   <UserPlus size={15} />
                   افزودن عضو
-                </button>
+                </Button>
               )}
             </div>
             {addOpen && (
               <div className="mb-3 max-h-40 overflow-y-auto rounded-2xl border p-2">
                 {availableUsers.map((item) => (
-                  <button
+                  <Button variant="ghost"
                     type="button"
                     key={item.id}
                     onClick={async () => {
@@ -1722,11 +1726,11 @@ function ConversationInfoModal({
                         onError(errorText(error));
                       }
                     }}
-                    className="flex w-full items-center gap-2 rounded-xl p-2 text-right text-sm hover:bg-slate-50"
+                    className="flex w-full items-center gap-2 rounded-xl p-2 text-right text-sm hover:bg-muted/40"
                   >
-                    <Plus size={15} className="text-red-600" />
+                    <Plus size={15} className="text-primary" />
                     <UserDisplayName user={item} />
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
@@ -1734,9 +1738,9 @@ function ConversationInfoModal({
               {conversation.members.map((member) => (
                 <div
                   key={member.id}
-                  className="flex items-center gap-3 rounded-2xl p-2.5 hover:bg-slate-50"
+                  className="flex items-center gap-3 rounded-2xl p-2.5 hover:bg-muted/40"
                 >
-                  <button
+                  <Button variant="ghost"
                     type="button"
                     disabled={!member.avatar_url}
                     onClick={() =>
@@ -1753,13 +1757,13 @@ function ConversationInfoModal({
                       avatarUrl={member.avatar_url}
                       className="h-9 w-9 rounded-xl"
                     />
-                  </button>
+                  </Button>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-bold">
                       <UserDisplayName user={member} />
                       {member.id === currentUserId ? " (شما)" : ""}
                     </span>
-                    <span className="block truncate text-xs text-slate-400">
+                    <span className="block truncate text-xs text-muted-foreground">
                       {member.role === "owner"
                         ? "سازنده گروه"
                         : member.department}
@@ -1767,7 +1771,7 @@ function ConversationInfoModal({
                   </span>
                   {conversation.role === "owner" &&
                     member.role !== "owner" && (
-                      <button
+                      <Button variant="ghost"
                         type="button"
                         title="حذف از گروه"
                         onClick={async () => {
@@ -1787,10 +1791,10 @@ function ConversationInfoModal({
                             onError(errorText(error));
                           }
                         }}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary"
                       >
                         <X size={16} />
-                      </button>
+                      </Button>
                     )}
                 </div>
               ))}
@@ -1800,7 +1804,7 @@ function ConversationInfoModal({
       </div>
       {previewAvatar && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-          <button
+          <Button variant="ghost"
             type="button"
             aria-label="بستن تصویر"
             onClick={() => setPreviewAvatar(null)}
@@ -1815,13 +1819,13 @@ function ConversationInfoModal({
             <p className="mt-3 text-sm font-bold text-white">
               {previewAvatar.name}
             </p>
-            <button
+            <Button variant="ghost"
               type="button"
               onClick={() => setPreviewAvatar(null)}
-              className="mt-3 rounded-xl bg-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/25"
+              className="mt-3 rounded-xl bg-card/15 px-4 py-2 text-sm font-semibold text-white hover:bg-card/25"
             >
               بستن
-            </button>
+            </Button>
           </div>
         </div>
       )}

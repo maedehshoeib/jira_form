@@ -1,3 +1,6 @@
+import { NativeSelect } from "@/components/ui/native-select";
+import { Table } from "@/components/ui/table";
+import { Label } from "@/components/ui/label";
 import { useEffect, useMemo, useState } from 'react';
 import DateObject from 'react-date-object';
 import persian from 'react-date-object/calendars/persian';
@@ -52,8 +55,8 @@ import {
   type SubprojectItem,
   type TimesheetEmployee,
 } from '@/features/timesheet/api';
-import { Button } from '@/features/timesheet/components/ui/button';
-import { Input } from '@/features/timesheet/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { JalaliDateTimePicker } from '@/features/timesheet/components/jalali-date-time-picker';
 import { Logo } from '@/features/timesheet/components/logo';
 import { getTehranTime, getTodayPersian } from '@/lib/persianDate';
@@ -142,21 +145,21 @@ function SelectField({
   disabled?: boolean;
 }): JSX.Element {
   return (
-    <label className='block min-w-0'>
-      <span className='mb-1.5 block text-xs font-bold text-slate-500'>{label}</span>
+    <Label className='block min-w-0'>
+      <span className='mb-1.5 block text-xs font-bold text-muted-foreground'>{label}</span>
       <span className='relative block'>
-        <span className='pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400'>{icon}</span>
-        <select
+        <span className='pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground'>{icon}</span>
+        <NativeSelect
           value={value}
           disabled={disabled}
           onChange={(event) => onChange(event.target.value)}
-          className='h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pr-10 pl-9 text-sm font-medium text-slate-700 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:focus:border-cyan-400 dark:focus:ring-cyan-500/20 dark:disabled:bg-slate-800 dark:disabled:text-slate-500'
+          className='h-11 w-full appearance-none rounded-xl border border-border bg-card pr-10 pl-9 text-sm font-medium text-foreground outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-muted/40 disabled:text-muted-foreground dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:focus:border-cyan-400 dark:focus:ring-cyan-500/20 dark:disabled:bg-slate-800 dark:disabled:text-muted-foreground'
         >
           {children}
-        </select>
-        <ChevronDown className='pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400' />
+        </NativeSelect>
+        <ChevronDown className='pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground' />
       </span>
-    </label>
+    </Label>
   );
 }
 
@@ -180,12 +183,12 @@ function MetricCard({
     emerald: 'bg-emerald-50 text-emerald-700 ring-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-400/30',
   };
   return (
-    <article className='rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_30px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-800/90 dark:shadow-black/20'>
+    <article className='rounded-2xl border border-border/80 bg-card p-4 shadow-[0_8px_30px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-800/90 dark:shadow-black/20'>
       <div className='flex items-start justify-between gap-3'>
         <div>
-          <p className='text-xs font-semibold text-slate-500 dark:text-slate-400'>{label}</p>
-          <p className='mt-2 text-2xl font-black tracking-tight text-slate-900 dark:text-slate-50'>{value}</p>
-          <p className='mt-1 text-[11px] text-slate-400 dark:text-slate-500'>{hint}</p>
+          <p className='text-xs font-semibold text-muted-foreground dark:text-muted-foreground'>{label}</p>
+          <p className='mt-2 text-2xl font-black tracking-tight text-foreground dark:text-slate-50'>{value}</p>
+          <p className='mt-1 text-[11px] text-muted-foreground dark:text-muted-foreground'>{hint}</p>
         </div>
         <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ring-1 ${tones[tone]}`}>{icon}</span>
       </div>
@@ -209,7 +212,7 @@ function TrendChart({
   const attendancePoints = visible.map((item, index) => `${x(index)},${y(item.attendance)}`).join(' ');
 
   if (!visible.length) {
-    return <div className='grid h-64 place-items-center text-sm text-slate-400'>برای این بازه داده‌ای ثبت نشده است.</div>;
+    return <div className='grid h-64 place-items-center text-sm text-muted-foreground'>برای این بازه داده‌ای ثبت نشده است.</div>;
   }
 
   return (
@@ -233,9 +236,9 @@ function TrendChart({
           </g>
         ))}
       </svg>
-      <div className='flex flex-wrap items-center gap-5 text-xs font-semibold text-slate-500 dark:text-slate-400'>
+      <div className='flex flex-wrap items-center gap-5 text-xs font-semibold text-muted-foreground dark:text-muted-foreground'>
         <span className='flex items-center gap-2'><i className='h-2.5 w-2.5 rounded-full bg-cyan-600 dark:bg-cyan-400' />زمان تسک‌ها</span>
-        <span className='flex items-center gap-2'><i className='h-2.5 w-2.5 rounded-full bg-slate-300 dark:bg-slate-500' />زمان حضور</span>
+        <span className='flex items-center gap-2'><i className='h-2.5 w-2.5 rounded-full bg-slate-300 dark:bg-muted' />زمان حضور</span>
       </div>
     </div>
   );
@@ -904,23 +907,23 @@ export function AdminPanel(): JSX.Element {
   };
 
   return (
-    <div className='min-h-screen bg-[#f5f7fb] font-sans text-slate-900 dark:bg-transparent dark:text-slate-100' dir='rtl'>
-      <header className='no-print border-b border-slate-200/80 bg-white/90 backdrop-blur dark:border-slate-700 dark:bg-slate-900/90'>
+    <div className='min-h-screen bg-[#f5f7fb] font-sans text-foreground dark:bg-transparent dark:text-slate-100' dir='rtl'>
+      <header className='no-print border-b border-border/80 bg-card/90 backdrop-blur dark:border-slate-700 dark:bg-slate-900/90'>
         <div className='mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-4 sm:px-7'>
           <div className='flex items-center gap-5'>
             <Logo />
             <span className='hidden h-8 w-px bg-slate-200 dark:bg-slate-700 sm:block' />
             <div className='hidden sm:block'>
-              <p className='text-sm font-black text-slate-800 dark:text-slate-100'>مرکز کنترل تایم‌شیت</p>
-              <p className='text-[11px] text-slate-400 dark:text-slate-500'>گزارش مدیریتی حضور و عملکرد</p>
+              <p className='text-sm font-black text-foreground dark:text-slate-100'>مرکز کنترل تایم‌شیت</p>
+              <p className='text-[11px] text-muted-foreground dark:text-muted-foreground'>گزارش مدیریتی حضور و عملکرد</p>
             </div>
           </div>
           <div className='flex items-center gap-2'>
-            <div className='hidden rounded-xl bg-slate-50 px-3 py-2 text-left sm:block dark:bg-slate-800'>
-              <p className='text-xs font-bold text-slate-700 dark:text-slate-200'>
+            <div className='hidden rounded-xl bg-muted/40 px-3 py-2 text-left sm:block dark:bg-slate-800'>
+              <p className='text-xs font-bold text-foreground dark:text-slate-200'>
                 <UserDisplayName user={user} fallback='مدیر سیستم' badgeClassName='h-4 w-4' />
               </p>
-              <p className='text-[10px] text-slate-400 dark:text-slate-500'>مدیر تایم‌شیت</p>
+              <p className='text-[10px] text-muted-foreground dark:text-muted-foreground'>مدیر تایم‌شیت</p>
             </div>
             <Button variant='outline' size='sm' onClick={() => navigate('/')} className='gap-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'>
               <ArrowRight className='h-4 w-4' /> بازگشت
@@ -935,23 +938,23 @@ export function AdminPanel(): JSX.Element {
             <div className='mb-2 flex items-center gap-2 text-xs font-bold text-cyan-700 dark:text-cyan-300'>
               <Sparkles className='h-4 w-4' /> نمای مدیریتی
             </div>
-            <h1 className='text-2xl font-black tracking-tight text-slate-950 sm:text-3xl dark:text-white'>گزارش جامع زمان و عملکرد</h1>
-            <p className='mt-2 text-sm text-slate-500 dark:text-slate-400'>وضعیت کارکنان را ببینید و در صورت نیاز ورود/خروج یا فعالیت‌ها را ثبت و ویرایش کنید.</p>
+            <h1 className='text-2xl font-black tracking-tight text-foreground sm:text-3xl dark:text-white'>گزارش جامع زمان و عملکرد</h1>
+            <p className='mt-2 text-sm text-muted-foreground dark:text-muted-foreground'>وضعیت کارکنان را ببینید و در صورت نیاز ورود/خروج یا فعالیت‌ها را ثبت و ویرایش کنید.</p>
           </div>
           <div className='no-print flex flex-wrap gap-2'>
-            <Button variant='outline' onClick={() => openAttendanceEditor()} className='gap-2 bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'>
+            <Button variant='outline' onClick={() => openAttendanceEditor()} className='gap-2 bg-card dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'>
               <Clock3 className='h-4 w-4' /> ثبت تردد
             </Button>
-            <Button variant='outline' onClick={() => openTaskEditor()} className='gap-2 bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'>
+            <Button variant='outline' onClick={() => openTaskEditor()} className='gap-2 bg-card dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'>
               <Plus className='h-4 w-4' /> افزودن فعالیت
             </Button>
-            <Button variant='outline' onClick={() => setShowProjects((value) => !value)} className='gap-2 bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'>
+            <Button variant='outline' onClick={() => setShowProjects((value) => !value)} className='gap-2 bg-card dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'>
               <BriefcaseBusiness className='h-4 w-4' /> مدیریت پروژه‌ها
             </Button>
-            <Button variant='outline' onClick={() => window.print()} className='gap-2 bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'>
+            <Button variant='outline' onClick={() => window.print()} className='gap-2 bg-card dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'>
               <Printer className='h-4 w-4' /> چاپ
             </Button>
-            <Button variant='outline' onClick={exportCsv} className='gap-2 bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'>
+            <Button variant='outline' onClick={exportCsv} className='gap-2 bg-card dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'>
               <Download className='h-4 w-4' /> خروجی CSV
             </Button>
           </div>
@@ -969,17 +972,17 @@ export function AdminPanel(): JSX.Element {
               role='dialog'
               aria-modal='true'
               aria-label={editorMode === 'attendance' ? 'ویرایش تردد' : 'ویرایش فعالیت'}
-              className='max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl dark:bg-slate-900 dark:text-slate-100'
+              className='max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-card shadow-2xl sm:rounded-3xl dark:bg-slate-900 dark:text-slate-100'
               onMouseDown={(event) => event.stopPropagation()}
             >
-              <div className='sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/95'>
+              <div className='sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-border bg-card/95 px-5 py-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/95'>
                 <div>
-                  <h2 className='text-lg font-black text-slate-900 dark:text-white'>
+                  <h2 className='text-lg font-black text-foreground dark:text-white'>
                     {editorMode === 'attendance'
                       ? (editingAttendanceId ? 'ویرایش تردد' : 'ثبت ورود / خروج')
                       : (editingTaskId ? 'ویرایش فعالیت' : 'افزودن فعالیت')}
                   </h2>
-                  <p className='mt-1 text-xs text-slate-500 dark:text-slate-400'>
+                  <p className='mt-1 text-xs text-muted-foreground dark:text-muted-foreground'>
                     {editorMode === 'attendance'
                       ? 'ورود و خروج کارمند را ثبت یا اصلاح کنید.'
                       : 'فعالیت باید داخل یکی از بازه‌های حضور همان روز باشد.'}
@@ -1013,17 +1016,17 @@ export function AdminPanel(): JSX.Element {
                         </option>
                       ))}
                     </SelectField>
-                    <label>
-                      <span className='mb-1.5 block text-xs font-bold text-slate-500'>تاریخ</span>
+                    <Label>
+                      <span className='mb-1.5 block text-xs font-bold text-muted-foreground'>تاریخ</span>
                       <JalaliDateTimePicker
                         value={editorWorkDate}
                         onChange={(value: any) => setEditorWorkDate(Array.isArray(value) ? value[0] : value)}
                         format='YYYY/MM/DD'
                         placeholder='تاریخ تردد'
                       />
-                    </label>
-                    <label>
-                      <span className='mb-1.5 block text-xs font-bold text-slate-500'>ساعت ورود</span>
+                    </Label>
+                    <Label>
+                      <span className='mb-1.5 block text-xs font-bold text-muted-foreground'>ساعت ورود</span>
                       <JalaliDateTimePicker
                         value={editorCheckIn}
                         onChange={(value: any) => setEditorCheckIn(Array.isArray(value) ? value[0] : value)}
@@ -1031,9 +1034,9 @@ export function AdminPanel(): JSX.Element {
                         format='HH:mm'
                         placeholder='--:--'
                       />
-                    </label>
-                    <label>
-                      <span className='mb-1.5 block text-xs font-bold text-slate-500'>ساعت خروج (اختیاری)</span>
+                    </Label>
+                    <Label>
+                      <span className='mb-1.5 block text-xs font-bold text-muted-foreground'>ساعت خروج (اختیاری)</span>
                       <JalaliDateTimePicker
                         value={editorCheckOut}
                         onChange={(value: any) => setEditorCheckOut(Array.isArray(value) ? value[0] : value)}
@@ -1041,9 +1044,9 @@ export function AdminPanel(): JSX.Element {
                         format='HH:mm'
                         placeholder='باز بماند'
                       />
-                    </label>
+                    </Label>
                     {editingAttendanceId && (
-                      <p className='sm:col-span-2 text-xs text-slate-400'>
+                      <p className='sm:col-span-2 text-xs text-muted-foreground'>
                         هنگام ویرایش، کارمند قابل تغییر نیست؛ فقط تاریخ و ساعات به‌روز می‌شوند.
                       </p>
                     )}
@@ -1064,15 +1067,15 @@ export function AdminPanel(): JSX.Element {
                         </option>
                       ))}
                     </SelectField>
-                    <label>
-                      <span className='mb-1.5 block text-xs font-bold text-slate-500'>تاریخ</span>
+                    <Label>
+                      <span className='mb-1.5 block text-xs font-bold text-muted-foreground'>تاریخ</span>
                       <JalaliDateTimePicker
                         value={editorWorkDate}
                         onChange={(value: any) => setEditorWorkDate(Array.isArray(value) ? value[0] : value)}
                         format='YYYY/MM/DD'
                         placeholder='تاریخ فعالیت'
                       />
-                    </label>
+                    </Label>
                     <SelectField
                       label='پروژه'
                       value={editorProjectCode}
@@ -1102,16 +1105,16 @@ export function AdminPanel(): JSX.Element {
                         </option>
                       ))}
                     </SelectField>
-                    <label className='sm:col-span-2'>
-                      <span className='mb-1.5 block text-xs font-bold text-slate-500'>شرح فعالیت</span>
+                    <Label className='sm:col-span-2'>
+                      <span className='mb-1.5 block text-xs font-bold text-muted-foreground'>شرح فعالیت</span>
                       <Input
                         value={editorTaskName}
                         onChange={(event) => setEditorTaskName(event.target.value)}
                         placeholder='مثلاً بررسی درخواست‌ها'
                       />
-                    </label>
-                    <label>
-                      <span className='mb-1.5 block text-xs font-bold text-slate-500'>از ساعت</span>
+                    </Label>
+                    <Label>
+                      <span className='mb-1.5 block text-xs font-bold text-muted-foreground'>از ساعت</span>
                       <JalaliDateTimePicker
                         value={editorTaskStart}
                         onChange={(value: any) => setEditorTaskStart(Array.isArray(value) ? value[0] : value)}
@@ -1119,9 +1122,9 @@ export function AdminPanel(): JSX.Element {
                         format='HH:mm'
                         placeholder='--:--'
                       />
-                    </label>
-                    <label>
-                      <span className='mb-1.5 block text-xs font-bold text-slate-500'>تا ساعت</span>
+                    </Label>
+                    <Label>
+                      <span className='mb-1.5 block text-xs font-bold text-muted-foreground'>تا ساعت</span>
                       <JalaliDateTimePicker
                         value={editorTaskEnd}
                         onChange={(value: any) => setEditorTaskEnd(Array.isArray(value) ? value[0] : value)}
@@ -1129,9 +1132,9 @@ export function AdminPanel(): JSX.Element {
                         format='HH:mm'
                         placeholder='--:--'
                       />
-                    </label>
+                    </Label>
                     {editingTaskId && (
-                      <p className='sm:col-span-2 text-xs text-slate-400'>
+                      <p className='sm:col-span-2 text-xs text-muted-foreground'>
                         هنگام ویرایش، کارمند قابل تغییر نیست.
                       </p>
                     )}
@@ -1139,7 +1142,7 @@ export function AdminPanel(): JSX.Element {
                 )}
               </div>
 
-              <div className='sticky bottom-0 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 bg-white/95 px-5 py-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/95'>
+              <div className='sticky bottom-0 flex flex-wrap items-center justify-end gap-2 border-t border-border bg-card/95 px-5 py-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/95'>
                 {editorMode === 'attendance' && editorCheckOut && (
                   <Button variant='outline' onClick={() => setEditorCheckOut(null)} className='rounded-xl dark:border-slate-600 dark:bg-slate-800'>
                     پاک کردن خروج
@@ -1172,35 +1175,35 @@ export function AdminPanel(): JSX.Element {
           </div>
         )}
 
-        <section className='no-print rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-800/90 dark:shadow-black/20'>
+        <section className='no-print rounded-2xl border border-border bg-card p-4 shadow-[0_12px_40px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-800/90 dark:shadow-black/20'>
           <div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
-            <div className='flex items-center gap-2 text-sm font-black text-slate-800 dark:text-slate-100'><Filter className='h-4 w-4 text-cyan-600 dark:text-cyan-400' /> فیلتر گزارش</div>
-            <div className='flex rounded-xl bg-slate-100 p-1 dark:bg-slate-900/80'>
+            <div className='flex items-center gap-2 text-sm font-black text-foreground dark:text-slate-100'><Filter className='h-4 w-4 text-cyan-600 dark:text-cyan-400' /> فیلتر گزارش</div>
+            <div className='flex rounded-xl bg-muted p-1 dark:bg-slate-900/80'>
               {([
                 ['today', 'امروز'],
                 ['week', '۷ روز'],
                 ['month', '۳۰ روز'],
                 ['custom', 'دلخواه'],
               ] as Array<[PeriodPreset, string]>).map(([value, label]) => (
-                <button
+                <Button
                   key={value}
                   onClick={() => applyPreset(value)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${preset === value ? 'bg-white text-cyan-700 shadow-sm dark:bg-slate-700 dark:text-cyan-300' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${preset === value ? 'bg-card text-cyan-700 shadow-sm dark:bg-slate-700 dark:text-cyan-300' : 'text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-slate-200'}`}
                 >
                   {label}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
           <div className='grid gap-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7'>
-            <label>
-              <span className='mb-1.5 block text-xs font-bold text-slate-500'>از تاریخ</span>
+            <Label>
+              <span className='mb-1.5 block text-xs font-bold text-muted-foreground'>از تاریخ</span>
               <JalaliDateTimePicker value={startDate} onChange={(value: any) => { setStartDate(value); setPreset('custom'); }} format='YYYY/MM/DD' placeholder='تاریخ شروع' />
-            </label>
-            <label>
-              <span className='mb-1.5 block text-xs font-bold text-slate-500'>تا تاریخ</span>
+            </Label>
+            <Label>
+              <span className='mb-1.5 block text-xs font-bold text-muted-foreground'>تا تاریخ</span>
               <JalaliDateTimePicker value={endDate} onChange={(value: any) => { setEndDate(value); setPreset('custom'); }} format='YYYY/MM/DD' placeholder='تاریخ پایان' />
-            </label>
+            </Label>
             <SelectField label='واحد سازمانی' value={selectedDepartment} onChange={(value) => { setSelectedDepartment(value); setSelectedEmployee('all'); }} icon={<Building2 className='h-4 w-4' />}>
               <option value='all'>همه واحدها</option>
               {(records?.departments || []).map((department) => <option key={department} value={department}>{department}</option>)}
@@ -1243,7 +1246,7 @@ export function AdminPanel(): JSX.Element {
         </section>
 
         {showProjects && (
-          <section className='no-print rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800/90'>
+          <section className='no-print rounded-2xl border border-border bg-card p-5 dark:border-slate-700 dark:bg-slate-800/90'>
             <div className='grid gap-5 xl:grid-cols-[380px_1fr]'>
               <div className='space-y-5'>
                 <div>
@@ -1262,32 +1265,32 @@ export function AdminPanel(): JSX.Element {
                     />
                     <Input value={projectTitle} onChange={(event) => setProjectTitle(event.target.value)} placeholder='عنوان پروژه' />
                     <div className='grid grid-cols-2 gap-2'>
-                      <label>
-                        <span className='mb-1.5 block text-xs font-bold text-slate-500'>از تاریخ</span>
+                      <Label>
+                        <span className='mb-1.5 block text-xs font-bold text-muted-foreground'>از تاریخ</span>
                         <JalaliDateTimePicker
                           value={projectStartDate}
                           onChange={(value: any) => setProjectStartDate(Array.isArray(value) ? value[0] : value)}
                           format='YYYY/MM/DD'
                           placeholder='شروع دوره'
                         />
-                      </label>
-                      <label>
-                        <span className='mb-1.5 block text-xs font-bold text-slate-500'>تا تاریخ</span>
+                      </Label>
+                      <Label>
+                        <span className='mb-1.5 block text-xs font-bold text-muted-foreground'>تا تاریخ</span>
                         <JalaliDateTimePicker
                           value={projectEndDate}
                           onChange={(value: any) => setProjectEndDate(Array.isArray(value) ? value[0] : value)}
                           format='YYYY/MM/DD'
                           placeholder='پایان دوره'
                         />
-                      </label>
+                      </Label>
                     </div>
                     <div>
                       <div className='mb-1.5 flex items-center justify-between'>
-                        <span className='text-xs font-bold text-slate-500'>کاربران مجاز</span>
-                        <span className='text-[10px] text-slate-400'>{numberFormatter.format(projectUserIds.length)} نفر</span>
+                        <span className='text-xs font-bold text-muted-foreground'>کاربران مجاز</span>
+                        <span className='text-[10px] text-muted-foreground'>{numberFormatter.format(projectUserIds.length)} نفر</span>
                       </div>
                       <div className='relative mb-2'>
-                        <Search className='pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400' />
+                        <Search className='pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground' />
                         <Input
                           value={projectUserSearch}
                           onChange={(event) => setProjectUserSearch(event.target.value)}
@@ -1295,25 +1298,25 @@ export function AdminPanel(): JSX.Element {
                           placeholder='جستجوی کارمند...'
                         />
                       </div>
-                      <div className='max-h-36 space-y-1 overflow-auto rounded-xl border border-slate-200 p-2'>
+                      <div className='max-h-36 space-y-1 overflow-auto rounded-xl border border-border p-2'>
                         {!directoryEmployees.length && (
-                          <p className='p-2 text-xs text-slate-400'>ابتدا گزارش را بارگذاری کنید تا فهرست کارکنان آماده شود.</p>
+                          <p className='p-2 text-xs text-muted-foreground'>ابتدا گزارش را بارگذاری کنید تا فهرست کارکنان آماده شود.</p>
                         )}
                         {directoryEmployees.length > 0 && !projectAssigneeOptions.length && (
-                          <p className='p-2 text-xs text-slate-400'>کارمندی با این جستجو پیدا نشد.</p>
+                          <p className='p-2 text-xs text-muted-foreground'>کارمندی با این جستجو پیدا نشد.</p>
                         )}
                         {projectAssigneeOptions.map((employee) => {
                           const checked = projectUserIds.includes(Number(employee.employee_id));
                           return (
-                            <label key={employee.employee_id} className='flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-slate-50'>
-                              <input
+                            <Label key={employee.employee_id} className='flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-muted/40'>
+                              <Input
                                 type='checkbox'
                                 checked={checked}
                                 onChange={() => toggleUserId(projectUserIds, employee.employee_id, setProjectUserIds)}
                               />
-                              <span className='font-bold text-slate-700'>{employee.full_name}</span>
-                              <span className='text-slate-400'>{employee.department}</span>
-                            </label>
+                              <span className='font-bold text-foreground'>{employee.full_name}</span>
+                              <span className='text-muted-foreground'>{employee.department}</span>
+                            </Label>
                           );
                         })}
                       </div>
@@ -1330,12 +1333,12 @@ export function AdminPanel(): JSX.Element {
                       <Button size='sm' variant='outline' onClick={resetSubprojectForm}>جدید</Button>
                     )}
                   </div>
-                  <p className='mt-1 text-xs text-slate-400'>زیرپروژه به پروژه انتخاب‌شده در لیست اضافه می‌شود.</p>
+                  <p className='mt-1 text-xs text-muted-foreground'>زیرپروژه به پروژه انتخاب‌شده در لیست اضافه می‌شود.</p>
                   <div className='mt-3 space-y-2'>
-                    <select
+                    <NativeSelect
                       value={selectedManageProject}
                       onChange={(event) => setSelectedManageProject(event.target.value)}
-                      className='h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-cyan-500'
+                      className='h-11 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none focus:border-cyan-500'
                       disabled={Boolean(editingSubprojectCode)}
                     >
                       {!projects.length && <option value=''>پروژه‌ای موجود نیست</option>}
@@ -1344,36 +1347,36 @@ export function AdminPanel(): JSX.Element {
                           {project.title || project.code} — {project.code}
                         </option>
                       ))}
-                    </select>
+                    </NativeSelect>
                     <Input value={subprojectCode} onChange={(event) => setSubprojectCode(event.target.value.toUpperCase())} placeholder='کد زیرپروژه، مثال SUB-001' />
                     <Input value={subprojectTitle} onChange={(event) => setSubprojectTitle(event.target.value)} placeholder='عنوان زیرپروژه' />
                     <div className='grid grid-cols-2 gap-2'>
-                      <label>
-                        <span className='mb-1.5 block text-xs font-bold text-slate-500'>از تاریخ</span>
+                      <Label>
+                        <span className='mb-1.5 block text-xs font-bold text-muted-foreground'>از تاریخ</span>
                         <JalaliDateTimePicker
                           value={subprojectStartDate}
                           onChange={(value: any) => setSubprojectStartDate(Array.isArray(value) ? value[0] : value)}
                           format='YYYY/MM/DD'
                           placeholder='شروع دوره'
                         />
-                      </label>
-                      <label>
-                        <span className='mb-1.5 block text-xs font-bold text-slate-500'>تا تاریخ</span>
+                      </Label>
+                      <Label>
+                        <span className='mb-1.5 block text-xs font-bold text-muted-foreground'>تا تاریخ</span>
                         <JalaliDateTimePicker
                           value={subprojectEndDate}
                           onChange={(value: any) => setSubprojectEndDate(Array.isArray(value) ? value[0] : value)}
                           format='YYYY/MM/DD'
                           placeholder='پایان دوره'
                         />
-                      </label>
+                      </Label>
                     </div>
                     <div>
                       <div className='mb-1.5 flex items-center justify-between'>
-                        <span className='text-xs font-bold text-slate-500'>کاربران مجاز زیرپروژه</span>
-                        <span className='text-[10px] text-slate-400'>{numberFormatter.format(subprojectUserIds.length)} نفر</span>
+                        <span className='text-xs font-bold text-muted-foreground'>کاربران مجاز زیرپروژه</span>
+                        <span className='text-[10px] text-muted-foreground'>{numberFormatter.format(subprojectUserIds.length)} نفر</span>
                       </div>
                       <div className='relative mb-2'>
-                        <Search className='pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400' />
+                        <Search className='pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground' />
                         <Input
                           value={subprojectUserSearch}
                           onChange={(event) => setSubprojectUserSearch(event.target.value)}
@@ -1381,24 +1384,24 @@ export function AdminPanel(): JSX.Element {
                           placeholder='جستجوی کارمند...'
                         />
                       </div>
-                      <div className='max-h-36 space-y-1 overflow-auto rounded-xl border border-slate-200 p-2'>
+                      <div className='max-h-36 space-y-1 overflow-auto rounded-xl border border-border p-2'>
                         {!subprojectAssigneePool.length && (
-                          <p className='p-2 text-xs text-slate-400'>کاربری برای انتخاب موجود نیست.</p>
+                          <p className='p-2 text-xs text-muted-foreground'>کاربری برای انتخاب موجود نیست.</p>
                         )}
                         {subprojectAssigneePool.length > 0 && !subprojectAssigneeOptions.length && (
-                          <p className='p-2 text-xs text-slate-400'>کارمندی با این جستجو پیدا نشد.</p>
+                          <p className='p-2 text-xs text-muted-foreground'>کارمندی با این جستجو پیدا نشد.</p>
                         )}
                         {subprojectAssigneeOptions.map((employee) => {
                           const checked = subprojectUserIds.includes(Number(employee.employee_id));
                           return (
-                            <label key={employee.employee_id} className='flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-slate-50'>
-                              <input
+                            <Label key={employee.employee_id} className='flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-muted/40'>
+                              <Input
                                 type='checkbox'
                                 checked={checked}
                                 onChange={() => toggleUserId(subprojectUserIds, employee.employee_id, setSubprojectUserIds)}
                               />
-                              <span className='font-bold text-slate-700'>{employee.full_name}</span>
-                            </label>
+                              <span className='font-bold text-foreground'>{employee.full_name}</span>
+                            </Label>
                           );
                         })}
                       </div>
@@ -1411,21 +1414,21 @@ export function AdminPanel(): JSX.Element {
               </div>
               <div>
                 <Input value={projectListSearch} onChange={(event) => setProjectListSearch(event.target.value)} placeholder='جستجو در پروژه‌ها و زیرپروژه‌ها' />
-                <div className='mt-2 max-h-[34rem] overflow-auto rounded-xl border border-slate-200'>
+                <div className='mt-2 max-h-[34rem] overflow-auto rounded-xl border border-border'>
                   {filteredProjectList.map((project) => (
                     <div
                       key={project.code}
-                      className={`border-b border-slate-100 last:border-0 ${selectedManageProject === project.code ? 'bg-cyan-50/50' : ''}`}
+                      className={`border-b border-border last:border-0 ${selectedManageProject === project.code ? 'bg-cyan-50/50' : ''}`}
                     >
                       <div className='flex items-center justify-between gap-3 px-3 py-2'>
-                        <button
+                        <Button
                           type='button'
                           onClick={() => fillProjectForm(project)}
                           className='min-w-0 flex-1 text-right'
                         >
                           <b className='text-sm'>{project.title}</b>
-                          <span className='mr-2 font-mono text-xs text-slate-400'>{project.code}</span>
-                          <span className='mr-2 text-[10px] font-bold text-slate-400'>
+                          <span className='mr-2 font-mono text-xs text-muted-foreground'>{project.code}</span>
+                          <span className='mr-2 text-[10px] font-bold text-muted-foreground'>
                             {numberFormatter.format(project.subprojects?.length || 0)} زیرپروژه
                           </span>
                           <span className='mr-2 text-[10px] font-bold text-violet-600'>
@@ -1436,22 +1439,22 @@ export function AdminPanel(): JSX.Element {
                               {project.start_date || '—'} → {project.end_date || '—'}
                             </div>
                           )}
-                        </button>
+                        </Button>
                         <div className='flex shrink-0 gap-1'>
                           <Button size='sm' variant='outline' onClick={() => fillProjectForm(project)}>ویرایش</Button>
                           <Button size='sm' variant='outline' disabled={project.code === 'GENERAL'} onClick={() => void deleteProject(project)} className='text-rose-600'>حذف</Button>
                         </div>
                       </div>
                       {(project.subprojects || []).length > 0 && (
-                        <div className='space-y-1 border-t border-slate-50 bg-slate-50/70 px-3 py-2'>
+                        <div className='space-y-1 border-t border-slate-50 bg-muted/40 px-3 py-2'>
                           {(project.subprojects || []).map((subproject) => (
-                            <div key={subproject.code} className='flex items-center justify-between gap-3 rounded-lg bg-white px-2.5 py-1.5'>
-                              <button
+                            <div key={subproject.code} className='flex items-center justify-between gap-3 rounded-lg bg-card px-2.5 py-1.5'>
+                              <Button
                                 type='button'
                                 className='min-w-0 flex-1 text-right'
                                 onClick={() => fillSubprojectForm(subproject, project.code)}
                               >
-                                <span className='text-xs font-bold text-slate-700'>{subproject.title}</span>
+                                <span className='text-xs font-bold text-foreground'>{subproject.title}</span>
                                 <span className='mr-2 font-mono text-[10px] text-sky-700'>{subproject.code}</span>
                                 <span className='mr-2 text-[10px] text-violet-600'>
                                   {numberFormatter.format(subproject.user_ids?.length || 0)} کاربر
@@ -1461,7 +1464,7 @@ export function AdminPanel(): JSX.Element {
                                     {subproject.start_date || '—'} → {subproject.end_date || '—'}
                                   </div>
                                 )}
-                              </button>
+                              </Button>
                               <div className='flex shrink-0 gap-1'>
                                 <Button size='sm' variant='outline' onClick={() => fillSubprojectForm(subproject, project.code)} className='h-7 px-2 text-[11px]'>ویرایش</Button>
                                 <Button size='sm' variant='outline' onClick={() => void deleteSubproject(subproject.code)} className='h-7 px-2 text-[11px] text-rose-600'>حذف</Button>
@@ -1473,11 +1476,11 @@ export function AdminPanel(): JSX.Element {
                     </div>
                   ))}
                   {!filteredProjectList.length && (
-                    <div className='p-6 text-center text-sm text-slate-400'>پروژه‌ای پیدا نشد.</div>
+                    <div className='p-6 text-center text-sm text-muted-foreground'>پروژه‌ای پیدا نشد.</div>
                   )}
                 </div>
                 {manageProject && (
-                  <p className='mt-3 text-xs text-slate-500'>
+                  <p className='mt-3 text-xs text-muted-foreground'>
                     پروژه انتخاب‌شده برای زیرپروژه: <b>{manageProject.title || manageProject.code}</b>
                     {manageProject.start_date && manageProject.end_date && (
                       <span className='mr-2 text-cyan-700' dir='ltr'>
@@ -1500,22 +1503,22 @@ export function AdminPanel(): JSX.Element {
         </section>
 
         <section className='grid gap-5 xl:grid-cols-[1.55fr_1fr]'>
-          <article className='rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_10px_35px_rgba(15,23,42,0.035)] dark:border-slate-700 dark:bg-slate-800/90 dark:shadow-black/20'>
+          <article className='rounded-2xl border border-border bg-card p-5 shadow-[0_10px_35px_rgba(15,23,42,0.035)] dark:border-slate-700 dark:bg-slate-800/90 dark:shadow-black/20'>
             <div className='flex flex-wrap items-start justify-between gap-3'>
               <div>
                 <h2 className='text-base font-black dark:text-slate-50'>روند زمان ثبت‌شده</h2>
-                <p className='mt-1 text-xs text-slate-400'>مقایسه زمان حضور و فعالیت روزانه</p>
+                <p className='mt-1 text-xs text-muted-foreground'>مقایسه زمان حضور و فعالیت روزانه</p>
               </div>
-              <span className='rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-500 dark:bg-slate-900 dark:text-slate-400'>{asDate(startDate)} تا {asDate(endDate)}</span>
+              <span className='rounded-lg bg-muted/40 px-2.5 py-1.5 text-xs font-bold text-muted-foreground dark:bg-slate-900 dark:text-muted-foreground'>{asDate(startDate)} تا {asDate(endDate)}</span>
             </div>
             <TrendChart data={dailyTrend} />
           </article>
 
-          <article className='rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_10px_35px_rgba(15,23,42,0.035)] dark:border-slate-700 dark:bg-slate-800/90 dark:shadow-black/20'>
+          <article className='rounded-2xl border border-border bg-card p-5 shadow-[0_10px_35px_rgba(15,23,42,0.035)] dark:border-slate-700 dark:bg-slate-800/90 dark:shadow-black/20'>
             <div className='flex items-start justify-between'>
               <div>
                 <h2 className='text-base font-black dark:text-slate-50'>سهم پروژه‌ها</h2>
-                <p className='mt-1 text-xs text-slate-400'>بر اساس زمان فعالیت ثبت‌شده</p>
+                <p className='mt-1 text-xs text-muted-foreground'>بر اساس زمان فعالیت ثبت‌شده</p>
               </div>
               <BriefcaseBusiness className='h-5 w-5 text-violet-500' />
             </div>
@@ -1523,61 +1526,61 @@ export function AdminPanel(): JSX.Element {
               {projectRows.slice(0, 6).map((project, index) => (
                 <div key={project.code}>
                   <div className='mb-1.5 flex items-center justify-between gap-3 text-xs'>
-                    <span className='truncate font-bold text-slate-700'><i className={`ml-2 inline-block h-2 w-2 rounded-full ${['bg-cyan-500', 'bg-violet-500', 'bg-amber-500', 'bg-emerald-500'][index % 4]}`} />{project.code}</span>
-                    <span className='shrink-0 font-bold text-slate-500'>{formatMinutes(project.minutes)}</span>
+                    <span className='truncate font-bold text-foreground'><i className={`ml-2 inline-block h-2 w-2 rounded-full ${['bg-cyan-500', 'bg-violet-500', 'bg-amber-500', 'bg-emerald-500'][index % 4]}`} />{project.code}</span>
+                    <span className='shrink-0 font-bold text-muted-foreground'>{formatMinutes(project.minutes)}</span>
                   </div>
-                  <div className='h-2 overflow-hidden rounded-full bg-slate-100'>
+                  <div className='h-2 overflow-hidden rounded-full bg-muted'>
                     <div className='h-full rounded-full bg-gradient-to-l from-cyan-500 to-violet-500' style={{ width: `${Math.max(4, project.minutes / maxProjectMinutes * 100)}%` }} />
                   </div>
                 </div>
               ))}
-              {!projectRows.length && <div className='grid h-48 place-items-center text-sm text-slate-400'>فعالیتی برای نمایش نیست.</div>}
+              {!projectRows.length && <div className='grid h-48 place-items-center text-sm text-muted-foreground'>فعالیتی برای نمایش نیست.</div>}
             </div>
           </article>
         </section>
 
-        <section className='rounded-2xl border border-slate-200 bg-white shadow-[0_10px_35px_rgba(15,23,42,0.035)] dark:border-slate-700 dark:bg-slate-800/90 dark:shadow-black/20'>
-          <div className='flex flex-col justify-between gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center dark:border-slate-700'>
-            <div className='flex rounded-xl bg-slate-100 p-1 dark:bg-slate-900/80'>
+        <section className='rounded-2xl border border-border bg-card shadow-[0_10px_35px_rgba(15,23,42,0.035)] dark:border-slate-700 dark:bg-slate-800/90 dark:shadow-black/20'>
+          <div className='flex flex-col justify-between gap-3 border-b border-border p-4 sm:flex-row sm:items-center dark:border-slate-700'>
+            <div className='flex rounded-xl bg-muted p-1 dark:bg-slate-900/80'>
               {([
                 ['employees', 'کارکنان', visibleEmployeeRows.length],
                 ['tasks', 'فعالیت‌ها', filteredTasks.length],
                 ['attendance', 'ترددها', filteredAttendance.length],
               ] as Array<[ReportTab, string, number]>).map(([value, label, count]) => (
-                <button key={value} onClick={() => setReportTab(value)} className={`rounded-lg px-3 py-2 text-xs font-bold transition ${reportTab === value ? 'bg-white text-cyan-700 shadow-sm dark:bg-slate-700 dark:text-cyan-300' : 'text-slate-500 dark:text-slate-400'}`}>
-                  {label} <span className='mr-1 text-[10px] text-slate-400'>{numberFormatter.format(count)}</span>
-                </button>
+                <Button key={value} onClick={() => setReportTab(value)} className={`rounded-lg px-3 py-2 text-xs font-bold transition ${reportTab === value ? 'bg-card text-cyan-700 shadow-sm dark:bg-slate-700 dark:text-cyan-300' : 'text-muted-foreground dark:text-muted-foreground'}`}>
+                  {label} <span className='mr-1 text-[10px] text-muted-foreground'>{numberFormatter.format(count)}</span>
+                </Button>
               ))}
             </div>
-            <label className='no-print relative block sm:w-72'>
-              <Search className='absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400' />
+            <Label className='no-print relative block sm:w-72'>
+              <Search className='absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground' />
               <Input value={query} onChange={(event) => setQuery(event.target.value)} className='pr-9 dark:border-slate-600 dark:bg-slate-900' placeholder='جستجو در گزارش...' />
-            </label>
+            </Label>
           </div>
           <div className='overflow-x-auto'>
             {reportTab === 'employees' && (
-              <table className='w-full min-w-[850px] text-sm'>
-                <thead><tr className='bg-slate-50/70 text-xs text-slate-500 dark:bg-slate-900/60 dark:text-slate-400'><th className='p-3 text-right'>کارمند</th><th className='p-3 text-right'>واحد</th><th className='p-3 text-right'>روز فعال</th><th className='p-3 text-right'>حضور</th><th className='p-3 text-right'>زمان ثبت‌شده</th><th className='p-3 text-right'>ثبت‌نشده</th><th className='p-3 text-right'>نرخ ثبت</th><th className='p-3 text-right'>وضعیت</th></tr></thead>
+              <Table className='w-full min-w-[850px] text-sm'>
+                <thead><tr className='bg-muted/40 text-xs text-muted-foreground dark:bg-slate-900/60 dark:text-muted-foreground'><th className='p-3 text-right'>کارمند</th><th className='p-3 text-right'>واحد</th><th className='p-3 text-right'>روز فعال</th><th className='p-3 text-right'>حضور</th><th className='p-3 text-right'>زمان ثبت‌شده</th><th className='p-3 text-right'>ثبت‌نشده</th><th className='p-3 text-right'>نرخ ثبت</th><th className='p-3 text-right'>وضعیت</th></tr></thead>
                 <tbody>
                   {pagedEmployees.map((row) => (
-                    <tr key={row.employee_id} className='border-t border-slate-100 hover:bg-slate-50/60 dark:border-slate-700 dark:hover:bg-slate-900/50'>
-                      <td className='p-3'><div className='font-bold text-slate-800 dark:text-slate-100'>{row.full_name}</div><div className='text-[10px] text-slate-400'>{row.job_title || row.username}</div></td>
-                      <td className='p-3 text-slate-600 dark:text-slate-300'>{row.department}</td>
+                    <tr key={row.employee_id} className='border-t border-border hover:bg-muted/40 dark:border-slate-700 dark:hover:bg-slate-900/50'>
+                      <td className='p-3'><div className='font-bold text-foreground dark:text-slate-100'>{row.full_name}</div><div className='text-[10px] text-muted-foreground'>{row.job_title || row.username}</div></td>
+                      <td className='p-3 text-muted-foreground dark:text-slate-300'>{row.department}</td>
                       <td className='p-3'>{numberFormatter.format(row.activeDays)}</td>
                       <td className='p-3'>{formatMinutes(row.attendance)}</td>
                       <td className='p-3 font-bold text-cyan-700 dark:text-cyan-300'>{formatMinutes(row.tracked)}</td>
-                      <td className='p-3 text-slate-500'>{formatMinutes(row.untracked)}</td>
-                      <td className='p-3'><div className='flex items-center gap-2'><div className='h-1.5 w-16 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700'><div className='h-full rounded-full bg-cyan-500' style={{ width: `${Math.min(100, row.efficiency)}%` }} /></div><b>{numberFormatter.format(row.efficiency)}٪</b></div></td>
-                      <td className='p-3'><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${row.attendance === 0 ? 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300' : row.efficiency >= 70 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'}`}>{row.attendance === 0 ? 'بدون رکورد' : row.efficiency >= 70 ? 'مطلوب' : 'نیازمند بررسی'}</span></td>
+                      <td className='p-3 text-muted-foreground'>{formatMinutes(row.untracked)}</td>
+                      <td className='p-3'><div className='flex items-center gap-2'><div className='h-1.5 w-16 overflow-hidden rounded-full bg-muted dark:bg-slate-700'><div className='h-full rounded-full bg-cyan-500' style={{ width: `${Math.min(100, row.efficiency)}%` }} /></div><b>{numberFormatter.format(row.efficiency)}٪</b></div></td>
+                      <td className='p-3'><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${row.attendance === 0 ? 'bg-muted text-muted-foreground dark:bg-slate-700 dark:text-slate-300' : row.efficiency >= 70 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'}`}>{row.attendance === 0 ? 'بدون رکورد' : row.efficiency >= 70 ? 'مطلوب' : 'نیازمند بررسی'}</span></td>
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </Table>
             )}
             {reportTab === 'tasks' && (
-              <table className='w-full min-w-[1080px] text-sm'>
+              <Table className='w-full min-w-[1080px] text-sm'>
                 <thead>
-                  <tr className='bg-slate-50/70 text-xs text-slate-500'>
+                  <tr className='bg-muted/40 text-xs text-muted-foreground'>
                     <th className='p-3 text-right'>تاریخ</th>
                     <th className='p-3 text-right'>کارمند</th>
                     <th className='p-3 text-right'>واحد</th>
@@ -1591,10 +1594,10 @@ export function AdminPanel(): JSX.Element {
                 </thead>
                 <tbody>
                   {pagedTasks.map((row) => (
-                    <tr key={row.id} className='border-t border-slate-100 hover:bg-slate-50/60'>
+                    <tr key={row.id} className='border-t border-border hover:bg-muted/40'>
                       <td className='p-3 font-mono text-xs'>{row.work_date}</td>
                       <td className='p-3 font-bold'>{row.full_name}</td>
-                      <td className='p-3 text-slate-500'>{row.department}</td>
+                      <td className='p-3 text-muted-foreground'>{row.department}</td>
                       <td className='p-3 font-mono text-xs text-violet-700'>{row.project_code}</td>
                       <td className='p-3 font-mono text-xs text-sky-700'>{row.subproject_code || '—'}</td>
                       <td className='max-w-sm truncate p-3'>{row.task_name}</td>
@@ -1613,12 +1616,12 @@ export function AdminPanel(): JSX.Element {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </Table>
             )}
             {reportTab === 'attendance' && (
-              <table className='w-full min-w-[900px] text-sm'>
+              <Table className='w-full min-w-[900px] text-sm'>
                 <thead>
-                  <tr className='bg-slate-50/70 text-xs text-slate-500'>
+                  <tr className='bg-muted/40 text-xs text-muted-foreground'>
                     <th className='p-3 text-right'>تاریخ</th>
                     <th className='p-3 text-right'>کارمند</th>
                     <th className='p-3 text-right'>واحد</th>
@@ -1631,15 +1634,15 @@ export function AdminPanel(): JSX.Element {
                 </thead>
                 <tbody>
                   {pagedAttendance.map((row) => (
-                    <tr key={row.id} className='border-t border-slate-100 hover:bg-slate-50/60'>
+                    <tr key={row.id} className='border-t border-border hover:bg-muted/40'>
                       <td className='p-3 font-mono text-xs'>{row.work_date}</td>
                       <td className='p-3 font-bold'>{row.full_name}</td>
-                      <td className='p-3 text-slate-500'>{row.department}</td>
+                      <td className='p-3 text-muted-foreground'>{row.department}</td>
                       <td className='p-3 font-mono'>{row.check_in_time}</td>
                       <td className='p-3 font-mono'>{row.check_out_time || '—'}</td>
                       <td className='p-3 font-bold'>{formatMinutes(durationMinutes(row.check_in_time, row.check_out_time, row.work_date))}</td>
                       <td className='p-3'>
-                        <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${row.check_out_time ? 'bg-slate-100 text-slate-600' : 'bg-emerald-50 text-emerald-700'}`}>
+                        <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${row.check_out_time ? 'bg-muted text-muted-foreground' : 'bg-emerald-50 text-emerald-700'}`}>
                           {row.check_out_time ? 'تکمیل‌شده' : 'در حال حضور'}
                         </span>
                       </td>
@@ -1656,61 +1659,61 @@ export function AdminPanel(): JSX.Element {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </Table>
             )}
           </div>
           {((reportTab === 'employees' && !visibleEmployeeRows.length) || (reportTab === 'tasks' && !filteredTasks.length) || (reportTab === 'attendance' && !filteredAttendance.length)) && (
-            <div className='border-t border-slate-100 p-10 text-center text-sm text-slate-400'>نتیجه‌ای مطابق فیلترها پیدا نشد.</div>
+            <div className='border-t border-border p-10 text-center text-sm text-muted-foreground'>نتیجه‌ای مطابق فیلترها پیدا نشد.</div>
           )}
           {activeRowCount > 0 && (
-            <div className='no-print flex flex-col items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row'>
-              <div className='flex items-center gap-2 text-xs text-slate-500'>
+            <div className='no-print flex flex-col items-center justify-between gap-3 border-t border-border px-4 py-3 sm:flex-row'>
+              <div className='flex items-center gap-2 text-xs text-muted-foreground'>
                 <span>نمایش</span>
-                <select
+                <NativeSelect
                   value={pageSize}
                   onChange={(event) => setPageSize(Number(event.target.value))}
-                  className='h-8 rounded-lg border border-slate-200 bg-white px-2 font-bold text-slate-700 outline-none focus:border-cyan-500'
+                  className='h-8 rounded-lg border border-border bg-card px-2 font-bold text-foreground outline-none focus:border-cyan-500'
                   aria-label='تعداد ردیف در هر صفحه'
                 >
                   <option value={10}>۱۰</option>
                   <option value={20}>۲۰</option>
                   <option value={50}>۵۰</option>
-                </select>
+                </NativeSelect>
                 <span>ردیف در هر صفحه</span>
               </div>
               <div className='flex items-center gap-3'>
-                <span className='text-xs font-medium text-slate-500'>
+                <span className='text-xs font-medium text-muted-foreground'>
                   {numberFormatter.format(pageStart + 1)} تا {numberFormatter.format(pageEnd)} از {numberFormatter.format(activeRowCount)}
                 </span>
                 <div className='flex items-center gap-1'>
-                  <button
+                  <Button
                     type='button'
                     onClick={() => setPage((current) => Math.max(1, current - 1))}
                     disabled={safePage === 1}
-                    className='grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-cyan-300 hover:text-cyan-700 disabled:cursor-not-allowed disabled:opacity-35'
+                    className='grid h-8 w-8 place-items-center rounded-lg border border-border bg-card text-muted-foreground transition hover:border-cyan-300 hover:text-cyan-700 disabled:cursor-not-allowed disabled:opacity-35'
                     aria-label='صفحه قبل'
                   >
                     <ChevronRight className='h-4 w-4' />
-                  </button>
-                  <span className='min-w-20 text-center text-xs font-bold text-slate-700'>
+                  </Button>
+                  <span className='min-w-20 text-center text-xs font-bold text-foreground'>
                     صفحه {numberFormatter.format(safePage)} از {numberFormatter.format(pageCount)}
                   </span>
-                  <button
+                  <Button
                     type='button'
                     onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
                     disabled={safePage === pageCount}
-                    className='grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-cyan-300 hover:text-cyan-700 disabled:cursor-not-allowed disabled:opacity-35'
+                    className='grid h-8 w-8 place-items-center rounded-lg border border-border bg-card text-muted-foreground transition hover:border-cyan-300 hover:text-cyan-700 disabled:cursor-not-allowed disabled:opacity-35'
                     aria-label='صفحه بعد'
                   >
                     <ChevronLeft className='h-4 w-4' />
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
           )}
         </section>
 
-        <footer className='flex flex-wrap items-center justify-between gap-2 py-2 text-[11px] text-slate-400'>
+        <footer className='flex flex-wrap items-center justify-between gap-2 py-2 text-[11px] text-muted-foreground'>
           <span>آخرین گزارش: {records ? `${records.start_date} تا ${records.end_date}` : '—'}</span>
           <span className='flex items-center gap-1'><CalendarDays className='h-3.5 w-3.5' /> اطلاعات بر اساس تقویم شمسی</span>
         </footer>

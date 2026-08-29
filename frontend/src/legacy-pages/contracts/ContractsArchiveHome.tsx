@@ -7,12 +7,12 @@ export default function ContractsArchiveHome() {
   return (
     <AppShell>
       <div className="mx-auto max-w-7xl">
-        <Link to="/departments/contracts" className="font-semibold text-red-600">
+        <Link to="/departments/contracts" className="font-semibold text-primary">
           بازگشت
         </Link>
 
         <h1 className="mt-8 text-4xl font-bold">ارشیو قراردادها</h1>
-        <p className="mt-2 text-slate-500">
+        <p className="mt-2 text-muted-foreground">
           ثبت و مشاهده قراردادهای آرشیو شده
         </p>
 
@@ -20,11 +20,11 @@ export default function ContractsArchiveHome() {
           <Link to="/contracts-archive/submit">
             <Card className="rounded-3xl transition hover:shadow-xl">
               <CardContent className="p-8">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50">
-                  <FilePlus className="text-red-600" size={34} />
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+                  <FilePlus className="text-primary" size={34} />
                 </div>
                 <h2 className="mt-6 text-xl font-bold">ثبت قراردادها</h2>
-                <p className="mt-2 text-slate-500">
+                <p className="mt-2 text-muted-foreground">
                   ثبت قرارداد جدید در آرشیو
                 </p>
               </CardContent>
@@ -34,11 +34,11 @@ export default function ContractsArchiveHome() {
           <Link to="/contracts-archive/list">
             <Card className="rounded-3xl transition hover:shadow-xl">
               <CardContent className="p-8">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50">
-                  <List className="text-red-600" size={34} />
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+                  <List className="text-primary" size={34} />
                 </div>
                 <h2 className="mt-6 text-xl font-bold">گزارش قراردادها</h2>
-                <p className="mt-2 text-slate-500">
+                <p className="mt-2 text-muted-foreground">
                   مشاهده فهرست قراردادهای ثبت‌شده
                 </p>
               </CardContent>
@@ -46,7 +46,7 @@ export default function ContractsArchiveHome() {
           </Link>
         </div>
 
-        <div className="mt-8 flex items-center gap-2 text-sm text-slate-400">
+        <div className="mt-8 flex items-center gap-2 text-sm text-muted-foreground">
           <Archive size={16} />
           <span></span>
         </div>

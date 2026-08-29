@@ -53,7 +53,7 @@ export default function FormFieldRenderer({
   inputKey,
 }: Props) {
   const commonClass =
-    'h-12 rounded-xl border border-slate-200 bg-slate-50 text-right shadow-sm focus-visible:ring-2 focus-visible:ring-red-500';
+    'h-12 rounded-xl border border-border bg-muted/40 text-right shadow-sm focus-visible:ring-2 focus-visible:ring-red-500';
 
   if (field.type === 'table') {
     const columns = field.columns ?? [];
@@ -80,8 +80,8 @@ export default function FormFieldRenderer({
         className="
           min-h-[140px]
           rounded-xl
-          border-slate-200
-          bg-slate-50
+          border-border
+          bg-muted/40
           text-right
           shadow-sm
           focus-visible:ring-2
@@ -105,7 +105,7 @@ export default function FormFieldRenderer({
         }
       >
         <SelectTrigger
-          className="h-12 w-full rounded-xl border-slate-200 bg-slate-50 text-right shadow-sm"
+          className="h-12 w-full rounded-xl border-border bg-muted/40 text-right shadow-sm"
         >
           <SelectValue placeholder="انتخاب کنید" />
         </SelectTrigger>
@@ -145,8 +145,8 @@ export default function FormFieldRenderer({
           h-12
           rounded-xl
           border
-          border-slate-200
-          bg-slate-50
+          border-border
+          bg-muted/40
           px-4
           text-right
           shadow-sm
@@ -164,8 +164,8 @@ export default function FormFieldRenderer({
           rounded-xl
           border-2
           border-dashed
-          border-slate-300
-          bg-slate-50
+          border-border
+          bg-muted/40
           p-4
         "
       >
@@ -178,10 +178,10 @@ export default function FormFieldRenderer({
             file:ml-3
             file:rounded-lg
             file:border-0
-            file:bg-red-50
+            file:bg-primary/10
             file:px-4
             file:py-2
-            file:text-red-600
+            file:text-primary
             file:font-medium
           "
           onChange={(e) =>

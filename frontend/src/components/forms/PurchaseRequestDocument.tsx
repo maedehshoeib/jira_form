@@ -1,3 +1,7 @@
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Table } from "@/components/ui/table";
+import { Label } from "@/components/ui/label";
 import vesoughLogo from "../../assets/vesough-logo.png";
 import { assetUrl } from "../../lib/assetUrl";
 
@@ -71,18 +75,18 @@ export default function PurchaseRequestDocument({
     : "min-w-0 border-0 bg-transparent px-1 py-0.5 text-right outline-none";
 
   return (
-    <div className="overflow-x-auto rounded-2xl bg-slate-100 p-3 sm:p-5">
+    <div className="overflow-x-auto rounded-2xl bg-muted p-3 sm:p-5">
       <div
         dir="rtl"
-        className="mx-auto min-w-[940px] max-w-[1040px] border border-slate-800 bg-white px-8 pb-7 pt-6 font-vazirmatn text-[12px] leading-5 text-slate-950 shadow-lg"
+        className="mx-auto min-w-[940px] max-w-[1040px] border border-slate-800 bg-card px-8 pb-7 pt-6 font-vazirmatn text-[12px] leading-5 text-foreground shadow-lg"
       >
-        <table className="w-full table-fixed border-collapse text-center">
+        <Table className="w-full table-fixed border-collapse text-center">
           <tbody>
             <tr>
               <td className="w-[27%] border border-slate-800 px-2 py-1 text-right">
                 شماره مدرک: <span dir="ltr">EV-FF-FR-16</span>
               </td>
-              <td rowSpan={4} className="w-[44%] border border-slate-800 text-xl font-bold text-red-600">
+              <td rowSpan={4} className="w-[44%] border border-slate-800 text-xl font-bold text-primary">
                 فرم درخواست تامین کالا
               </td>
               <td rowSpan={4} className="w-[29%] border border-slate-800 p-2 align-middle">
@@ -97,34 +101,34 @@ export default function PurchaseRequestDocument({
             <tr><td className="border border-slate-800 px-2 py-1 text-right">تاریخ ویرایش: 13/05/1404</td></tr>
             <tr><td className="border border-slate-800 px-2 py-1 text-right">صفحه 2 از 7</td></tr>
           </tbody>
-        </table>
+        </Table>
 
         <div className="mt-7 space-y-3">
           <div className="flex items-center justify-between gap-12">
-            <label className="flex w-[58%] items-center gap-2 font-semibold">
+            <Label className="flex w-[58%] items-center gap-2 font-semibold">
               <span className="shrink-0">واحد درخواست کننده:</span>
-              <input
+              <Input
                 aria-label="واحد درخواست کننده"
                 value={text(data.requesting_unit)}
                 readOnly={!editable}
                 onChange={(event) => setValue("requesting_unit", event.target.value)}
                 className={`${fieldClass} w-full`}
               />
-            </label>
-            <label className="flex w-[34%] items-center gap-2 font-semibold">
+            </Label>
+            <Label className="flex w-[34%] items-center gap-2 font-semibold">
               <span className="shrink-0">شماره درخواست:</span>
-              <input
+              <Input
                 aria-label="شماره درخواست"
                 value={text(data.request_number)}
                 readOnly={!editable}
                 onChange={(event) => setValue("request_number", event.target.value)}
                 className={`${fieldClass} w-full`}
               />
-            </label>
+            </Label>
           </div>
-          <label className="flex w-[42%] items-center gap-2 font-semibold">
+          <Label className="flex w-[42%] items-center gap-2 font-semibold">
             <span className="shrink-0">تاریخ درخواست:</span>
-            <input
+            <Input
               aria-label="تاریخ درخواست"
               placeholder="____/__/__"
               value={text(data.request_date)}
@@ -132,10 +136,10 @@ export default function PurchaseRequestDocument({
               onChange={(event) => setValue("request_date", event.target.value)}
               className={`${fieldClass} w-full`}
             />
-          </label>
+          </Label>
         </div>
 
-        <table className="mt-5 w-full table-fixed border-collapse text-center">
+        <Table className="mt-5 w-full table-fixed border-collapse text-center">
           <thead className="bg-slate-200">
             <tr className="h-14">
               <th className="w-[6%] border border-slate-800 px-1">ردیف</th>
@@ -153,21 +157,21 @@ export default function PurchaseRequestDocument({
                 <td className="border border-slate-800 bg-slate-200 font-semibold">{rowIndex + 1}</td>
                 {ITEM_KEYS.map((key) => (
                   <td key={key} className="border border-slate-800 p-0.5">
-                    <textarea
+                    <Textarea
                       aria-label={`${key}-${rowIndex + 1}`}
                       value={text(row[key])}
                       readOnly={!editable}
                       onChange={(event) => setItem(rowIndex, key, event.target.value)}
-                      className="block h-11 w-full resize-none border-0 bg-transparent px-1 py-1 text-center text-[11px] leading-4 outline-none focus:bg-red-50"
+                      className="block h-11 w-full resize-none border-0 bg-transparent px-1 py-1 text-center text-[11px] leading-4 outline-none focus:bg-primary/10"
                     />
                   </td>
                 ))}
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
 
-        <table className="mt-4 w-full table-fixed border-collapse text-center">
+        <Table className="mt-4 w-full table-fixed border-collapse text-center">
           <tbody>
             <tr className="h-14 bg-slate-200">
               {SIGNATURES.map(([, , title]) => (
@@ -177,31 +181,31 @@ export default function PurchaseRequestDocument({
             <tr className="h-24">
               {SIGNATURES.map(([nameKey, dateKey]) => (
                 <td key={nameKey} className="border border-slate-800 p-2 text-right align-top">
-                  <label className="mb-2 flex items-center gap-1">
+                  <Label className="mb-2 flex items-center gap-1">
                     <span className="shrink-0">نام و نام خانوادگی:</span>
-                    <input
+                    <Input
                       value={text(data[nameKey])}
                       readOnly={!editable}
                       onChange={(event) => setValue(nameKey, event.target.value)}
                       className={`${fieldClass} w-full`}
                     />
-                  </label>
-                  <label className="flex items-center gap-1">
+                  </Label>
+                  <Label className="flex items-center gap-1">
                     <span className="shrink-0">تاریخ و امضا:</span>
-                    <input
+                    <Input
                       value={text(data[dateKey])}
                       readOnly={!editable}
                       onChange={(event) => setValue(dateKey, event.target.value)}
                       className={`${fieldClass} w-full`}
                     />
-                  </label>
+                  </Label>
                 </td>
               ))}
             </tr>
           </tbody>
-        </table>
+        </Table>
 
-        <div className="mt-3 space-y-1 text-right text-[11px] text-red-600">
+        <div className="mt-3 space-y-1 text-right text-[11px] text-primary">
           <p>• ستون‌های با علامت * توسط واحد تدارکات تکمیل می‌شود.</p>
           <p>• در صورت نیاز به خرید کالا، محل امضا با علامت ** توسط مسئولین مربوطه تکمیل می‌گردد.</p>
         </div>

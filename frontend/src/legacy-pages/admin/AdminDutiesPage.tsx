@@ -347,21 +347,21 @@ export default function AdminDutiesPage() {
   return (
     <AppShell>
       <div className="space-y-5" dir="rtl">
-        <div className="flex flex-col gap-4 rounded-[1.75rem] border border-white/70 bg-white/80 p-5 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 rounded-[1.75rem] border border-white/70 bg-card/80 p-5 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-700">
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
               <GitBranch className="h-3.5 w-3.5" />
               مدیریت سامانه
             </div>
-            <h1 className="text-2xl font-bold text-slate-900">مسیریابی وظایف</h1>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
+            <h1 className="text-2xl font-bold text-foreground">مسیریابی وظایف</h1>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
               در سمت راست کارمند را انتخاب کنید و از سمت چپ فرم‌ها را با کشیدن
               فلش به او متصل کنید. هر کارمند متصل، درخواست‌های همان فرم را در
               «وظایف من» می‌بیند.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="rounded-2xl bg-slate-100 px-3 py-2 text-xs text-slate-600">
+            <div className="rounded-2xl bg-muted px-3 py-2 text-xs text-muted-foreground">
               {edges.length.toLocaleString("fa-IR")} اتصال ·{" "}
               {connectedFormCount.toLocaleString("fa-IR")} فرم ·{" "}
               {connectedUserCount.toLocaleString("fa-IR")} نفر
@@ -383,7 +383,7 @@ export default function AdminDutiesPage() {
         </div>
 
         {error ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary">
             {error}
           </div>
         ) : null}
@@ -395,8 +395,8 @@ export default function AdminDutiesPage() {
         ) : null}
 
         {loading ? (
-          <div className="flex min-h-[28rem] items-center justify-center rounded-[1.75rem] border border-white/70 bg-white/70">
-            <Loader2 className="h-8 w-8 animate-spin text-red-600" />
+          <div className="flex min-h-[28rem] items-center justify-center rounded-[1.75rem] border border-white/70 bg-card/70">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
           <div
@@ -409,14 +409,14 @@ export default function AdminDutiesPage() {
             {/* Users column — visual LEFT in RTL = employees (plan: right side choose employee;
                 with RTL dir, first column is right. Plan says right=employee, left=forms.
                 In RTL first grid column appears on the right. So: col1=users, col3=forms. */}
-            <section className="relative z-10 flex min-h-0 flex-col rounded-3xl border border-slate-200/80 bg-white/90 shadow-sm">
-              <div className="border-b border-slate-100 p-4">
-                <h2 className="text-sm font-semibold text-slate-900">کارکنان</h2>
-                <p className="mt-1 text-xs text-slate-500">
+            <section className="relative z-10 flex min-h-0 flex-col rounded-3xl border border-border/80 bg-card/90 shadow-sm">
+              <div className="border-b border-border p-4">
+                <h2 className="text-sm font-semibold text-foreground">کارکنان</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
                   دستگیره را بکشید و روی یک فرم رها کنید
                 </p>
                 <div className="relative mt-3">
-                  <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     value={userQuery}
                     onChange={(event) => setUserQuery(event.target.value)}
@@ -430,7 +430,7 @@ export default function AdminDutiesPage() {
                 onScroll={() => setLayoutTick((tick) => tick + 1)}
               >
                 {filteredUsers.length === 0 ? (
-                  <p className="px-2 py-8 text-center text-sm text-slate-500">
+                  <p className="px-2 py-8 text-center text-sm text-muted-foreground">
                     کارمندی یافت نشد.
                   </p>
                 ) : (
@@ -442,7 +442,7 @@ export default function AdminDutiesPage() {
                       <div
                         key={user.id}
                         data-user-id={user.id}
-                        className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm"
+                        className="flex items-center gap-3 rounded-2xl border border-border bg-card px-3 py-2.5 shadow-sm"
                       >
                         <UserAvatar
                           name={formatUserDisplayName(user)}
@@ -450,19 +450,19 @@ export default function AdminDutiesPage() {
                           className="h-9 w-9 rounded-xl"
                         />
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-slate-900">
+                          <p className="truncate text-sm font-medium text-foreground">
                             <UserDisplayName user={user} />
                           </p>
-                          <p className="truncate text-xs text-slate-500">
+                          <p className="truncate text-xs text-muted-foreground">
                             {user.job_title || user.department || user.username}
                           </p>
                         </div>
                         {linkCount > 0 ? (
-                          <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700">
+                          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
                             {linkCount.toLocaleString("fa-IR")}
                           </span>
                         ) : null}
-                        <button
+                        <Button
                           type="button"
                           data-user-id={user.id}
                           ref={(el) => {
@@ -470,12 +470,12 @@ export default function AdminDutiesPage() {
                             else userHandleRefs.current.delete(user.id);
                           }}
                           onPointerDown={(event) => beginDragFromUser(event, user.id)}
-                          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-red-500 bg-red-50 text-red-600 transition hover:bg-red-100"
+                          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-red-500 bg-primary/10 text-primary transition hover:bg-red-100"
                           title="کشیدن برای اتصال"
                           aria-label={`اتصال وظایف برای ${formatUserDisplayName(user)}`}
                         >
-                          <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                        </button>
+                          <span className="h-1.5 w-1.5 rounded-full bg-primary/100" />
+                        </Button>
                       </div>
                     );
                   })
@@ -484,19 +484,19 @@ export default function AdminDutiesPage() {
             </section>
 
             <section className="relative z-0 hidden items-center justify-center lg:flex">
-              <div className="rounded-full border border-dashed border-slate-300 bg-white/70 px-4 py-2 text-xs text-slate-500">
+              <div className="rounded-full border border-dashed border-border bg-card/70 px-4 py-2 text-xs text-muted-foreground">
                 فلش را بین فرم و کارمند بکشید
               </div>
             </section>
 
-            <section className="relative z-10 flex min-h-0 flex-col rounded-3xl border border-slate-200/80 bg-white/90 shadow-sm">
-              <div className="border-b border-slate-100 p-4">
-                <h2 className="text-sm font-semibold text-slate-900">فرم‌ها</h2>
-                <p className="mt-1 text-xs text-slate-500">
+            <section className="relative z-10 flex min-h-0 flex-col rounded-3xl border border-border/80 bg-card/90 shadow-sm">
+              <div className="border-b border-border p-4">
+                <h2 className="text-sm font-semibold text-foreground">فرم‌ها</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
                   دستگیره را بکشید و روی یک کارمند رها کنید
                 </p>
                 <div className="relative mt-3">
-                  <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     value={formQuery}
                     onChange={(event) => setFormQuery(event.target.value)}
@@ -510,13 +510,13 @@ export default function AdminDutiesPage() {
                 onScroll={() => setLayoutTick((tick) => tick + 1)}
               >
                 {groupedForms.length === 0 ? (
-                  <p className="px-2 py-8 text-center text-sm text-slate-500">
+                  <p className="px-2 py-8 text-center text-sm text-muted-foreground">
                     فرمی یافت نشد.
                   </p>
                 ) : (
                   groupedForms.map(([departmentTitle, targets]) => (
                     <div key={departmentTitle} className="space-y-2">
-                      <p className="px-1 text-xs font-semibold text-slate-500">
+                      <p className="px-1 text-xs font-semibold text-muted-foreground">
                         {departmentTitle}
                       </p>
                       {targets.map((target) => {
@@ -528,9 +528,9 @@ export default function AdminDutiesPage() {
                           <div
                             key={key}
                             data-form-key={key}
-                            className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm"
+                            className="flex items-center gap-3 rounded-2xl border border-border bg-card px-3 py-2.5 shadow-sm"
                           >
-                            <button
+                            <Button
                               type="button"
                               data-form-key={key}
                               ref={(el) => {
@@ -538,22 +538,22 @@ export default function AdminDutiesPage() {
                                 else formHandleRefs.current.delete(key);
                               }}
                               onPointerDown={(event) => beginDragFromForm(event, key)}
-                              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-slate-500 bg-slate-50 text-slate-600 transition hover:bg-slate-100"
+                              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-slate-500 bg-muted/40 text-muted-foreground transition hover:bg-muted"
                               title="کشیدن برای اتصال"
                               aria-label={`اتصال فرم ${target.section_title}`}
                             >
                               <span className="h-1.5 w-1.5 rounded-full bg-slate-600" />
-                            </button>
+                            </Button>
                             <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-medium text-slate-900">
+                              <p className="truncate text-sm font-medium text-foreground">
                                 {target.section_title}
                               </p>
-                              <p className="truncate text-xs text-slate-500">
+                              <p className="truncate text-xs text-muted-foreground">
                                 {target.portal_department_title}
                               </p>
                             </div>
                             {linkCount > 0 ? (
-                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">
+                              <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">
                                 {linkCount.toLocaleString("fa-IR")}
                               </span>
                             ) : null}
@@ -620,15 +620,15 @@ export default function AdminDutiesPage() {
                         width={28}
                         height={28}
                       >
-                        <button
+                        <Button
                           type="button"
-                          className="flex h-7 w-7 items-center justify-center rounded-full border border-red-200 bg-white text-red-600 shadow"
+                          className="flex h-7 w-7 items-center justify-center rounded-full border border-primary/30 bg-card text-primary shadow"
                           onClick={() => removeEdge(edge.userId, edge.targetKey)}
                           title="حذف اتصال"
                           aria-label="حذف اتصال"
                         >
                           <X className="h-3.5 w-3.5" />
-                        </button>
+                        </Button>
                       </foreignObject>
                     ) : null}
                   </g>
@@ -649,8 +649,8 @@ export default function AdminDutiesPage() {
         )}
 
         {!loading && edges.length > 0 ? (
-          <div className="rounded-[1.75rem] border border-white/70 bg-white/80 p-5 shadow-sm">
-            <h2 className="mb-3 text-sm font-semibold text-slate-900">اتصالات فعلی</h2>
+          <div className="rounded-[1.75rem] border border-white/70 bg-card/80 p-5 shadow-sm">
+            <h2 className="mb-3 text-sm font-semibold text-foreground">اتصالات فعلی</h2>
             <div className="flex flex-wrap gap-2">
               {edges.map((edge) => {
                 const user = users.find((item) => item.id === edge.user_id);
@@ -658,22 +658,22 @@ export default function AdminDutiesPage() {
                   (target) => formTargetKey(target) === edge.target_key,
                 );
                 return (
-                  <button
+                  <Button
                     key={edgeKey(edge.user_id, edge.target_key)}
                     type="button"
                     onClick={() => removeEdge(edge.user_id, edge.target_key)}
-                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                    className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs text-foreground transition hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
                     title="حذف اتصال"
                   >
                     <span className="font-medium">
                       {form?.section_title || edge.target_key}
                     </span>
-                    <span className="text-slate-400">←</span>
+                    <span className="text-muted-foreground">←</span>
                     <span>
                       <UserDisplayName user={user} fallback={String(edge.user_id)} />
                     </span>
                     <X className="h-3 w-3" />
-                  </button>
+                  </Button>
                 );
               })}
             </div>

@@ -1,3 +1,6 @@
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -219,7 +222,7 @@ export default function PdfLibraryPage({ category }: PdfLibraryPageProps) {
         <div className="mb-6">
           <Link
             to="/"
-            className="rounded-full border border-slate-200 bg-slate-50 px-5 py-2.5 font-medium text-slate-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-white/20 dark:bg-white/[0.08] dark:text-white/80 dark:backdrop-blur dark:hover:border-red-300/60 dark:hover:bg-red-500/20 dark:hover:text-white"
+            className="rounded-full border border-border bg-muted/40 px-5 py-2.5 font-medium text-muted-foreground transition hover:border-primary/30 hover:bg-primary/10 hover:text-primary dark:border-white/20 dark:bg-card/[0.08] dark:text-white/80 dark:backdrop-blur dark:hover:border-red-300/60 dark:hover:bg-primary/20 dark:hover:text-white"
           >
             بازگشت
           </Link>
@@ -233,8 +236,8 @@ export default function PdfLibraryPage({ category }: PdfLibraryPageProps) {
               <Icon size={28} />
             </div>
             <div>
-              <h1 className="text-3xl font-extrabold text-slate-900">{config.title}</h1>
-              <p className="mt-1 text-sm text-slate-500">{config.description}</p>
+              <h1 className="text-3xl font-extrabold text-foreground">{config.title}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">{config.description}</p>
             </div>
           </div>
 
@@ -249,26 +252,26 @@ export default function PdfLibraryPage({ category }: PdfLibraryPageProps) {
                 {config.addLabel}
               </Button>
             )}
-            <label className="relative block w-full sm:w-80">
-              <Search className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-              <input
+            <Label className="relative block w-full sm:w-80">
+              <Search className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+              <Input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder={config.searchPlaceholder}
-                className={`h-12 w-full rounded-2xl border border-slate-200 bg-white pr-12 pl-4 text-sm outline-none transition focus:ring-4 ${config.accent.focusBorder} ${config.accent.focusRing}`}
+                className={`h-12 w-full rounded-2xl border border-border bg-card pr-12 pl-4 text-sm outline-none transition focus:ring-4 ${config.accent.focusBorder} ${config.accent.focusRing}`}
               />
-            </label>
+            </Label>
           </div>
         </div>
 
         {error && (
-          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <div className="mb-6 rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm text-primary">
             {error}
           </div>
         )}
 
         {loading ? (
-          <div className="flex min-h-[45vh] items-center justify-center gap-3 text-slate-500">
+          <div className="flex min-h-[45vh] items-center justify-center gap-3 text-muted-foreground">
             <Loader2 className={`animate-spin ${config.accent.iconText}`} />
             {config.loadingLabel}
           </div>
@@ -290,9 +293,9 @@ export default function PdfLibraryPage({ category }: PdfLibraryPageProps) {
             ))}
           </div>
         ) : (
-          <div className="flex min-h-80 flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-white text-center text-slate-400">
+          <div className="flex min-h-80 flex-col items-center justify-center rounded-3xl border border-dashed border-border bg-card text-center text-muted-foreground">
             <Icon size={48} strokeWidth={1.4} />
-            <p className="mt-4 font-bold text-slate-600">
+            <p className="mt-4 font-bold text-muted-foreground">
               {query ? config.notFoundLabel : config.emptyLabel}
             </p>
           </div>
@@ -309,7 +312,7 @@ export default function PdfLibraryPage({ category }: PdfLibraryPageProps) {
           <form
             dir="rtl"
             onSubmit={saveItem}
-            className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl sm:p-8"
+            className="w-full max-w-xl rounded-3xl bg-card p-6 shadow-2xl sm:p-8"
           >
             <div className="mb-6 flex items-start justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -321,77 +324,77 @@ export default function PdfLibraryPage({ category }: PdfLibraryPageProps) {
                 <div>
                   <h2
                     id="pdf-library-editor-title"
-                    className="text-xl font-extrabold text-slate-900"
+                    className="text-xl font-extrabold text-foreground"
                   >
                     {editorMode === "create"
                       ? `${config.addLabel}`
                       : `ویرایش ${config.singular}`}
                   </h2>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     {editorMode === "create"
                       ? "فایل PDF و اطلاعات مرتبط با آن را وارد کنید."
                       : "عنوان، توضیحات یا فایل PDF را به‌روزرسانی کنید."}
                   </p>
                 </div>
               </div>
-              <button
+              <Button
                 type="button"
                 disabled={saving}
                 onClick={closeEditor}
                 aria-label="بستن پنجره"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
               >
                 <X size={20} />
-              </button>
+              </Button>
             </div>
 
             <div className="space-y-5">
-              <label className="block">
-                <span className="mb-2 block text-sm font-bold text-slate-700">
+              <Label className="block">
+                <span className="mb-2 block text-sm font-bold text-foreground">
                   عنوان {config.singular}
                 </span>
-                <input
+                <Input
                   required
                   autoFocus
                   maxLength={256}
                   value={draftTitle}
                   onChange={(event) => setDraftTitle(event.target.value)}
                   placeholder={`عنوان ${config.singular}`}
-                  className={`h-12 w-full rounded-xl border border-slate-200 px-4 outline-none transition focus:ring-4 ${config.accent.focusBorder} ${config.accent.focusRing}`}
+                  className={`h-12 w-full rounded-xl border border-border px-4 outline-none transition focus:ring-4 ${config.accent.focusBorder} ${config.accent.focusRing}`}
                 />
-              </label>
+              </Label>
 
-              <label className="block">
-                <span className="mb-2 block text-sm font-bold text-slate-700">توضیحات</span>
-                <textarea
+              <Label className="block">
+                <span className="mb-2 block text-sm font-bold text-foreground">توضیحات</span>
+                <Textarea
                   rows={3}
                   maxLength={2000}
                   value={draftDescription}
                   onChange={(event) => setDraftDescription(event.target.value)}
                   placeholder={`توضیح کوتاهی درباره ${config.singular}`}
-                  className={`w-full resize-none rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:ring-4 ${config.accent.focusBorder} ${config.accent.focusRing}`}
+                  className={`w-full resize-none rounded-xl border border-border px-4 py-3 outline-none transition focus:ring-4 ${config.accent.focusBorder} ${config.accent.focusRing}`}
                 />
-              </label>
+              </Label>
 
-              <label className="block">
-                <span className="mb-2 block text-sm font-bold text-slate-700">
+              <Label className="block">
+                <span className="mb-2 block text-sm font-bold text-foreground">
                   فایل PDF
                   {editorMode === "edit" && (
-                    <span className="mr-2 font-normal text-slate-400">
+                    <span className="mr-2 font-normal text-muted-foreground">
                       (اختیاری — برای جایگزینی فایل)
                     </span>
                   )}
                 </span>
-                <span className="flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 text-center transition hover:border-slate-300 hover:bg-slate-100/70">
+                <span className="flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-muted/40 px-4 text-center transition hover:border-border hover:bg-muted/70">
                   <Upload size={23} className={`mb-2 ${config.accent.iconText}`} />
-                  <span className="max-w-full truncate text-sm font-bold text-slate-700">
+                  <span className="max-w-full truncate text-sm font-bold text-foreground">
                     {draftFile?.name ||
                       (editorMode === "edit"
                         ? editingItem?.file_name || "برای جایگزینی فایل کلیک کنید"
                         : "برای انتخاب فایل کلیک کنید")}
                   </span>
-                  <span className="mt-1 text-xs text-slate-400">PDF، حداکثر ۲۰ مگابایت</span>
-                  <input
+                  <span className="mt-1 text-xs text-muted-foreground">PDF، حداکثر ۲۰ مگابایت</span>
+                  <Input
                     type="file"
                     required={editorMode === "create"}
                     accept="application/pdf,.pdf"
@@ -399,11 +402,11 @@ export default function PdfLibraryPage({ category }: PdfLibraryPageProps) {
                     onChange={(event) => setDraftFile(event.target.files?.[0] || null)}
                   />
                 </span>
-              </label>
+              </Label>
             </div>
 
             {saveError && (
-              <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              <div className="mt-5 rounded-xl border border-primary/30 bg-primary/10 p-3 text-sm text-primary">
                 {saveError}
               </div>
             )}
@@ -446,22 +449,22 @@ export default function PdfLibraryPage({ category }: PdfLibraryPageProps) {
         >
           <div
             dir="rtl"
-            className="mx-auto flex w-full max-w-6xl items-center justify-between rounded-t-2xl bg-white px-4 py-3"
+            className="mx-auto flex w-full max-w-6xl items-center justify-between rounded-t-2xl bg-card px-4 py-3"
           >
-            <h2 className="truncate font-extrabold text-slate-800">{viewer.title}</h2>
-            <button
+            <h2 className="truncate font-extrabold text-foreground">{viewer.title}</h2>
+            <Button
               type="button"
               aria-label="بستن نمایش"
               onClick={() => setViewer(null)}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-muted hover:text-foreground"
             >
               <X size={21} />
-            </button>
+            </Button>
           </div>
           <iframe
             src={viewer.url}
             title={viewer.title}
-            className="mx-auto h-full w-full max-w-6xl rounded-b-2xl bg-white"
+            className="mx-auto h-full w-full max-w-6xl rounded-b-2xl bg-card"
           />
         </div>
       )}
@@ -491,7 +494,7 @@ function LibraryCard({
   onDelete: () => void;
 }) {
   return (
-    <article className="flex min-h-64 flex-col rounded-3xl border border-slate-100 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+    <article className="flex min-h-64 flex-col rounded-3xl border border-border bg-card p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
       <div className="flex items-start justify-between gap-4">
         <div
           className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${config.accent.iconBg} ${config.accent.iconText}`}
@@ -501,33 +504,33 @@ function LibraryCard({
         <div className="flex items-center gap-2">
           {isAdmin && (
             <>
-              <button
+              <Button
                 type="button"
                 disabled={working}
                 onClick={onEdit}
                 aria-label={`ویرایش ${item.title}`}
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800 disabled:opacity-50"
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition hover:border-border hover:bg-muted/40 hover:text-foreground disabled:opacity-50"
               >
                 <Pencil size={16} />
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 disabled={working}
                 onClick={onDelete}
                 aria-label={`حذف ${item.title}`}
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-red-200 bg-white text-red-600 transition hover:bg-red-600 hover:text-white disabled:opacity-50"
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-primary/30 bg-card text-primary transition hover:bg-primary hover:text-white disabled:opacity-50"
               >
                 <Trash2 size={16} />
-              </button>
+              </Button>
             </>
           )}
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
+          <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
             PDF · {fileSize(item.file_size)}
           </span>
         </div>
       </div>
-      <h2 className="mt-5 text-lg font-extrabold text-slate-900">{item.title}</h2>
-      <p className="mt-2 flex-1 text-sm leading-7 text-slate-500">
+      <h2 className="mt-5 text-lg font-extrabold text-foreground">{item.title}</h2>
+      <p className="mt-2 flex-1 text-sm leading-7 text-muted-foreground">
         {item.description || config.defaultItemDescription}
       </p>
       <div className="mt-5 grid grid-cols-2 gap-3">

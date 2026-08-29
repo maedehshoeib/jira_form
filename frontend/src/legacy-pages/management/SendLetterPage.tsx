@@ -1,3 +1,4 @@
+import { Label } from "@/components/ui/label";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import {
@@ -139,26 +140,26 @@ function SenderDropdown({
 
   return (
     <div ref={rootRef} className="relative">
-      <button
+      <Button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="flex h-12 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none transition focus-visible:border-red-500 focus-visible:ring-2 focus-visible:ring-red-500/20"
+        className="flex h-12 w-full items-center justify-between rounded-xl border border-border bg-card px-3 text-sm shadow-sm outline-none transition focus-visible:border-red-500 focus-visible:ring-2 focus-visible:ring-red-500/20"
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <span className={sender ? "font-semibold text-slate-800" : "text-slate-400"}>
+        <span className={sender ? "font-semibold text-foreground" : "text-muted-foreground"}>
           {sender ? label : "انتخاب فرستنده"}
         </span>
         <ChevronLeft
           size={16}
-          className={`text-slate-400 transition ${open ? "-rotate-90" : "rotate-90"}`}
+          className={`text-muted-foreground transition ${open ? "-rotate-90" : "rotate-90"}`}
         />
-      </button>
+      </Button>
 
       {open && (
         <div
           role="listbox"
-          className="absolute z-40 mt-2 w-full rounded-xl border border-slate-200 bg-white p-1 shadow-xl"
+          className="absolute z-40 mt-2 w-full rounded-xl border border-border bg-card p-1 shadow-xl"
         >
           {SENDER_OPTIONS.map((option) => {
             if (option === "هلدینگ") {
@@ -169,34 +170,34 @@ function SenderDropdown({
                   onMouseEnter={() => setHoldingOpen(true)}
                   onMouseLeave={() => setHoldingOpen(false)}
                 >
-                  <button
+                  <Button
                     type="button"
                     className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
                       sender === "هلدینگ"
-                        ? "bg-red-50 text-red-700"
-                        : "text-slate-700 hover:bg-slate-50"
+                        ? "bg-primary/10 text-primary"
+                        : "text-foreground hover:bg-muted/40"
                     }`}
                     onClick={() => setHoldingOpen((current) => !current)}
                   >
                     هلدینگ
                     <ChevronLeft
                       size={14}
-                      className={`text-slate-400 transition ${
+                      className={`text-muted-foreground transition ${
                         holdingOpen ? "-rotate-90" : "rotate-90"
                       }`}
                     />
-                  </button>
+                  </Button>
                   {holdingOpen && (
-                    <div className="mr-3 mt-1 space-y-0.5 border-r border-slate-200 pr-2">
+                    <div className="mr-3 mt-1 space-y-0.5 border-r border-border pr-2">
                       {HOLDING_OPTIONS.map((unit) => (
-                        <button
+                        <Button
                           key={unit}
                           type="button"
                           role="option"
                           className={`block w-full rounded-lg px-3 py-2 text-right text-sm font-semibold transition ${
                             sender === "هلدینگ" && holdingUnit === unit
-                              ? "bg-red-50 text-red-700"
-                              : "text-slate-600 hover:bg-slate-50"
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted/40"
                           }`}
                           onClick={() => {
                             onSelect("هلدینگ", unit);
@@ -205,7 +206,7 @@ function SenderDropdown({
                           }}
                         >
                           {unit}
-                        </button>
+                        </Button>
                       ))}
                     </div>
                   )}
@@ -214,14 +215,14 @@ function SenderDropdown({
             }
 
             return (
-              <button
+              <Button
                 key={option}
                 type="button"
                 role="option"
                 className={`block w-full rounded-lg px-3 py-2.5 text-right text-sm font-semibold transition ${
                   sender === option
-                    ? "bg-red-50 text-red-700"
-                    : "text-slate-700 hover:bg-slate-50"
+                    ? "bg-primary/10 text-primary"
+                    : "text-foreground hover:bg-muted/40"
                 }`}
                 onClick={() => {
                   onSelect(option, "");
@@ -230,7 +231,7 @@ function SenderDropdown({
                 }}
               >
                 {option}
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -544,22 +545,22 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
       <div className="mx-auto max-w-4xl">
         <Link
           to={workflow.homePath}
-          className="inline-flex items-center gap-2 font-semibold text-red-600 hover:text-red-700"
+          className="inline-flex items-center gap-2 font-semibold text-primary hover:text-primary"
         >
           <ChevronLeft size={18} />
           بازگشت
         </Link>
 
-        <div className="mt-8 mb-8 rounded-3xl bg-white p-6 shadow-lg">
+        <div className="mt-8 mb-8 rounded-3xl bg-card p-6 shadow-lg">
           <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Send size={28} />
             </div>
             <div>
-              <h1 className="text-2xl font-extrabold text-slate-900">
+              <h1 className="text-2xl font-extrabold text-foreground">
                 {workflow.sendTitle}
               </h1>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-muted-foreground">
                 مشابه فرم عمومی؛ پس از ارسال برای گیرندگان به‌صورت وظیفه ثبت می‌شود
               </p>
             </div>
@@ -567,13 +568,13 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
         </div>
 
         {loading ? (
-          <div className="flex min-h-48 items-center justify-center rounded-3xl bg-white shadow-sm">
-            <Loader2 className="animate-spin text-red-600" />
+          <div className="flex min-h-48 items-center justify-center rounded-3xl bg-card shadow-sm">
+            <Loader2 className="animate-spin text-primary" />
           </div>
         ) : (
           <form
             onSubmit={handleSubmit}
-            className="space-y-6 rounded-3xl border border-slate-100 bg-white p-8 shadow-xl"
+            className="space-y-6 rounded-3xl border border-border bg-card p-8 shadow-xl"
           >
             {done && (
               <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-700">
@@ -589,15 +590,15 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
               </div>
             )}
             {error && (
-              <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+              <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm font-semibold text-primary">
                 {error}
               </div>
             )}
 
             <div>
-              <label className="mb-2 block text-sm font-bold text-slate-700">
+              <Label className="mb-2 block text-sm font-bold text-foreground">
                 موضوع درخواست
-              </label>
+              </Label>
               <Input
                 value={subject}
                 onChange={(event) => setSubject(event.target.value)}
@@ -609,9 +610,9 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
 
             {letterType === "external" && (
               <div>
-                <label className="mb-2 block text-sm font-bold text-slate-700">
+                <Label className="mb-2 block text-sm font-bold text-foreground">
                   شماره نامه
-                </label>
+                </Label>
                 <Input
                   value={letterNumber}
                   onChange={(event) => setLetterNumber(event.target.value)}
@@ -623,21 +624,21 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
             )}
 
             <div>
-              <label className="mb-2 block text-sm font-bold text-slate-700">
+              <Label className="mb-2 block text-sm font-bold text-foreground">
                 شماره نامه سیستمی
-              </label>
+              </Label>
               <Input
                 value={`پس از ارسال، به‌صورت خودکار صادر می‌شود (مانند ${workflow.numberExample})`}
                 readOnly
                 aria-readonly="true"
-                className="h-12 rounded-xl bg-slate-50 text-slate-500"
+                className="h-12 rounded-xl bg-muted/40 text-muted-foreground"
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-bold text-slate-700">
+              <Label className="mb-2 block text-sm font-bold text-foreground">
                 نیاز به پاسخ
-              </label>
+              </Label>
               <Select
                 value={needsReply || undefined}
                 onValueChange={(value) => {
@@ -646,7 +647,7 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
                   if (next !== "دارد" && needsAction !== "دارد") setDueDate("");
                 }}
               >
-                <SelectTrigger className="h-12 w-full rounded-xl border-slate-200 bg-white text-right shadow-sm">
+                <SelectTrigger className="h-12 w-full rounded-xl border-border bg-card text-right shadow-sm">
                   <SelectValue placeholder="انتخاب کنید" />
                 </SelectTrigger>
                 <SelectContent position="popper" sideOffset={4}>
@@ -660,9 +661,9 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-bold text-slate-700">
+              <Label className="mb-2 block text-sm font-bold text-foreground">
                 نیاز به اقدام
-              </label>
+              </Label>
               <Select
                 value={needsAction || undefined}
                 onValueChange={(value) => {
@@ -671,7 +672,7 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
                   if (next !== "دارد" && needsReply !== "دارد") setDueDate("");
                 }}
               >
-                <SelectTrigger className="h-12 w-full rounded-xl border-slate-200 bg-white text-right shadow-sm">
+                <SelectTrigger className="h-12 w-full rounded-xl border-border bg-card text-right shadow-sm">
                   <SelectValue placeholder="انتخاب کنید" />
                 </SelectTrigger>
                 <SelectContent position="popper" sideOffset={4}>
@@ -686,16 +687,16 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
 
             {(needsReply === "دارد" || needsAction === "دارد") && (
               <div>
-                <label className="mb-2 block text-sm font-bold text-slate-700">
+                <Label className="mb-2 block text-sm font-bold text-foreground">
                   مهلت انجام
-                </label>
+                </Label>
                 <DatePicker
                   calendar={persian}
                   locale={persian_fa}
                   format={PERSIAN_DATE_FORMAT}
                   value={dueDate || undefined}
                   onChange={(date) => setDueDate(normalizePersianDate(date))}
-                  inputClass="w-full h-12 rounded-xl border border-slate-200 bg-white px-4 text-right shadow-sm outline-none focus:border-red-500"
+                  inputClass="w-full h-12 rounded-xl border border-border bg-card px-4 text-right shadow-sm outline-none focus:border-red-500"
                   calendarPosition="bottom-right"
                   placeholder="انتخاب تاریخ"
                   containerClassName="w-full"
@@ -705,9 +706,9 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
 
             {letterType === "external" && (
               <div>
-                <label className="mb-2 block text-sm font-bold text-slate-700">
+                <Label className="mb-2 block text-sm font-bold text-foreground">
                   فرستنده
-                </label>
+                </Label>
                 <SenderDropdown
                   sender={sender}
                   holdingUnit={holdingUnit}
@@ -720,9 +721,9 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
             )}
 
             <div>
-              <label className="mb-2 block text-sm font-bold text-slate-700">
+              <Label className="mb-2 block text-sm font-bold text-foreground">
                 توضیحات
-              </label>
+              </Label>
               <Textarea
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
@@ -734,17 +735,17 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-bold text-slate-700">
+              <Label className="mb-2 block text-sm font-bold text-foreground">
                 پیوست‌ها
-                <span className="mr-2 text-xs font-medium text-slate-400">
+                <span className="mr-2 text-xs font-medium text-muted-foreground">
                   (امکان انتخاب چند فایل)
                 </span>
-              </label>
+              </Label>
               <div className="flex flex-wrap items-center gap-3">
-                <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                <Label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm font-semibold text-foreground hover:bg-muted">
                   <Paperclip size={16} />
                   افزودن فایل
-                  <input
+                  <Input
                     type="file"
                     multiple
                     className="hidden"
@@ -765,25 +766,25 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
                       event.target.value = "";
                     }}
                   />
-                </label>
+                </Label>
                 {attachments.map((file, index) => (
                   <span
                     key={`${file.name}-${file.size}-${index}`}
-                    className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600"
+                    className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1.5 text-xs font-semibold text-muted-foreground"
                   >
                     {file.name}
-                    <button
+                    <Button
                       type="button"
                       onClick={() =>
                         setAttachments((current) =>
                           current.filter((_, itemIndex) => itemIndex !== index),
                         )
                       }
-                      className="text-slate-400 hover:text-red-600"
+                      className="text-muted-foreground hover:text-primary"
                       aria-label="حذف پیوست"
                     >
                       <X size={14} />
-                    </button>
+                    </Button>
                   </span>
                 ))}
               </div>
@@ -791,16 +792,16 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
 
             <div>
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                <label className="text-sm font-bold text-slate-700">
+                <Label className="text-sm font-bold text-foreground">
                   گیرندگان نامه
-                  <span className="mr-2 text-xs font-medium text-slate-400">
+                  <span className="mr-2 text-xs font-medium text-muted-foreground">
                     ({selectedIds.size.toLocaleString("fa-IR")} انتخاب‌شده)
                   </span>
-                </label>
+                </Label>
                 <div className="relative w-full max-w-xs">
                   <Search
                     size={16}
-                    className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                    className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                   />
                   <Input
                     value={search}
@@ -812,25 +813,25 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
               </div>
 
               {recipients.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
+                <div className="rounded-2xl border border-dashed border-border bg-muted/40 p-6 text-center text-sm text-muted-foreground">
                   {letterType === "internal"
                     ? "کاربر فعال دیگری برای دریافت نامه یافت نشد."
                     : "هنوز گیرنده‌ای توسط مدیر سیستم مشخص نشده است. از بخش مدیریت کاربران، گزینه «دریافت‌کننده نامه‌های برون‌سازمانی» را فعال کنید."}
                 </div>
               ) : (
-                <div className="max-h-72 space-y-2 overflow-y-auto rounded-2xl border border-slate-200 p-3">
+                <div className="max-h-72 space-y-2 overflow-y-auto rounded-2xl border border-border p-3">
                   {filteredRecipients.map((user) => {
                     const checked = selectedIds.has(user.id);
                     return (
-                      <label
+                      <Label
                         key={user.id}
                         className={`flex cursor-pointer items-center gap-3 rounded-xl p-3 text-sm transition ${
                           checked
-                            ? "bg-red-50 ring-1 ring-red-200"
-                            : "bg-slate-50 hover:bg-slate-100"
+                            ? "bg-primary/10 ring-1 ring-red-200"
+                            : "bg-muted/40 hover:bg-muted"
                         }`}
                       >
-                        <input
+                        <Input
                           type="checkbox"
                           checked={checked}
                           onChange={(event) =>
@@ -839,20 +840,20 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
                           className="h-4 w-4 accent-red-600"
                         />
                         <div className="min-w-0 flex-1">
-                          <p className="font-bold text-slate-800">
+                          <p className="font-bold text-foreground">
                             <UserDisplayName user={user} />
                           </p>
-                          <p className="mt-0.5 truncate text-xs text-slate-500">
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
                             {[user.department, user.job_title]
                               .filter(Boolean)
                               .join(" · ") || user.username}
                           </p>
                         </div>
-                      </label>
+                      </Label>
                     );
                   })}
                   {filteredRecipients.length === 0 && (
-                    <p className="p-4 text-center text-sm text-slate-400">
+                    <p className="p-4 text-center text-sm text-muted-foreground">
                       گیرنده‌ای با این جستجو یافت نشد.
                     </p>
                   )}
@@ -860,27 +861,27 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
               )}
             </div>
 
-            <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+            <section className="rounded-2xl border border-border bg-muted/40 p-5">
               <div>
-                <h3 className="text-sm font-extrabold text-slate-800">
+                <h3 className="text-sm font-extrabold text-foreground">
                   یادداشت برای گیرندگان
                 </h3>
-                <p className="mt-1 text-xs leading-6 text-slate-500">
+                <p className="mt-1 text-xs leading-6 text-muted-foreground">
                   یک یادداشت را برای همه یا چند گیرنده اعمال کنید و در صورت
                   نیاز، متن هر نفر را جداگانه تغییر دهید.
                 </p>
               </div>
 
               {selectedRecipients.length === 0 ? (
-                <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-white p-4 text-center text-sm text-slate-400">
+                <div className="mt-4 rounded-xl border border-dashed border-border bg-card p-4 text-center text-sm text-muted-foreground">
                   ابتدا حداقل یک گیرنده را انتخاب کنید.
                 </div>
               ) : (
                 <div className="mt-4 space-y-5">
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <label className="text-sm font-bold text-slate-700">
+                  <div className="rounded-2xl border border-border bg-card p-4">
+                    <Label className="text-sm font-bold text-foreground">
                       یادداشت مشترک
-                    </label>
+                    </Label>
                     <Textarea
                       value={sharedComment}
                       onChange={(event) => setSharedComment(event.target.value)}
@@ -891,47 +892,47 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
                     />
 
                     <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-xs font-bold text-slate-500">
+                      <p className="text-xs font-bold text-muted-foreground">
                         این یادداشت برای چه کسانی اعمال شود؟
                       </p>
                       <div className="flex gap-3 text-xs font-bold">
-                        <button
+                        <Button
                           type="button"
                           onClick={() =>
                             setCommentTargetIds(new Set(selectedIds))
                           }
-                          className="text-red-600 hover:text-red-700"
+                          className="text-primary hover:text-primary"
                         >
                           انتخاب همه
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
                           onClick={() => setCommentTargetIds(new Set())}
-                          className="text-slate-400 hover:text-slate-600"
+                          className="text-muted-foreground hover:text-muted-foreground"
                         >
                           لغو انتخاب
-                        </button>
+                        </Button>
                       </div>
                     </div>
 
-                    <div className="mt-3 flex max-h-36 flex-wrap gap-2 overflow-y-auto rounded-xl border border-slate-100 bg-slate-50 p-3">
+                    <div className="mt-3 flex max-h-36 flex-wrap gap-2 overflow-y-auto rounded-xl border border-border bg-muted/40 p-3">
                       {selectedRecipients.map((user) => (
-                        <label
+                        <Label
                           key={user.id}
                           className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition ${
                             commentTargetIds.has(user.id)
-                              ? "border-red-200 bg-red-50 text-red-700"
-                              : "border-slate-200 bg-white text-slate-500"
+                              ? "border-primary/30 bg-primary/10 text-primary"
+                              : "border-border bg-card text-muted-foreground"
                           }`}
                         >
-                          <input
+                          <Input
                             type="checkbox"
                             checked={commentTargetIds.has(user.id)}
                             onChange={() => toggleCommentTarget(user.id)}
                             className="h-3.5 w-3.5 accent-red-600"
                           />
                           <UserDisplayName user={user} />
-                        </label>
+                        </Label>
                       ))}
                     </div>
 
@@ -943,30 +944,30 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
                           !sharedComment.trim() || commentTargetIds.size === 0
                         }
                         onClick={applySharedComment}
-                        className="rounded-xl border-red-200 text-red-700 hover:bg-red-50"
+                        className="rounded-xl border-primary/30 text-primary hover:bg-primary/10"
                       >
                         اعمال برای{" "}
                         {commentTargetIds.size.toLocaleString("fa-IR")} گیرنده
                       </Button>
-                      <p className="text-xs text-slate-400">
+                      <p className="text-xs text-muted-foreground">
                         اعمال یادداشت، متن فعلی گیرندگان انتخاب‌شده را جایگزین
                         می‌کند.
                       </p>
                     </div>
                   </div>
                   <div>
-                    <p className="mb-3 text-sm font-bold text-slate-700">
+                    <p className="mb-3 text-sm font-bold text-foreground">
                       یادداشت اختصاصی هر گیرنده
                     </p>
                     <div className="max-h-[32rem] space-y-3 overflow-y-auto pl-1">
                       {selectedRecipients.map((user) => (
                         <div
                           key={user.id}
-                          className="rounded-2xl border border-slate-200 bg-white p-4"
+                          className="rounded-2xl border border-border bg-card p-4"
                         >
-                          <label className="text-sm font-bold text-slate-800">
+                          <Label className="text-sm font-bold text-foreground">
                             <UserDisplayName user={user} />
-                          </label>
+                          </Label>
                           <Textarea
                             value={recipientComments[user.id] || ""}
                             onChange={(event) =>
@@ -988,7 +989,7 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
               )}
             </section>
 
-            <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
+            <div className="flex justify-end gap-3 border-t border-border pt-5">
               <Button
                 type="button"
                 variant="outline"
@@ -999,7 +1000,7 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
               </Button>
               <Button
                 disabled={saving || recipients.length === 0}
-                className="gap-2 rounded-xl bg-red-600 px-6 hover:bg-red-700"
+                className="gap-2 rounded-xl bg-primary px-6 hover:bg-primary/90"
               >
                 ارسال نامه
               </Button>
@@ -1022,29 +1023,29 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
             role="dialog"
             aria-modal="true"
             aria-labelledby="letter-review-title"
-            className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl sm:rounded-3xl"
+            className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl border border-border bg-card shadow-2xl sm:rounded-3xl"
           >
-            <header className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+            <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
               <div>
                 <h2
                   id="letter-review-title"
-                  className="text-lg font-extrabold text-slate-900"
+                  className="text-lg font-extrabold text-foreground"
                 >
                   بررسی نهایی نامه
                 </h2>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-muted-foreground">
                   قبل از ارسال، اطلاعات را مرور کنید
                 </p>
               </div>
-              <button
+              <Button
                 type="button"
                 disabled={saving}
                 onClick={() => setReviewOpen(false)}
-                className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
+                className="rounded-xl p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
                 aria-label="بستن"
               >
                 <X size={18} />
-              </button>
+              </Button>
             </header>
 
             <div className="space-y-4 overflow-y-auto px-5 py-5 text-sm">
@@ -1069,9 +1070,9 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
               )}
               <ReviewRow label="توضیحات" value={description.trim()} multiline />
               <div>
-                <p className="mb-2 text-xs font-bold text-slate-400">پیوست‌ها</p>
+                <p className="mb-2 text-xs font-bold text-muted-foreground">پیوست‌ها</p>
                 {attachmentPreviewUrls.length === 0 ? (
-                  <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 font-semibold text-slate-800">
+                  <div className="rounded-2xl border border-border bg-muted/40 px-4 py-3 font-semibold text-foreground">
                     بدون پیوست
                   </div>
                 ) : (
@@ -1079,14 +1080,14 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
                     {attachmentPreviewUrls.map(({ file, url }, index) => (
                       <div
                         key={`${file.name}-${file.size}-${index}`}
-                        className="overflow-hidden rounded-2xl border border-slate-100 bg-slate-50"
+                        className="overflow-hidden rounded-2xl border border-border bg-muted/40"
                       >
-                        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-2.5">
+                        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-slate-800">
+                            <p className="truncate text-sm font-semibold text-foreground">
                               {file.name}
                             </p>
-                            <p className="mt-0.5 text-xs text-slate-400">
+                            <p className="mt-0.5 text-xs text-muted-foreground">
                               {formatFileSize(file.size)}
                             </p>
                           </div>
@@ -1094,13 +1095,13 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
                             href={url}
                             target="_blank"
                             rel="noreferrer"
-                            className="shrink-0 text-xs font-bold text-red-600 hover:underline"
+                            className="shrink-0 text-xs font-bold text-primary hover:underline"
                           >
                             مشاهده
                           </a>
                         </div>
                         {isImageFile(file) ? (
-                          <div className="bg-white p-3">
+                          <div className="bg-card p-3">
                             <img
                               src={url}
                               alt={file.name}
@@ -1111,11 +1112,11 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
                           <iframe
                             title={file.name}
                             src={url}
-                            className="h-64 w-full bg-white"
+                            className="h-64 w-full bg-card"
                           />
                         ) : (
-                          <div className="flex items-center gap-3 px-4 py-5 text-slate-500">
-                            <FileText size={28} className="shrink-0 text-slate-400" />
+                          <div className="flex items-center gap-3 px-4 py-5 text-muted-foreground">
+                            <FileText size={28} className="shrink-0 text-muted-foreground" />
                             <p className="text-sm font-semibold">
                               پیش‌نمایش برای این نوع فایل در دسترس نیست
                             </p>
@@ -1127,19 +1128,19 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
                 )}
               </div>
               <div>
-                <p className="mb-2 text-xs font-bold text-slate-400">
+                <p className="mb-2 text-xs font-bold text-muted-foreground">
                   گیرندگان و یادداشت‌ها
                 </p>
                 <div className="space-y-2">
                   {selectedRecipients.map((user) => (
                     <div
                       key={user.id}
-                      className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3"
+                      className="rounded-2xl border border-border bg-muted/40 px-4 py-3"
                     >
-                      <p className="font-bold text-slate-800">
+                      <p className="font-bold text-foreground">
                         <UserDisplayName user={user} />
                       </p>
-                      <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-slate-600">
+                      <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground">
                         {(recipientComments[user.id] || "").trim() ||
                           "بدون یادداشت"}
                       </p>
@@ -1149,7 +1150,7 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
               </div>
             </div>
 
-            <footer className="flex flex-wrap justify-end gap-3 border-t border-slate-100 px-5 py-4">
+            <footer className="flex flex-wrap justify-end gap-3 border-t border-border px-5 py-4">
               <Button
                 type="button"
                 variant="outline"
@@ -1163,7 +1164,7 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
                 type="button"
                 disabled={saving}
                 onClick={() => void confirmSend()}
-                className="gap-2 rounded-xl bg-red-600 px-6 hover:bg-red-700"
+                className="gap-2 rounded-xl bg-primary px-6 hover:bg-primary/90"
               >
                 {saving && <Loader2 className="animate-spin" size={16} />}
                 تأیید و ارسال
@@ -1186,10 +1187,10 @@ function ReviewRow({
   multiline?: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-      <p className="text-xs font-bold text-slate-400">{label}</p>
+    <div className="rounded-2xl border border-border bg-muted/40 px-4 py-3">
+      <p className="text-xs font-bold text-muted-foreground">{label}</p>
       <p
-        className={`mt-1 font-semibold text-slate-800 ${
+        className={`mt-1 font-semibold text-foreground ${
           multiline ? "whitespace-pre-wrap leading-7" : ""
         }`}
       >

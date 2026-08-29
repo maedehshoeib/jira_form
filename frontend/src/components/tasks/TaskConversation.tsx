@@ -156,14 +156,14 @@ export default function TaskConversation({
   };
 
   return (
-    <section className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+    <section className="space-y-4 rounded-2xl border border-border bg-muted/40 p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h4 className="flex items-center gap-2 font-bold text-slate-800">
+          <h4 className="flex items-center gap-2 font-bold text-foreground">
             <MessageCircle size={19} className="text-sky-600" />
             گفت‌وگوی درخواست
           </h4>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-muted-foreground">
             فرستنده، مسئولان، ارجاع‌گیرندگان و افراد رونوشت‌شده می‌توانند پیام بگذارند و یکدیگر را با @ خطاب کنند.
           </p>
         </div>
@@ -187,7 +187,7 @@ export default function TaskConversation({
             onChange={(event) => setReminderMessage(event.target.value)}
             placeholder="متن یادآوری (اختیاری)"
             maxLength={512}
-            className="min-h-16 bg-white"
+            className="min-h-16 bg-card"
           />
           <Button type="button" onClick={() => void sendReminder()} disabled={submitting} className="gap-2">
             {submitting ? <Loader2 size={15} className="animate-spin" /> : <BellRing size={15} />}
@@ -213,7 +213,7 @@ export default function TaskConversation({
 
       <div className="max-h-72 space-y-2 overflow-y-auto">
         {loading ? (
-          <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-500">
+          <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
             <Loader2 size={16} className="animate-spin" /> در حال دریافت پیام‌ها...
           </div>
         ) : conversation?.comments.length ? (
@@ -223,14 +223,14 @@ export default function TaskConversation({
               className={`rounded-xl border px-3 py-2 text-sm ${
                 comment.author_id === user?.id
                   ? "mr-6 border-sky-100 bg-sky-50"
-                  : "ml-6 border-slate-200 bg-white"
+                  : "ml-6 border-border bg-card"
               }`}
             >
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                <span className="font-bold text-slate-700">{comment.author_name}</span>
-                <span className="text-slate-400">{formatPersianDateTime(comment.created_at)}</span>
+                <span className="font-bold text-foreground">{comment.author_name}</span>
+                <span className="text-muted-foreground">{formatPersianDateTime(comment.created_at)}</span>
               </div>
-              <p className="mt-1 whitespace-pre-wrap text-slate-700">{comment.body}</p>
+              <p className="mt-1 whitespace-pre-wrap text-foreground">{comment.body}</p>
               {comment.mentions.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1">
                   {comment.mentions.map((mention) => (
@@ -243,7 +243,7 @@ export default function TaskConversation({
             </div>
           ))
         ) : (
-          <p className="py-4 text-center text-sm text-slate-500">هنوز پیامی ثبت نشده است.</p>
+          <p className="py-4 text-center text-sm text-muted-foreground">هنوز پیامی ثبت نشده است.</p>
         )}
       </div>
 
@@ -253,35 +253,35 @@ export default function TaskConversation({
           onChange={(event) => setBody(event.target.value)}
           placeholder="پیام خود را بنویسید؛ برای خطاب‌کردن افراد @ را تایپ کنید..."
           maxLength={2000}
-          className="min-h-24 bg-white"
+          className="min-h-24 bg-card"
         />
         {mentionMatch && (
-          <div className="absolute bottom-full z-20 mb-1 max-h-44 w-full overflow-y-auto rounded-xl border border-sky-200 bg-white p-1 shadow-lg">
+          <div className="absolute bottom-full z-20 mb-1 max-h-44 w-full overflow-y-auto rounded-xl border border-sky-200 bg-card p-1 shadow-lg">
             {mentionCandidates.length ? mentionCandidates.map((participant) => (
-              <button
+              <Button
                 key={participant.id}
                 type="button"
                 onClick={() => addMention(participant)}
                 className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-right text-sm hover:bg-sky-50"
               >
                 <AtSign size={14} className="text-sky-600" />
-                <span className="font-semibold text-slate-700">{participant.display_name}</span>
-                <span className="text-xs text-slate-400">{participant.username}</span>
-              </button>
+                <span className="font-semibold text-foreground">{participant.display_name}</span>
+                <span className="text-xs text-muted-foreground">{participant.username}</span>
+              </Button>
             )) : (
-              <p className="px-3 py-3 text-xs text-slate-500">شرکت‌کننده‌ای یافت نشد.</p>
+              <p className="px-3 py-3 text-xs text-muted-foreground">شرکت‌کننده‌ای یافت نشد.</p>
             )}
           </div>
         )}
         <div className="flex items-center justify-between gap-3">
-          <span className="text-xs text-slate-400">{body.length.toLocaleString("fa-IR")} از ۲۰۰۰</span>
+          <span className="text-xs text-muted-foreground">{body.length.toLocaleString("fa-IR")} از ۲۰۰۰</span>
           <Button type="button" onClick={() => void sendComment()} disabled={submitting || !body.trim()} className="gap-2">
             {submitting ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
             ارسال پیام
           </Button>
         </div>
       </div>
-      {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
+      {error && <p className="rounded-xl bg-primary/10 px-3 py-2 text-xs text-primary">{error}</p>}
     </section>
   );
 }

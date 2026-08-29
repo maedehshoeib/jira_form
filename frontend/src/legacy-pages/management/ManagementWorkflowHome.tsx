@@ -28,7 +28,7 @@ export default function ManagementWorkflowHome({
   if (allowed === null) {
     return (
       <AppShell>
-        <p className="text-slate-600">در حال بارگذاری...</p>
+        <p className="text-muted-foreground">در حال بارگذاری...</p>
       </AppShell>
     );
   }
@@ -42,7 +42,7 @@ export default function ManagementWorkflowHome({
       <div className="mx-auto max-w-5xl">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 font-semibold text-red-600 hover:text-red-700"
+          className="inline-flex items-center gap-2 font-semibold text-primary hover:text-primary"
         >
           <ChevronLeft size={18} />
           بازگشت به خانه
@@ -53,10 +53,10 @@ export default function ManagementWorkflowHome({
             <Network className="h-7 w-7" />
           </div>
           <div>
-            <h1 className="text-3xl font-extrabold text-slate-900">
+            <h1 className="text-3xl font-extrabold text-foreground">
               {workflow.title}
             </h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-muted-foreground">
               {workflow.description}
             </p>
           </div>
@@ -64,13 +64,13 @@ export default function ManagementWorkflowHome({
 
         <div className="mt-10 grid gap-6 md:grid-cols-2">
           <Link to={`${workflow.homePath}/send`}>
-            <Card className="group h-full rounded-3xl border border-slate-200 transition hover:-translate-y-1 hover:border-red-200 hover:shadow-lg">
+            <Card className="group h-full rounded-3xl border border-border transition hover:-translate-y-1 hover:border-primary/30 hover:shadow-lg">
               <CardContent className="p-8">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                   <Send size={32} />
                 </div>
-                <h2 className="mt-6 text-xl font-bold text-slate-900">ارسال نامه</h2>
-                <p className="mt-2 text-sm leading-7 text-slate-500">
+                <h2 className="mt-6 text-xl font-bold text-foreground">ارسال نامه</h2>
+                <p className="mt-2 text-sm leading-7 text-muted-foreground">
                   ثبت موضوع، توضیحات و پیوست و ارسال به گیرندگان منتخب
                 </p>
               </CardContent>
@@ -78,13 +78,13 @@ export default function ManagementWorkflowHome({
           </Link>
 
           <Link to={`${workflow.homePath}/report`}>
-            <Card className="group h-full rounded-3xl border border-slate-200 transition hover:-translate-y-1 hover:border-red-200 hover:shadow-lg">
+            <Card className="group h-full rounded-3xl border border-border transition hover:-translate-y-1 hover:border-primary/30 hover:shadow-lg">
               <CardContent className="p-8">
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
                   <BarChart3 size={32} />
                 </div>
-                <h2 className="mt-6 text-xl font-bold text-slate-900">گزارش</h2>
-                <p className="mt-2 text-sm leading-7 text-slate-500">
+                <h2 className="mt-6 text-xl font-bold text-foreground">گزارش</h2>
+                <p className="mt-2 text-sm leading-7 text-muted-foreground">
                   پیگیری وضعیت نامه‌های ارسال‌شده برای هر گیرنده
                 </p>
               </CardContent>

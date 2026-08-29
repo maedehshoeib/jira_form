@@ -149,42 +149,42 @@ export default function ProfilePage() {
     <AppShell>
       <div dir="rtl" className="mx-auto max-w-4xl space-y-6">
         <div>
-          <h1 className="flex items-center gap-3 text-2xl font-extrabold text-slate-900">
-            <UserRound className="text-red-600" />
+          <h1 className="flex items-center gap-3 text-2xl font-extrabold text-foreground">
+            <UserRound className="text-primary" />
             پروفایل من
           </h1>
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-muted-foreground">
             اطلاعات تماس خود را ویرایش و امنیت حساب را مدیریت کنید.
           </p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="rounded-3xl border-slate-200 shadow-sm">
+          <Card className="rounded-3xl border-border shadow-sm">
             <CardHeader>
               <CardTitle>اطلاعات قابل ویرایش</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="mb-6 flex items-center gap-4 rounded-2xl bg-slate-50 p-4">
+              <div className="mb-6 flex items-center gap-4 rounded-2xl bg-muted/40 p-4">
                 <UserAvatar
                   name={formatUserDisplayName(user)}
                   avatarUrl={user.avatar_url}
                   className="h-20 w-20 rounded-2xl"
                 />
                 <div>
-                  <p className="mb-2 text-sm font-semibold text-slate-700">تصویر پروفایل</p>
-                  <Button asChild type="button" variant="outline" className="gap-2 rounded-xl bg-white">
-                    <label className={avatarLoading ? "pointer-events-none opacity-60" : "cursor-pointer"}>
+                  <p className="mb-2 text-sm font-semibold text-foreground">تصویر پروفایل</p>
+                  <Button asChild type="button" variant="outline" className="gap-2 rounded-xl bg-card">
+                    <Label className={avatarLoading ? "pointer-events-none opacity-60" : "cursor-pointer"}>
                       <Camera size={16} />
                       {avatarLoading ? "در حال بارگذاری..." : "انتخاب تصویر"}
-                      <input
+                      <Input
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
                         className="hidden"
                         onChange={uploadAvatar}
                       />
-                    </label>
+                    </Label>
                   </Button>
-                  <p className="mt-2 text-xs text-slate-400">JPG، PNG یا WebP تا ۵ مگابایت</p>
+                  <p className="mt-2 text-xs text-muted-foreground">JPG، PNG یا WebP تا ۵ مگابایت</p>
                 </div>
               </div>
               {message && (
@@ -193,7 +193,7 @@ export default function ProfilePage() {
                 </div>
               )}
               {error && (
-                <div className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">
+                <div className="mb-4 rounded-xl bg-primary/10 p-3 text-sm text-primary">
                   {error}
                 </div>
               )}
@@ -233,26 +233,26 @@ export default function ProfilePage() {
                     format="YYYY/MM/DD"
                   />
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-muted-foreground">
                       در روز تولد، کنار نام شما نشان تولد{" "}
                       <BirthdayBadge className="mx-0.5 inline-flex h-4 w-4 align-middle" />{" "}
                       نمایش داده می‌شود.
                     </p>
                     {birthDate && (
-                      <button
+                      <Button
                         type="button"
-                        className="shrink-0 text-xs text-slate-500 underline-offset-2 hover:underline"
+                        className="shrink-0 text-xs text-muted-foreground underline-offset-2 hover:underline"
                         onClick={() => setBirthDate(null)}
                       >
                         پاک کردن
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="gap-2 rounded-xl bg-red-600 hover:bg-red-700"
+                  className="gap-2 rounded-xl bg-primary hover:bg-primary/90"
                 >
                   <Save size={17} />
                   {loading ? "در حال ذخیره..." : "ذخیره تغییرات"}
@@ -262,10 +262,10 @@ export default function ProfilePage() {
           </Card>
 
           <div className="space-y-6">
-            <Card className="overflow-visible rounded-xl border-slate-200 shadow-sm">
+            <Card className="overflow-visible rounded-xl border-border shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <BriefcaseBusiness size={20} className="text-red-600" />
+                  <BriefcaseBusiness size={20} className="text-primary" />
                   اطلاعات سازمانی
                 </CardTitle>
               </CardHeader>
@@ -273,10 +273,10 @@ export default function ProfilePage() {
                 {organizationFields.map(([label, value]) => (
                   <div
                     key={label}
-                    className="flex items-start justify-between gap-4 border-b border-slate-100 pb-3 last:border-0 last:pb-0"
+                    className="flex items-start justify-between gap-4 border-b border-border pb-3 last:border-0 last:pb-0"
                   >
-                    <span className="shrink-0 text-sm text-slate-500">{label}</span>
-                    <span className="min-w-0 flex-1 break-words px-1 text-left text-sm font-semibold text-slate-800">
+                    <span className="shrink-0 text-sm text-muted-foreground">{label}</span>
+                    <span className="min-w-0 flex-1 break-words px-1 text-left text-sm font-semibold text-foreground">
                       {value || "—"}
                     </span>
                   </div>
@@ -284,15 +284,15 @@ export default function ProfilePage() {
               </CardContent>
             </Card>
 
-            <Card className="rounded-3xl border-red-100 bg-red-50/40 shadow-sm">
+            <Card className="rounded-3xl border-primary/20 bg-primary/10 shadow-sm">
               <CardContent className="flex items-center justify-between gap-4 p-6">
                 <div>
-                  <p className="font-bold text-slate-900">امنیت حساب</p>
-                  <p className="mt-1 text-sm text-slate-500">
+                  <p className="font-bold text-foreground">امنیت حساب</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
                     رمز عبور خود را به‌صورت دوره‌ای تغییر دهید.
                   </p>
                 </div>
-                <Button asChild variant="outline" className="gap-2 rounded-xl bg-white">
+                <Button asChild variant="outline" className="gap-2 rounded-xl bg-card">
                   <Link to="/change-password">
                     <KeyRound size={17} />
                     تغییر رمز

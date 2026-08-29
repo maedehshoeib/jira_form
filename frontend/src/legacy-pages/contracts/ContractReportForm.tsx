@@ -1,3 +1,4 @@
+import { Label } from "@/components/ui/label";
 import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -183,19 +184,19 @@ export default function ContractReportForm() {
       <div className="mx-auto max-w-3xl">
         <Link
           to="/contracts-archive"
-          className="font-semibold text-red-600 hover:text-red-700"
+          className="font-semibold text-primary hover:text-primary"
         >
           بازگشت
         </Link>
 
         <h1 className="mt-8 text-3xl font-bold">ثبت قراردادها</h1>
-        <p className="mt-2 text-slate-500">
+        <p className="mt-2 text-muted-foreground">
           اطلاعات قرارداد را وارد کنید
         </p>
 
-        <div className="mt-8 rounded-3xl border-0 bg-white p-8 shadow-xl">
+        <div className="mt-8 rounded-3xl border-0 bg-card p-8 shadow-xl">
           {error && (
-            <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">
+            <div className="mb-6 rounded-2xl border border-primary/30 bg-primary/10 p-4 text-primary">
               {error}
             </div>
           )}
@@ -204,14 +205,14 @@ export default function ContractReportForm() {
             <div className="mb-6 rounded-2xl border border-green-200 bg-green-50 p-4 text-green-700">
               قرارداد با موفقیت ثبت شد.
               {rowNumber !== null && (
-                <span className="mr-2 text-sm text-slate-600">
+                <span className="mr-2 text-sm text-muted-foreground">
                   (ردیف: {rowNumber})
                 </span>
               )}
               <div className="mt-3">
                 <Link
                   to="/contracts-archive/list"
-                  className="font-semibold text-red-600 hover:text-red-700"
+                  className="font-semibold text-primary hover:text-primary"
                 >
                   مشاهده فهرست قراردادها
                 </Link>
@@ -221,14 +222,14 @@ export default function ContractReportForm() {
 
           <div className="mb-8">
             <div className="mb-2 flex justify-between">
-              <span className="text-sm text-slate-600">پیشرفت تکمیل فرم</span>
-              <span className="text-sm font-semibold text-red-600">
+              <span className="text-sm text-muted-foreground">پیشرفت تکمیل فرم</span>
+              <span className="text-sm font-semibold text-primary">
                 {Math.round(progress)}%
               </span>
             </div>
             <div className="h-3 overflow-hidden rounded-full bg-slate-200">
               <div
-                className="h-full rounded-full bg-red-600 transition-all duration-500"
+                className="h-full rounded-full bg-primary transition-all duration-500"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -243,17 +244,17 @@ export default function ContractReportForm() {
               return (
               <div key={field.name} className="flex flex-col gap-2">
                 {showSection && (
-                  <h2 className="mb-2 border-r-4 border-red-600 pr-3 text-lg font-bold text-slate-800">
+                  <h2 className="mb-2 border-r-4 border-red-600 pr-3 text-lg font-bold text-foreground">
                     {field.section}
                   </h2>
                 )}
                 {field.type !== "table" && (
-                  <label className="text-sm font-semibold text-slate-700">
+                  <Label className="text-sm font-semibold text-foreground">
                     {field.label}
                     {field.required !== false && (
                       <span className="mr-1 text-red-500">*</span>
                     )}
-                  </label>
+                  </Label>
                 )}
                 <FormFieldRenderer
                   field={field}
@@ -277,7 +278,7 @@ export default function ContractReportForm() {
             <Button
               type="submit"
               disabled={loading}
-              className="h-12 w-full rounded-xl bg-red-600 text-base hover:bg-red-700"
+              className="h-12 w-full rounded-xl bg-primary text-base hover:bg-primary/90"
             >
               {loading ? "در حال ثبت..." : "ثبت قرارداد"}
             </Button>

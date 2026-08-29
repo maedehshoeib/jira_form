@@ -20,17 +20,17 @@ export default function SummaryTable({
           className="
             rounded-xl
             border
-            border-slate-200
-            bg-slate-50
+            border-border
+            bg-muted/40
             p-4
           "
         >
 
-          <div className="mb-2 text-sm text-slate-500">
+          <div className="mb-2 text-sm text-muted-foreground">
             {item.label}
           </div>
 
-          <div className="font-semibold text-slate-800">
+          <div className="font-semibold text-foreground">
             {item.value}
           </div>
 

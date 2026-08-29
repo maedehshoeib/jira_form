@@ -1,3 +1,4 @@
+import { NativeSelect } from "@/components/ui/native-select";
 import { useEffect, useMemo, useState } from 'react';
 import DateObject from 'react-date-object';
 import persian from 'react-date-object/calendars/persian';
@@ -42,9 +43,9 @@ import {
   type ProjectItem,
   type TaskItem,
 } from '@/features/timesheet/api';
-import { Button } from '@/features/timesheet/components/ui/button';
-import { Label } from '@/features/timesheet/components/ui/label';
-import { Textarea } from '@/features/timesheet/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { JalaliDateTimePicker } from '@/features/timesheet/components/jalali-date-time-picker';
 import { TasksGanttChart } from '@/features/timesheet/components/tasks-gantt-chart';
 import logo from '@/assets/logo.png';
@@ -182,12 +183,12 @@ function SummaryCard({ label, value, icon, color, hint }: SummaryCardProps) {
     <div className={`rounded-2xl border p-4 ${summaryColors[color]}`}>
       <div className='flex items-center justify-between gap-3'>
         <span className='text-sm font-semibold'>{label}</span>
-        <span className='flex h-9 w-9 items-center justify-center rounded-xl bg-white/80 shadow-sm'>
+        <span className='flex h-9 w-9 items-center justify-center rounded-xl bg-card/80 shadow-sm'>
           {icon}
         </span>
       </div>
-      <div className='mt-4 text-xl font-extrabold text-slate-900'>{value}</div>
-      <div className='mt-1 text-xs text-slate-500'>{hint}</div>
+      <div className='mt-4 text-xl font-extrabold text-foreground'>{value}</div>
+      <div className='mt-1 text-xs text-muted-foreground'>{hint}</div>
     </div>
   );
 }
@@ -558,10 +559,10 @@ export function EmployeePanel(): JSX.Element {
 
   return (
     <div
-      className='min-h-screen bg-[#f5f7fb] pb-12 text-slate-800 dark:bg-transparent dark:text-slate-100'
+      className='min-h-screen bg-[#f5f7fb] pb-12 text-foreground dark:bg-transparent dark:text-slate-100'
       dir='rtl'
     >
-      <header className='border-b border-slate-200/80 bg-white/90 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-900/90'>
+      <header className='border-b border-border/80 bg-card/90 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-900/90'>
         <div className='mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8'>
           <div className='flex min-w-0 items-center gap-3'>
             <img
@@ -571,10 +572,10 @@ export function EmployeePanel(): JSX.Element {
             />
             <div className='hidden h-9 w-px bg-slate-200 dark:bg-slate-700 sm:block' />
             <div className='min-w-0'>
-              <p className='truncate text-sm font-bold text-slate-900 sm:text-base dark:text-slate-50'>
+              <p className='truncate text-sm font-bold text-foreground sm:text-base dark:text-slate-50'>
                 سامانه ثبت کارکرد
               </p>
-              <p className='hidden text-xs text-slate-500 sm:block dark:text-slate-400'>
+              <p className='hidden text-xs text-muted-foreground sm:block dark:text-muted-foreground'>
                 مدیریت حضور و فعالیت‌های روزانه
               </p>
             </div>
@@ -583,7 +584,7 @@ export function EmployeePanel(): JSX.Element {
           <Button
             variant='outline'
             onClick={() => navigate('/')}
-            className='h-10 shrink-0 gap-2 border-slate-200 bg-white text-slate-700 shadow-none hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'
+            className='h-10 shrink-0 gap-2 border-border bg-card text-foreground shadow-none hover:bg-muted/40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'
             aria-label='بازگشت به صفحه اصلی'
           >
             <span>بازگشت</span>
@@ -596,7 +597,7 @@ export function EmployeePanel(): JSX.Element {
         <section className='overflow-hidden rounded-3xl bg-gradient-to-l from-slate-900 via-slate-800 to-sky-900 p-5 text-white shadow-xl shadow-slate-200 sm:p-7'>
           <div className='flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between'>
             <div className='flex items-center gap-4'>
-              <div className='flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20'>
+              <div className='flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-card/10 ring-1 ring-white/20'>
                 <UserRound className='h-7 w-7 text-sky-200' />
               </div>
               <div>
@@ -617,7 +618,7 @@ export function EmployeePanel(): JSX.Element {
               </div>
             </div>
 
-            <div className='flex flex-col gap-3 rounded-2xl bg-white/10 p-4 ring-1 ring-white/15 sm:min-w-[360px] sm:flex-row sm:items-center sm:justify-between'>
+            <div className='flex flex-col gap-3 rounded-2xl bg-card/10 p-4 ring-1 ring-white/15 sm:min-w-[360px] sm:flex-row sm:items-center sm:justify-between'>
               <div className='flex items-center gap-3'>
                 <span
                   className={`relative flex h-3 w-3 rounded-full ${
@@ -676,43 +677,43 @@ export function EmployeePanel(): JSX.Element {
           </div>
         )}
 
-        <section className='rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-800/90'>
+        <section className='rounded-3xl border border-border bg-card p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-800/90'>
           <div className='flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between'>
             <div>
               <div className='flex items-center gap-2'>
                 <Filter className='h-5 w-5 text-sky-600' />
-                <h2 className='font-extrabold text-slate-900'>بازه گزارش</h2>
+                <h2 className='font-extrabold text-foreground'>بازه گزارش</h2>
               </div>
-              <p className='mt-1 text-xs leading-6 text-slate-500'>
+              <p className='mt-1 text-xs leading-6 text-muted-foreground'>
                 این بازه روی خلاصه، فهرست فعالیت‌ها، خروجی CSV و نمودار اعمال می‌شود.
               </p>
             </div>
 
             <div className='flex flex-col gap-3 lg:flex-row lg:items-end'>
-              <div className='grid grid-cols-3 rounded-xl bg-slate-100 p-1'>
+              <div className='grid grid-cols-3 rounded-xl bg-muted p-1'>
                 {[
                   { value: 'today' as const, label: 'امروز' },
                   { value: 'week' as const, label: '۷ روز' },
                   { value: 'month' as const, label: '۳۰ روز' },
                 ].map((item) => (
-                  <button
+                  <Button
                     key={item.value}
                     type='button'
                     onClick={() => applyPreset(item.value)}
                     className={`rounded-lg px-4 py-2 text-sm font-bold transition ${
                       periodPreset === item.value
-                        ? 'bg-white text-sky-700 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-800'
+                        ? 'bg-card text-sky-700 shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
                     {item.label}
-                  </button>
+                  </Button>
                 ))}
               </div>
 
               <div className='grid grid-cols-2 gap-2'>
                 <div className='space-y-1'>
-                  <Label className='text-xs font-bold text-slate-500'>از تاریخ</Label>
+                  <Label className='text-xs font-bold text-muted-foreground'>از تاریخ</Label>
                   <JalaliDateTimePicker
                     value={rangeStart}
                     onChange={(value) => {
@@ -725,7 +726,7 @@ export function EmployeePanel(): JSX.Element {
                   />
                 </div>
                 <div className='space-y-1'>
-                  <Label className='text-xs font-bold text-slate-500'>تا تاریخ</Label>
+                  <Label className='text-xs font-bold text-muted-foreground'>تا تاریخ</Label>
                   <JalaliDateTimePicker
                     value={rangeEnd}
                     onChange={(value) => {
@@ -758,10 +759,10 @@ export function EmployeePanel(): JSX.Element {
         <section>
           <div className='mb-3 flex flex-wrap items-center justify-between gap-3'>
             <div>
-              <h2 className='text-lg font-extrabold text-slate-900'>
+              <h2 className='text-lg font-extrabold text-foreground'>
                 خلاصه کارکرد؛ {periodLabel}
               </h2>
-              <p className='mt-1 text-xs text-slate-500'>
+              <p className='mt-1 text-xs text-muted-foreground'>
                 نمایی سریع از حضور و فعالیت ثبت‌شده
               </p>
             </div>
@@ -806,16 +807,16 @@ export function EmployeePanel(): JSX.Element {
         </section>
 
         <section className='grid items-start gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]'>
-          <div className='rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800/90'>
-            <div className='flex items-start gap-3 border-b border-slate-100 p-5 sm:p-6'>
+          <div className='rounded-3xl border border-border bg-card shadow-sm dark:border-slate-700 dark:bg-slate-800/90'>
+            <div className='flex items-start gap-3 border-b border-border p-5 sm:p-6'>
               <span className='flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700'>
                 <Plus className='h-5 w-5' />
               </span>
               <div>
-                <h2 className='text-lg font-extrabold text-slate-900'>
+                <h2 className='text-lg font-extrabold text-foreground'>
                   ثبت فعالیت جدید
                 </h2>
-                <p className='mt-1 text-sm text-slate-500'>
+                <p className='mt-1 text-sm text-muted-foreground'>
                   زمان و شرح کاری که انجام داده‌اید را وارد کنید.
                 </p>
               </div>
@@ -823,7 +824,7 @@ export function EmployeePanel(): JSX.Element {
 
             <div className='space-y-5 p-5 sm:p-6'>
               <div className='space-y-2'>
-                <Label className='font-bold text-slate-700'>تاریخ فعالیت</Label>
+                <Label className='font-bold text-foreground'>تاریخ فعالیت</Label>
                 <JalaliDateTimePicker
                   value={taskDate}
                   onChange={(value) => {
@@ -836,7 +837,7 @@ export function EmployeePanel(): JSX.Element {
                 {(selectedTaskDate < appliedStart ||
                   selectedTaskDate > appliedEnd ||
                   appliedStart !== appliedEnd) && (
-                  <button
+                  <Button
                     type='button'
                     onClick={() => {
                       const selectedDate = taskDate || initialDate;
@@ -849,13 +850,13 @@ export function EmployeePanel(): JSX.Element {
                   >
                     نمایش فقط فعالیت‌های این تاریخ
                     <ArrowLeft className='h-3.5 w-3.5' />
-                  </button>
+                  </Button>
                 )}
               </div>
 
               <div className='grid grid-cols-2 gap-3'>
                 <div className='space-y-2'>
-                  <Label className='font-bold text-slate-700'>از ساعت</Label>
+                  <Label className='font-bold text-foreground'>از ساعت</Label>
                   <JalaliDateTimePicker
                     value={taskStartTime}
                     onChange={(value) => {
@@ -868,7 +869,7 @@ export function EmployeePanel(): JSX.Element {
                   />
                 </div>
                 <div className='space-y-2'>
-                  <Label className='font-bold text-slate-700'>تا ساعت</Label>
+                  <Label className='font-bold text-foreground'>تا ساعت</Label>
                   <JalaliDateTimePicker
                     value={taskEndTime}
                     onChange={(value) => {
@@ -883,19 +884,19 @@ export function EmployeePanel(): JSX.Element {
               </div>
 
               <div className='space-y-2'>
-                <Label htmlFor='timesheet-project' className='font-bold text-slate-700'>
+                <Label htmlFor='timesheet-project' className='font-bold text-foreground'>
                   پروژه
                 </Label>
                 <div className='relative'>
-                  <BriefcaseBusiness className='pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400' />
-                  <select
+                  <BriefcaseBusiness className='pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground' />
+                  <NativeSelect
                     id='timesheet-project'
                     value={projectCode}
                     onChange={(event) => {
                       setProjectCode(event.target.value);
                       setSubprojectCode('');
                     }}
-                    className='h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pr-10 pl-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:focus:border-sky-400 dark:focus:ring-sky-500/20'
+                    className='h-11 w-full appearance-none rounded-xl border border-border bg-card pr-10 pl-3 text-sm text-foreground outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:focus:border-sky-400 dark:focus:ring-sky-500/20'
                   >
                     {availableProjects.length === 0 && (
                       <option value=''>پروژه فعالی برای این تاریخ نیست</option>
@@ -906,22 +907,22 @@ export function EmployeePanel(): JSX.Element {
                         {formatPeriodLabel(project.start_date, project.end_date)}
                       </option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </div>
               </div>
 
               <div className='space-y-2'>
-                <Label htmlFor='timesheet-subproject' className='font-bold text-slate-700'>
+                <Label htmlFor='timesheet-subproject' className='font-bold text-foreground'>
                   زیرپروژه
                 </Label>
                 <div className='relative'>
-                  <FolderTree className='pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400' />
-                  <select
+                  <FolderTree className='pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground' />
+                  <NativeSelect
                     id='timesheet-subproject'
                     value={subprojectCode}
                     onChange={(event) => setSubprojectCode(event.target.value)}
                     disabled={!availableSubprojects.length}
-                    className='h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pr-10 pl-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:focus:border-sky-400 dark:focus:ring-sky-500/20 dark:disabled:bg-slate-800 dark:disabled:text-slate-500'
+                    className='h-11 w-full appearance-none rounded-xl border border-border bg-card pr-10 pl-3 text-sm text-foreground outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:cursor-not-allowed disabled:bg-muted/40 disabled:text-muted-foreground dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:focus:border-sky-400 dark:focus:ring-sky-500/20 dark:disabled:bg-slate-800 dark:disabled:text-muted-foreground'
                   >
                     <option value=''>
                       {availableSubprojects.length
@@ -937,16 +938,16 @@ export function EmployeePanel(): JSX.Element {
                         )}
                       </option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </div>
               </div>
 
               <div className='space-y-2'>
                 <div className='flex items-center justify-between gap-3'>
-                  <Label htmlFor='timesheet-description' className='font-bold text-slate-700'>
+                  <Label htmlFor='timesheet-description' className='font-bold text-foreground'>
                     شرح فعالیت
                   </Label>
-                  <span className='text-xs text-slate-400'>
+                  <span className='text-xs text-muted-foreground'>
                     {taskName.length} نویسه
                   </span>
                 </div>
@@ -955,7 +956,7 @@ export function EmployeePanel(): JSX.Element {
                   placeholder='برای مثال: بررسی درخواست‌ها و تکمیل گزارش هفتگی...'
                   value={taskName}
                   onChange={(event) => setTaskName(event.target.value)}
-                  className='min-h-[118px] resize-none border-slate-200 bg-slate-50/60 leading-7 focus:bg-white dark:border-slate-600 dark:bg-slate-900/60 dark:focus:bg-slate-900'
+                  className='min-h-[118px] resize-none border-border bg-muted/40 leading-7 focus:bg-card dark:border-slate-600 dark:bg-slate-900/60 dark:focus:bg-slate-900'
                 />
               </div>
 
@@ -975,17 +976,17 @@ export function EmployeePanel(): JSX.Element {
             </div>
           </div>
 
-          <div className='overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800/90'>
-            <div className='flex flex-col gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6'>
+          <div className='overflow-hidden rounded-3xl border border-border bg-card shadow-sm dark:border-slate-700 dark:bg-slate-800/90'>
+            <div className='flex flex-col gap-4 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6'>
               <div className='flex items-start gap-3'>
                 <span className='flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-100 text-violet-700'>
                   <CalendarDays className='h-5 w-5' />
                 </span>
                 <div>
-                  <h2 className='text-lg font-extrabold text-slate-900'>
+                  <h2 className='text-lg font-extrabold text-foreground'>
                     فعالیت‌های بازه
                   </h2>
-                  <p className='mt-1 text-sm text-slate-500'>
+                  <p className='mt-1 text-sm text-muted-foreground'>
                     {tasks.length
                       ? `${tasks.length} فعالیت؛ ${periodLabel}`
                       : `هنوز فعالیتی برای بازه ${periodLabel} ثبت نشده است`}
@@ -997,7 +998,7 @@ export function EmployeePanel(): JSX.Element {
                 size='sm'
                 onClick={exportCSV}
                 disabled={!tasks.length}
-                className='gap-2 border-slate-200 bg-white text-slate-700 shadow-none'
+                className='gap-2 border-border bg-card text-foreground shadow-none'
               >
                 <Download className='h-4 w-4' />
                 دریافت CSV
@@ -1006,7 +1007,7 @@ export function EmployeePanel(): JSX.Element {
 
             <div className='min-h-[475px]'>
               {isLoading ? (
-                <div className='flex min-h-[475px] flex-col items-center justify-center gap-3 text-sm text-slate-500'>
+                <div className='flex min-h-[475px] flex-col items-center justify-center gap-3 text-sm text-muted-foreground'>
                   <Loader2 className='h-7 w-7 animate-spin text-sky-600' />
                   در حال دریافت فعالیت‌ها...
                 </div>
@@ -1015,9 +1016,9 @@ export function EmployeePanel(): JSX.Element {
                   {paginatedTasks.map((task, index) => (
                     <article
                       key={task.id}
-                      className='group flex gap-4 p-5 transition hover:bg-slate-50/80 sm:p-6'
+                      className='group flex gap-4 p-5 transition hover:bg-muted/40 sm:p-6'
                     >
-                      <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-sm font-extrabold text-slate-500 transition group-hover:bg-sky-100 group-hover:text-sky-700'>
+                      <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-sm font-extrabold text-muted-foreground transition group-hover:bg-sky-100 group-hover:text-sky-700'>
                         {(activityPage - 1) * ACTIVITY_PAGE_SIZE + index + 1}
                       </div>
                       <div className='min-w-0 flex-1'>
@@ -1031,21 +1032,21 @@ export function EmployeePanel(): JSX.Element {
                                 {task.subproject_code}
                               </span>
                             )}
-                            <span className='mr-2 inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500'>
+                            <span className='mr-2 inline-flex rounded-lg bg-muted px-2.5 py-1 text-xs font-bold text-muted-foreground'>
                               {task.work_date}
                             </span>
-                            <p className='mt-3 break-words text-sm font-semibold leading-7 text-slate-800'>
+                            <p className='mt-3 break-words text-sm font-semibold leading-7 text-foreground'>
                               {task.task_name}
                             </p>
                           </div>
                           <div className='shrink-0 text-right sm:text-left'>
                             <div
-                              className='font-mono text-sm font-bold text-slate-700'
+                              className='font-mono text-sm font-bold text-foreground'
                               dir='ltr'
                             >
                               {task.start_time} — {task.end_time}
                             </div>
-                            <div className='mt-1 text-xs text-slate-400'>
+                            <div className='mt-1 text-xs text-muted-foreground'>
                               {formatMinutes(task.minutes_spent)}
                             </div>
                           </div>
@@ -1054,8 +1055,8 @@ export function EmployeePanel(): JSX.Element {
                     </article>
                   ))}
                   {activityPageCount > 1 && (
-                    <div className='flex flex-col gap-3 bg-slate-50/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6'>
-                      <p className='text-xs font-semibold text-slate-500'>
+                    <div className='flex flex-col gap-3 bg-muted/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6'>
+                      <p className='text-xs font-semibold text-muted-foreground'>
                         نمایش {(activityPage - 1) * ACTIVITY_PAGE_SIZE + 1} تا{' '}
                         {Math.min(
                           activityPage * ACTIVITY_PAGE_SIZE,
@@ -1064,21 +1065,21 @@ export function EmployeePanel(): JSX.Element {
                         از {orderedTasks.length} فعالیت
                       </p>
                       <div className='flex items-center gap-2'>
-                        <button
+                        <Button
                           type='button'
                           onClick={() =>
                             setActivityPage((page) => Math.max(1, page - 1))
                           }
                           disabled={activityPage === 1}
-                          className='flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-sky-300 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-40'
+                          className='flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition hover:border-sky-300 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-40'
                           aria-label='صفحه قبلی'
                         >
                           <ChevronRight className='h-4 w-4' />
-                        </button>
-                        <span className='min-w-[92px] text-center text-xs font-bold text-slate-700'>
+                        </Button>
+                        <span className='min-w-[92px] text-center text-xs font-bold text-foreground'>
                           صفحه {activityPage} از {activityPageCount}
                         </span>
-                        <button
+                        <Button
                           type='button'
                           onClick={() =>
                             setActivityPage((page) =>
@@ -1086,24 +1087,24 @@ export function EmployeePanel(): JSX.Element {
                             )
                           }
                           disabled={activityPage === activityPageCount}
-                          className='flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-sky-300 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-40'
+                          className='flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition hover:border-sky-300 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-40'
                           aria-label='صفحه بعدی'
                         >
                           <ChevronLeft className='h-4 w-4' />
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   )}
                 </div>
               ) : (
                 <div className='flex min-h-[475px] flex-col items-center justify-center px-6 text-center'>
-                  <span className='flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 text-slate-400'>
+                  <span className='flex h-16 w-16 items-center justify-center rounded-3xl bg-muted text-muted-foreground'>
                     <ListChecks className='h-8 w-8' />
                   </span>
-                  <h3 className='mt-5 font-extrabold text-slate-800'>
+                  <h3 className='mt-5 font-extrabold text-foreground'>
                     فهرست فعالیت‌ها خالی است
                   </h3>
-                  <p className='mt-2 max-w-xs text-sm leading-6 text-slate-500'>
+                  <p className='mt-2 max-w-xs text-sm leading-6 text-muted-foreground'>
                     در بازه انتخاب‌شده فعالیتی وجود ندارد. بازه دیگری انتخاب کنید یا فعالیت جدیدی ثبت کنید.
                   </p>
                 </div>
@@ -1112,16 +1113,16 @@ export function EmployeePanel(): JSX.Element {
           </div>
         </section>
 
-        <section className='overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800/90'>
-          <div className='flex items-start gap-3 border-b border-slate-100 p-5 sm:p-6'>
+        <section className='overflow-hidden rounded-3xl border border-border bg-card shadow-sm dark:border-slate-700 dark:bg-slate-800/90'>
+          <div className='flex items-start gap-3 border-b border-border p-5 sm:p-6'>
             <span className='flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700'>
               <ArrowUpLeft className='h-5 w-5' />
             </span>
             <div>
-              <h2 className='text-lg font-extrabold text-slate-900'>
+              <h2 className='text-lg font-extrabold text-foreground'>
                 نمودار کارکرد بازه
               </h2>
-              <p className='mt-1 text-sm text-slate-500'>
+              <p className='mt-1 text-sm text-muted-foreground'>
                 مقایسه بازه حضور و فعالیت‌ها؛ {periodLabel}
               </p>
             </div>
@@ -1130,7 +1131,7 @@ export function EmployeePanel(): JSX.Element {
             {weekTimeline.length > 0 ? (
               <TasksGanttChart days={weekTimeline} />
             ) : (
-              <div className='py-12 text-center text-sm text-slate-500'>
+              <div className='py-12 text-center text-sm text-muted-foreground'>
                 اطلاعاتی برای نمایش وجود ندارد.
               </div>
             )}

@@ -1,3 +1,5 @@
+import { Button } from "@/components/ui/button";
+import { Table } from "@/components/ui/table";
 import { Plus, Trash2 } from "lucide-react";
 
 import { TableColumn } from "../../config/portal";
@@ -55,24 +57,24 @@ export default function FormTableField({
     !isFixedAxisRow(rows[index], columns, defaultRows);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-      <div className="flex items-center justify-between border-b bg-slate-50 px-4 py-3">
-        <span className="text-sm text-slate-500">
+    <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="flex items-center justify-between border-b bg-muted/40 px-4 py-3">
+        <span className="text-sm text-muted-foreground">
           {rows.length} ردیف
         </span>
-        <button
+        <Button variant="ghost"
           type="button"
           onClick={handleAdd}
-          className="flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700"
+          className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm text-white hover:bg-primary/90"
         >
           <Plus size={16} />
           افزودن ردیف
-        </button>
+        </Button>
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-100">
+        <Table className="w-full text-sm">
+          <thead className="bg-muted">
             <tr>
               <th className="border px-3 py-2 text-center font-semibold w-12">
                 ردیف
@@ -95,15 +97,15 @@ export default function FormTableField({
               <tr>
                 <td
                   colSpan={columns.length + 2}
-                  className="py-8 text-center text-slate-400"
+                  className="py-8 text-center text-muted-foreground"
                 >
                   ردیفی اضافه نشده است. روی «افزودن ردیف» کلیک کنید.
                 </td>
               </tr>
             )}
             {rows.map((row, rowIndex) => (
-              <tr key={rowIndex} className="hover:bg-slate-50">
-                <td className="border px-3 py-2 text-center text-slate-500">
+              <tr key={rowIndex} className="hover:bg-muted/40">
+                <td className="border px-3 py-2 text-center text-muted-foreground">
                   {rowIndex + 1}
                 </td>
                 {columns.map((col) => {
@@ -114,7 +116,7 @@ export default function FormTableField({
                   return (
                     <td key={col.key} className="border px-2 py-1">
                       <Input
-                        className="h-10 rounded-lg border-slate-200 bg-white text-right text-sm"
+                        className="h-10 rounded-lg border-border bg-card text-right text-sm"
                         value={row[col.key] ?? ""}
                         readOnly={isFixed}
                         onChange={(e) =>
@@ -130,13 +132,13 @@ export default function FormTableField({
                 })}
                 <td className="border text-center">
                   {canDelete(rowIndex) ? (
-                    <button
+                    <Button variant="ghost"
                       type="button"
                       onClick={() => handleDelete(rowIndex)}
-                      className="text-red-600 hover:text-red-800"
+                      className="text-primary hover:text-red-800"
                     >
                       <Trash2 size={16} />
-                    </button>
+                    </Button>
                   ) : (
                     <span className="text-slate-300">—</span>
                   )}
@@ -144,7 +146,7 @@ export default function FormTableField({
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
       </div>
     </div>
   );

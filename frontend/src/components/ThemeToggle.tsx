@@ -31,19 +31,20 @@ export default function ThemeToggle({
 
   if (variant === "sidebar") {
     return (
-      <button
+      <Button
         type="button"
+        variant="ghost"
         onClick={toggleTheme}
         title={label}
         aria-label={label}
         className={cn(
-          "flex h-11 w-full items-center gap-3 rounded-xl px-4 text-sm font-semibold text-red-50 transition-colors hover:bg-white/10 hover:text-white",
+          "flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
           className,
         )}
       >
         <Icon size={18} />
         <span className="flex-1 text-right">{label}</span>
-      </button>
+      </Button>
     );
   }
 

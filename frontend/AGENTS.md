@@ -28,6 +28,8 @@ Follow the staged process in `docs/04-nextjs-migration.md`.
 ## UI and RTL
 
 - Use shadcn primitives from `src/components/ui` and `cn()` from `src/lib/utils`.
+- Never add raw form controls or tables in page/feature code; extend the shared
+  shadcn layer when a primitive is missing.
 - Use CSS variables and semantic Tailwind tokens; do not introduce a second component system.
 - Preserve Persian copy, `lang="fa"`, `dir="rtl"`, keyboard access, focus visibility, and responsive behavior.
 - Use logical alignment and spacing so mixed Persian/Latin content remains correct.
@@ -64,3 +66,13 @@ Treat React compiler findings in legacy screens as migration debt. Do not disabl
 - New environment variables documented.
 - Lint, TypeScript, and production build pass.
 - User-facing or architectural changes documented under `docs/`.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

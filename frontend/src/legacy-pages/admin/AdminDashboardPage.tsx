@@ -1,3 +1,8 @@
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Table } from "@/components/ui/table";
+import { Label } from "@/components/ui/label";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import DateObject from "react-date-object";
 import persian from "react-date-object/calendars/persian";
@@ -110,26 +115,26 @@ function SelectField({
   icon: ReactNode;
 }) {
   return (
-    <label className="block min-w-0">
-      <span className="mb-1.5 block text-xs font-bold text-slate-500">{label}</span>
+    <Label className="block min-w-0">
+      <span className="mb-1.5 block text-xs font-bold text-muted-foreground">{label}</span>
       <span className="relative block">
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">{icon}</span>
-        <select
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">{icon}</span>
+        <NativeSelect
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white pr-10 pl-9 text-sm font-medium text-slate-700 outline-none transition focus:border-red-400 focus:ring-4 focus:ring-red-50"
+          className="h-10 w-full appearance-none rounded-xl border border-border bg-card pr-10 pl-9 text-sm font-medium text-foreground outline-none transition focus:border-red-400 focus:ring-4 focus:ring-red-50"
         >
           {children}
-        </select>
-        <ChevronDown className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        </NativeSelect>
+        <ChevronDown className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       </span>
-    </label>
+    </Label>
   );
 }
 
 function HorizontalChart({
   items,
-  color = "bg-red-500",
+  color = "bg-primary/100",
   valueFormatter = number,
 }: {
   items: ChartItem[];
@@ -138,17 +143,17 @@ function HorizontalChart({
 }) {
   const max = Math.max(...items.map((item) => item.value), 1);
   if (!items.length) {
-    return <p className="py-10 text-center text-sm text-slate-400">هنوز داده‌ای ثبت نشده است.</p>;
+    return <p className="py-10 text-center text-sm text-muted-foreground">هنوز داده‌ای ثبت نشده است.</p>;
   }
   return (
     <div className="space-y-4">
       {items.map((item) => (
         <div key={item.label}>
           <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
-            <span className="truncate text-slate-600">{item.label}</span>
-            <span className="shrink-0 font-bold text-slate-800">{valueFormatter(item.value)}</span>
+            <span className="truncate text-muted-foreground">{item.label}</span>
+            <span className="shrink-0 font-bold text-foreground">{valueFormatter(item.value)}</span>
           </div>
-          <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+          <div className="h-2.5 overflow-hidden rounded-full bg-muted">
             <div
               className={`h-full rounded-full ${color}`}
               style={{ width: `${Math.max((item.value / max) * 100, item.value ? 5 : 0)}%` }}
@@ -165,7 +170,7 @@ const pieColors = ["#dc2626", "#2563eb", "#059669", "#d97706", "#7c3aed", "#0891
 function PieChart({ items }: { items: ChartItem[] }) {
   const total = items.reduce((sum, item) => sum + item.value, 0);
   if (!total) {
-    return <p className="py-16 text-center text-sm text-slate-400">هنوز داده‌ای ثبت نشده است.</p>;
+    return <p className="py-16 text-center text-sm text-muted-foreground">هنوز داده‌ای ثبت نشده است.</p>;
   }
   let cursor = 0;
   const stops = items.map((item, index) => {
@@ -176,15 +181,15 @@ function PieChart({ items }: { items: ChartItem[] }) {
   return (
     <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-center">
       <div className="relative h-44 w-44 shrink-0 rounded-full" style={{ background: `conic-gradient(${stops.join(",")})` }}>
-        <div className="absolute inset-8 grid place-items-center rounded-full bg-white shadow-inner">
-          <div className="text-center"><p className="text-2xl font-extrabold text-slate-900">{number(total)}</p><p className="text-xs text-slate-400">مجموع</p></div>
+        <div className="absolute inset-8 grid place-items-center rounded-full bg-card shadow-inner">
+          <div className="text-center"><p className="text-2xl font-extrabold text-foreground">{number(total)}</p><p className="text-xs text-muted-foreground">مجموع</p></div>
         </div>
       </div>
       <div className="w-full max-w-xs space-y-2.5">
         {items.map((item, index) => (
           <div key={item.label} className="flex items-center justify-between gap-3 text-sm">
-            <span className="flex min-w-0 items-center gap-2 text-slate-600"><i className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: pieColors[index % pieColors.length] }} /><span className="truncate">{item.label}</span></span>
-            <b className="text-slate-800">{number(item.value)}</b>
+            <span className="flex min-w-0 items-center gap-2 text-muted-foreground"><i className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: pieColors[index % pieColors.length] }} /><span className="truncate">{item.label}</span></span>
+            <b className="text-foreground">{number(item.value)}</b>
           </div>
         ))}
       </div>
@@ -207,7 +212,7 @@ function TimesheetTrendChart({ data }: { data: DailyTimesheetPoint[] }) {
     .join(" ");
 
   if (!visible.length) {
-    return <div className="grid h-64 place-items-center text-sm text-slate-400">برای این بازه داده‌ای ثبت نشده است.</div>;
+    return <div className="grid h-64 place-items-center text-sm text-muted-foreground">برای این بازه داده‌ای ثبت نشده است.</div>;
   }
 
   return (
@@ -239,9 +244,9 @@ function TimesheetTrendChart({ data }: { data: DailyTimesheetPoint[] }) {
           </g>
         ))}
       </svg>
-      <div className="flex flex-wrap items-center gap-5 text-xs font-semibold text-slate-500">
+      <div className="flex flex-wrap items-center gap-5 text-xs font-semibold text-muted-foreground">
         <span className="flex items-center gap-2">
-          <i className="h-2.5 w-2.5 rounded-full bg-red-600" />
+          <i className="h-2.5 w-2.5 rounded-full bg-primary" />
           زمان تسک‌ها
         </span>
         <span className="flex items-center gap-2">
@@ -267,13 +272,13 @@ function KpiCard({
   color: string;
 }) {
   return (
-    <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+    <section className="rounded-3xl border border-border bg-card p-5 shadow-sm">
       <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-2xl ${color}`}>
         <Icon size={21} />
       </div>
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-extrabold text-slate-900 sm:text-3xl">{value}</p>
-      <p className="mt-2 text-xs text-slate-400">{detail}</p>
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className="mt-1 text-2xl font-extrabold text-foreground sm:text-3xl">{value}</p>
+      <p className="mt-2 text-xs text-muted-foreground">{detail}</p>
     </section>
   );
 }
@@ -292,16 +297,16 @@ function CompactKpiCard({
   color: string;
 }) {
   return (
-    <section className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+    <section className="flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-card p-3.5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
       <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${color}`}>
         <Icon size={19} />
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
-          <p className="truncate text-xs font-semibold text-slate-500">{label}</p>
-          <p className="shrink-0 text-xl font-extrabold text-slate-900">{value}</p>
+          <p className="truncate text-xs font-semibold text-muted-foreground">{label}</p>
+          <p className="shrink-0 text-xl font-extrabold text-foreground">{value}</p>
         </div>
-        <p className="mt-1 truncate text-[11px] text-slate-400" title={detail}>{detail}</p>
+        <p className="mt-1 truncate text-[11px] text-muted-foreground" title={detail}>{detail}</p>
       </div>
     </section>
   );
@@ -466,8 +471,8 @@ export default function AdminDashboardPage() {
   if (loading && !data) {
     return (
       <AppShell>
-        <div className="flex min-h-[60vh] items-center justify-center gap-3 text-slate-500">
-          <Loader2 className="animate-spin text-red-600" />
+        <div className="flex min-h-[60vh] items-center justify-center gap-3 text-muted-foreground">
+          <Loader2 className="animate-spin text-primary" />
           در حال آماده‌سازی داشبورد تحلیلی...
         </div>
       </AppShell>
@@ -478,27 +483,27 @@ export default function AdminDashboardPage() {
     <AppShell>
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <BarChart3 size={25} />
           </div>
           <div>
-            <h2 className="text-3xl font-extrabold text-slate-900">داشبورد تحلیلی</h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <h2 className="text-3xl font-extrabold text-foreground">داشبورد تحلیلی</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
               تحلیل عملکرد کارکنان، پروژه‌ها، واحدها و درخواست‌های فرم
             </p>
           </div>
         </div>
         {data && (
-          <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500" dir="ltr">
+          <p className="rounded-xl bg-muted/40 px-3 py-2 text-xs font-bold text-muted-foreground" dir="ltr">
             {data.start_date} → {data.end_date}
           </p>
         )}
       </div>
 
-      <section className="mb-6 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
+      <section className="mb-6 rounded-3xl border border-border bg-card p-4 shadow-sm sm:p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm font-bold text-slate-800">فیلتر تحلیل</p>
-          <div className="flex rounded-xl bg-slate-100 p-1">
+          <p className="text-sm font-bold text-foreground">فیلتر تحلیل</p>
+          <div className="flex rounded-xl bg-muted p-1">
             {(
               [
                 ["today", "امروز"],
@@ -507,22 +512,22 @@ export default function AdminDashboardPage() {
                 ["custom", "دلخواه"],
               ] as Array<[PeriodPreset, string]>
             ).map(([value, label]) => (
-              <button
+              <Button variant="ghost"
                 key={value}
                 type="button"
                 onClick={() => applyPreset(value)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                  preset === value ? "bg-white text-red-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  preset === value ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {label}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
         <div className="grid gap-3 md:grid-cols-3">
-          <label>
-            <span className="mb-1.5 block text-xs font-bold text-slate-500">از تاریخ</span>
+          <Label>
+            <span className="mb-1.5 block text-xs font-bold text-muted-foreground">از تاریخ</span>
             <JalaliDateTimePicker
               value={startDate}
               onChange={(value: any) => {
@@ -534,9 +539,9 @@ export default function AdminDashboardPage() {
               format="YYYY/MM/DD"
               placeholder="تاریخ شروع"
             />
-          </label>
-          <label>
-            <span className="mb-1.5 block text-xs font-bold text-slate-500">تا تاریخ</span>
+          </Label>
+          <Label>
+            <span className="mb-1.5 block text-xs font-bold text-muted-foreground">تا تاریخ</span>
             <JalaliDateTimePicker
               value={endDate}
               onChange={(value: any) => {
@@ -548,16 +553,16 @@ export default function AdminDashboardPage() {
               format="YYYY/MM/DD"
               placeholder="تاریخ پایان"
             />
-          </label>
-          <button
+          </Label>
+          <Button variant="ghost"
             type="button"
             onClick={() => void loadAnalytics()}
             disabled={loading}
-            className="mt-auto flex h-10 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 text-sm font-bold text-white transition hover:bg-red-700 disabled:opacity-60"
+            className="mt-auto flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-white transition hover:bg-primary/90 disabled:opacity-60"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BarChart3 className="h-4 w-4" />}
             {loading ? "در حال دریافت" : "اعمال فیلتر"}
-          </button>
+          </Button>
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
           <SelectField
@@ -641,11 +646,11 @@ export default function AdminDashboardPage() {
         </div>
       </section>
 
-      {error && <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>}
+      {error && <div className="mb-6 rounded-2xl border border-primary/30 bg-primary/10 p-4 text-primary">{error}</div>}
 
       {data && (
         <>
-          <div className="mb-6 flex flex-wrap gap-2 rounded-2xl bg-slate-100 p-1.5">
+          <div className="mb-6 flex flex-wrap gap-2 rounded-2xl bg-muted p-1.5">
             {(
               [
                 ["overview", "نمای کلی"],
@@ -656,25 +661,25 @@ export default function AdminDashboardPage() {
                 ["letters", "نامه‌ها"],
               ] as Array<[AnalyticsTab, string]>
             ).map(([value, label]) => (
-              <button
+              <Button variant="ghost"
                 key={value}
                 type="button"
                 onClick={() => setTab(value)}
                 className={`rounded-xl px-4 py-2.5 text-sm font-bold transition ${
-                  tab === value ? "bg-white text-red-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  tab === value ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {label}
-              </button>
+              </Button>
             ))}
           </div>
 
           {tab === "overview" && (
             <div className="space-y-6">
-              <section className="rounded-3xl border border-slate-100 bg-slate-50/70 p-4 shadow-sm sm:p-5">
+              <section className="rounded-3xl border border-border bg-muted/40 p-4 shadow-sm sm:p-5">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                  <div><h3 className="font-extrabold text-slate-800">شاخص‌های کلیدی</h3><p className="mt-1 text-xs text-slate-400">خلاصه وضعیت سامانه در بازه انتخابی</p></div>
-                  <span className="rounded-xl bg-white px-3 py-1.5 text-xs font-bold text-slate-500 shadow-sm">{number(data.overview.requests_in_range)} درخواست در بازه</span>
+                  <div><h3 className="font-extrabold text-foreground">شاخص‌های کلیدی</h3><p className="mt-1 text-xs text-muted-foreground">خلاصه وضعیت سامانه در بازه انتخابی</p></div>
+                  <span className="rounded-xl bg-card px-3 py-1.5 text-xs font-bold text-muted-foreground shadow-sm">{number(data.overview.requests_in_range)} درخواست در بازه</span>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 <CompactKpiCard
@@ -689,7 +694,7 @@ export default function AdminDashboardPage() {
                   value={number(data.overview.requests_in_range)}
                   detail={`امروز: ${number(data.overview.requests_today)} | کل: ${number(data.overview.total_requests)}`}
                   icon={FileText}
-                  color="bg-red-50 text-red-600"
+                  color="bg-primary/10 text-primary"
                 />
                 <CompactKpiCard
                   label="زمان ثبت‌شده"
@@ -731,7 +736,7 @@ export default function AdminDashboardPage() {
                   value={number(data.overview.active_admin_devices)}
                   detail="نشست‌های فعال"
                   icon={MonitorSmartphone}
-                  color="bg-slate-100 text-slate-600"
+                  color="bg-muted text-muted-foreground"
                 />
                 <CompactKpiCard
                   label="نامه‌های سازمانی"
@@ -751,40 +756,40 @@ export default function AdminDashboardPage() {
               </section>
 
               <div className="grid gap-6 xl:grid-cols-3">
-                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm xl:col-span-2">
-                  <h3 className="mb-2 font-bold text-slate-800">روند حضور و زمان ثبت‌شده</h3>
-                  <p className="mb-2 text-xs text-slate-400">مقایسه روزانه زمان حضور و تسک‌ها</p>
+                <section className="rounded-3xl border border-border bg-card p-6 shadow-sm xl:col-span-2">
+                  <h3 className="mb-2 font-bold text-foreground">روند حضور و زمان ثبت‌شده</h3>
+                  <p className="mb-2 text-xs text-muted-foreground">مقایسه روزانه زمان حضور و تسک‌ها</p>
                   <TimesheetTrendChart data={data.timesheet_daily_trend} />
                 </section>
-                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-                  <h3 className="mb-6 font-bold text-slate-800">درخواست‌ها بر اساس وضعیت</h3>
+                <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                  <h3 className="mb-6 font-bold text-foreground">درخواست‌ها بر اساس وضعیت</h3>
                   <HorizontalChart items={data.forms.by_status} color="bg-emerald-500" />
                 </section>
               </div>
 
               <div className="grid gap-6 xl:grid-cols-2">
-                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-                  <h3 className="mb-6 font-bold text-slate-800">سهم زمان پروژه‌ها</h3>
+                <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                  <h3 className="mb-6 font-bold text-foreground">سهم زمان پروژه‌ها</h3>
                   <HorizontalChart items={topProjectChart} color="bg-violet-500" valueFormatter={formatMinutes} />
                 </section>
-                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-                  <h3 className="mb-6 font-bold text-slate-800">بیشترین درخواست‌ها بر اساس واحد سازمانی</h3>
+                <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                  <h3 className="mb-6 font-bold text-foreground">بیشترین درخواست‌ها بر اساس واحد سازمانی</h3>
                   <HorizontalChart items={data.forms.by_org_department.slice(0, 8)} />
                 </section>
               </div>
 
-              <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-                <h3 className="mb-6 font-bold text-slate-800">روند درخواست‌ها در ۶ ماه گذشته</h3>
-                <div className="flex h-64 items-end gap-3 border-b border-slate-100 px-2 pt-6">
+              <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                <h3 className="mb-6 font-bold text-foreground">روند درخواست‌ها در ۶ ماه گذشته</h3>
+                <div className="flex h-64 items-end gap-3 border-b border-border px-2 pt-6">
                   {data.forms.monthly_trend.map((item) => (
                     <div key={item.label} className="flex h-full flex-1 flex-col items-center justify-end gap-2">
-                      <span className="text-xs font-bold text-slate-600">{number(item.value)}</span>
+                      <span className="text-xs font-bold text-muted-foreground">{number(item.value)}</span>
                       <div
                         className="w-full max-w-16 rounded-t-xl bg-gradient-to-t from-red-600 to-red-400 transition-all"
                         style={{ height: `${Math.max((item.value / formPeak) * 78, item.value ? 8 : 2)}%` }}
                         title={`${formatMonthlyTrendLabel(item.label)}: ${item.value}`}
                       />
-                      <span className="whitespace-nowrap text-[11px] text-slate-400" dir="ltr">
+                      <span className="whitespace-nowrap text-[11px] text-muted-foreground" dir="ltr">
                         {formatMonthlyTrendLabel(item.label)}
                       </span>
                     </div>
@@ -797,44 +802,44 @@ export default function AdminDashboardPage() {
           {tab === "employees" && (
             <div className="space-y-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <label className="relative block sm:w-80">
-                  <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input
+                <Label className="relative block sm:w-80">
+                  <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-white pr-10 pl-3 text-sm outline-none focus:border-red-400 focus:ring-4 focus:ring-red-50"
+                    className="h-11 w-full rounded-xl border border-border bg-card pr-10 pl-3 text-sm outline-none focus:border-red-400 focus:ring-4 focus:ring-red-50"
                     placeholder="جستجوی کارمند..."
                   />
-                </label>
-                <label className="flex items-center gap-2 text-sm text-slate-600">
-                  <input
+                </Label>
+                <Label className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Input
                     type="checkbox"
                     checked={hideInactiveEmployees}
                     onChange={(event) => setHideInactiveEmployees(event.target.checked)}
-                    className="rounded border-slate-300 text-red-600 focus:ring-red-500"
+                    className="rounded border-border text-primary focus:ring-red-500"
                   />
                   فقط کارکنان دارای فعالیت در بازه
-                </label>
+                </Label>
               </div>
 
               <div className="grid gap-6 xl:grid-cols-5">
-                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm xl:col-span-2">
-                  <h3 className="mb-6 font-bold text-slate-800">بیشترین زمان ثبت‌شده</h3>
-                  <HorizontalChart items={topEmployeeChart} color="bg-red-500" valueFormatter={formatMinutes} />
+                <section className="rounded-3xl border border-border bg-card p-6 shadow-sm xl:col-span-2">
+                  <h3 className="mb-6 font-bold text-foreground">بیشترین زمان ثبت‌شده</h3>
+                  <HorizontalChart items={topEmployeeChart} color="bg-primary/100" valueFormatter={formatMinutes} />
                 </section>
-                <section className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm xl:col-span-3">
-                  <div className="flex flex-col gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-end sm:justify-between">
+                <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm xl:col-span-3">
+                  <div className="flex flex-col gap-4 border-b border-border p-5 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                      <h3 className="font-bold text-slate-800">جدول عملکرد کارکنان</h3>
-                      <p className="mt-1 text-xs text-slate-400">{number(filteredEmployees.length)} نفر</p>
+                      <h3 className="font-bold text-foreground">جدول عملکرد کارکنان</h3>
+                      <p className="mt-1 text-xs text-muted-foreground">{number(filteredEmployees.length)} نفر</p>
                     </div>
                     <div className="flex flex-wrap items-end gap-2">
-                      <label className="block">
-                        <span className="mb-1 block text-[11px] font-bold text-slate-500">مرتب‌سازی بر اساس</span>
-                        <select
+                      <Label className="block">
+                        <span className="mb-1 block text-[11px] font-bold text-muted-foreground">مرتب‌سازی بر اساس</span>
+                        <NativeSelect
                           value={employeeSortKey}
                           onChange={(event) => setEmployeeSortKey(event.target.value as EmployeeSortKey)}
-                          className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-50"
+                          className="h-9 rounded-lg border border-border bg-card px-3 text-xs font-medium text-foreground outline-none focus:border-red-400 focus:ring-4 focus:ring-red-50"
                         >
                           <option value="full_name">نام کارمند</option>
                           <option value="department">واحد</option>
@@ -844,23 +849,23 @@ export default function AdminDashboardPage() {
                           <option value="task_count">تعداد تسک‌ها</option>
                           <option value="form_count">تعداد فرم‌ها</option>
                           <option value="efficiency_percent">نرخ ثبت</option>
-                        </select>
-                      </label>
-                      <button
+                        </NativeSelect>
+                      </Label>
+                      <Button variant="ghost"
                         type="button"
                         onClick={() =>
                           setEmployeeSortDirection((direction) => (direction === "asc" ? "desc" : "asc"))
                         }
-                        className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 transition hover:border-red-200 hover:text-red-700"
+                        className="h-9 rounded-lg border border-border bg-card px-3 text-xs font-bold text-muted-foreground transition hover:border-primary/30 hover:text-primary"
                         aria-label="تغییر جهت مرتب‌سازی"
                       >
                         {employeeSortDirection === "asc" ? "صعودی ↑" : "نزولی ↓"}
-                      </button>
+                      </Button>
                     </div>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                      <thead className="bg-slate-50 text-slate-500">
+                    <Table className="min-w-full text-sm">
+                      <thead className="bg-muted/40 text-muted-foreground">
                         <tr>
                           <th className="px-4 py-3 text-right">کارمند</th>
                           <th className="px-4 py-3 text-right">واحد</th>
@@ -874,22 +879,22 @@ export default function AdminDashboardPage() {
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {paginatedEmployees.map((row) => (
-                          <tr key={row.employee_id} className="hover:bg-slate-50">
+                          <tr key={row.employee_id} className="hover:bg-muted/40">
                             <td className="px-4 py-3">
-                              <p className="font-semibold text-slate-800">{row.full_name}</p>
-                              <p className="text-[11px] text-slate-400">{row.job_title || row.username}</p>
+                              <p className="font-semibold text-foreground">{row.full_name}</p>
+                              <p className="text-[11px] text-muted-foreground">{row.job_title || row.username}</p>
                             </td>
-                            <td className="whitespace-nowrap px-4 py-3 text-slate-600">{row.department}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{row.department}</td>
                             <td className="px-4 py-3">{number(row.active_days)}</td>
                             <td className="px-4 py-3">{formatMinutes(row.attendance_minutes)}</td>
-                            <td className="px-4 py-3 font-bold text-red-700">{formatMinutes(row.task_minutes)}</td>
+                            <td className="px-4 py-3 font-bold text-primary">{formatMinutes(row.task_minutes)}</td>
                             <td className="px-4 py-3">{number(row.task_count)}</td>
                             <td className="px-4 py-3">{number(row.form_count)}</td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
-                                <div className="h-1.5 w-14 overflow-hidden rounded-full bg-slate-100">
+                                <div className="h-1.5 w-14 overflow-hidden rounded-full bg-muted">
                                   <div
-                                    className="h-full rounded-full bg-red-500"
+                                    className="h-full rounded-full bg-primary/100"
                                     style={{ width: `${Math.min(100, row.efficiency_percent)}%` }}
                                   />
                                 </div>
@@ -899,53 +904,53 @@ export default function AdminDashboardPage() {
                           </tr>
                         ))}
                       </tbody>
-                    </table>
+                    </Table>
                     {!filteredEmployees.length && (
-                      <p className="p-10 text-center text-sm text-slate-400">کارمندی مطابق فیلتر یافت نشد.</p>
+                      <p className="p-10 text-center text-sm text-muted-foreground">کارمندی مطابق فیلتر یافت نشد.</p>
                     )}
                   </div>
-                  <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-col gap-3 border-t border-border px-5 py-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-2">
                       <span>
                         نمایش {number(employeeRangeStart)} تا {number(employeeRangeEnd)} از {number(sortedEmployees.length)}
                       </span>
-                      <label className="flex items-center gap-1.5">
+                      <Label className="flex items-center gap-1.5">
                         <span>تعداد در صفحه:</span>
-                        <select
+                        <NativeSelect
                           value={employeePageSize}
                           onChange={(event) => setEmployeePageSize(Number(event.target.value))}
-                          className="h-8 rounded-lg border border-slate-200 bg-white px-2 font-bold text-slate-700 outline-none focus:border-red-400"
+                          className="h-8 rounded-lg border border-border bg-card px-2 font-bold text-foreground outline-none focus:border-red-400"
                         >
                           {[10, 20, 50].map((size) => (
                             <option key={size} value={size}>
                               {number(size)}
                             </option>
                           ))}
-                        </select>
-                      </label>
+                        </NativeSelect>
+                      </Label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button
+                      <Button variant="ghost"
                         type="button"
                         onClick={() => setEmployeePage((page) => Math.max(1, page - 1))}
                         disabled={safeEmployeePage === 1}
-                        className="flex h-8 items-center gap-1 rounded-lg border border-slate-200 px-2.5 font-bold text-slate-600 transition hover:border-red-200 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                        className="flex h-8 items-center gap-1 rounded-lg border border-border px-2.5 font-bold text-muted-foreground transition hover:border-primary/30 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         <ChevronRight className="h-4 w-4" />
                         قبلی
-                      </button>
-                      <span className="min-w-20 text-center font-bold text-slate-700">
+                      </Button>
+                      <span className="min-w-20 text-center font-bold text-foreground">
                         صفحه {number(safeEmployeePage)} از {number(employeePageCount)}
                       </span>
-                      <button
+                      <Button variant="ghost"
                         type="button"
                         onClick={() => setEmployeePage((page) => Math.min(employeePageCount, page + 1))}
                         disabled={safeEmployeePage === employeePageCount}
-                        className="flex h-8 items-center gap-1 rounded-lg border border-slate-200 px-2.5 font-bold text-slate-600 transition hover:border-red-200 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                        className="flex h-8 items-center gap-1 rounded-lg border border-border px-2.5 font-bold text-muted-foreground transition hover:border-primary/30 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         بعدی
                         <ChevronLeft className="h-4 w-4" />
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </section>
@@ -955,22 +960,22 @@ export default function AdminDashboardPage() {
 
           {tab === "projects" && (
             <div className="space-y-6">
-              <label className="relative block sm:w-80">
-                <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
+              <Label className="relative block sm:w-80">
+                <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white pr-10 pl-3 text-sm outline-none focus:border-red-400 focus:ring-4 focus:ring-red-50"
+                  className="h-11 w-full rounded-xl border border-border bg-card pr-10 pl-3 text-sm outline-none focus:border-red-400 focus:ring-4 focus:ring-red-50"
                   placeholder="جستجوی پروژه..."
                 />
-              </label>
+              </Label>
               <div className="grid gap-6 xl:grid-cols-5">
-                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm xl:col-span-2">
+                <section className="rounded-3xl border border-border bg-card p-6 shadow-sm xl:col-span-2">
                   <div className="mb-2 flex items-center gap-2">
                     <Target className="h-5 w-5 text-violet-500" />
-                    <h3 className="font-bold text-slate-800">توزیع زمان پروژه‌ها</h3>
+                    <h3 className="font-bold text-foreground">توزیع زمان پروژه‌ها</h3>
                   </div>
-                  <p className="mb-6 text-xs text-slate-400">بر اساس مجموع دقایق تسک‌های ثبت‌شده</p>
+                  <p className="mb-6 text-xs text-muted-foreground">بر اساس مجموع دقایق تسک‌های ثبت‌شده</p>
                   <HorizontalChart
                     items={filteredProjects.slice(0, 10).map((row) => ({
                       label: row.title || row.code,
@@ -980,13 +985,13 @@ export default function AdminDashboardPage() {
                     valueFormatter={formatMinutes}
                   />
                 </section>
-                <section className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm xl:col-span-3">
-                  <div className="border-b border-slate-100 p-5">
-                    <h3 className="font-bold text-slate-800">جزئیات پروژه‌ها و زیرپروژه‌ها</h3>
+                <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm xl:col-span-3">
+                  <div className="border-b border-border p-5">
+                    <h3 className="font-bold text-foreground">جزئیات پروژه‌ها و زیرپروژه‌ها</h3>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                      <thead className="bg-slate-50 text-slate-500">
+                    <Table className="min-w-full text-sm">
+                      <thead className="bg-muted/40 text-muted-foreground">
                         <tr>
                           <th className="px-5 py-3 text-right">پروژه / زیرپروژه</th>
                           <th className="px-5 py-3 text-right">کد</th>
@@ -999,8 +1004,8 @@ export default function AdminDashboardPage() {
                       <tbody className="divide-y divide-slate-100">
                         {filteredProjects.map((row) => (
                           <Fragment key={row.code}>
-                            <tr className="hover:bg-slate-50">
-                              <td className="px-5 py-4 font-semibold text-slate-800">{row.title}</td>
+                            <tr className="hover:bg-muted/40">
+                              <td className="px-5 py-4 font-semibold text-foreground">{row.title}</td>
                               <td className="px-5 py-4 font-mono text-xs text-violet-700" dir="ltr">
                                 {row.code}
                               </td>
@@ -1008,28 +1013,28 @@ export default function AdminDashboardPage() {
                                 <span
                                   className={`rounded-lg px-2 py-1 text-[11px] font-bold ${
                                     row.is_active === false
-                                      ? "bg-slate-100 text-slate-500"
+                                      ? "bg-muted text-muted-foreground"
                                       : "bg-emerald-50 text-emerald-700"
                                   }`}
                                 >
                                   {row.is_active === false ? "غیرفعال" : "فعال"}
                                 </span>
                               </td>
-                              <td className="px-5 py-4 font-bold text-red-700">{formatMinutes(row.minutes)}</td>
+                              <td className="px-5 py-4 font-bold text-primary">{formatMinutes(row.minutes)}</td>
                               <td className="px-5 py-4">{number(row.task_count)}</td>
                               <td className="px-5 py-4">{number(row.employee_count)}</td>
                             </tr>
                             {(row.subprojects || []).map((sub) => (
-                              <tr key={`${row.code}-${sub.code}`} className="bg-slate-50/60 hover:bg-slate-50">
-                                <td className="px-5 py-3 pr-10 text-slate-600">
-                                  <span className="text-xs text-slate-400">↳ </span>
+                              <tr key={`${row.code}-${sub.code}`} className="bg-muted/40 hover:bg-muted/40">
+                                <td className="px-5 py-3 pr-10 text-muted-foreground">
+                                  <span className="text-xs text-muted-foreground">↳ </span>
                                   {sub.title}
                                 </td>
                                 <td className="px-5 py-3 font-mono text-xs text-sky-700" dir="ltr">
                                   {sub.code}
                                 </td>
-                                <td className="px-5 py-3 text-slate-400">—</td>
-                                <td className="px-5 py-3 font-semibold text-slate-700">{formatMinutes(sub.minutes)}</td>
+                                <td className="px-5 py-3 text-muted-foreground">—</td>
+                                <td className="px-5 py-3 font-semibold text-foreground">{formatMinutes(sub.minutes)}</td>
                                 <td className="px-5 py-3">{number(sub.task_count)}</td>
                                 <td className="px-5 py-3">{number(sub.employee_count)}</td>
                               </tr>
@@ -1037,9 +1042,9 @@ export default function AdminDashboardPage() {
                           </Fragment>
                         ))}
                       </tbody>
-                    </table>
+                    </Table>
                     {!filteredProjects.length && (
-                      <p className="p-10 text-center text-sm text-slate-400">پروژه‌ای با فعالیت در این بازه نیست.</p>
+                      <p className="p-10 text-center text-sm text-muted-foreground">پروژه‌ای با فعالیت در این بازه نیست.</p>
                     )}
                   </div>
                 </section>
@@ -1050,22 +1055,22 @@ export default function AdminDashboardPage() {
           {tab === "departments" && (
             <div className="space-y-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <label className="relative block sm:w-80">
-                  <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input
+                <Label className="relative block sm:w-80">
+                  <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-white pr-10 pl-3 text-sm outline-none focus:border-red-400 focus:ring-4 focus:ring-red-50"
+                    className="h-11 w-full rounded-xl border border-border bg-card pr-10 pl-3 text-sm outline-none focus:border-red-400 focus:ring-4 focus:ring-red-50"
                     placeholder="جستجوی واحد..."
                   />
-                </label>
+                </Label>
                 <div className="flex flex-wrap items-end gap-2">
-                  <label className="block">
-                    <span className="mb-1 block text-[11px] font-bold text-slate-500">مرتب‌سازی بر اساس</span>
-                    <select
+                  <Label className="block">
+                    <span className="mb-1 block text-[11px] font-bold text-muted-foreground">مرتب‌سازی بر اساس</span>
+                    <NativeSelect
                       value={departmentSortKey}
                       onChange={(event) => setDepartmentSortKey(event.target.value as DepartmentSortKey)}
-                      className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-50"
+                      className="h-10 rounded-xl border border-border bg-card px-3 text-xs font-medium text-foreground outline-none focus:border-red-400 focus:ring-4 focus:ring-red-50"
                     >
                       <option value="name">نام واحد</option>
                       <option value="employee_count">تعداد کارکنان</option>
@@ -1076,64 +1081,64 @@ export default function AdminDashboardPage() {
                       <option value="task_count">تعداد تسک‌ها</option>
                       <option value="form_count">تعداد فرم‌ها</option>
                       <option value="efficiency_percent">نرخ ثبت</option>
-                    </select>
-                  </label>
-                  <button
+                    </NativeSelect>
+                  </Label>
+                  <Button variant="ghost"
                     type="button"
                     onClick={() =>
                       setDepartmentSortDirection((direction) => (direction === "asc" ? "desc" : "asc"))
                     }
-                    className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 transition hover:border-red-200 hover:text-red-700"
+                    className="h-10 rounded-xl border border-border bg-card px-3 text-xs font-bold text-muted-foreground transition hover:border-primary/30 hover:text-primary"
                     aria-label="تغییر جهت مرتب‌سازی واحدها"
                   >
                     {departmentSortDirection === "asc" ? "صعودی ↑" : "نزولی ↓"}
-                  </button>
+                  </Button>
                 </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {sortedDepartments.map((row) => (
-                  <article key={row.name} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                  <article key={row.name} className="rounded-3xl border border-border bg-card p-5 shadow-sm">
                     <div className="mb-4 flex items-start justify-between gap-3">
                       <div>
-                        <h3 className="font-extrabold text-slate-900">{row.name}</h3>
-                        <p className="mt-1 text-xs text-slate-400">
+                        <h3 className="font-extrabold text-foreground">{row.name}</h3>
+                        <p className="mt-1 text-xs text-muted-foreground">
                           {number(row.active_employees)} فعال از {number(row.employee_count)} نفر
                         </p>
                       </div>
-                      <span className="rounded-xl bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700">
+                      <span className="rounded-xl bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
                         {number(Math.round(row.efficiency_percent))}٪
                       </span>
                     </div>
                     <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div className="rounded-2xl bg-slate-50 p-3">
-                        <p className="text-[11px] text-slate-400">حضور</p>
-                        <p className="mt-1 font-bold text-slate-800">{formatMinutes(row.attendance_minutes)}</p>
+                      <div className="rounded-2xl bg-muted/40 p-3">
+                        <p className="text-[11px] text-muted-foreground">حضور</p>
+                        <p className="mt-1 font-bold text-foreground">{formatMinutes(row.attendance_minutes)}</p>
                       </div>
-                      <div className="rounded-2xl bg-slate-50 p-3">
-                        <p className="text-[11px] text-slate-400">زمان تسک</p>
-                        <p className="mt-1 font-bold text-red-700">{formatMinutes(row.task_minutes)}</p>
+                      <div className="rounded-2xl bg-muted/40 p-3">
+                        <p className="text-[11px] text-muted-foreground">زمان تسک</p>
+                        <p className="mt-1 font-bold text-primary">{formatMinutes(row.task_minutes)}</p>
                       </div>
-                      <div className="rounded-2xl bg-slate-50 p-3">
-                        <p className="text-[11px] text-slate-400">تسک‌ها</p>
-                        <p className="mt-1 font-bold text-slate-800">{number(row.task_count)}</p>
+                      <div className="rounded-2xl bg-muted/40 p-3">
+                        <p className="text-[11px] text-muted-foreground">تسک‌ها</p>
+                        <p className="mt-1 font-bold text-foreground">{number(row.task_count)}</p>
                       </div>
-                      <div className="rounded-2xl bg-slate-50 p-3">
-                        <p className="text-[11px] text-slate-400">فرم‌ها</p>
-                        <p className="mt-1 font-bold text-slate-800">{number(row.form_count)}</p>
+                      <div className="rounded-2xl bg-muted/40 p-3">
+                        <p className="text-[11px] text-muted-foreground">فرم‌ها</p>
+                        <p className="mt-1 font-bold text-foreground">{number(row.form_count)}</p>
                       </div>
                     </div>
                   </article>
                 ))}
               </div>
 
-              <section className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm">
-                <div className="border-b border-slate-100 p-5">
-                  <h3 className="font-bold text-slate-800">جدول مقایسه‌ای واحدها</h3>
+              <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+                <div className="border-b border-border p-5">
+                  <h3 className="font-bold text-foreground">جدول مقایسه‌ای واحدها</h3>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="min-w-full text-sm">
-                    <thead className="bg-slate-50 text-slate-500">
+                  <Table className="min-w-full text-sm">
+                    <thead className="bg-muted/40 text-muted-foreground">
                       <tr>
                         <th className="px-5 py-3 text-right">واحد</th>
                         <th className="px-5 py-3 text-right">کارکنان</th>
@@ -1147,23 +1152,23 @@ export default function AdminDashboardPage() {
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {sortedDepartments.map((row) => (
-                        <tr key={row.name} className="hover:bg-slate-50">
-                          <td className="px-5 py-4 font-semibold text-slate-800">{row.name}</td>
+                        <tr key={row.name} className="hover:bg-muted/40">
+                          <td className="px-5 py-4 font-semibold text-foreground">{row.name}</td>
                           <td className="px-5 py-4">
                             {number(row.active_employees)}/{number(row.employee_count)}
                           </td>
                           <td className="px-5 py-4">{formatMinutes(row.attendance_minutes)}</td>
-                          <td className="px-5 py-4 font-bold text-red-700">{formatMinutes(row.task_minutes)}</td>
-                          <td className="px-5 py-4 text-slate-500">{formatMinutes(row.untracked_minutes)}</td>
+                          <td className="px-5 py-4 font-bold text-primary">{formatMinutes(row.task_minutes)}</td>
+                          <td className="px-5 py-4 text-muted-foreground">{formatMinutes(row.untracked_minutes)}</td>
                           <td className="px-5 py-4">{number(row.task_count)}</td>
                           <td className="px-5 py-4 font-bold">{number(row.form_count)}</td>
                           <td className="px-5 py-4">{number(Math.round(row.efficiency_percent))}٪</td>
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </Table>
                   {!filteredDepartments.length && (
-                    <p className="p-10 text-center text-sm text-slate-400">واحدی برای نمایش نیست.</p>
+                    <p className="p-10 text-center text-sm text-muted-foreground">واحدی برای نمایش نیست.</p>
                   )}
                 </div>
               </section>
@@ -1192,7 +1197,7 @@ export default function AdminDashboardPage() {
                   value={number(data.letters.unseen_copies)}
                   detail="مشاهده‌نشده توسط گیرندگان هر دو نوع نامه"
                   icon={EyeOff}
-                  color="bg-slate-100 text-slate-600"
+                  color="bg-muted text-muted-foreground"
                 />
                 <KpiCard
                   label="تعداد گیرندگان نامه"
@@ -1218,25 +1223,25 @@ export default function AdminDashboardPage() {
               </div>
 
               <div className="grid gap-6 xl:grid-cols-2">
-                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-                  <h3 className="font-bold text-slate-800">نوع نامه‌ها</h3>
-                  <p className="mb-6 mt-1 text-xs text-slate-400">سهم نامه‌های درون‌سازمانی و برون‌سازمانی</p>
+                <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                  <h3 className="font-bold text-foreground">نوع نامه‌ها</h3>
+                  <p className="mb-6 mt-1 text-xs text-muted-foreground">سهم نامه‌های درون‌سازمانی و برون‌سازمانی</p>
                   <PieChart items={data.letters.by_type} />
                 </section>
-                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-                  <h3 className="font-bold text-slate-800">وضعیت گیرندگان نامه</h3>
-                  <p className="mb-6 mt-1 text-xs text-slate-400">وضعیت هر نسخه ارسال‌شده به گیرندگان</p>
+                <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                  <h3 className="font-bold text-foreground">وضعیت گیرندگان نامه</h3>
+                  <p className="mb-6 mt-1 text-xs text-muted-foreground">وضعیت هر نسخه ارسال‌شده به گیرندگان</p>
                   <PieChart items={data.letters.by_status} />
                 </section>
               </div>
 
               <div className="grid gap-6 xl:grid-cols-2">
-                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-                  <h3 className="mb-6 font-bold text-slate-800">بیشترین ارسال‌کنندگان نامه</h3>
+                <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                  <h3 className="mb-6 font-bold text-foreground">بیشترین ارسال‌کنندگان نامه</h3>
                   <HorizontalChart items={data.letters.top_senders} color="bg-rose-500" />
                 </section>
-                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-                  <h3 className="mb-6 font-bold text-slate-800">بیشترین گیرندگان نامه</h3>
+                <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                  <h3 className="mb-6 font-bold text-foreground">بیشترین گیرندگان نامه</h3>
                   <HorizontalChart items={data.letters.top_recipients} color="bg-cyan-500" />
                 </section>
               </div>
@@ -1251,7 +1256,7 @@ export default function AdminDashboardPage() {
                   value={number(data.overview.requests_in_range)}
                   detail="ثبت‌شده در بازه انتخابی"
                   icon={FileText}
-                  color="bg-red-50 text-red-600"
+                  color="bg-primary/10 text-primary"
                 />
                 <KpiCard
                   label="کل درخواست‌ها"
@@ -1277,32 +1282,32 @@ export default function AdminDashboardPage() {
               </div>
 
               <div className="grid gap-6 xl:grid-cols-3">
-                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-                  <h3 className="mb-6 font-bold text-slate-800">بر اساس واحد سازمانی</h3>
+                <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                  <h3 className="mb-6 font-bold text-foreground">بر اساس واحد سازمانی</h3>
                   <HorizontalChart items={data.forms.by_org_department} />
                 </section>
-                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-                  <h3 className="mb-6 font-bold text-slate-800">بر اساس معاونت پرتال</h3>
+                <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                  <h3 className="mb-6 font-bold text-foreground">بر اساس معاونت پرتال</h3>
                   <HorizontalChart items={data.forms.by_portal_department} color="bg-violet-500" />
                 </section>
-                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-                  <h3 className="mb-6 font-bold text-slate-800">وضعیت درخواست‌ها</h3>
+                <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                  <h3 className="mb-6 font-bold text-foreground">وضعیت درخواست‌ها</h3>
                   <HorizontalChart items={data.forms.by_status} color="bg-emerald-500" />
                 </section>
               </div>
 
               <div className="grid gap-6 xl:grid-cols-5">
-                <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm xl:col-span-2">
-                  <h3 className="mb-6 font-bold text-slate-800">انواع فرم پرتکرار</h3>
+                <section className="rounded-3xl border border-border bg-card p-6 shadow-sm xl:col-span-2">
+                  <h3 className="mb-6 font-bold text-foreground">انواع فرم پرتکرار</h3>
                   <HorizontalChart items={data.forms.by_form} color="bg-amber-500" />
                 </section>
-                <section className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm xl:col-span-3">
-                  <div className="border-b border-slate-100 p-6">
-                    <h3 className="font-bold text-slate-800">آخرین درخواست‌ها</h3>
+                <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm xl:col-span-3">
+                  <div className="border-b border-border p-6">
+                    <h3 className="font-bold text-foreground">آخرین درخواست‌ها</h3>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                      <thead className="bg-slate-50 text-slate-500">
+                    <Table className="min-w-full text-sm">
+                      <thead className="bg-muted/40 text-muted-foreground">
                         <tr>
                           <th className="px-5 py-3 text-right">درخواست</th>
                           <th className="px-5 py-3 text-right">کاربر</th>
@@ -1312,31 +1317,31 @@ export default function AdminDashboardPage() {
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {data.forms.recent_requests.map((request) => (
-                          <tr key={request.id} className="hover:bg-slate-50">
+                          <tr key={request.id} className="hover:bg-muted/40">
                             <td className="px-5 py-4">
-                              <p className="max-w-xs truncate font-semibold text-slate-700">
+                              <p className="max-w-xs truncate font-semibold text-foreground">
                                 {request.subject || request.form_id}
                               </p>
-                              <p className="mt-1 text-xs text-slate-400">شناسه #{number(request.id)}</p>
+                              <p className="mt-1 text-xs text-muted-foreground">شناسه #{number(request.id)}</p>
                             </td>
-                            <td className="whitespace-nowrap px-5 py-4 text-slate-600">{request.submitted_by}</td>
-                            <td className="whitespace-nowrap px-5 py-4 text-slate-500">{request.status}</td>
-                            <td className="whitespace-nowrap px-5 py-4 text-xs text-slate-500">
+                            <td className="whitespace-nowrap px-5 py-4 text-muted-foreground">{request.submitted_by}</td>
+                            <td className="whitespace-nowrap px-5 py-4 text-muted-foreground">{request.status}</td>
+                            <td className="whitespace-nowrap px-5 py-4 text-xs text-muted-foreground">
                               {dateTime(request.created_at)}
                             </td>
                           </tr>
                         ))}
                       </tbody>
-                    </table>
+                    </Table>
                     {!data.forms.recent_requests.length && (
-                      <p className="p-10 text-center text-sm text-slate-400">درخواستی وجود ندارد.</p>
+                      <p className="p-10 text-center text-sm text-muted-foreground">درخواستی وجود ندارد.</p>
                     )}
                   </div>
                 </section>
               </div>
 
-              <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-                <h3 className="mb-6 font-bold text-slate-800">ثبت‌کنندگان پرتکرار</h3>
+              <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                <h3 className="mb-6 font-bold text-foreground">ثبت‌کنندگان پرتکرار</h3>
                 <HorizontalChart items={data.forms.top_submitters} color="bg-sky-500" />
               </section>
             </div>

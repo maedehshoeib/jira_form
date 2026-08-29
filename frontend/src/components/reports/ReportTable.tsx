@@ -1,3 +1,5 @@
+import { Button } from "@/components/ui/button";
+import { Table } from "@/components/ui/table";
 import { Plus, Trash2 } from "lucide-react";
 
 export interface TableColumn {
@@ -22,32 +24,32 @@ export default function ReportTable({
   editable = false,
 }: ReportTableProps) {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+    <div className="overflow-hidden rounded-xl border border-border bg-card">
 
       {/* Header */}
 
-      <div className="flex items-center justify-between border-b bg-slate-50 px-4 py-3">
+      <div className="flex items-center justify-between border-b bg-muted/40 px-4 py-3">
 
-        <h3 className="font-semibold text-slate-700">
+        <h3 className="font-semibold text-foreground">
           جدول اطلاعات
         </h3>
 
         {editable && (
-          <button
+          <Button variant="ghost"
             onClick={onAdd}
-            className="flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-white hover:bg-red-700"
+            className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-white hover:bg-primary/90"
           >
             <Plus size={18} />
             افزودن ردیف
-          </button>
+          </Button>
         )}
       </div>
 
       <div className="overflow-x-auto">
 
-        <table className="w-full text-sm">
+        <Table className="w-full text-sm">
 
-          <thead className="bg-slate-100">
+          <thead className="bg-muted">
 
             <tr>
 
@@ -86,7 +88,7 @@ export default function ReportTable({
                       ? columns.length + 1
                       : columns.length
                   }
-                  className="py-10 text-center text-slate-400"
+                  className="py-10 text-center text-muted-foreground"
                 >
                   داده‌ای ثبت نشده است.
                 </td>
@@ -99,7 +101,7 @@ export default function ReportTable({
 
               <tr
                 key={rowIndex}
-                className="hover:bg-slate-50"
+                className="hover:bg-muted/40"
               >
 
                 {columns.map((column) => (
@@ -117,12 +119,12 @@ export default function ReportTable({
 
                   <td className="border text-center">
 
-                    <button
+                    <Button variant="ghost"
                       onClick={() => onDelete?.(rowIndex)}
-                      className="text-red-600 hover:text-red-800"
+                      className="text-primary hover:text-red-800"
                     >
                       <Trash2 size={18} />
-                    </button>
+                    </Button>
 
                   </td>
 
@@ -134,7 +136,7 @@ export default function ReportTable({
 
           </tbody>
 
-        </table>
+        </Table>
 
       </div>
 

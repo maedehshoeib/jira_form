@@ -1,3 +1,5 @@
+import { NativeSelect } from "@/components/ui/native-select";
+import { Label } from "@/components/ui/label";
 import { Search } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
@@ -18,14 +20,14 @@ export default function ReportFilters() {
         <div className="grid gap-5 lg:grid-cols-5">
 
           <div className="lg:col-span-2">
-            <label className="mb-2 block text-sm font-medium">
+            <Label className="mb-2 block text-sm font-medium">
               جستجو
-            </label>
+            </Label>
 
             <div className="relative">
 
               <Search
-                className="absolute left-3 top-3 h-5 w-5 text-slate-400"
+                className="absolute left-3 top-3 h-5 w-5 text-muted-foreground"
               />
 
               <Input
@@ -37,11 +39,11 @@ export default function ReportFilters() {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium">
+            <Label className="mb-2 block text-sm font-medium">
               واحد
-            </label>
+            </Label>
 
-            <Select>
+            <NativeSelect>
 
               <SelectTrigger className="h-11 w-full rounded-xl">
 
@@ -69,19 +71,19 @@ export default function ReportFilters() {
 
               </SelectContent>
 
-            </Select>
+            </NativeSelect>
 
           </div>
 
           <div>
 
-            <label className="mb-2 block text-sm font-medium">
+            <Label className="mb-2 block text-sm font-medium">
 
               وضعیت
 
-            </label>
+            </Label>
 
-            <Select>
+            <NativeSelect>
 
               <SelectTrigger className="h-11 w-full rounded-xl">
 
@@ -105,14 +107,14 @@ export default function ReportFilters() {
 
               </SelectContent>
 
-            </Select>
+            </NativeSelect>
 
           </div>
 
           <div className="flex items-end">
 
             <Button
-              className="w-full h-11 rounded-xl bg-red-600 hover:bg-red-700"
+              className="w-full h-11 rounded-xl bg-primary hover:bg-primary/90"
             >
               جستجو
             </Button>

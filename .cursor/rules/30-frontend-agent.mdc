@@ -12,6 +12,8 @@ Stack: Next.js App Router, strict TypeScript, Tailwind CSS, shadcn/ui, React Que
 - Add new routes under `src/app`; do not extend legacy `src/App.tsx`.
 - Prefer Server Components; add `"use client"` only for state, events, browser APIs, or client libraries.
 - Use shadcn primitives from `components/ui` and `cn()` from `lib/utils`.
+- Keep raw buttons, inputs, textareas, selects, labels, and tables inside
+  `components/ui`; screens and features must consume shared primitives.
 - Style with theme tokens and RTL-safe logical layout; avoid new hardcoded palette values.
 - Put remote data access in typed API helpers/hooks, not page components.
 - Forms use React Hook Form plus Zod and show server and field errors.

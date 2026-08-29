@@ -120,15 +120,15 @@ export default function PerformanceReports() {
     return (
       <AppShell>
         <div className="space-y-6 text-center">
-          <h1 className="text-3xl font-bold text-slate-800">
+          <h1 className="text-3xl font-bold text-foreground">
             گزارش عملکرد شورای معاونین و مدیران
           </h1>
-          <p className="text-slate-500">
+          <p className="text-muted-foreground">
             هنوز گزارشی ثبت نشده است. لطفاً ابتدا فرم گزارش را تکمیل کنید.
           </p>
           <Link
             to="/departments/reports"
-            className="inline-block rounded-xl bg-red-600 px-6 py-3 font-semibold text-white hover:bg-red-700"
+            className="inline-block rounded-xl bg-primary px-6 py-3 font-semibold text-white hover:bg-primary/90"
           >
             رفتن به فرم ثبت گزارش
           </Link>
@@ -166,8 +166,8 @@ export default function PerformanceReports() {
     <AppShell>
       <div id="report-print-area" className="space-y-8">
         <div className="no-print">
-          <h1 className="text-3xl font-bold text-slate-800">{report.title}</h1>
-          <p className="mt-2 text-slate-500">
+          <h1 className="text-3xl font-bold text-foreground">{report.title}</h1>
+          <p className="mt-2 text-muted-foreground">
             اطلاعات ثبت‌شده توسط کاربران در فرم گزارش
           </p>
         </div>

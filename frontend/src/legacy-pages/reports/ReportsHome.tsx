@@ -10,7 +10,7 @@ export default function ReportsHome() {
 
         <Link
           to="/"
-          className="text-red-600 font-semibold"
+          className="text-primary font-semibold"
         >
           بازگشت
         </Link>
@@ -19,7 +19,7 @@ export default function ReportsHome() {
           گزارشات
         </h1>
 
-        <p className="text-slate-500 mt-2">
+        <p className="text-muted-foreground mt-2">
           گزارشات مدیریتی سامانه
         </p>
 
@@ -31,10 +31,10 @@ export default function ReportsHome() {
 
               <CardContent className="p-8">
 
-                <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center">
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
 
                   <BarChart3
-                    className="text-red-600"
+                    className="text-primary"
                     size={34}
                   />
 
@@ -46,7 +46,7 @@ export default function ReportsHome() {
 
                 </h2>
 
-                <p className="text-slate-500 mt-2">
+                <p className="text-muted-foreground mt-2">
 
                   تکمیل فرم گزارش عملکرد
 
@@ -64,10 +64,10 @@ export default function ReportsHome() {
 
               <CardContent className="p-8">
 
-                <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center">
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
 
                   <BarChart3
-                    className="text-red-600"
+                    className="text-primary"
                     size={34}
                   />
 
@@ -79,7 +79,7 @@ export default function ReportsHome() {
 
                 </h2>
 
-                <p className="text-slate-500 mt-2">
+                <p className="text-muted-foreground mt-2">
 
                   مشاهده آخرین گزارش ثبت‌شده
 

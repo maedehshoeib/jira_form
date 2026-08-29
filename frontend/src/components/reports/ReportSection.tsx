@@ -10,9 +10,9 @@ export default function ReportSection({
   children,
 }: ReportSectionProps) {
   return (
-    <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
+    <section className="bg-card rounded-2xl border border-border shadow-sm p-6 space-y-5">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-slate-800">
+        <h2 className="text-lg font-bold text-foreground">
           {title}
         </h2>
 

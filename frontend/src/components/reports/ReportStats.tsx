@@ -11,8 +11,8 @@ const stats = [
     title: "کل گزارشات",
     value: 24,
     icon: FileText,
-    color: "text-red-600",
-    bg: "bg-red-50",
+    color: "text-primary",
+    bg: "bg-primary/10",
   },
   {
     title: "در انتظار بررسی",
@@ -65,7 +65,7 @@ export default function ReportStats() {
 
                 <div>
 
-                  <p className="text-slate-500 text-sm">
+                  <p className="text-muted-foreground text-sm">
                     {item.title}
                   </p>
 

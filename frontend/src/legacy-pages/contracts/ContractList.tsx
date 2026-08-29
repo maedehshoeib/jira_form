@@ -1,3 +1,5 @@
+import { Table } from "@/components/ui/table";
+import { Label } from "@/components/ui/label";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -57,8 +59,8 @@ const datePickerInputClass = `
   h-11
   rounded-xl
   border
-  border-slate-200
-  bg-slate-50
+  border-border
+  bg-muted/40
   px-4
   text-right
   shadow-sm
@@ -121,46 +123,46 @@ export default function ContractList() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <Link
             to="/contracts-archive"
-            className="font-semibold text-red-600 hover:text-red-700"
+            className="font-semibold text-primary hover:text-primary"
           >
             بازگشت
           </Link>
           <Link to="/contracts-archive/submit">
-            <Button className="rounded-xl bg-red-600 hover:bg-red-700">
+            <Button className="rounded-xl bg-primary hover:bg-primary/90">
               ثبت قرارداد جدید
             </Button>
           </Link>
         </div>
 
         <h1 className="mt-8 text-3xl font-bold">گزارش قراردادها</h1>
-        <p className="mt-2 text-slate-500">
+        <p className="mt-2 text-muted-foreground">
           فهرست قراردادهای آرشیو شده
         </p>
 
         {loading && (
-          <p className="mt-10 text-slate-500">در حال بارگذاری...</p>
+          <p className="mt-10 text-muted-foreground">در حال بارگذاری...</p>
         )}
 
         {error && (
-          <p className="mt-10 text-red-600">{error}</p>
+          <p className="mt-10 text-primary">{error}</p>
         )}
 
         {!loading && !error && contracts.length === 0 && (
-          <div className="mt-10 rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500">
+          <div className="mt-10 rounded-2xl border border-border bg-card p-8 text-center text-muted-foreground">
             هنوز قراردادی ثبت نشده است.
           </div>
         )}
 
         {!loading && !error && contracts.length > 0 && (
           <>
-            <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mt-8 rounded-2xl border border-border bg-card p-4 shadow-sm">
               <div className="grid gap-4 lg:grid-cols-3">
                 <div className="lg:col-span-1">
-                  <label htmlFor="contract-search" className="mb-2 block text-sm font-medium text-slate-700">
+                  <Label htmlFor="contract-search" className="mb-2 block text-sm font-medium text-foreground">
                     جستجو
-                  </label>
+                  </Label>
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                    <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       id="contract-search"
                       type="search"
@@ -173,9 +175,9 @@ export default function ContractList() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                  <Label className="mb-2 block text-sm font-medium text-foreground">
                     تاریخ شروع
-                  </label>
+                  </Label>
                   <DatePicker
                     calendar={persian}
                     locale={persian_fa}
@@ -190,9 +192,9 @@ export default function ContractList() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                  <Label className="mb-2 block text-sm font-medium text-foreground">
                     تاریخ پایان
-                  </label>
+                  </Label>
                   <DatePicker
                     calendar={persian}
                     locale={persian_fa}
@@ -208,22 +210,22 @@ export default function ContractList() {
               </div>
 
               {hasActiveFilters && (
-                <p className="mt-3 text-sm text-slate-500">
+                <p className="mt-3 text-sm text-muted-foreground">
                   {filteredContracts.length} مورد از {contracts.length} قرارداد
                 </p>
               )}
             </div>
 
             {filteredContracts.length === 0 ? (
-              <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500">
+              <div className="mt-6 rounded-2xl border border-border bg-card p-8 text-center text-muted-foreground">
                 {hasActiveFilters
                   ? "نتیجه‌ای با فیلترهای انتخاب‌شده یافت نشد."
                   : "هنوز قراردادی ثبت نشده است."}
               </div>
             ) : (
-              <div className="mt-6 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <table className="min-w-full text-right text-sm">
-                  <thead className="bg-slate-50 text-slate-700">
+              <div className="mt-6 overflow-x-auto rounded-2xl border border-border bg-card shadow-sm">
+                <Table className="min-w-full text-right text-sm">
+                  <thead className="bg-muted/40 text-foreground">
                     <tr>
                       <th className="px-4 py-3 font-semibold">ردیف</th>
                       <th className="px-4 py-3 font-semibold">تاریخ شروع</th>
@@ -241,9 +243,9 @@ export default function ContractList() {
                     {filteredContracts.map((contract) => (
                       <tr
                         key={contract.id}
-                        className="border-t border-slate-100 hover:bg-slate-50/50"
+                        className="border-t border-border hover:bg-muted/40"
                       >
-                        <td className="px-4 py-3 font-semibold text-red-600">
+                        <td className="px-4 py-3 font-semibold text-primary">
                           {contract.row_number}
                         </td>
                         <td className="px-4 py-3">{contract.start_date}</td>
@@ -254,16 +256,16 @@ export default function ContractList() {
                         <td className="px-4 py-3">{contract.contract_number}</td>
                         <td className="px-4 py-3">
                           {contract.has_attachment ? (
-                            <button
+                            <Button
                               type="button"
                               onClick={() => downloadAttachment(contract.id)}
-                              className="inline-flex items-center gap-1 text-red-600 hover:text-red-700"
+                              className="inline-flex items-center gap-1 text-primary hover:text-primary"
                             >
                               <Download size={16} />
                               {contract.attachment_name || "دانلود"}
-                            </button>
+                            </Button>
                           ) : (
-                            <span className="text-slate-400">—</span>
+                            <span className="text-muted-foreground">—</span>
                           )}
                         </td>
                         <td className="px-4 py-3">{contract.created_by_name}</td>
@@ -273,7 +275,7 @@ export default function ContractList() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </Table>
               </div>
             )}
           </>

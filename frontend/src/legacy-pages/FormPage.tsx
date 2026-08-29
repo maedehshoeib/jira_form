@@ -44,10 +44,10 @@ export default function FormPage() {
   if (loadError) {
     return (
       <AppShell>
-        <div className="rounded-3xl border border-red-100 bg-white p-10 text-center shadow-sm">
-          <h2 className="text-xl font-bold text-slate-800">دسترسی به فرم امکان‌پذیر نیست</h2>
-          <p className="mt-2 text-sm text-slate-500">این فرم برای حساب شما فعال نشده یا دیگر وجود ندارد.</p>
-          <Link to="/" className="mt-5 inline-block font-bold text-red-600">بازگشت به خانه</Link>
+        <div className="rounded-3xl border border-primary/20 bg-card p-10 text-center shadow-sm">
+          <h2 className="text-xl font-bold text-foreground">دسترسی به فرم امکان‌پذیر نیست</h2>
+          <p className="mt-2 text-sm text-muted-foreground">این فرم برای حساب شما فعال نشده یا دیگر وجود ندارد.</p>
+          <Link to="/" className="mt-5 inline-block font-bold text-primary">بازگشت به خانه</Link>
         </div>
       </AppShell>
     );
@@ -74,8 +74,8 @@ export default function FormPage() {
             inline-flex
             items-center
             gap-2
-            text-red-600
-            hover:text-red-700
+            text-primary
+            hover:text-primary
           "
         >
           <ChevronLeft size={18} />
@@ -87,7 +87,7 @@ export default function FormPage() {
         className="
           mb-10
           rounded-3xl
-          bg-white
+          bg-card
           p-6
           shadow-lg
         "
@@ -117,11 +117,11 @@ export default function FormPage() {
                 items-center
                 justify-center
                 rounded-2xl
-                bg-red-50
+                bg-primary/10
               "
             >
               <Building2
-                className="text-red-600"
+                className="text-primary"
                 size={28}
               />
             </div>
@@ -131,7 +131,7 @@ export default function FormPage() {
                 className="
                   text-3xl
                   font-bold
-                  text-slate-800
+                  text-foreground
                 "
               >
                 {form.title}
@@ -140,7 +140,7 @@ export default function FormPage() {
               <p
                 className="
                   mt-1
-                  text-slate-500
+                  text-muted-foreground
                 "
               >
                 لطفاً اطلاعات فرم را تکمیل نمایید
@@ -161,14 +161,14 @@ export default function FormPage() {
                 items-center
                 gap-2
                 rounded-full
-                bg-red-50
+                bg-primary/10
                 px-4
                 py-2
               "
             >
               <Building2
                 size={16}
-                className="text-red-600"
+                className="text-primary"
               />
               <span className="text-sm">
                 انتخاب واحد
@@ -190,7 +190,7 @@ export default function FormPage() {
             >
               <FileText
                 size={16}
-                className="text-red-600"
+                className="text-primary"
               />
               <span className="text-sm font-medium">
                 تکمیل فرم
@@ -205,14 +205,14 @@ export default function FormPage() {
                 items-center
                 gap-2
                 rounded-full
-                bg-slate-100
+                bg-muted
                 px-4
                 py-2
               "
             >
               <CheckCircle2
                 size={16}
-                className="text-slate-500"
+                className="text-muted-foreground"
               />
               <span className="text-sm">
                 ثبت نهایی

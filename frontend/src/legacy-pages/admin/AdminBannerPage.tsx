@@ -1,3 +1,6 @@
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { FormEvent, useEffect, useState } from "react";
 import {
   CheckCircle2,
@@ -251,33 +254,33 @@ export default function AdminBannerPage() {
           <ImageIcon size={25} />
         </div>
         <div>
-          <h2 className="text-3xl font-extrabold text-slate-900">مدیریت بنر و اخبار</h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <h2 className="text-3xl font-extrabold text-foreground">مدیریت بنر و اخبار</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
             بنر بالای صفحه اصلی و ستون اخبار را از این بخش مدیریت کنید.
           </p>
         </div>
       </div>
 
       {loading ? (
-        <div className="flex min-h-[50vh] items-center justify-center gap-3 text-slate-500">
-          <Loader2 className="animate-spin text-red-600" />
+        <div className="flex min-h-[50vh] items-center justify-center gap-3 text-muted-foreground">
+          <Loader2 className="animate-spin text-primary" />
           در حال دریافت تنظیمات...
         </div>
       ) : (
         <div className="space-y-10">
           <form onSubmit={submit} className="space-y-6">
-            <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+            <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
               <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <h3 className="font-bold text-slate-800">تصاویر اسلایدر</h3>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <h3 className="font-bold text-foreground">تصاویر اسلایدر</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
                     چند تصویر JPG، PNG یا WebP انتخاب کنید؛ حداکثر حجم هر تصویر ۱۰ مگابایت است.
                   </p>
                 </div>
-                <label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-xl bg-red-600 px-5 text-sm font-bold text-white transition hover:bg-red-700">
+                <Label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-white transition hover:bg-primary/90">
                   <Upload size={17} />
                   افزودن تصاویر
-                  <input
+                  <Input
                     type="file"
                     multiple
                     accept="image/jpeg,image/png,image/webp"
@@ -289,7 +292,7 @@ export default function AdminBannerPage() {
                       event.target.value = "";
                     }}
                   />
-                </label>
+                </Label>
               </div>
 
               {totalImageCount > 0 ? (
@@ -297,7 +300,7 @@ export default function AdminBannerPage() {
                   {banner.images.map((image, index) => (
                     <div
                       key={image.id}
-                      className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
+                      className="overflow-hidden rounded-2xl border border-border bg-muted/40"
                     >
                       <div className="relative">
                         <img
@@ -308,17 +311,17 @@ export default function AdminBannerPage() {
                         <span className="absolute right-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-xs font-bold text-white">
                           {index + 1}
                         </span>
-                        <button
+                        <Button
                           type="button"
                           aria-label={`حذف ${image.image_name || `بنر ${index + 1}`}`}
                           disabled={saving}
                           onClick={() => removeImage(image.id)}
-                          className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-red-600 shadow transition hover:bg-red-600 hover:text-white disabled:opacity-50"
+                          className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-card/90 text-primary shadow transition hover:bg-primary hover:text-white disabled:opacity-50"
                         >
                           <Trash2 size={17} />
-                        </button>
+                        </Button>
                       </div>
-                      <p className="truncate px-3 py-2 text-xs text-slate-500" dir="ltr">
+                      <p className="truncate px-3 py-2 text-xs text-muted-foreground" dir="ltr">
                         {image.image_name}
                       </p>
                     </div>
@@ -326,7 +329,7 @@ export default function AdminBannerPage() {
                   {selectedImages.map((image, index) => (
                     <div
                       key={`${image.name}-${image.lastModified}-${index}`}
-                      className="overflow-hidden rounded-2xl border border-dashed border-red-300 bg-red-50/40"
+                      className="overflow-hidden rounded-2xl border border-dashed border-red-300 bg-primary/10"
                     >
                       <div className="relative">
                         <img
@@ -334,10 +337,10 @@ export default function AdminBannerPage() {
                           alt={`پیش‌نمایش ${image.name}`}
                           className="aspect-[16/7] w-full object-cover"
                         />
-                        <span className="absolute right-3 top-3 rounded-full bg-red-600 px-2.5 py-1 text-xs font-bold text-white">
+                        <span className="absolute right-3 top-3 rounded-full bg-primary px-2.5 py-1 text-xs font-bold text-white">
                           جدید
                         </span>
-                        <button
+                        <Button
                           type="button"
                           aria-label={`حذف ${image.name} از انتخاب‌ها`}
                           onClick={() =>
@@ -345,34 +348,34 @@ export default function AdminBannerPage() {
                               current.filter((_, itemIndex) => itemIndex !== index),
                             )
                           }
-                          className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-red-600 shadow transition hover:bg-red-600 hover:text-white"
+                          className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-card/90 text-primary shadow transition hover:bg-primary hover:text-white"
                         >
                           <Trash2 size={17} />
-                        </button>
+                        </Button>
                       </div>
-                      <p className="truncate px-3 py-2 text-xs text-slate-500" dir="ltr">
+                      <p className="truncate px-3 py-2 text-xs text-muted-foreground" dir="ltr">
                         {image.name} · {(image.size / 1024 / 1024).toFixed(2)} MB
                       </p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="flex aspect-[16/7] min-h-56 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 text-slate-400">
+                <div className="flex aspect-[16/7] min-h-56 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-muted/40 text-muted-foreground">
                   <ImageIcon size={44} strokeWidth={1.5} />
                   <p className="text-sm">هنوز تصویری برای اسلایدر انتخاب نشده است.</p>
                 </div>
               )}
             </section>
 
-            <label className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <Label className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
               <div>
-                <p className="font-bold text-slate-800">زمان نمایش هر تصویر</p>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="font-bold text-foreground">زمان نمایش هر تصویر</p>
+                <p className="mt-1 text-xs text-muted-foreground">
                   اسلایدر پس از این تعداد ثانیه به تصویر بعدی می‌رود.
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <input
+                <Input
                   type="number"
                   min={2}
                   max={30}
@@ -384,20 +387,20 @@ export default function AdminBannerPage() {
                     }));
                     setSaved(false);
                   }}
-                  className="h-10 w-20 rounded-xl border border-slate-200 px-3 text-center outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                  className="h-10 w-20 rounded-xl border border-border px-3 text-center outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
                 />
-                <span className="text-sm text-slate-500">ثانیه</span>
+                <span className="text-sm text-muted-foreground">ثانیه</span>
               </div>
-            </label>
+            </Label>
 
-            <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <Label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
               <div>
-                <p className="font-bold text-slate-800">نمایش بنر در صفحه اصلی</p>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="font-bold text-foreground">نمایش بنر در صفحه اصلی</p>
+                <p className="mt-1 text-xs text-muted-foreground">
                   بنر فقط زمانی نمایش داده می‌شود که تصویر داشته باشد و این گزینه فعال باشد.
                 </p>
               </div>
-              <input
+              <Input
                 type="checkbox"
                 checked={banner.is_active}
                 onChange={(event) => {
@@ -409,10 +412,10 @@ export default function AdminBannerPage() {
                 }}
                 className="h-5 w-5 accent-red-600"
               />
-            </label>
+            </Label>
 
             {error && (
-              <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm text-primary">
                 {error}
               </div>
             )}
@@ -421,7 +424,7 @@ export default function AdminBannerPage() {
               <Button
                 type="submit"
                 disabled={saving || (totalImageCount === 0 && banner.is_active)}
-                className="h-11 gap-2 rounded-xl bg-red-600 px-6 hover:bg-red-700"
+                className="h-11 gap-2 rounded-xl bg-primary px-6 hover:bg-primary/90"
               >
                 {saving ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}
                 ذخیره تغییرات بنر
@@ -435,15 +438,15 @@ export default function AdminBannerPage() {
             </div>
           </form>
 
-          <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+          <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
             <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-start gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                   <Megaphone size={20} />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-800">اخبار صفحه اصلی</h3>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <h3 className="font-bold text-foreground">اخبار صفحه اصلی</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
                     خبر می‌تواند فقط متن، فقط تصویر، یا ترکیبی از هر دو باشد.
                   </p>
                 </div>
@@ -451,7 +454,7 @@ export default function AdminBannerPage() {
               <Button
                 type="button"
                 onClick={openCreateNews}
-                className="h-11 gap-2 rounded-xl bg-red-600 px-5 hover:bg-red-700"
+                className="h-11 gap-2 rounded-xl bg-primary px-5 hover:bg-primary/90"
               >
                 <Plus size={17} />
                 خبر جدید
@@ -461,53 +464,53 @@ export default function AdminBannerPage() {
             {showNewsForm && (
               <form
                 onSubmit={submitNews}
-                className="mb-6 space-y-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-5"
+                className="mb-6 space-y-4 rounded-2xl border border-border bg-muted/40 p-5"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <h4 className="font-bold text-slate-800">
+                  <h4 className="font-bold text-foreground">
                     {editingId === null ? "افزودن خبر" : "ویرایش خبر"}
                   </h4>
-                  <button
+                  <Button
                     type="button"
                     onClick={cancelNewsForm}
-                    className="rounded-xl p-2 text-slate-500 hover:bg-white"
+                    className="rounded-xl p-2 text-muted-foreground hover:bg-card"
                     aria-label="بستن فرم خبر"
                   >
                     <X size={18} />
-                  </button>
+                  </Button>
                 </div>
 
-                <label className="block space-y-1.5">
-                  <span className="text-sm font-bold text-slate-700">عنوان</span>
-                  <input
+                <Label className="block space-y-1.5">
+                  <span className="text-sm font-bold text-foreground">عنوان</span>
+                  <Input
                     value={draft.title}
                     onChange={(event) =>
                       setDraft((current) => ({ ...current, title: event.target.value }))
                     }
                     placeholder="عنوان خبر یا اطلاعیه"
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                    className="h-11 w-full rounded-xl border border-border bg-card px-4 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
                   />
-                </label>
+                </Label>
 
-                <label className="block space-y-1.5">
-                  <span className="text-sm font-bold text-slate-700">متن خبر</span>
-                  <textarea
+                <Label className="block space-y-1.5">
+                  <span className="text-sm font-bold text-foreground">متن خبر</span>
+                  <Textarea
                     value={draft.body}
                     onChange={(event) =>
                       setDraft((current) => ({ ...current, body: event.target.value }))
                     }
                     rows={5}
                     placeholder="متن کامل خبر (اختیاری)"
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                    className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
                   />
-                </label>
+                </Label>
 
                 <div className="space-y-3">
                   <div className="flex flex-wrap items-center gap-3">
-                    <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:border-red-300 hover:text-red-600">
+                    <Label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-bold text-foreground transition hover:border-red-300 hover:text-primary">
                       <Upload size={16} />
                       {newsPreviewSrc ? "تغییر تصویر" : "افزودن تصویر"}
-                      <input
+                      <Input
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
                         className="sr-only"
@@ -517,9 +520,9 @@ export default function AdminBannerPage() {
                           event.target.value = "";
                         }}
                       />
-                    </label>
+                    </Label>
                     {newsPreviewSrc && (
-                      <button
+                      <Button
                         type="button"
                         onClick={() => {
                           if (draft.previewUrl) URL.revokeObjectURL(draft.previewUrl);
@@ -530,11 +533,11 @@ export default function AdminBannerPage() {
                             removeImage: true,
                           }));
                         }}
-                        className="inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-bold text-red-600 hover:bg-red-50"
+                        className="inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-bold text-primary hover:bg-primary/10"
                       >
                         <Trash2 size={16} />
                         حذف تصویر
-                      </button>
+                      </Button>
                     )}
                   </div>
 
@@ -542,13 +545,13 @@ export default function AdminBannerPage() {
                     <img
                       src={newsPreviewSrc}
                       alt="پیش‌نمایش تصویر خبر"
-                      className="max-h-56 w-full rounded-2xl border border-slate-200 object-cover"
+                      className="max-h-56 w-full rounded-2xl border border-border object-cover"
                     />
                   )}
                 </div>
 
                 {newsError && (
-                  <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  <div className="rounded-xl border border-primary/30 bg-primary/10 p-3 text-sm text-primary">
                     {newsError}
                   </div>
                 )}
@@ -557,7 +560,7 @@ export default function AdminBannerPage() {
                   <Button
                     type="submit"
                     disabled={newsSaving}
-                    className="h-10 gap-2 rounded-xl bg-red-600 px-5 hover:bg-red-700"
+                    className="h-10 gap-2 rounded-xl bg-primary px-5 hover:bg-primary/90"
                   >
                     {newsSaving ? (
                       <Loader2 size={16} className="animate-spin" />
@@ -579,12 +582,12 @@ export default function AdminBannerPage() {
             )}
 
             {newsLoading ? (
-              <div className="flex items-center justify-center gap-2 py-10 text-slate-500">
-                <Loader2 className="animate-spin text-red-600" size={18} />
+              <div className="flex items-center justify-center gap-2 py-10 text-muted-foreground">
+                <Loader2 className="animate-spin text-primary" size={18} />
                 در حال دریافت اخبار...
               </div>
             ) : newsItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 py-12 text-slate-400">
+              <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-muted/40 py-12 text-muted-foreground">
                 <Newspaper size={40} strokeWidth={1.5} />
                 <p className="text-sm">هنوز خبری ثبت نشده است.</p>
               </div>
@@ -593,7 +596,7 @@ export default function AdminBannerPage() {
                 {newsItems.map((item) => (
                   <article
                     key={item.id}
-                    className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:flex-row sm:items-center"
+                    className="flex flex-col gap-4 rounded-2xl border border-border bg-muted/40 p-4 sm:flex-row sm:items-center"
                   >
                     {item.image_url ? (
                       <img
@@ -602,18 +605,18 @@ export default function AdminBannerPage() {
                         className="h-24 w-full shrink-0 rounded-xl object-cover sm:h-20 sm:w-28"
                       />
                     ) : (
-                      <div className="flex h-20 w-full shrink-0 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white text-slate-300 sm:w-28">
+                      <div className="flex h-20 w-full shrink-0 items-center justify-center rounded-xl border border-dashed border-border bg-card text-slate-300 sm:w-28">
                         <Newspaper size={22} />
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <h4 className="truncate font-bold text-slate-800">{item.title}</h4>
+                      <h4 className="truncate font-bold text-foreground">{item.title}</h4>
                       {item.body && (
-                        <p className="mt-1 line-clamp-2 text-sm text-slate-500">
+                        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
                           {item.body}
                         </p>
                       )}
-                      <p className="mt-2 text-xs text-slate-400">
+                      <p className="mt-2 text-xs text-muted-foreground">
                         {formatNewsDate(item.created_at)}
                       </p>
                     </div>
@@ -626,15 +629,15 @@ export default function AdminBannerPage() {
                       >
                         ویرایش
                       </Button>
-                      <button
+                      <Button
                         type="button"
                         disabled={newsSaving}
                         onClick={() => deleteNews(item.id)}
-                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-red-200 bg-white text-red-600 transition hover:bg-red-600 hover:text-white disabled:opacity-50"
+                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-primary/30 bg-card text-primary transition hover:bg-primary hover:text-white disabled:opacity-50"
                         aria-label={`حذف ${item.title}`}
                       >
                         <Trash2 size={16} />
-                      </button>
+                      </Button>
                     </div>
                   </article>
                 ))}
@@ -642,7 +645,7 @@ export default function AdminBannerPage() {
             )}
 
             {!showNewsForm && newsError && (
-              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              <div className="mt-4 rounded-xl border border-primary/30 bg-primary/10 p-3 text-sm text-primary">
                 {newsError}
               </div>
             )}

@@ -21,7 +21,7 @@ export default function ReportHeader({
   onExportExcel,
 }: Props) {
   return (
-    <div className="rounded-3xl bg-white shadow-xl border border-slate-200 p-8">
+    <div className="rounded-3xl bg-card shadow-xl border border-border p-8">
 
       <div className="flex flex-col gap-6 lg:flex-row lg:justify-between">
 
@@ -29,17 +29,17 @@ export default function ReportHeader({
 
           <Link
             to="/departments/reports"
-            className="no-print mb-4 inline-flex items-center gap-2 text-red-600 hover:text-red-700"
+            className="no-print mb-4 inline-flex items-center gap-2 text-primary hover:text-primary"
           >
             <ArrowRight size={18} />
             بازگشت
           </Link>
 
-          <h1 className="text-3xl font-black text-slate-800">
+          <h1 className="text-3xl font-black text-foreground">
             {title}
           </h1>
 
-          <div className="mt-5 flex flex-wrap gap-4 text-sm text-slate-500">
+          <div className="mt-5 flex flex-wrap gap-4 text-sm text-muted-foreground">
 
             <span>
               📅 {formatPersianDateTime(createdAt)}
@@ -71,7 +71,7 @@ export default function ReportHeader({
 
           <Button
             type="button"
-            className="rounded-xl bg-red-600 hover:bg-red-700"
+            className="rounded-xl bg-primary hover:bg-primary/90"
             onClick={onExportExcel}
           >
             <FileSpreadsheet className="ml-2 h-4 w-4" />
