@@ -1,13 +1,22 @@
-.PHONY: up down logs dev-backend dev-frontend test lint typecheck build
+.PHONY: up down logs init_db init-db dev-backend dev-frontend test lint typecheck build
+
+COMPOSE ?= docker compose
+COMPOSE_PROJECT_NAME ?= jira_form
 
 up:
-	docker compose up --build -d
+	COMPOSE_PROJECT_NAME=$(COMPOSE_PROJECT_NAME) $(COMPOSE) up --build -d
 
 down:
-	docker compose down
+	COMPOSE_PROJECT_NAME=$(COMPOSE_PROJECT_NAME) $(COMPOSE) down
+
+init_db: init-db
+
+init-db:
+	COMPOSE_PROJECT_NAME=$(COMPOSE_PROJECT_NAME) $(COMPOSE) up -d postgres
+	COMPOSE_PROJECT_NAME=$(COMPOSE_PROJECT_NAME) $(COMPOSE) --profile tools run --build --rm init-db
 
 logs:
-	docker compose logs -f web backend
+	COMPOSE_PROJECT_NAME=$(COMPOSE_PROJECT_NAME) $(COMPOSE) logs -f web backend
 
 dev-backend:
 	cd backend && uvicorn app.main:app --reload --port 8000

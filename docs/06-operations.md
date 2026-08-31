@@ -14,7 +14,10 @@ in `portal_data`.
 
 ## First production migration from SQLite
 
-The migration is automatic, but prepare the server before starting this branch:
+See **[Production SQLite migration](07-production-sqlite-migration.md)** for the
+full cutover checklist, verification steps, failure recovery, and rollback plan.
+
+Summary for the first production start:
 
 1. Stop the old application and make a filesystem-level backup of the existing
    `portal_data` volume. Confirm it contains `portal.db`, `contracts.db`, and the
@@ -28,9 +31,10 @@ The migration is automatic, but prepare the server before starting this branch:
    Both URLs intentionally point to the same PostgreSQL database.
 4. Leave `SQLITE_MIGRATION_ENABLED=true` and keep both source URLs set to the
    files under `/app/data` for the first startup.
-5. Start the stack and watch the backend log:
+5. Start the stack and watch the backend log, or run the one-shot job first:
 
    ```bash
+   make init_db                        # optional: migrate before starting API/web
    docker compose up --build -d
    docker compose logs -f postgres backend
    ```

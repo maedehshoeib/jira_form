@@ -68,6 +68,36 @@ services:
       BACKEND_URL: http://backend:8000
     restart: unless-stopped
 
+  init-db:
+    profiles: ["tools"]
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: jira-form-init-db
+    volumes:
+      - portal_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PYTHONUNBUFFERED: "1"
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+      CONTRACTS_DATABASE_URL: ${CONTRACTS_DATABASE_URL:?Set CONTRACTS_DATABASE_URL in .env}
+      SQLITE_MIGRATION_ENABLED: ${SQLITE_MIGRATION_ENABLED:-true}
+      SQLITE_SOURCE_DATABASE_URL: ${SQLITE_SOURCE_DATABASE_URL:-sqlite:////app/data/portal.db}
+      SQLITE_CONTRACTS_SOURCE_DATABASE_URL: ${SQLITE_CONTRACTS_SOURCE_DATABASE_URL:-sqlite:////app/data/contracts.db}
+      DATABASE_MIGRATIONS_ENABLED: true
+      UPLOAD_DIR: ./data/uploads
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      USERS_SEED_ENABLED: ${USERS_SEED_ENABLED:-true}
+      USERS_SEED_FILE: ${USERS_SEED_FILE:-/users.xlsx}
+      DEFAULT_USER_PASSWORD: ${DEFAULT_USER_PASSWORD:-change-me-before-production}
+      TIMESHEET_DEMO_USERNAME: ${TIMESHEET_DEMO_USERNAME:-ma.shoeib}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-portal.admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-change-me-before-production}
+    command: ["python", "/scripts/init_db.py"]
+    restart: "no"
+
 volumes:
   portal_data:
   postgres_data:

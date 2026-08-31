@@ -8,5 +8,6 @@ This directory follows the documentation-first skeleton used by the reference pr
 4. [Next.js migration plan](04-nextjs-migration.md)
 5. [API and integration map](05-api-and-integrations.md)
 6. [Operations and deployment](06-operations.md)
+7. [Production SQLite migration](07-production-sqlite-migration.md)
 
 Diagrams are stored in [`diagrams/`](diagrams/).

@@ -6,6 +6,7 @@ COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ ./
+COPY scripts/init_db.py /scripts/init_db.py
 COPY users.xlsx /users.xlsx
 
 RUN mkdir -p data/uploads
