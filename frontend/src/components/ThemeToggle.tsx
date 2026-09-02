@@ -38,7 +38,7 @@ export default function ThemeToggle({
         title={label}
         aria-label={label}
         className={cn(
-          "flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+          "flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
           className,
         )}
       >

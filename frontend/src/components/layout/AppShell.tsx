@@ -246,7 +246,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       "min-w-6 rounded-full border px-1.5 py-0.5 text-center text-xs font-bold",
       active
         ? "border-sidebar-primary-foreground/20 bg-sidebar-primary-foreground/15 text-sidebar-primary-foreground"
-        : "border-border bg-muted text-muted-foreground",
+        : "border-sidebar-border bg-sidebar-accent text-sidebar-foreground",
     )}>
       {count > 99 ? "+۹۹" : count.toLocaleString("fa-IR")}
     </span>
@@ -270,7 +270,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         event.stopPropagation();
         onToggle();
       }}
-      className={cn("rounded-md", active && "hover:bg-sidebar-primary-foreground/15")}
+      className={cn("rounded-md text-inherit hover:bg-sidebar-accent", active && "hover:bg-sidebar-primary-foreground/15")}
     >
       {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
     </Button>
@@ -285,13 +285,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </div>
           <div className="min-w-0">
             <h1 className="text-base font-bold leading-7 text-sidebar-foreground">سامانه جامع خدمات</h1>
-            <p className="mt-0.5 text-xs text-muted-foreground">ثبت و پیگیری درخواست‌ها</p>
+            <p className="mt-0.5 text-xs text-sidebar-foreground/70">ثبت و پیگیری درخواست‌ها</p>
           </div>
         </Link>
       </div>
 
       <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-6" aria-label="منوی اصلی">
-        <p className="mb-3 px-3 text-xs font-medium text-muted-foreground">دسترسی سریع</p>
+        <p className="mb-3 px-3 text-xs font-medium text-sidebar-foreground/65">دسترسی سریع</p>
         {navigationItems
           .filter((item) => !user?.is_admin || item.href !== "/dashboard")
           .map((item) => {
@@ -309,13 +309,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                 active
                   ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               )}
             >
               <span
                 className={cn(
                   "flex h-8 w-8 items-center justify-center rounded-md transition-colors",
-                  active ? "bg-sidebar-primary-foreground/15" : "bg-muted text-muted-foreground"
+                  active ? "bg-sidebar-primary-foreground/15" : "bg-sidebar-primary-foreground/10 text-sidebar-foreground"
                 )}
               >
                 <Icon size={19} />
@@ -347,7 +347,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 size={16}
                 className={cn(
                   "transition-transform group-hover:-translate-x-1",
-                  active ? "text-sidebar-primary-foreground/70" : "text-muted-foreground/50"
+                  active ? "text-sidebar-primary-foreground/70" : "text-sidebar-foreground/55"
                 )}
               />
             </Link>
@@ -356,7 +356,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         {user?.is_admin && (
           <>
             <div className="mx-3 my-5 border-t border-sidebar-border" />
-            <p className="mb-3 px-3 text-xs font-medium text-muted-foreground">مدیریت سامانه</p>
+            <p className="mb-3 px-3 text-xs font-medium text-sidebar-foreground/65">مدیریت سامانه</p>
             {adminNavigationItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
@@ -368,14 +368,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
                     "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                     active
                       ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   )}
                 >
-                  <span className={cn("flex h-8 w-8 items-center justify-center rounded-md", active ? "bg-sidebar-primary-foreground/15" : "bg-muted text-muted-foreground")}>
+                  <span className={cn("flex h-8 w-8 items-center justify-center rounded-md", active ? "bg-sidebar-primary-foreground/15" : "bg-sidebar-primary-foreground/10 text-sidebar-foreground")}>
                     <Icon size={19} />
                   </span>
                   <span className="flex-1">{item.label}</span>
-                  <ChevronLeft size={16} className={active ? "text-sidebar-primary-foreground/70" : "text-muted-foreground/50"} />
+                  <ChevronLeft size={16} className={active ? "text-sidebar-primary-foreground/70" : "text-sidebar-foreground/55"} />
                 </Link>
               );
             })}
@@ -394,7 +394,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 name={formatUserDisplayName(user)}
                 avatarUrl={user.avatar_url}
                 className="h-11 w-11 rounded-xl shadow-sm"
-                fallbackClassName="bg-primary text-primary-foreground"
+                fallbackClassName="bg-sidebar-primary text-sidebar-primary-foreground"
               />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-sidebar-foreground">
@@ -404,12 +404,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
                     badgeClassName="h-4 w-4 bg-amber-300/25 text-amber-200 ring-amber-200/40"
                   />
                 </p>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">{user.username}</p>
+                <p className="mt-0.5 truncate text-xs text-sidebar-foreground/70">{user.username}</p>
               </div>
             </div>
 
             {(user.department || user.email) && (
-              <div className="mt-3 space-y-1.5 border-t border-sidebar-border pt-3 text-xs text-muted-foreground">
+              <div className="mt-3 space-y-1.5 border-t border-sidebar-border pt-3 text-xs text-sidebar-foreground/70">
                 {user.department && (
                   <p className="flex items-center gap-2 truncate">
                     <Building2 size={13} className="shrink-0" />
@@ -426,7 +426,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <Button
           variant="ghost"
           onClick={handleLogout}
-          className="h-10 w-full justify-start gap-3 rounded-lg px-3 text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          className="h-10 w-full justify-start gap-3 rounded-lg px-3 text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         >
           <LogOut size={18} />
           خروج از حساب کاربری
@@ -460,7 +460,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               size="icon"
               aria-label="بستن منو"
               onClick={() => setSidebarOpen(false)}
-              className="absolute left-3 top-3 z-10 text-muted-foreground"
+              className="absolute left-3 top-3 z-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             >
               <X size={20} />
             </Button>

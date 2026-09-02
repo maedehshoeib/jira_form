@@ -532,27 +532,28 @@ export default function MyRequestsPage() {
             const active = statusTab === tab.id;
             const activeClass =
               tab.id === "all"
-                ? "bg-slate-900 text-white shadow-slate-900/20"
+                ? "bg-slate-900 text-white shadow-slate-900/20 hover:bg-slate-800 hover:text-white"
                 : workflowStatusMeta(tab.id).activeTabClass;
             return (
               <Button
                 key={tab.id}
                 type="button"
+                variant="ghost"
                 role="tab"
                 aria-selected={active}
                 onClick={() => setStatusTab(tab.id)}
                 className={[
-                  "flex min-w-max items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2",
+                  "flex h-auto min-h-10 min-w-max items-center gap-2 rounded-2xl px-4 py-2 text-sm font-bold transition",
                   active
                     ? activeClass + " shadow-md"
-                    : "text-muted-foreground hover:bg-muted/40",
+                    : "bg-transparent text-foreground hover:bg-muted hover:text-foreground",
                 ].join(" ")}
               >
                 <span>{tab.label}</span>
                 <span
                   className={[
                     "min-w-7 rounded-full px-2 py-0.5 text-center text-xs font-extrabold",
-                    active ? "bg-card/20 text-white" : "bg-muted text-muted-foreground",
+                    active ? "bg-white/20" : "bg-muted text-foreground",
                   ].join(" ")}
                 >
                   {tabCounts[tab.id].toLocaleString("fa-IR")}
@@ -657,13 +658,14 @@ export default function MyRequestsPage() {
             >
               <Button
                 type="button"
+                variant="ghost"
                 aria-pressed={viewMode === "cards"}
                 onClick={() => setViewMode("cards")}
                 className={[
-                  "flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400",
+                  "flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold transition",
                   viewMode === "cards"
-                    ? "bg-card text-primary shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
+                    ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 hover:text-primary-foreground"
+                    : "bg-transparent text-foreground/70 hover:bg-background hover:text-foreground",
                 ].join(" ")}
               >
                 <Grid2X2 size={15} aria-hidden="true" />
@@ -671,13 +673,14 @@ export default function MyRequestsPage() {
               </Button>
               <Button
                 type="button"
+                variant="ghost"
                 aria-pressed={viewMode === "table"}
                 onClick={() => setViewMode("table")}
                 className={[
-                  "flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400",
+                  "flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold transition",
                   viewMode === "table"
-                    ? "bg-card text-primary shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
+                    ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 hover:text-primary-foreground"
+                    : "bg-transparent text-foreground/70 hover:bg-background hover:text-foreground",
                 ].join(" ")}
               >
                 <Rows3 size={16} aria-hidden="true" />
@@ -871,23 +874,29 @@ export default function MyRequestsPage() {
       ) : (
         <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-md">
           <div className="overflow-x-auto">
-            <Table className="w-full min-w-[980px] text-right text-sm">
-              <thead className="border-b border-border bg-muted/40 text-xs font-bold text-muted-foreground">
+            <Table
+              className={
+                user?.is_admin
+                  ? "w-full min-w-[1180px] text-right text-sm"
+                  : "w-full min-w-[1040px] text-right text-sm"
+              }
+            >
+              <thead className="border-b border-border bg-muted/60 text-xs font-bold text-foreground/70">
                 <tr>
-                  <th scope="col" className="px-4 py-4">شناسه</th>
-                  <th scope="col" className="px-4 py-4">درخواست</th>
-                  <th scope="col" className="px-4 py-4">دسته‌بندی</th>
-                  <th scope="col" className="px-4 py-4">مسئول رسیدگی</th>
-                  {user?.is_admin && <th scope="col" className="px-4 py-4">ثبت‌کننده</th>}
-                  <th scope="col" className="px-4 py-4">وضعیت</th>
-                  <th scope="col" className="px-4 py-4">پیشرفت</th>
-                  <th scope="col" className="px-4 py-4">زمان ثبت</th>
-                  <th scope="col" className="px-4 py-4">
-                    <span className="sr-only">عملیات</span>
+                  <th scope="col" className="whitespace-nowrap px-5 py-3.5">شناسه</th>
+                  <th scope="col" className="whitespace-nowrap px-5 py-3.5">درخواست</th>
+                  <th scope="col" className="whitespace-nowrap px-5 py-3.5">دسته‌بندی</th>
+                  <th scope="col" className="whitespace-nowrap px-5 py-3.5">مسئول رسیدگی</th>
+                  {user?.is_admin && <th scope="col" className="whitespace-nowrap px-5 py-3.5">ثبت‌کننده</th>}
+                  <th scope="col" className="whitespace-nowrap px-5 py-3.5">وضعیت</th>
+                  <th scope="col" className="whitespace-nowrap px-5 py-3.5">پیشرفت</th>
+                  <th scope="col" className="whitespace-nowrap px-5 py-3.5">زمان ثبت</th>
+                  <th scope="col" className="whitespace-nowrap px-5 py-3.5">
+                    <span>عملیات</span>
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-border">
                 {filteredRequests.map((request) => {
                   const statusMeta = workflowStatusMeta(request.workflow_status);
                   const progress = normalizedProgress(request.progress_percent);
@@ -911,19 +920,20 @@ export default function MyRequestsPage() {
                       key={request.id}
                       className={
                         request.workflow_status === "unseen"
-                          ? "bg-amber-50/30 transition hover:bg-amber-50/60"
-                          : "bg-card transition hover:bg-muted/40"
+                          ? "bg-amber-50/40 transition-colors hover:bg-amber-50/70 dark:bg-amber-950/10 dark:hover:bg-amber-950/20"
+                          : "bg-card transition-colors hover:bg-muted/50"
                       }
                     >
-                      <td className="whitespace-nowrap px-4 py-4 font-bold text-muted-foreground">
+                      <td className="whitespace-nowrap px-5 py-3.5 align-middle text-sm font-extrabold text-foreground/80">
                         {request.id.toLocaleString("fa-IR")}
                       </td>
-                      <td className="max-w-64 px-4 py-4">
+                      <td className="min-w-72 max-w-80 px-5 py-3.5 align-middle">
                         <Button
                           type="button"
+                          variant="ghost"
                           onClick={() => void openRequest(request)}
                           disabled={detailLoading}
-                          className="block max-w-full text-right font-bold text-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-60"
+                          className="h-auto w-full min-w-0 flex-col items-start gap-0.5 rounded-xl px-3 py-2 text-right font-bold text-foreground hover:bg-muted hover:text-primary"
                         >
                           <span className="block truncate" title={requestTitle}>
                             {requestTitle}
@@ -933,12 +943,12 @@ export default function MyRequestsPage() {
                           </span>
                         </Button>
                       </td>
-                      <td className="max-w-48 px-4 py-4 text-muted-foreground">
+                      <td className="min-w-48 max-w-56 px-5 py-3.5 align-middle text-foreground/70">
                         <span className="block truncate" title={request.department_title}>
                           {request.department_title || "—"}
                         </span>
                       </td>
-                      <td className="max-w-52 px-4 py-4 text-muted-foreground">
+                      <td className="min-w-52 max-w-60 px-5 py-3.5 align-middle text-foreground/70">
                         <span
                           className="block truncate"
                           title={currentAssignees.join("، ") || "نامشخص"}
@@ -952,18 +962,18 @@ export default function MyRequestsPage() {
                         )}
                       </td>
                       {user?.is_admin && (
-                        <td className="max-w-40 px-4 py-4 text-muted-foreground">
+                        <td className="min-w-40 max-w-48 px-5 py-3.5 align-middle text-foreground/70">
                           <span className="block truncate" title={request.submitted_by}>
                             {request.submitted_by || "—"}
                           </span>
                         </td>
                       )}
-                      <td className="whitespace-nowrap px-4 py-4">
+                      <td className="whitespace-nowrap px-5 py-3.5 align-middle">
                         <Badge variant="outline" className={statusMeta.badgeClass}>
                           {statusMeta.label}
                         </Badge>
                       </td>
-                      <td className="w-36 px-4 py-4">
+                      <td className="w-40 px-5 py-3.5 align-middle">
                         <span className="mb-1.5 block text-xs font-bold text-foreground">
                           {progress.toLocaleString("fa-IR")}٪
                         </span>
@@ -981,18 +991,20 @@ export default function MyRequestsPage() {
                           />
                         </div>
                       </td>
-                      <td className="whitespace-nowrap px-4 py-4 text-xs text-muted-foreground">
+                      <td className="whitespace-nowrap px-5 py-3.5 align-middle text-xs leading-5 text-muted-foreground">
                         {formatPersianDateTime(request.created_at)}
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="whitespace-nowrap px-5 py-3.5">
                         <Button
                           type="button"
                           onClick={() => void openRequest(request)}
                           disabled={detailLoading}
                           aria-label={`مشاهده جزئیات درخواست ${requestTitle}`}
-                          className="flex h-9 w-9 items-center justify-center rounded-lg text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-60"
+                          variant="outline"
+                          className="h-9 gap-1.5 rounded-xl bg-card px-3 text-primary hover:bg-primary/10 hover:text-primary"
                         >
-                          <ChevronLeft size={18} aria-hidden="true" />
+                          <span>جزئیات</span>
+                          <ChevronLeft size={16} aria-hidden="true" />
                         </Button>
                       </td>
                     </tr>

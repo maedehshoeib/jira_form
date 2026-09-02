@@ -266,23 +266,26 @@ function DestinationCard({ card }: { card: HomeCard }) {
   const content = (
     <Card
       className={cn(
-        "group relative isolate h-full overflow-hidden rounded-[1.75rem] border transition-all duration-500",
+        "group relative isolate h-full overflow-hidden rounded-[1.75rem] border ring-1 ring-black/[0.03] transition-all duration-300 will-change-transform dark:ring-white/[0.06]",
         card.href
           ? isFeatured
-            ? "border-indigo-200/90 bg-gradient-to-br from-indigo-50 via-white to-sky-50 shadow-[0_12px_32px_-20px_rgba(79,70,229,0.55)] hover:-translate-y-2 hover:border-indigo-300 hover:shadow-[0_18px_38px_-20px_rgba(79,70,229,0.65)] focus-within:-translate-y-1 dark:border-indigo-300/45 dark:from-indigo-950/80 dark:via-slate-800 dark:to-sky-950/60 dark:shadow-[0_16px_36px_-20px_rgba(129,140,248,0.5)] dark:hover:border-indigo-300/70"
-            : "border-border bg-card shadow-sm hover:-translate-y-2 hover:border-primary/30 hover:shadow-lg hover:shadow-red-100/60 focus-within:-translate-y-1 dark:border-slate-600 dark:bg-slate-800/90 dark:shadow-lg dark:shadow-black/30 dark:hover:border-red-400/50 dark:hover:bg-slate-800 dark:hover:shadow-red-950/40"
-          : "border-dashed border-border bg-muted/40 shadow-none dark:border-slate-600 dark:bg-slate-800/50",
+            ? "border-indigo-200/90 bg-gradient-to-br from-indigo-50 via-white to-sky-50 shadow-[0_18px_45px_-18px_rgba(79,70,229,0.38),0_8px_18px_-12px_rgba(14,165,233,0.24)] hover:-translate-y-2 hover:scale-[1.015] hover:border-indigo-300 hover:shadow-[0_30px_65px_-20px_rgba(79,70,229,0.5),0_14px_28px_-16px_rgba(14,165,233,0.35)] focus-within:-translate-y-1 dark:border-indigo-300/45 dark:from-indigo-950/80 dark:via-slate-800 dark:to-sky-950/60 dark:shadow-[0_22px_52px_-20px_rgba(0,0,0,0.72),0_10px_28px_-18px_rgba(129,140,248,0.5)] dark:hover:border-indigo-300/70 dark:hover:shadow-[0_32px_70px_-22px_rgba(0,0,0,0.82),0_16px_34px_-18px_rgba(129,140,248,0.62)]"
+            : "border-border/90 bg-gradient-to-br from-card via-card to-primary/[0.04] shadow-[0_18px_45px_-20px_rgba(15,23,42,0.28),0_8px_18px_-14px_rgba(15,23,42,0.16)] hover:-translate-y-2 hover:scale-[1.015] hover:border-primary/35 hover:shadow-[0_30px_65px_-22px_rgba(15,23,42,0.34),0_14px_28px_-18px_rgba(15,23,42,0.22)] focus-within:-translate-y-1 dark:border-slate-600 dark:from-slate-800/95 dark:via-slate-800/90 dark:to-primary/10 dark:shadow-[0_22px_52px_-20px_rgba(0,0,0,0.72),0_10px_24px_-18px_rgba(0,0,0,0.68)] dark:hover:border-primary/55 dark:hover:shadow-[0_32px_70px_-22px_rgba(0,0,0,0.82),0_16px_34px_-20px_rgba(0,0,0,0.76)]"
+          : "border-dashed border-border/80 bg-gradient-to-br from-muted/55 to-muted/25 shadow-[0_12px_30px_-22px_rgba(15,23,42,0.22)] dark:border-slate-600 dark:from-slate-800/55 dark:to-slate-900/35 dark:shadow-[0_16px_34px_-24px_rgba(0,0,0,0.55)]",
       )}
     >
-      {isFeatured && (
-        <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-indigo-500/70 to-transparent" />
-      )}
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent to-transparent",
+          isFeatured ? "via-indigo-500/80" : "via-primary/45",
+        )}
+      />
       <div
         className={cn(
           "pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full blur-3xl transition-all duration-500",
           isFeatured
             ? "bg-indigo-500/20 group-hover:bg-indigo-400/30 dark:bg-indigo-400/20 dark:group-hover:bg-indigo-300/30"
-            : "bg-primary/10 group-hover:bg-red-400/20 dark:bg-primary/15 dark:group-hover:bg-red-400/25",
+            : "bg-primary/10 group-hover:bg-primary/20 dark:bg-primary/15 dark:group-hover:bg-primary/25",
         )}
       />
       <div
@@ -290,7 +293,7 @@ function DestinationCard({ card }: { card: HomeCard }) {
           "pointer-events-none absolute -bottom-16 -left-12 h-36 w-36 rounded-full blur-3xl",
           isFeatured
             ? "bg-sky-300/25 dark:bg-sky-300/10"
-            : "bg-rose-300/10 dark:bg-rose-300/5",
+            : "bg-primary/[0.07] dark:bg-primary/[0.08]",
         )}
       />
       <CardContent className="relative flex h-full min-h-56 flex-col items-center justify-center p-7 text-center sm:p-8">
@@ -307,7 +310,7 @@ function DestinationCard({ card }: { card: HomeCard }) {
 
         <div
           className={cn(
-            "relative z-10 mb-6 flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border shadow-sm transition-transform duration-500",
+            "relative z-10 mb-6 flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border shadow-[0_12px_28px_-14px_rgba(15,23,42,0.3)] ring-1 ring-white/50 transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-[0_18px_34px_-16px_rgba(15,23,42,0.38)] dark:ring-white/10",
             card.href
               ? cn(HOME_ICON_STYLES[card.id], "group-hover:scale-110 group-hover:-rotate-3")
               : "border-border bg-muted text-muted-foreground dark:border-white/20 dark:bg-card/10 dark:text-white/40",
@@ -318,7 +321,7 @@ function DestinationCard({ card }: { card: HomeCard }) {
 
         <h3
           className={cn(
-            "text-xl font-bold leading-8",
+            "text-xl font-extrabold leading-8 tracking-tight",
             isFeatured
               ? "text-indigo-950 dark:text-indigo-50"
               : "text-foreground dark:text-white",
@@ -326,17 +329,17 @@ function DestinationCard({ card }: { card: HomeCard }) {
         >
           {card.title}
         </h3>
-        <div className="mt-3 flex items-center justify-center gap-1 text-sm font-medium text-primary dark:text-red-200">
+        <div className="mt-3 flex items-center justify-center gap-1 text-sm font-medium text-primary">
           <span className={card.href ? "text-muted-foreground dark:text-white/70" : "text-muted-foreground dark:text-white/35"}>
             {card.description}
           </span>
           {card.href && (
             <ChevronLeft
               className={cn(
-                "absolute bottom-4 left-4 h-9 w-9 shrink-0 rounded-full border p-2 transition-all group-hover:-translate-x-1 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_0_14px_rgba(255,255,255,0.08)] dark:backdrop-blur",
+                "absolute bottom-4 left-4 h-10 w-10 shrink-0 rounded-full border p-2.5 shadow-sm transition-all duration-300 group-hover:-translate-x-1.5 group-hover:shadow-md dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_0_14px_rgba(255,255,255,0.08)] dark:backdrop-blur",
                 isFeatured
                   ? "border-indigo-200 bg-card/80 text-indigo-600 group-hover:border-indigo-300 group-hover:bg-indigo-100 dark:border-indigo-300/30 dark:bg-indigo-300/10 dark:text-indigo-100 dark:group-hover:border-indigo-200/60 dark:group-hover:bg-indigo-300/20"
-                  : "border-border bg-muted/40 text-muted-foreground group-hover:border-primary/30 group-hover:bg-primary/10 group-hover:text-primary dark:border-white/25 dark:bg-card/10 dark:text-white/80 dark:group-hover:border-primary/60 dark:group-hover:bg-red-400/20 dark:group-hover:text-white/80",
+                  : "border-border bg-card/90 text-muted-foreground group-hover:border-primary/40 group-hover:bg-primary/10 group-hover:text-primary dark:border-white/25 dark:bg-card/10 dark:text-white/80 dark:group-hover:border-primary/60 dark:group-hover:bg-primary/20 dark:group-hover:text-white/90",
               )}
             />
           )}
@@ -346,7 +349,10 @@ function DestinationCard({ card }: { card: HomeCard }) {
   );
 
   return card.href ? (
-    <Link href={card.href} className="block h-full">
+    <Link
+      href={card.href}
+      className="block h-full rounded-[1.75rem] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-4 focus-visible:ring-offset-background"
+    >
       {content}
     </Link>
   ) : (
@@ -505,14 +511,14 @@ export default function HomePage() {
       >
         <aside
           dir="rtl"
-          className="order-2 overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm xl:order-1 xl:sticky xl:top-8"
+          className="order-2 overflow-hidden rounded-[1.75rem] border border-border/90 bg-card text-card-foreground shadow-[0_20px_50px_-24px_rgba(15,23,42,0.3),0_8px_20px_-16px_rgba(15,23,42,0.18)] ring-1 ring-black/[0.03] xl:order-1 xl:sticky xl:top-8 dark:border-slate-600 dark:shadow-[0_24px_58px_-24px_rgba(0,0,0,0.75)] dark:ring-white/[0.06]"
         >
-          <div className="flex items-center justify-between border-b border-border bg-muted/40 px-4 py-4">
+          <div className="flex items-center justify-between border-b border-border bg-gradient-to-l from-muted/70 via-muted/45 to-card px-5 py-5">
             <div>
               <h2 className="text-base font-bold text-foreground">آخرین اخبار</h2>
               <p className="mt-1 text-xs text-muted-foreground">تازه‌ترین اطلاعیه‌های سازمان</p>
             </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/15 bg-primary/10 text-primary shadow-sm">
               <Megaphone className="h-5 w-5" />
             </div>
           </div>

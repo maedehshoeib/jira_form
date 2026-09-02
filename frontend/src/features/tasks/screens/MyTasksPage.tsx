@@ -712,7 +712,11 @@ export default function MyTasksPage() {
       )}
 
       {!loading && tasks.length > 0 && (
-        <div className="mb-6 grid gap-2 rounded-3xl border border-border bg-card p-2 shadow-md sm:grid-cols-2 lg:grid-cols-5">
+        <div
+          role="tablist"
+          aria-label="فیلتر وظایف بر اساس وضعیت"
+          className="mb-6 grid gap-2 rounded-3xl border border-border bg-card p-2 shadow-md sm:grid-cols-2 lg:grid-cols-5"
+        >
           {STATUS_TABS.map((tab) => {
             const active = statusTab === tab.id;
             const count = tabCounts[tab.id];
@@ -720,17 +724,20 @@ export default function MyTasksPage() {
               <Button
                 key={tab.id}
                 type="button"
+                variant="ghost"
+                role="tab"
+                aria-selected={active}
                 onClick={() => setStatusTab(tab.id)}
-                className={`flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-bold transition ${
+                className={`flex h-auto min-h-10 items-center justify-between rounded-2xl px-4 py-2 text-sm font-bold transition ${
                   active
-                    ? "bg-primary text-white shadow-md shadow-red-600/20"
-                    : "text-muted-foreground hover:bg-muted/40"
+                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90 hover:text-primary-foreground"
+                    : "bg-transparent text-foreground hover:bg-muted hover:text-foreground"
                 }`}
               >
                 <span>{tab.label}</span>
                 <span
                   className={`min-w-7 rounded-full px-2 py-0.5 text-center text-xs font-extrabold ${
-                    active ? "bg-card/20 text-white" : "bg-muted text-muted-foreground"
+                    active ? "bg-white/20" : "bg-muted text-foreground"
                   }`}
                 >
                   {count.toLocaleString("fa-IR")}

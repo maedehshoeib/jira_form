@@ -11,6 +11,7 @@ import persianFa from "react-date-object/locales/persian_fa";
 import client from "@/api/client";
 import { endpoints } from "@/api/endpoints";
 import AppShell from "@/components/layout/AppShell";
+import ThemeColorPicker from "@/components/ThemeColorPicker";
 import UserAvatar from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -262,6 +263,12 @@ export default function ProfilePage() {
           </Card>
 
           <div className="space-y-6">
+            <Card className="rounded-3xl border-border shadow-sm">
+              <CardContent className="p-6">
+                <ThemeColorPicker />
+              </CardContent>
+            </Card>
+
             <Card className="overflow-visible rounded-xl border-border shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">

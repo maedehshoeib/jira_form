@@ -47,3 +47,14 @@ Run targeted pytest files first, then `python -m pytest` for backend changes.
 For a schema change, create a revision from `backend` with
 `python -m alembic revision --autogenerate -m "description"` and inspect the
 generated upgrade and downgrade before committing it.
+
+## User appearance preferences
+
+The profile page includes a theme color picker backed by `ThemeContext`. The selected
+accent palette is stored in browser local storage under `portal_theme_color` and is
+applied through the `data-theme-color` attribute on the root HTML element. Palette
+definitions live in `src/index.css` and must continue to define semantic `primary`,
+`accent`, and `ring` tokens for both light and dark modes.
+
+Sidebar colors use the separate `sidebar-*` token family and intentionally remain red
+for every accent palette.
