@@ -14,7 +14,6 @@ import {
   Loader2,
   Paperclip,
   RefreshCw,
-  RotateCcw,
   Search,
   SlidersHorizontal,
   UserRound,
@@ -1131,7 +1130,7 @@ export default function MyTasksPage() {
                             {"\u062f\u0631\u0635\u062f \u067e\u06cc\u0634\u0631\u0641\u062a"}
                           </Label>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            {"\u062a\u06a9\u0645\u06cc\u0644 \u0646\u0647\u0627\u06cc\u06cc \u0641\u0642\u0637 \u0628\u0627 \u062f\u06a9\u0645\u0647 \u00ab\u0627\u0646\u062c\u0627\u0645 \u0634\u062f\u0647\u00bb \u062b\u0628\u062a \u0645\u06cc\u200c\u0634\u0648\u062f."}
+                            {"\u0646\u062a\u06cc\u062c\u0647 \u0646\u0647\u0627\u06cc\u06cc \u0631\u0627 \u0627\u0631\u0633\u0627\u0644\u200c\u06a9\u0646\u0646\u062f\u0647 \u062f\u0631\u062e\u0648\u0627\u0633\u062a \u062b\u0628\u062a \u0645\u06cc\u200c\u06a9\u0646\u062f."}
                           </p>
                         </div>
                         <span
@@ -1243,6 +1242,7 @@ export default function MyTasksPage() {
                       : ""}
                   </p>
                   <div className="flex flex-wrap gap-2">
+                    {selected.form_id === "meeting-room-reservation-form" && (
                     <Button
                       type="button"
                       onClick={() => openStatusPanel("approved")}
@@ -1262,6 +1262,8 @@ export default function MyTasksPage() {
                         ? "تایید"
                         : "انجام شده"}
                     </Button>
+                    )}
+                    {selected.form_id === "meeting-room-reservation-form" && (
                     <Button
                       type="button"
                       variant="outline"
@@ -1276,18 +1278,6 @@ export default function MyTasksPage() {
                       <XCircle className="h-4 w-4" />
                       {selected.status === "rejected" ? "رد شده" : "رد"}
                     </Button>
-                    {selected.form_id !== "meeting-room-reservation-form" &&
-                      selected.status !== "submitted" && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => void updateStatus("submitted")}
-                        disabled={actionLoading}
-                        className="gap-2 border-amber-200 text-amber-800 hover:bg-amber-50"
-                      >
-                        <RotateCcw className="h-4 w-4" />
-                        بازگشت به اقدام‌نشده
-                      </Button>
                     )}
                     {selected.form_id !== "meeting-room-reservation-form" &&
                       (selected.status === "submitted" ||
@@ -1306,7 +1296,9 @@ export default function MyTasksPage() {
                 </div>
               )}
 
-              {statusPanel && selected.can_act && (
+              {statusPanel &&
+                selected.can_act &&
+                selected.form_id === "meeting-room-reservation-form" && (
                 <div
                   className={`space-y-3 rounded-2xl border p-4 ${
                     statusPanel === "approved"

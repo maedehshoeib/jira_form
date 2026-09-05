@@ -313,13 +313,23 @@ def set_task_status(
     submission = db.query(Submission).filter(Submission.id == submission_id).first()
     if not submission:
         raise LookupError("درخواست یافت نشد")
-    if not user_can_access_task(db, actor, submission):
+    is_meeting_room = is_meeting_room_submission(submission)
+    is_submitter = submission.user_id == actor.id
+    if is_meeting_room:
+        if not user_can_access_task(db, actor, submission):
+            raise PermissionError("شما به این وظیفه دسترسی ندارید.")
+    elif status in TERMINAL_TASK_STATUSES or status == "submitted":
+        if not is_submitter:
+            raise PermissionError(
+                "فقط ارسال‌کننده درخواست می‌تواند نتیجه نهایی را ثبت یا اصلاح کند."
+            )
+    elif not user_can_access_task(db, actor, submission):
         raise PermissionError("شما به این وظیفه دسترسی ندارید.")
     old_status = submission.status or "submitted"
     old_progress = int(submission.progress_percent or 0)
     if progress_percent is not None and not 0 <= progress_percent <= 100:
         raise ValueError("درصد پیشرفت باید بین صفر تا صد باشد.")
-    if status == "approved" and is_meeting_room_submission(submission):
+    if status == "approved" and is_meeting_room:
         return approve_meeting_room_step(
             db,
             actor,

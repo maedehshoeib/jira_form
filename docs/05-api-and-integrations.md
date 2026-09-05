@@ -16,6 +16,7 @@ The browser uses relative `/api/v1` URLs. In Next.js these requests are rewritte
 | Timesheet | `/api/v1/timesheet` |
 
 WebSocket clients use `NEXT_PUBLIC_WS_BASE_URL` when configured. The local fallback connects to port `8000` on the current hostname. Production should provide a TLS WebSocket origin or reverse-proxy `/api/v1/chat/ws` to FastAPI.
+
 ## Request referral attachments
 
 Both `POST /api/v1/tasks/{submission_id}/refer` and
@@ -25,3 +26,13 @@ Send each file as a repeated `attachments` field; the legacy singular
 `attachment_names` list and retain `attachment_name` as the first file for
 older clients. Download a file by passing its zero-based `index` to the
 referral attachment endpoint.
+
+## Request status ownership
+
+For ordinary requests, status ownership is split by role:
+
+- Receivers use `PATCH /api/v1/tasks/{submission_id}/status` only to submit an `in_progress` status, a progress percentage from 0 through 99, notes, and optional attachments.
+- The original sender uses `PATCH /api/v1/submissions/{submission_id}/status` to record the final result as `approved` (finished) or `rejected` (not finished), and may use `submitted` to reopen the request.
+- The backend enforces this ownership; hiding controls in the UI is not the authorization boundary.
+
+Meeting-room reservations retain their separate chained approver workflow.

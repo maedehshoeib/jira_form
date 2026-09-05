@@ -251,6 +251,9 @@ export default function MyRequestsPage() {
   const [selectedColleagueIds, setSelectedColleagueIds] = useState<number[]>([]);
   const [referNote, setReferNote] = useState("");
   const [referAttachments, setReferAttachments] = useState<File[]>([]);
+  const [finalStatusLoading, setFinalStatusLoading] = useState(false);
+  const [finalStatusError, setFinalStatusError] = useState("");
+  const [finalStatusNote, setFinalStatusNote] = useState("");
 
   const loadRequests = async () => {
     setLoading(true);
@@ -521,6 +524,35 @@ export default function MyRequestsPage() {
     }
   };
 
+  const updateFinalStatus = async (
+    status: "approved" | "rejected" | "submitted",
+  ) => {
+    if (!selected || selected.submitted_by_username !== user?.username) return;
+    setFinalStatusLoading(true);
+    setFinalStatusError("");
+    try {
+      const { data } = await client.patch<SubmissionDetail>(
+        `${endpoints.submissions}/${selected.id}/status`,
+        { status, note: finalStatusNote.trim() },
+      );
+      setSelected((previous) =>
+        previous ? { ...data, data: previous.data } : data,
+      );
+      setRequests((previous) =>
+        previous.map((item) =>
+          item.id === data.id ? { ...item, ...data } : item,
+        ),
+      );
+      setFinalStatusNote("");
+      window.dispatchEvent(new Event("tasks:refresh-notifications"));
+    } catch {
+      setFinalStatusError(
+        "ثبت نتیجه نهایی درخواست با مشکل مواجه شد. لطفاً دوباره تلاش کنید.",
+      );
+    } finally {
+      setFinalStatusLoading(false);
+    }
+  };
   const filteredColleagues = useMemo(() => {
     const query = colleagueQuery.trim().toLocaleLowerCase("fa");
     if (!query) return colleagues;
@@ -1146,6 +1178,69 @@ export default function MyRequestsPage() {
             <div className="space-y-6 p-6 sm:p-8">
               <WorkflowOverview status={selected.workflow_status} />
 
+              {selected.form_id !== "meeting-room-reservation-form" &&
+                selected.submitted_by_username === user?.username && (
+                  <section className="space-y-4 rounded-3xl border border-emerald-100 bg-emerald-50/50 p-5">
+                    <div>
+                      <h4 className="font-bold text-foreground">
+                        نتیجه نهایی درخواست
+                      </h4>
+                      <p className="mt-1 text-xs leading-6 text-muted-foreground">
+                        فقط شما به‌عنوان ارسال‌کننده می‌توانید انجام‌شدن یا
+                        انجام‌نشدن این درخواست را تأیید کنید.
+                      </p>
+                    </div>
+                    <Textarea
+                      value={finalStatusNote}
+                      onChange={(event) => setFinalStatusNote(event.target.value)}
+                      maxLength={512}
+                      placeholder="توضیح نتیجه نهایی (اختیاری)"
+                      className="min-h-20 bg-card"
+                    />
+                    {finalStatusError && (
+                      <p role="alert" className="text-sm font-semibold text-primary">
+                        {finalStatusError}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        onClick={() => void updateFinalStatus("approved")}
+                        disabled={finalStatusLoading || selected.status === "approved"}
+                        className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
+                      >
+                        {finalStatusLoading ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="h-4 w-4" />
+                        )}
+                        انجام شده است
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void updateFinalStatus("rejected")}
+                        disabled={finalStatusLoading || selected.status === "rejected"}
+                        className="gap-2 border-primary/30 text-primary hover:bg-primary/10"
+                      >
+                        <XCircle className="h-4 w-4" />
+                        انجام نشده است
+                      </Button>
+                      {(selected.status === "approved" ||
+                        selected.status === "rejected") && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => void updateFinalStatus("submitted")}
+                          disabled={finalStatusLoading}
+                          className="border-amber-200 text-amber-800 hover:bg-amber-50"
+                        >
+                          بازگشایی درخواست
+                        </Button>
+                      )}
+                    </div>
+                  </section>
+                )}
               {selected.form_id !== "meeting-room-reservation-form" &&
                 (selected.status === "submitted" ||
                   selected.status === "in_progress") && (

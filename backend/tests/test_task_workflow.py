@@ -320,18 +320,23 @@ class TaskWorkflowMockTests(unittest.TestCase):
                 self.db, self.handler, self.submission.id, self.handler.id, ""
             )
 
-    def test_approve_and_status_edit(self):
+    def test_only_submitter_can_set_and_correct_final_status(self):
+        with self.assertRaises(PermissionError):
+            set_task_status(
+                self.db, self.handler, self.submission.id, "approved", "انجام شد"
+            )
+
         updated = set_task_status(
-            self.db, self.handler, self.submission.id, "approved", "انجام شد با موفقیت"
+            self.db, self.submitter, self.submission.id, "approved", "انجام شد با موفقیت"
         )
         self.assertEqual(updated.status, "approved")
-        self.assertEqual(updated.status_updated_by_id, self.handler.id)
+        self.assertEqual(updated.status_updated_by_id, self.submitter.id)
         self.assertEqual(updated.status_note, "انجام شد با موفقیت")
         self.assertIsNotNone(updated.status_updated_at)
 
         # Status can be corrected after a mistaken approve/reject.
         corrected = set_task_status(
-            self.db, self.handler, self.submission.id, "rejected", "اشتباه بود"
+            self.db, self.submitter, self.submission.id, "rejected", "اشتباه بود"
         )
         self.assertEqual(corrected.status, "rejected")
         self.assertEqual(corrected.status_note, "اشتباه بود")
@@ -343,7 +348,7 @@ class TaskWorkflowMockTests(unittest.TestCase):
             )
 
         restored = set_task_status(
-            self.db, self.handler, self.submission.id, "submitted"
+            self.db, self.submitter, self.submission.id, "submitted"
         )
         self.assertEqual(restored.status, "submitted")
         self.assertEqual(restored.status_note, "")
@@ -351,15 +356,19 @@ class TaskWorkflowMockTests(unittest.TestCase):
             self.db, self.handler, self.submission.id, self.colleague.id, "بعد از اصلاح"
         )
 
-    def test_reject_by_referral_recipient(self):
+    def test_referral_recipient_cannot_set_final_status(self):
         refer_task(
             self.db, self.handler, self.submission.id, self.colleague.id, "ارجاع"
         )
+        with self.assertRaises(PermissionError):
+            set_task_status(
+                self.db, self.colleague, self.submission.id, "rejected"
+            )
         updated = set_task_status(
-            self.db, self.colleague, self.submission.id, "rejected"
+            self.db, self.submitter, self.submission.id, "rejected"
         )
         self.assertEqual(updated.status, "rejected")
-        self.assertEqual(updated.status_updated_by_id, self.colleague.id)
+        self.assertEqual(updated.status_updated_by_id, self.submitter.id)
 
     def test_outsider_cannot_act(self):
         with self.assertRaises(PermissionError):
@@ -519,56 +528,77 @@ class TaskWorkflowMockTests(unittest.TestCase):
         self.assertEqual(len(tasks), 1)
         self.assertEqual(tasks[0]["id"], self.submission.id)
 
-        approved = self.client.patch(
+        denied = self.client.patch(
             f"/api/v1/tasks/{self.submission.id}/status",
+            json={"status": "approved"},
+        )
+        self.assertEqual(denied.status_code, 403, denied.text)
+
+        self._as(self.submitter)
+        approved = self.client.patch(
+            f"/api/v1/submissions/{self.submission.id}/status",
             json={"status": "approved"},
         )
         self.assertEqual(approved.status_code, 200, approved.text)
         body = approved.json()
         self.assertEqual(body["status"], "approved")
-        self.assertTrue(body["can_act"])
-        self.assertEqual(body["status_updated_by"], "همکار تست")
+        self.assertFalse(body["can_act"])
+        self.assertEqual(body["status_updated_by"], "ثبت‌کننده تست")
 
+        self._as(self.colleague)
         pending_after = self.client.get("/api/v1/tasks/pending-count").json()
         self.assertEqual(pending_after["count"], 0)
         self.assertEqual(pending_after["ids"], [])
 
-        # Handler can still edit status after approve.
         self._as(self.handler)
         again = self.client.get(f"/api/v1/tasks/{self.submission.id}").json()
         self.assertEqual(again["status"], "approved")
         self.assertTrue(again["can_act"])
-
-        restored = self.client.patch(
+        denied_restore = self.client.patch(
             f"/api/v1/tasks/{self.submission.id}/status",
+            json={"status": "submitted"},
+        )
+        self.assertEqual(denied_restore.status_code, 403)
+
+        self._as(self.submitter)
+        restored = self.client.patch(
+            f"/api/v1/submissions/{self.submission.id}/status",
             json={"status": "submitted"},
         )
         self.assertEqual(restored.status_code, 200, restored.text)
         self.assertEqual(restored.json()["status"], "submitted")
-        self.assertTrue(restored.json()["can_act"])
+        self.assertFalse(restored.json()["can_act"])
 
         # Re-approve so referral remains blocked for the next check.
         self.client.patch(
-            f"/api/v1/tasks/{self.submission.id}/status",
+            f"/api/v1/submissions/{self.submission.id}/status",
             json={"status": "approved"},
         )
+        self._as(self.handler)
         blocked = self.client.post(
             f"/api/v1/tasks/{self.submission.id}/refer",
             json={"to_user_id": self.outsider.id, "note": "late"},
         )
         self.assertEqual(blocked.status_code, 422)
 
-    def test_http_reject_flow(self):
+    def test_http_sender_rejects_and_receiver_cannot(self):
         self._as(self.handler)
-        rejected = self.client.patch(
+        denied = self.client.patch(
             f"/api/v1/tasks/{self.submission.id}/status",
+            json={"status": "rejected", "note": "ناقص است"},
+        )
+        self.assertEqual(denied.status_code, 403, denied.text)
+
+        self._as(self.submitter)
+        rejected = self.client.patch(
+            f"/api/v1/submissions/{self.submission.id}/status",
             json={"status": "rejected", "note": "ناقص است"},
         )
         self.assertEqual(rejected.status_code, 200, rejected.text)
         body = rejected.json()
         self.assertEqual(body["status"], "rejected")
         self.assertEqual(body["status_note"], "ناقص است")
-        self.assertTrue(body["can_act"])
+        self.assertFalse(body["can_act"])
 
     def test_http_multi_refer(self):
         second = self._user("colleague2", "همکار دوم")
@@ -1065,8 +1095,14 @@ class TaskWorkflowMockTests(unittest.TestCase):
         self.assertEqual(referred.status_code, 200, referred.text)
         self.assertEqual(referred.json()["workflow_status"], "in_progress")
 
-        finished = self.client.patch(
+        denied_finish = self.client.patch(
             f"/api/v1/tasks/{self.submission.id}/status",
+            json={"status": "approved", "progress_percent": 45},
+        )
+        self.assertEqual(denied_finish.status_code, 403)
+        self._as(self.submitter)
+        finished = self.client.patch(
+            f"/api/v1/submissions/{self.submission.id}/status",
             json={"status": "approved", "progress_percent": 45},
         )
         self.assertEqual(finished.status_code, 200, finished.text)
@@ -1074,6 +1110,7 @@ class TaskWorkflowMockTests(unittest.TestCase):
         self.assertEqual(finished_body["status"], "approved")
         self.assertEqual(finished_body["workflow_status"], "completed")
         self.assertEqual(finished_body["progress_percent"], 100)
+        self._as(self.handler)
         self.assertEqual(
             self.client.get("/api/v1/tasks/pending-count").json(),
             {"count": 0, "ids": []},
@@ -1119,8 +1156,9 @@ class TaskWorkflowMockTests(unittest.TestCase):
             f"/api/v1/tasks/{self.submission.id}/refer",
             json={"to_user_id": self.colleague.id},
         )
+        self._as(self.submitter)
         rejected = self.client.patch(
-            f"/api/v1/tasks/{self.submission.id}/status",
+            f"/api/v1/submissions/{self.submission.id}/status",
             json={"status": "rejected", "note": "blocked"},
         )
         self.assertEqual(rejected.status_code, 200, rejected.text)

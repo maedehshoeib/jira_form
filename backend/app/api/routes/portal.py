@@ -1082,6 +1082,7 @@ def download_task_attachment(
 
 
 @router.patch("/tasks/{submission_id}/status", response_model=SubmissionResponse)
+@router.patch("/submissions/{submission_id}/status", response_model=SubmissionResponse)
 async def update_task_status(
     submission_id: int,
     request: Request,
@@ -1151,7 +1152,12 @@ async def update_task_status(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    return _task_response(db, current_user, submission, can_act=True)
+    return _task_response(
+        db,
+        current_user,
+        submission,
+        can_act=user_can_access_task(db, current_user, submission),
+    )
 
 
 @router.post("/tasks/{submission_id}/refer", response_model=SubmissionResponse)
