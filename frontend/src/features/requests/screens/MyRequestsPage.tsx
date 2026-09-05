@@ -1345,11 +1345,25 @@ export default function MyRequestsPage() {
                           <Input
                             type="file"
                             multiple
-                            onChange={(event) =>
-                              setReferAttachments(
-                                Array.from(event.target.files ?? []),
-                              )
-                            }
+                            onChange={(event) => {
+                              const addedFiles = Array.from(
+                                event.target.files ?? [],
+                              );
+                              setReferAttachments((currentFiles) => [
+                                ...currentFiles,
+                                ...addedFiles.filter(
+                                  (file) =>
+                                    !currentFiles.some(
+                                      (current) =>
+                                        current.name === file.name &&
+                                        current.size === file.size &&
+                                        current.lastModified ===
+                                          file.lastModified,
+                                    ),
+                                ),
+                              ]);
+                              event.currentTarget.value = "";
+                            }}
                             className="bg-card"
                           />
                           {referAttachments.map((file, index) => (

@@ -1544,9 +1544,22 @@ export default function MyTasksPage() {
                     <Input
                       type="file"
                       multiple
-                      onChange={(event) =>
-                        setReferAttachments(Array.from(event.target.files ?? []))
-                      }
+                      onChange={(event) => {
+                        const addedFiles = Array.from(event.target.files ?? []);
+                        setReferAttachments((currentFiles) => [
+                          ...currentFiles,
+                          ...addedFiles.filter(
+                            (file) =>
+                              !currentFiles.some(
+                                (current) =>
+                                  current.name === file.name &&
+                                  current.size === file.size &&
+                                  current.lastModified === file.lastModified,
+                              ),
+                          ),
+                        ]);
+                        event.currentTarget.value = "";
+                      }}
                       className="h-10 rounded-xl bg-card file:ml-3 file:rounded-lg file:border-0 file:bg-muted file:px-3 file:py-1 file:text-xs file:font-semibold"
                     />
                     {referAttachments.map((file, index) => (
