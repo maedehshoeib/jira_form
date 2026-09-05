@@ -40,3 +40,16 @@ For ordinary requests, status ownership is split by role:
 - The backend enforces this ownership; hiding controls in the UI is not the authorization boundary.
 
 Meeting-room reservations retain their separate chained approver workflow.
+
+## Management-letter delivery
+
+`POST /api/v1/management-letters` accepts two JSON-encoded multipart fields:
+`recipient_ids` for direct recipients and `cc_recipient_ids` for copied
+recipients. The same person cannot appear in both lists, but either list may be
+empty when the other contains at least one recipient.
+
+Each direct recipient receives an actionable task and any applicable deadline
+reminders. Each CC recipient receives a read-only announcement: it appears in
+their task/announcement feed and unread count, but it is excluded from pending
+task counts and cannot be progressed or referred. Letter reports expose each
+recipient''s `delivery_type` as `direct` or `cc`.

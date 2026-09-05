@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
 from pydantic import BaseModel
@@ -49,6 +50,7 @@ class LetterRecipientStatus(BaseModel):
     submission_id: int
     referred_to: str | None = None
     comment: str = ""
+    delivery_type: Literal["direct", "cc"] = "direct"
 
 
 class LetterReportItem(BaseModel):
@@ -154,6 +156,7 @@ async def send_management_letter(
     sender = str(form.get("sender") or "")
     sender_detail = str(form.get("sender_detail") or "")
     recipient_ids = str(form.get("recipient_ids") or "[]")
+    cc_recipient_ids = str(form.get("cc_recipient_ids") or "[]")
     recipient_comments = str(form.get("recipient_comments") or "{}")
 
     try:
@@ -172,6 +175,21 @@ async def send_management_letter(
         raise HTTPException(status_code=400, detail="فهرست گیرندگان نامعتبر است.")
 
     try:
+        parsed_cc_ids = json.loads(cc_recipient_ids)
+        if not isinstance(parsed_cc_ids, list):
+            raise ValueError("فهرست رونوشت‌ها نامعتبر است.")
+        if any(
+            not isinstance(item, int)
+            or isinstance(item, bool)
+            or item <= 0
+            for item in parsed_cc_ids
+        ):
+            raise ValueError("فهرست رونوشت‌ها نامعتبر است.")
+        cc_ids = parsed_cc_ids
+    except (json.JSONDecodeError, TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="فهرست رونوشت‌ها نامعتبر است.")
+
+    try:
         parsed_comments = json.loads(recipient_comments)
         if not isinstance(parsed_comments, dict):
             raise ValueError("یادداشت گیرندگان نامعتبر است.")
@@ -188,7 +206,7 @@ async def send_management_letter(
             if normalized_id in comments:
                 raise ValueError("یادداشت گیرندگان نامعتبر است.")
             comments[normalized_id] = comment
-        if not set(comments).issubset(ids) or any(
+        if not set(comments).issubset({*ids, *cc_ids}) or any(
             len(comment.strip()) > MAX_RECIPIENT_COMMENT_LENGTH
             for comment in comments.values()
         ):
@@ -217,6 +235,7 @@ async def send_management_letter(
             sender=sender,
             sender_detail=sender_detail,
             recipient_ids=ids,
+            cc_recipient_ids=cc_ids,
             attachments=saved_files,
             letter_type=letter_type,
         )
@@ -297,6 +316,7 @@ def management_letter_report(
                         submission_id=item["submission_id"],
                         referred_to=item.get("referred_to"),
                         comment=item.get("comment") or "",
+                        delivery_type=item.get("delivery_type") or "direct",
                     )
                     for item in row["recipients"]
                 ],

@@ -10,7 +10,13 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.jalali import jalali_to_gregorian
 from app.core.timezone import tehran_date_bounds_to_utc_naive
-from app.models.submission import Submission, SubmissionReferral, SubmissionReminder, SubmissionView
+from app.models.submission import (
+    Submission,
+    SubmissionCcRecipient,
+    SubmissionReferral,
+    SubmissionReminder,
+    SubmissionView,
+)
 from app.models.user import User
 from app.services.form_access_service import can_access_restricted_department
 from app.services.form_duty_service import snapshot_submission_initial_assignees
@@ -255,6 +261,7 @@ def create_management_letters(
     subject: str,
     description: str,
     recipient_ids: list[int],
+    cc_recipient_ids: list[int] | None = None,
     recipient_comments: dict[int, str] | None = None,
     letter_number: str = "",
     needs_reply: str = "",
@@ -324,16 +331,23 @@ def create_management_letters(
     if not files and attachment_path and attachment_name:
         files = [{"name": attachment_name, "path": attachment_path}]
 
+    direct_ids = list(dict.fromkeys(recipient_ids))
+    cc_ids = list(dict.fromkeys(cc_recipient_ids or []))
+    if set(direct_ids).intersection(cc_ids):
+        raise ValueError(
+            "هر شخص باید فقط به‌عنوان گیرنده مستقیم یا رونوشت انتخاب شود."
+        )
     recipients = _validate_recipients(
         db,
         actor,
-        recipient_ids,
+        [*direct_ids, *cc_ids],
         letter_type=normalized_letter_type,
     )
     # Each submission below is a per-recipient copy of the same logical letter,
     # so every copy keeps the complete original audience for display.
     all_recipient_ids = [recipient.id for recipient in recipients]
     selected_recipient_ids = {recipient.id for recipient in recipients}
+    direct_recipient_ids = set(direct_ids)
     cleaned_recipient_comments: dict[int, str] = {}
     for recipient_id, comment in (recipient_comments or {}).items():
         if (
@@ -361,6 +375,7 @@ def create_management_letters(
     first_name = files[0]["name"] if files else None
 
     for recipient in recipients:
+        delivery_type = "direct" if recipient.id in direct_recipient_ids else "cc"
         form_data: dict = {
             "subject": cleaned_subject,
             "description": cleaned_description,
@@ -372,6 +387,7 @@ def create_management_letters(
             "letter_batch_id": batch_id,
             "recipient_id": recipient.id,
             "recipient_name": recipient.display_name or recipient.username,
+            "recipient_delivery_type": delivery_type,
         }
         if normalized_letter_type == "external":
             form_data["letter_number"] = cleaned_letter_number
@@ -403,15 +419,24 @@ def create_management_letters(
             submission,
             explicit_user_ids=all_recipient_ids,
         )
-        db.add(
-            SubmissionReferral(
-                submission_id=submission.id,
-                from_user_id=actor.id,
-                to_user_id=recipient.id,
-                note="نامه‌های سازمانی",
+        if delivery_type == "direct":
+            db.add(
+                SubmissionReferral(
+                    submission_id=submission.id,
+                    from_user_id=actor.id,
+                    to_user_id=recipient.id,
+                    note="نامه‌های سازمانی",
+                )
             )
-        )
-        if reminder_required:
+        else:
+            db.add(
+                SubmissionCcRecipient(
+                    submission_id=submission.id,
+                    user_id=recipient.id,
+                    mentioned_by_id=actor.id,
+                )
+            )
+        if reminder_required and delivery_type == "direct":
             db.add_all(
                 _deadline_reminders(
                     submission,
@@ -541,6 +566,9 @@ def list_sent_letters(
             (submission.id, normalized_recipient_id) in submission_view_pairs
             if normalized_recipient_id is not None
             else submission.id in viewed_submission_ids
+        )
+        recipient["delivery_type"] = str(
+            data.get("recipient_delivery_type") or "direct"
         )
 
         if batch_id not in groups:

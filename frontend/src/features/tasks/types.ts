@@ -68,6 +68,7 @@ export type SubmissionListItem = {
   referrals?: ReferralItem[];
   cc_recipients?: CcRecipient[];
   can_act?: boolean;
+  is_announcement?: boolean;
   timeline?: TimelineItem[];
 };
 

@@ -839,8 +839,8 @@ export default function MyTasksPage() {
           </div>
 
           <p className="mt-4 text-xs text-muted-foreground">
-            {filteredTasks.length.toLocaleString("fa-IR")} وظیفه از{" "}
-            {tasks.length.toLocaleString("fa-IR")} وظیفه
+            {filteredTasks.length.toLocaleString("fa-IR")} مورد از{" "}
+            {tasks.length.toLocaleString("fa-IR")} وظیفه و اعلان
           </p>
         </div>
       )}
@@ -915,9 +915,15 @@ export default function MyTasksPage() {
                       ارجاع‌شده
                     </Badge>
                   )}
-                  <Badge variant="outline" className={statusBadgeClass(task.status)}>
-                    {displayStatus(task.status)}
-                  </Badge>
+                  {task.is_announcement ? (
+                    <Badge variant="outline" className="border-violet-200 bg-violet-50 text-violet-700">
+                      اعلان نامه (رونوشت)
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className={statusBadgeClass(task.status)}>
+                      {displayStatus(task.status)}
+                    </Badge>
+                  )}
                 </div>
               </div>
               <h3 className="w-full line-clamp-2 text-base font-bold leading-7 text-foreground">
@@ -1032,16 +1038,22 @@ export default function MyTasksPage() {
           <section
             role="dialog"
             aria-modal="true"
-            aria-label="جزئیات وظیفه"
+            aria-label={selected.is_announcement ? "جزئیات اعلان" : "جزئیات وظیفه"}
             className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-t-3xl bg-card shadow-2xl sm:rounded-3xl"
             onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b bg-card/95 p-6 backdrop-blur">
               <div>
                 <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" className={statusBadgeClass(selected.status)}>
-                    {displayStatus(selected.status)}
-                  </Badge>
+                  {selected.is_announcement ? (
+                    <Badge variant="outline" className="border-violet-200 bg-violet-50 text-violet-700">
+                      اعلان نامه (رونوشت)
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className={statusBadgeClass(selected.status)}>
+                      {displayStatus(selected.status)}
+                    </Badge>
+                  )}
                   {(selected.referrals?.length ?? 0) > 0 && (
                     <Badge
                       variant="outline"
@@ -1079,6 +1091,11 @@ export default function MyTasksPage() {
             </div>
 
             <div className="space-y-6 p-6 sm:p-8">
+              {selected.is_announcement && (
+                <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-800">
+                  این نامه برای اطلاع شما رونوشت شده است و نیازی به اقدام ندارد.
+                </div>
+              )}
               {actionError && (
                 <div className="rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary">
                   {actionError}
@@ -1110,10 +1127,12 @@ export default function MyTasksPage() {
                 </div>
               )}
 
-              <TaskProgress
-                progress={selected.progress_percent}
-                status={selected.status}
-              />
+              {!selected.is_announcement && (
+                <TaskProgress
+                  progress={selected.progress_percent}
+                  status={selected.status}
+                />
+              )}
 
               {selected.can_act && (
                 <div className="space-y-3 rounded-2xl border border-border bg-muted/40 p-4">

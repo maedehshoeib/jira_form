@@ -41,6 +41,7 @@ type LetterRecipientStatus = {
   submission_id: number;
   referred_to?: string | null;
   comment?: string;
+  delivery_type?: "direct" | "cc";
 };
 
 type LetterReportItem = {
@@ -92,14 +93,16 @@ function statusBadgeClass(status: string) {
 
 function batchSummary(item: LetterReportItem) {
   const total = item.recipients.length;
-  const done = item.recipients.filter((row) => row.status === "approved").length;
-  const rejected = item.recipients.filter((row) => row.status === "rejected").length;
-  const referred = item.recipients.filter((row) => row.status === "referred").length;
-  const inProgress = item.recipients.filter(
+  const actionable = item.recipients.filter((row) => row.delivery_type !== "cc");
+  const announcements = total - actionable.length;
+  const done = actionable.filter((row) => row.status === "approved").length;
+  const rejected = actionable.filter((row) => row.status === "rejected").length;
+  const referred = actionable.filter((row) => row.status === "referred").length;
+  const inProgress = actionable.filter(
     (row) => row.status === "in_progress",
   ).length;
-  const pending = total - done - rejected - referred - inProgress;
-  return { total, done, rejected, referred, inProgress, pending };
+  const pending = actionable.length - done - rejected - referred - inProgress;
+  return { total, announcements, done, rejected, referred, inProgress, pending };
 }
 
 export default function LetterReportPage({ letterType }: { letterType: LetterType }) {
@@ -453,6 +456,11 @@ export default function LetterReportPage({ letterType }: { letterType: LetterTyp
                       <Badge className="border-amber-200 bg-amber-50 text-amber-700">
                         {summary.pending.toLocaleString("fa-IR")} اقدام‌نشده
                       </Badge>
+                      {summary.announcements > 0 && (
+                        <Badge className="border-violet-200 bg-violet-50 text-violet-700">
+                          {summary.announcements.toLocaleString("fa-IR")} رونوشت اطلاع‌رسانی
+                        </Badge>
+                      )}
                       {summary.inProgress > 0 && (
                         <Badge className="border-sky-200 bg-sky-50 text-sky-700">
                           {summary.inProgress.toLocaleString("fa-IR")} در حال انجام
@@ -490,13 +498,16 @@ export default function LetterReportPage({ letterType }: { letterType: LetterTyp
                           <tr key={recipient.submission_id}>
                             <td className="px-4 py-3 font-semibold text-foreground">
                               {recipient.display_name}
+                              <Badge className={`mr-2 ${recipient.delivery_type === "cc" ? "border-violet-200 bg-violet-50 text-violet-700" : "border-sky-200 bg-sky-50 text-sky-700"}`}>
+                                {recipient.delivery_type === "cc" ? "رونوشت" : "مستقیم"}
+                              </Badge>
                             </td>
                             <td className="max-w-xs whitespace-pre-wrap break-words px-4 py-3 leading-6 text-muted-foreground">
                               {recipient.comment || "—"}
                             </td>
                             <td className="px-4 py-3">
                               <Badge className={statusBadgeClass(recipient.status)}>
-                                {displayStatus(recipient.status)}
+                                {recipient.delivery_type === "cc" ? "اعلان" : displayStatus(recipient.status)}
                               </Badge>
                             </td>
                             <td className="px-4 py-3 text-muted-foreground">

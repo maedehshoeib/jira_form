@@ -30,6 +30,16 @@ ALLOWED_TASK_STATUSES = {"approved", "rejected", "submitted", "in_progress"}
 TERMINAL_TASK_STATUSES = {"approved", "rejected"}
 
 
+def is_letter_announcement(submission: Submission) -> bool:
+    if submission.form_id != "management-letter-form":
+        return False
+    try:
+        data = json.loads(submission.data or "{}")
+    except (json.JSONDecodeError, TypeError):
+        return False
+    return data.get("recipient_delivery_type") == "cc"
+
+
 def user_is_referral_recipient(db: Session, user_id: int, submission_id: int) -> bool:
     return (
         db.query(SubmissionReferral.id)
@@ -45,6 +55,8 @@ def user_is_referral_recipient(db: Session, user_id: int, submission_id: int) ->
 def user_can_access_task(db: Session, user: User, submission: Submission) -> bool:
     if is_meeting_room_submission(submission):
         return user.is_admin or active_meeting_room_approver_id(submission) == user.id
+    if is_letter_announcement(submission):
+        return False
     if user.is_admin:
         return True
     if user_handles_target(
@@ -71,6 +83,8 @@ def user_is_cc_recipient(db: Session, user_id: int, submission_id: int) -> bool:
 
 
 def user_can_view_task(db: Session, user: User, submission: Submission) -> bool:
+    if user.is_admin:
+        return True
     if is_meeting_room_submission(submission):
         return (
             user.is_admin
@@ -161,8 +175,11 @@ def list_pending_task_ids(db: Session, user_id: int) -> list[int]:
     return [
         row.id
         for row in rows
-        if not is_meeting_room_submission(row)
-        or active_meeting_room_approver_id(row) == user_id
+        if not is_letter_announcement(row)
+        and (
+            not is_meeting_room_submission(row)
+            or active_meeting_room_approver_id(row) == user_id
+        )
     ]
 
 

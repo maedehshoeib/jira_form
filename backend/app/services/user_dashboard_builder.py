@@ -18,7 +18,7 @@ from app.schemas.user_dashboard import (
 )
 from app.services.admin_analytics_service import _form_title, _portal_department_title
 from app.services.portal_service import MANAGEMENT_LETTER_FORM_ID
-from app.services.task_workflow_service import list_task_submissions
+from app.services.task_workflow_service import is_letter_announcement, list_task_submissions
 
 STATUS_LABELS = {
     "submitted": "اقدام‌نشده",
@@ -71,12 +71,13 @@ def build_user_dashboard(db: Session, user: User) -> UserDashboardResponse:
     users_repository = UserRepository(db)
     requests = submissions.owned_by(user.id)
     tasks = list_task_submissions(db, user.id, limit=1_000_000)
+    actionable_tasks = [item for item in tasks if not is_letter_announcement(item)]
 
     user_ids = {item.user_id for item in tasks}
     users = users_repository.by_ids(user_ids)
     requester_counts: dict[str, int] = defaultdict(int)
     requester_departments: dict[str, int] = defaultdict(int)
-    for submission in tasks:
+    for submission in actionable_tasks:
         submitter = users.get(submission.user_id)
         requester_counts[
             (submitter.display_name or submitter.username) if submitter else "کاربر حذف‌شده"
@@ -125,34 +126,44 @@ def build_user_dashboard(db: Session, user: User) -> UserDashboardResponse:
         letter_type = str(_data(batch[0]).get("letter_type") or "external")
         sent_types[LETTER_TYPE_LABELS.get(letter_type, letter_type)] += 1
         for submission in batch:
-            sent_statuses[STATUS_LABELS.get(submission.status, submission.status)] += 1
+            status_label = (
+                "رونوشت اطلاع‌رسانی"
+                if is_letter_announcement(submission)
+                else STATUS_LABELS.get(submission.status, submission.status)
+            )
+            sent_statuses[status_label] += 1
     received_types: dict[str, int] = defaultdict(int)
     received_statuses: dict[str, int] = defaultdict(int)
     for submission in received_letters:
         letter_type = str(_data(submission).get("letter_type") or "external")
         received_types[LETTER_TYPE_LABELS.get(letter_type, letter_type)] += 1
-        received_statuses[STATUS_LABELS.get(submission.status, submission.status)] += 1
+        status_label = (
+            "رونوشت اطلاع‌رسانی"
+            if is_letter_announcement(submission)
+            else STATUS_LABELS.get(submission.status, submission.status)
+        )
+        received_statuses[status_label] += 1
 
     return UserDashboardResponse(
         user_name=user.display_name or user.username,
         summary=UserDashboardSummary(
-            total_tasks=len(tasks),
-            open_tasks=sum(item.status in OPEN_STATUSES for item in tasks),
-            completed_tasks=sum(item.status == "approved" for item in tasks),
+            total_tasks=len(actionable_tasks),
+            open_tasks=sum(item.status in OPEN_STATUSES for item in actionable_tasks),
+            completed_tasks=sum(item.status == "approved" for item in actionable_tasks),
             total_requests=len(requests),
             open_requests=sum(item.status in OPEN_STATUSES for item in requests),
             completed_requests=sum(item.status == "approved" for item in requests),
             sent_letters=len(sent_batches),
             received_letters=len(received_letters),
         ),
-        task_statuses=_chart(_status_counts(tasks)),
+        task_statuses=_chart(_status_counts(actionable_tasks)),
         request_statuses=_chart(_status_counts(requests)),
         top_requesters=_chart(requester_counts, 8),
         top_recipients=_chart(recipient_counts, 8),
         requester_departments=_chart(requester_departments, 8),
         request_departments=_chart(request_departments, 8),
         request_forms=_chart(request_forms, 8),
-        monthly_tasks=_monthly(tasks),
+        monthly_tasks=_monthly(actionable_tasks),
         monthly_requests=_monthly(requests),
         letters=UserDashboardLetters(
             sent_by_type=_chart(sent_types), received_by_type=_chart(received_types),

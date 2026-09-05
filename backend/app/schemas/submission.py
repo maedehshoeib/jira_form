@@ -81,6 +81,7 @@ class SubmissionListItem(BaseModel):
     referrals: list[SubmissionReferralItem] = Field(default_factory=list)
     cc_recipients: list[SubmissionCcRecipientItem] = Field(default_factory=list)
     can_act: bool = False
+    is_announcement: bool = False
 
 
 class SubmissionResponse(BaseModel):
@@ -116,6 +117,7 @@ class SubmissionResponse(BaseModel):
     cc_recipients: list[SubmissionCcRecipientItem] = Field(default_factory=list)
     timeline: list[SubmissionTimelineItem] = Field(default_factory=list)
     can_act: bool = False
+    is_announcement: bool = False
 
 
 class JiraStatusUpdate(BaseModel):

@@ -10,6 +10,7 @@ from app.db.base import Base
 from app.models.department import Department  # noqa: F401
 from app.models.submission import (
     Submission,
+    SubmissionCcRecipient,
     SubmissionInitialAssignee,
     SubmissionReferral,
 )
@@ -46,6 +47,18 @@ class UserDashboardTests(unittest.TestCase):
             form_id=MANAGEMENT_LETTER_FORM_ID,
             data={"recipient_id": self.user.id, "letter_batch_id": "in-1", "letter_type": "internal"},
         )
+        announcement = self._submission(
+            self.alice.id,
+            "رونوشت نامه",
+            "submitted",
+            form_id=MANAGEMENT_LETTER_FORM_ID,
+            data={
+                "recipient_id": self.user.id,
+                "recipient_delivery_type": "cc",
+                "letter_batch_id": "in-2",
+                "letter_type": "external",
+            },
+        )
         outgoing = self._submission(self.user.id, "درخواست من", "approved")
         sent_first = self._submission(
             self.user.id,
@@ -65,6 +78,7 @@ class UserDashboardTests(unittest.TestCase):
         self.db.add_all([
             SubmissionReferral(submission_id=incoming.id, from_user_id=self.alice.id, to_user_id=self.user.id),
             SubmissionReferral(submission_id=incoming_letter.id, from_user_id=self.alice.id, to_user_id=self.user.id),
+            SubmissionCcRecipient(submission_id=announcement.id, user_id=self.user.id, mentioned_by_id=self.alice.id),
             SubmissionInitialAssignee(submission_id=outgoing.id, user_id=self.bob.id),
             SubmissionInitialAssignee(submission_id=sent_first.id, user_id=self.bob.id),
         ])
@@ -95,11 +109,18 @@ class UserDashboardTests(unittest.TestCase):
         self.assertEqual(result.summary.open_tasks, 2)
         self.assertEqual(result.summary.total_requests, 3)
         self.assertEqual(result.summary.sent_letters, 1)
-        self.assertEqual(result.summary.received_letters, 1)
+        self.assertEqual(result.summary.received_letters, 2)
         self.assertEqual(result.top_requesters[0].label, "آلیس")
         self.assertEqual(result.top_requesters[0].value, 2)
         self.assertEqual(result.letters.sent_by_type[0].label, "برون‌سازمانی")
-        self.assertEqual(result.letters.received_by_type[0].label, "درون‌سازمانی")
+        self.assertEqual(
+            {item.label for item in result.letters.received_by_type},
+            {"درون‌سازمانی", "برون‌سازمانی"},
+        )
+        self.assertIn(
+            "رونوشت اطلاع‌رسانی",
+            {item.label for item in result.letters.received_by_status},
+        )
 
 
 if __name__ == "__main__":

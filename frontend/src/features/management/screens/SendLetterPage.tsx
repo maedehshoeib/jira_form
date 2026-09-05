@@ -246,6 +246,7 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [recipients, setRecipients] = useState<LetterRecipient[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [ccIds, setCcIds] = useState<Set<number>>(new Set());
   const [sharedComment, setSharedComment] = useState("");
   const [commentTargetIds, setCommentTargetIds] = useState<Set<number>>(
     new Set(),
@@ -344,8 +345,8 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
   }, [recipients, search]);
 
   const selectedRecipients = useMemo(
-    () => recipients.filter((user) => selectedIds.has(user.id)),
-    [recipients, selectedIds],
+    () => recipients.filter((user) => selectedIds.has(user.id) || ccIds.has(user.id)),
+    [ccIds, recipients, selectedIds],
   );
 
   const setRecipientSelected = (id: number, selected: boolean) => {
@@ -355,13 +356,48 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
       else next.delete(id);
       return next;
     });
+    if (selected) {
+      setCcIds((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
+    }
     setCommentTargetIds((current) => {
       const next = new Set(current);
       if (selected) next.add(id);
       else next.delete(id);
       return next;
     });
-    if (!selected) {
+    if (!selected && !ccIds.has(id)) {
+      setRecipientComments((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
+    }
+  };
+
+  const setCcSelected = (id: number, selected: boolean) => {
+    setCcIds((current) => {
+      const next = new Set(current);
+      if (selected) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+    if (selected) {
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
+      setCommentTargetIds((current) => new Set(current).add(id));
+    } else if (!selectedIds.has(id)) {
+      setCommentTargetIds((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
       setRecipientComments((current) => {
         const next = { ...current };
         delete next[id];
@@ -385,7 +421,7 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
     setRecipientComments((current) => {
       const next = { ...current };
       commentTargetIds.forEach((id) => {
-        if (selectedIds.has(id)) next[id] = comment;
+        if (selectedIds.has(id) || ccIds.has(id)) next[id] = comment;
       });
       return next;
     });
@@ -403,6 +439,7 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
     setHoldingUnit("");
     setAttachments([]);
     setSelectedIds(new Set());
+    setCcIds(new Set());
     setSharedComment("");
     setCommentTargetIds(new Set());
     setRecipientComments({});
@@ -435,7 +472,7 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
     if (letterType === "external" && sender === "هلدینگ" && !holdingUnit) {
       return "واحد هلدینگ را انتخاب کنید.";
     }
-    if (selectedIds.size === 0) {
+    if (selectedIds.size + ccIds.size === 0) {
       return "حداقل یک گیرنده را انتخاب کنید.";
     }
     if (sharedComment.trim()) {
@@ -488,11 +525,12 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
       fd.append("sender_detail", sender === "هلدینگ" ? holdingUnit : "");
     }
     fd.append("recipient_ids", JSON.stringify([...selectedIds]));
+    fd.append("cc_recipient_ids", JSON.stringify([...ccIds]));
     fd.append(
       "recipient_comments",
       JSON.stringify(
         Object.fromEntries(
-          [...selectedIds]
+          [...selectedIds, ...ccIds]
             .map((id) => [String(id), (recipientComments[id] || "").trim()])
             .filter(([, comment]) => Boolean(comment)),
         ),
@@ -562,7 +600,7 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
                 {workflow.sendTitle}
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                مشابه فرم عمومی؛ پس از ارسال برای گیرندگان به‌صورت وظیفه ثبت می‌شود
+                هر مخاطب را به‌صورت «مستقیم» (وظیفه) یا «رونوشت» (اعلان فقط‌خواندنی) انتخاب کنید
               </p>
             </div>
           </div>
@@ -581,7 +619,7 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
               <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-700">
                 <CheckCircle2 size={20} />
                 <div>
-                  <p>نامه با موفقیت ارسال شد و در وظایف گیرندگان قرار گرفت.</p>
+                  <p>نامه با موفقیت ارسال شد؛ گیرندگان مستقیم آن را در وظایف و افراد رونوشت‌شده آن را به‌صورت اعلان دریافت کردند.</p>
                   {submittedSystemLetterNumber && (
                     <p className="mt-1 font-extrabold">
                       شماره نامه سیستمی: {submittedSystemLetterNumber}
@@ -794,9 +832,9 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
             <div>
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                 <Label className="text-sm font-bold text-foreground">
-                  گیرندگان نامه
+                  مخاطبان نامه
                   <span className="mr-2 text-xs font-medium text-muted-foreground">
-                    ({selectedIds.size.toLocaleString("fa-IR")} انتخاب‌شده)
+                    ({(selectedIds.size + ccIds.size).toLocaleString("fa-IR")} انتخاب‌شده)
                   </span>
                 </Label>
                 <div className="relative w-full max-w-xs">
@@ -822,24 +860,18 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
               ) : (
                 <div className="max-h-72 space-y-2 overflow-y-auto rounded-2xl border border-border p-3">
                   {filteredRecipients.map((user) => {
-                    const checked = selectedIds.has(user.id);
+                    const isDirect = selectedIds.has(user.id);
+                    const isCc = ccIds.has(user.id);
+                    const checked = isDirect || isCc;
                     return (
-                      <Label
+                      <div
                         key={user.id}
-                        className={`flex cursor-pointer items-center gap-3 rounded-xl p-3 text-sm transition ${
+                        className={`flex items-center gap-3 rounded-xl p-3 text-sm transition ${
                           checked
                             ? "bg-primary/10 ring-1 ring-red-200"
                             : "bg-muted/40 hover:bg-muted"
                         }`}
                       >
-                        <Input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(event) =>
-                            setRecipientSelected(user.id, event.target.checked)
-                          }
-                          className="h-4 w-4 accent-red-600"
-                        />
                         <div className="min-w-0 flex-1">
                           <p className="font-bold text-foreground">
                             <UserDisplayName user={user} />
@@ -847,10 +879,30 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
                           <p className="mt-0.5 truncate text-xs text-muted-foreground">
                             {[user.department, user.job_title]
                               .filter(Boolean)
-                              .join(" · ") || user.username}
+                            .join(" · ") || user.username}
                           </p>
                         </div>
-                      </Label>
+                        <div className="flex shrink-0 flex-wrap gap-2">
+                          <Label className={`flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold ${isDirect ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground"}`}>
+                            <Input
+                              type="checkbox"
+                              checked={isDirect}
+                              onChange={(event) => setRecipientSelected(user.id, event.target.checked)}
+                              className="sr-only"
+                            />
+                            مستقیم
+                          </Label>
+                          <Label className={`flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold ${isCc ? "border-violet-500 bg-violet-50 text-violet-700" : "border-border bg-card text-muted-foreground"}`}>
+                            <Input
+                              type="checkbox"
+                              checked={isCc}
+                              onChange={(event) => setCcSelected(user.id, event.target.checked)}
+                              className="sr-only"
+                            />
+                            رونوشت (CC)
+                          </Label>
+                        </div>
+                      </div>
                     );
                   })}
                   {filteredRecipients.length === 0 && (
@@ -900,7 +952,7 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
                         <Button
                           type="button"
                           onClick={() =>
-                            setCommentTargetIds(new Set(selectedIds))
+                            setCommentTargetIds(new Set([...selectedIds, ...ccIds]))
                           }
                           className="text-primary hover:text-primary"
                         >
@@ -1140,6 +1192,9 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
                     >
                       <p className="font-bold text-foreground">
                         <UserDisplayName user={user} />
+                        <span className={`mr-2 rounded-full px-2 py-0.5 text-xs ${ccIds.has(user.id) ? "bg-violet-100 text-violet-700" : "bg-primary/10 text-primary"}`}>
+                          {ccIds.has(user.id) ? "رونوشت (اعلان)" : "گیرنده مستقیم (وظیفه)"}
+                        </span>
                       </p>
                       <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground">
                         {(recipientComments[user.id] || "").trim() ||

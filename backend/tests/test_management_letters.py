@@ -16,6 +16,7 @@ from app.models.form_template import UserFormAccess
 from app.models.submission import (
     ManagementLetterNumberCounter,
     Submission,
+    SubmissionCcRecipient,
     SubmissionInitialAssignee,
     SubmissionReferral,
     SubmissionReminder,
@@ -32,6 +33,12 @@ from app.services.management_letter_service import (
     list_letter_recipients,
     list_sent_letters,
     user_can_use_management_workflow,
+)
+from app.services.task_workflow_service import (
+    list_pending_task_ids,
+    list_task_submissions,
+    user_can_access_task,
+    user_can_view_task,
 )
 from app.services.portal_service import (
     INTERNAL_LETTERS_WORKFLOW_ID,
@@ -97,6 +104,7 @@ class ManagementLetterServiceTests(unittest.TestCase):
         *,
         needs_action: str,
         recipient_ids: list[int] | None = None,
+        cc_recipient_ids: list[int] | None = None,
         recipient_comments: dict[int, str] | None = None,
         letter_number: str = "نامه-۱",
         letter_type: str = "external",
@@ -124,7 +132,12 @@ class ManagementLetterServiceTests(unittest.TestCase):
             ),
             sender=sender,
             sender_detail=sender_detail,
-            recipient_ids=recipient_ids or [self.first_recipient.id],
+            recipient_ids=(
+                [self.first_recipient.id]
+                if recipient_ids is None
+                else recipient_ids
+            ),
+            cc_recipient_ids=cc_recipient_ids,
             recipient_comments=recipient_comments,
             letter_type=letter_type,
         )
@@ -186,6 +199,70 @@ class ManagementLetterServiceTests(unittest.TestCase):
                 self._initial_recipient_ids(submission.id),
                 expected_ids,
             )
+
+    def test_cc_recipient_receives_read_only_announcement(self):
+        submissions = self._create_letters(
+            needs_action="دارد",
+            recipient_ids=[self.first_recipient.id],
+            cc_recipient_ids=[self.second_recipient.id],
+        )
+        payloads = {json.loads(item.data)["recipient_id"]: item for item in submissions}
+        direct = payloads[self.first_recipient.id]
+        announcement = payloads[self.second_recipient.id]
+
+        self.assertEqual(json.loads(direct.data)["recipient_delivery_type"], "direct")
+        self.assertEqual(json.loads(announcement.data)["recipient_delivery_type"], "cc")
+        self.assertEqual(
+            self.db.query(SubmissionReferral)
+            .filter(SubmissionReferral.submission_id == direct.id)
+            .count(),
+            1,
+        )
+        self.assertEqual(
+            self.db.query(SubmissionCcRecipient)
+            .filter(SubmissionCcRecipient.submission_id == announcement.id)
+            .count(),
+            1,
+        )
+        self.assertTrue(user_can_view_task(self.db, self.second_recipient, announcement))
+        self.assertFalse(user_can_access_task(self.db, self.second_recipient, announcement))
+        self.assertIn(
+            announcement.id,
+            [item.id for item in list_task_submissions(self.db, self.second_recipient.id)],
+        )
+        self.assertNotIn(
+            announcement.id,
+            list_pending_task_ids(self.db, self.second_recipient.id),
+        )
+        self.assertEqual(
+            self.db.query(SubmissionReminder)
+            .filter(SubmissionReminder.submission_id == announcement.id)
+            .count(),
+            0,
+        )
+        report = list_sent_letters(self.db, self.actor)
+        delivery_types = {
+            item["user_id"]: item["delivery_type"]
+            for item in report[0]["recipients"]
+        }
+        self.assertEqual(
+            delivery_types,
+            {self.first_recipient.id: "direct", self.second_recipient.id: "cc"},
+        )
+
+    def test_letter_can_be_sent_only_as_cc_announcements(self):
+        submissions = self._create_letters(
+            needs_action="ندارد(جهت اطلاع)",
+            recipient_ids=[],
+            cc_recipient_ids=[self.first_recipient.id, self.second_recipient.id],
+        )
+        self.assertEqual(len(submissions), 2)
+        self.assertTrue(
+            all(
+                json.loads(item.data)["recipient_delivery_type"] == "cc"
+                for item in submissions
+            )
+        )
 
     def test_backfill_expands_existing_incomplete_letter_batch_snapshots(self):
         submissions = self._create_letters(
