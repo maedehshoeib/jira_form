@@ -328,6 +328,16 @@ def _migrate_task_action_attachments_db():
                 "ALTER TABLE submission_referrals "
                 "ADD COLUMN attachment_name VARCHAR(256)",
             ),
+            (
+                "attachment_paths",
+                "ALTER TABLE submission_referrals "
+                "ADD COLUMN attachment_paths TEXT",
+            ),
+            (
+                "attachment_names",
+                "ALTER TABLE submission_referrals "
+                "ADD COLUMN attachment_names TEXT",
+            ),
         ],
         "submission_status_history": [
             (

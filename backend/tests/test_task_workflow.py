@@ -603,6 +603,68 @@ class TaskWorkflowMockTests(unittest.TestCase):
             {self.colleague.id, second.id},
         )
 
+    def test_submitter_can_repeat_refer_with_multiple_attachments(self):
+        self._as(self.submitter)
+        save_attachment = AsyncMock(
+            side_effect=[
+                ("C:/fake/brief.pdf", "brief.pdf"),
+                ("C:/fake/photo.png", "photo.png"),
+            ]
+        )
+        with patch(
+            "app.api.routes.portal._save_task_action_attachment",
+            new=save_attachment,
+        ):
+            response = self.client.post(
+                f"/api/v1/submissions/{self.submission.id}/refer",
+                data={
+                    "to_user_ids": str(self.colleague.id),
+                    "note": "owner follow-up",
+                    "allow_repeat": "true",
+                },
+                files=[
+                    ("attachments", ("brief.pdf", b"pdf", "application/pdf")),
+                    ("attachments", ("photo.png", b"png", "image/png")),
+                ],
+            )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        save_attachment.assert_awaited()
+        referral = response.json()["referrals"][0]
+        self.assertEqual(referral["attachment_name"], "brief.pdf")
+        self.assertEqual(
+            referral["attachment_names"],
+            ["brief.pdf", "photo.png"],
+        )
+        stored = (
+            self.db.query(SubmissionReferral)
+            .filter(SubmissionReferral.id == referral["id"])
+            .one()
+        )
+        self.assertEqual(
+            json.loads(stored.attachment_names),
+            ["brief.pdf", "photo.png"],
+        )
+
+        repeated = self.client.post(
+            f"/api/v1/submissions/{self.submission.id}/refer",
+            json={
+                "to_user_id": self.colleague.id,
+                "note": "second owner follow-up",
+                "allow_repeat": True,
+            },
+        )
+        self.assertEqual(repeated.status_code, 200, repeated.text)
+        self.assertEqual(len(repeated.json()["referrals"]), 2)
+
+    def test_submitter_cannot_refer_someone_elses_submission(self):
+        self._as(self.outsider)
+        response = self.client.post(
+            f"/api/v1/submissions/{self.submission.id}/refer",
+            json={"to_user_id": self.colleague.id},
+        )
+        self.assertEqual(response.status_code, 403, response.text)
+
     def test_http_referral_cc_recipient_has_read_only_visibility(self):
         self._as(self.handler)
         save_attachment = AsyncMock(return_value=("C:/fake/brief.pdf", "brief.pdf"))

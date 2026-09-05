@@ -6,6 +6,7 @@ export type ReferralItem = {
   to_user_name: string;
   note: string;
   attachment_name?: string | null;
+  attachment_names?: string[];
   created_at: string;
 };
 
@@ -18,6 +19,7 @@ export type TimelineItem = {
   to_status?: string | null;
   note?: string;
   attachment_name?: string | null;
+  attachment_names?: string[];
   created_at: string;
 };
 

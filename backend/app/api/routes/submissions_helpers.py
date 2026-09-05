@@ -311,6 +311,17 @@ def _referral_items(
     context: SubmissionWorkflowContext,
     submission_id: int,
 ) -> list[SubmissionReferralItem]:
+    def attachment_names(row: SubmissionReferral) -> list[str]:
+        try:
+            names = json.loads(row.attachment_names or "[]")
+        except (json.JSONDecodeError, TypeError):
+            names = []
+        if isinstance(names, list):
+            cleaned = [str(name) for name in names if name]
+            if cleaned:
+                return cleaned
+        return [row.attachment_name] if row.attachment_name else []
+
     return [
         SubmissionReferralItem(
             id=row.id,
@@ -320,6 +331,7 @@ def _referral_items(
             to_user_name=_user_display(context.users_by_id.get(row.to_user_id)),
             note=row.note or "",
             attachment_name=row.attachment_name,
+            attachment_names=attachment_names(row),
             created_at=_format_dt(row.created_at),
         )
         for row in context.referrals_by_submission.get(submission_id, [])
@@ -444,6 +456,14 @@ def _submission_timeline(
         events.append((view.first_viewed_at, event.id, event))
 
     for referral in context.referrals_by_submission.get(submission.id, []):
+        try:
+            referral_attachment_names = json.loads(referral.attachment_names or "[]")
+        except (json.JSONDecodeError, TypeError):
+            referral_attachment_names = []
+        if not isinstance(referral_attachment_names, list) or not referral_attachment_names:
+            referral_attachment_names = (
+                [referral.attachment_name] if referral.attachment_name else []
+            )
         event = SubmissionTimelineItem(
             id=f"referral:{referral.id}",
             event_type="referred",
@@ -458,6 +478,7 @@ def _submission_timeline(
             ),
             note=referral.note or "",
             attachment_name=referral.attachment_name,
+            attachment_names=referral_attachment_names,
         )
         events.append((referral.created_at, event.id, event))
 

@@ -22,6 +22,7 @@ export type ReferralItem = {
   to_user_name: string;
   note: string;
   attachment_name?: string | null;
+  attachment_names?: string[];
   created_at: string;
 };
 
@@ -39,6 +40,7 @@ export type TimelineItem = {
   to_user_id?: number | null;
   to_user_name?: string | null;
   attachment_name?: string | null;
+  attachment_names?: string[];
   created_at: string;
 };
 
@@ -74,3 +76,11 @@ export type SubmissionDetail = SubmissionListItem & {
 export type TimeRange = "all" | "today" | "7days" | "30days" | "90days";
 export type SortOrder = "newest" | "oldest";
 export type ViewMode = "cards" | "table";
+
+export type Colleague = {
+  id: number;
+  username: string;
+  display_name: string;
+  department: string;
+  job_title: string;
+};

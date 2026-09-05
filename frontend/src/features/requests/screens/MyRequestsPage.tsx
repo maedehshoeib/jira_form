@@ -27,9 +27,12 @@ import client from "@/api/client";
 import { endpoints } from "@/api/endpoints";
 import AppShell from "@/components/layout/AppShell";
 import TaskConversation from "@/components/tasks/TaskConversation";
+import UserDisplayName from "@/components/UserDisplayName";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { API_BASE, FormField, FormTemplate } from "@/config/portal";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -46,6 +49,7 @@ import {
 import type {
   SortOrder,
   StatusTab,
+  Colleague,
   SubmissionDetail,
   SubmissionListItem,
   TimeRange,
@@ -238,6 +242,15 @@ export default function MyRequestsPage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
   const [statusTab, setStatusTab] = useState<StatusTab>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
+  const [referOpen, setReferOpen] = useState(false);
+  const [referLoading, setReferLoading] = useState(false);
+  const [referError, setReferError] = useState("");
+  const [colleagues, setColleagues] = useState<Colleague[]>([]);
+  const [colleaguesLoading, setColleaguesLoading] = useState(false);
+  const [colleagueQuery, setColleagueQuery] = useState("");
+  const [selectedColleagueIds, setSelectedColleagueIds] = useState<number[]>([]);
+  const [referNote, setReferNote] = useState("");
+  const [referAttachments, setReferAttachments] = useState<File[]>([]);
 
   const loadRequests = async () => {
     setLoading(true);
@@ -419,6 +432,11 @@ export default function MyRequestsPage() {
   const openRequest = async (request: SubmissionListItem) => {
     setDetailLoading(true);
     setError("");
+    setReferOpen(false);
+    setReferError("");
+    setSelectedColleagueIds([]);
+    setReferNote("");
+    setReferAttachments([]);
     try {
       const detailResponse = await client.get<SubmissionDetail>(
         `${endpoints.submissions}/${request.id}`,
@@ -443,6 +461,81 @@ export default function MyRequestsPage() {
       setDetailLoading(false);
     }
   };
+
+  const openReferPanel = async () => {
+    setReferOpen(true);
+    setReferError("");
+    setColleagueQuery("");
+    setSelectedColleagueIds([]);
+    setReferNote("");
+    setReferAttachments([]);
+    if (colleagues.length > 0) return;
+    setColleaguesLoading(true);
+    try {
+      const { data } = await client.get<Colleague[]>(endpoints.taskColleagues);
+      setColleagues(data);
+    } catch {
+      setReferError("دریافت فهرست همکاران با مشکل مواجه شد.");
+    } finally {
+      setColleaguesLoading(false);
+    }
+  };
+
+  const submitRefer = async () => {
+    if (!selected || selectedColleagueIds.length === 0) return;
+    setReferLoading(true);
+    setReferError("");
+    try {
+      const formData = new FormData();
+      selectedColleagueIds.forEach((id) =>
+        formData.append("to_user_ids", String(id)),
+      );
+      formData.append("note", referNote.trim());
+      formData.append(
+        "allow_repeat",
+        String((selected.referrals?.length ?? 0) > 0),
+      );
+      referAttachments.forEach((file) =>
+        formData.append("attachments", file),
+      );
+      const { data } = await client.post<SubmissionDetail>(
+        `${endpoints.submissions}/${selected.id}/refer`,
+        formData,
+      );
+      setSelected((previous) =>
+        previous ? { ...data, data: previous.data } : data,
+      );
+      setRequests((previous) =>
+        previous.map((item) =>
+          item.id === data.id ? { ...item, ...data } : item,
+        ),
+      );
+      setReferOpen(false);
+      setSelectedColleagueIds([]);
+      setReferNote("");
+      setReferAttachments([]);
+    } catch {
+      setReferError("ارجاع مجدد درخواست با مشکل مواجه شد.");
+    } finally {
+      setReferLoading(false);
+    }
+  };
+
+  const filteredColleagues = useMemo(() => {
+    const query = colleagueQuery.trim().toLocaleLowerCase("fa");
+    if (!query) return colleagues;
+    return colleagues.filter((colleague) =>
+      [
+        colleague.display_name,
+        colleague.username,
+        colleague.department,
+        colleague.job_title,
+      ]
+        .join(" ")
+        .toLocaleLowerCase("fa")
+        .includes(query),
+    );
+  }, [colleagueQuery, colleagues]);
 
   const visibleFields = useMemo(() => {
     if (!selected) return [];
@@ -1053,6 +1146,169 @@ export default function MyRequestsPage() {
             <div className="space-y-6 p-6 sm:p-8">
               <WorkflowOverview status={selected.workflow_status} />
 
+              {selected.form_id !== "meeting-room-reservation-form" &&
+                (selected.status === "submitted" ||
+                  selected.status === "in_progress") && (
+                  <section className="space-y-3 rounded-3xl border border-sky-100 bg-sky-50/60 p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h4 className="font-bold text-foreground">
+                          {(selected.referrals?.length ?? 0) > 0
+                            ? "ارجاع مجدد درخواست"
+                            : "ارجاع درخواست"}
+                        </h4>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          درخواست را همراه با چند پیوست برای یک یا چند همکار ارسال کنید.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={() =>
+                          referOpen
+                            ? setReferOpen(false)
+                            : void openReferPanel()
+                        }
+                        disabled={referLoading}
+                        className="gap-2 bg-sky-600 text-white hover:bg-sky-700"
+                      >
+                        <Forward size={16} />
+                        {(selected.referrals?.length ?? 0) > 0
+                          ? "ارجاع مجدد"
+                          : "ارجاع"}
+                      </Button>
+                    </div>
+
+                    {referOpen && (
+                      <div className="space-y-3 border-t border-sky-100 pt-4">
+                        <Input
+                          value={colleagueQuery}
+                          onChange={(event) => setColleagueQuery(event.target.value)}
+                          placeholder="جستجوی نام همکار..."
+                          className="bg-card"
+                        />
+                        <div className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-border bg-card p-2">
+                          {colleaguesLoading ? (
+                            <div className="flex items-center justify-center gap-2 py-5 text-sm text-muted-foreground">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              در حال دریافت...
+                            </div>
+                          ) : filteredColleagues.length === 0 ? (
+                            <p className="py-5 text-center text-sm text-muted-foreground">
+                              همکاری یافت نشد.
+                            </p>
+                          ) : (
+                            filteredColleagues.map((colleague) => {
+                              const isSelected = selectedColleagueIds.includes(
+                                colleague.id,
+                              );
+                              const wasReferred = (selected.referrals ?? []).some(
+                                (item) => item.to_user_id === colleague.id,
+                              );
+                              return (
+                                <Button
+                                  key={colleague.id}
+                                  type="button"
+                                  variant="ghost"
+                                  onClick={() =>
+                                    setSelectedColleagueIds((ids) =>
+                                      ids.includes(colleague.id)
+                                        ? ids.filter((id) => id !== colleague.id)
+                                        : [...ids, colleague.id],
+                                    )
+                                  }
+                                  className={
+                                    "flex h-auto w-full justify-between rounded-xl px-3 py-2 text-right " +
+                                    (isSelected
+                                      ? "bg-sky-100 text-sky-800"
+                                      : "")
+                                  }
+                                >
+                                  <UserDisplayName user={colleague} />
+                                  <span className="text-xs text-muted-foreground">
+                                    {wasReferred
+                                      ? "قبلاً ارجاع شده"
+                                      : colleague.job_title ||
+                                        colleague.department ||
+                                        colleague.username}
+                                  </span>
+                                </Button>
+                              );
+                            })
+                          )}
+                        </div>
+                        <Textarea
+                          value={referNote}
+                          onChange={(event) => setReferNote(event.target.value)}
+                          maxLength={512}
+                          placeholder="یادداشت ارجاع (اختیاری)"
+                          className="min-h-20 bg-card"
+                        />
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">
+                            پیوست‌ها (اختیاری، امکان انتخاب چند فایل)
+                          </Label>
+                          <Input
+                            type="file"
+                            multiple
+                            onChange={(event) =>
+                              setReferAttachments(
+                                Array.from(event.target.files ?? []),
+                              )
+                            }
+                            className="bg-card"
+                          />
+                          {referAttachments.map((file, index) => (
+                            <div
+                              key={`${file.name}-${file.lastModified}-${index}`}
+                              className="flex items-center gap-2 text-xs text-muted-foreground"
+                            >
+                              <Paperclip size={13} />
+                              <span className="font-semibold">{file.name}</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() =>
+                                  setReferAttachments((files) =>
+                                    files.filter(
+                                      (_, fileIndex) => fileIndex !== index,
+                                    ),
+                                  )
+                                }
+                                className="h-7 px-2"
+                              >
+                                حذف
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                        {referError && (
+                          <p role="alert" className="text-sm font-semibold text-primary">
+                            {referError}
+                          </p>
+                        )}
+                        <Button
+                          type="button"
+                          onClick={() => void submitRefer()}
+                          disabled={
+                            referLoading || selectedColleagueIds.length === 0
+                          }
+                          className="gap-2"
+                        >
+                          {referLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Forward className="h-4 w-4" />
+                          )}
+                          ثبت{" "}
+                          {(selected.referrals?.length ?? 0) > 0
+                            ? "ارجاع مجدد"
+                            : "ارجاع"}
+                        </Button>
+                      </div>
+                    )}
+                  </section>
+                )}
+
               <section
                 aria-label="میزان پیشرفت رسیدگی"
                 className="rounded-3xl border border-border bg-card p-5 shadow-sm"
@@ -1272,7 +1528,8 @@ export default function MyRequestsPage() {
 
                             {(eventProgress !== null ||
                               item.note ||
-                              item.attachment_name) && (
+                              item.attachment_name ||
+                              (item.attachment_names?.length ?? 0) > 0) && (
                               <div className="mt-3 flex flex-wrap items-start gap-2">
                                 {eventProgress !== null && (
                                   <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
@@ -1288,8 +1545,14 @@ export default function MyRequestsPage() {
                                     {item.note}
                                   </p>
                                 )}
-                                {item.attachment_name && (
+                                {(item.attachment_names?.length
+                                  ? item.attachment_names
+                                  : item.attachment_name
+                                    ? [item.attachment_name]
+                                    : []
+                                ).map((fileName, index) => (
                                   <Button
+                                    key={`${fileName}-${index}`}
                                     type="button"
                                     onClick={() => {
                                       void (async () => {
@@ -1300,8 +1563,8 @@ export default function MyRequestsPage() {
                                           );
                                           if (!referralId) return;
                                           await downloadWithAuth(
-                                            `${API_BASE}/submissions/${selected.id}/referrals/${referralId}/attachment`,
-                                            item.attachment_name!,
+                                            `${API_BASE}/submissions/${selected.id}/referrals/${referralId}/attachment?index=${index}`,
+                                            fileName,
                                           );
                                           return;
                                         }
@@ -1313,7 +1576,7 @@ export default function MyRequestsPage() {
                                           if (!historyId) return;
                                           await downloadWithAuth(
                                             `${API_BASE}/submissions/${selected.id}/status-history/${historyId}/attachment`,
-                                            item.attachment_name!,
+                                            fileName,
                                           );
                                         }
                                       })();
@@ -1321,9 +1584,9 @@ export default function MyRequestsPage() {
                                     className="inline-flex items-center gap-1 rounded-full border border-violet-100 bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-100"
                                   >
                                     <Paperclip size={12} />
-                                    {item.attachment_name}
+                                    {fileName}
                                   </Button>
-                                )}
+                                ))}
                               </div>
                             )}
                           </div>

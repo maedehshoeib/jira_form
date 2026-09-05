@@ -12,6 +12,7 @@ class SubmissionReferralItem(BaseModel):
     to_user_name: str
     note: str = ""
     attachment_name: str | None = None
+    attachment_names: list[str] = Field(default_factory=list)
     created_at: str
 
 
@@ -46,6 +47,7 @@ class SubmissionTimelineItem(BaseModel):
     to_user_name: str | None = None
     note: str = ""
     attachment_name: str | None = None
+    attachment_names: list[str] = Field(default_factory=list)
 
 
 class SubmissionListItem(BaseModel):

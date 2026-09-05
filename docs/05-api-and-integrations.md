@@ -16,3 +16,12 @@ The browser uses relative `/api/v1` URLs. In Next.js these requests are rewritte
 | Timesheet | `/api/v1/timesheet` |
 
 WebSocket clients use `NEXT_PUBLIC_WS_BASE_URL` when configured. The local fallback connects to port `8000` on the current hostname. Production should provide a TLS WebSocket origin or reverse-proxy `/api/v1/chat/ws` to FastAPI.
+## Request referral attachments
+
+Both `POST /api/v1/tasks/{submission_id}/refer` and
+`POST /api/v1/submissions/{submission_id}/refer` accept multipart uploads.
+Send each file as a repeated `attachments` field; the legacy singular
+`attachment` field remains supported. Referral responses expose the ordered
+`attachment_names` list and retain `attachment_name` as the first file for
+older clients. Download a file by passing its zero-based `index` to the
+referral attachment endpoint.

@@ -112,6 +112,7 @@ from app.services.user_dashboard_builder import build_user_dashboard
 
 router = APIRouter()
 MAX_TASK_ACTION_ATTACHMENT_SIZE = 15 * 1024 * 1024
+MAX_REFERRAL_ATTACHMENT_COUNT = 10
 MAX_SUBMISSION_ATTACHMENT_SIZE = 15 * 1024 * 1024
 
 
@@ -1154,6 +1155,7 @@ async def update_task_status(
 
 
 @router.post("/tasks/{submission_id}/refer", response_model=SubmissionResponse)
+@router.post("/submissions/{submission_id}/refer", response_model=SubmissionResponse)
 async def refer_task_endpoint(
     submission_id: int,
     request: Request,
@@ -1161,8 +1163,7 @@ async def refer_task_endpoint(
     current_user: User = Depends(get_current_user),
 ):
     content_type = (request.headers.get("content-type") or "").lower()
-    attachment_path: str | None = None
-    attachment_name: str | None = None
+    saved_attachments: list[tuple[str, str]] = []
     if "multipart/form-data" in content_type:
         form = await request.form()
         to_user_ids = _parse_form_user_ids(form)
@@ -1172,15 +1173,20 @@ async def refer_task_endpoint(
         note = str(form.get("note") or "")
         allow_repeat_raw = str(form.get("allow_repeat") or "false").strip().lower()
         allow_repeat = allow_repeat_raw in {"1", "true", "yes", "on"}
-        upload = form.get("attachment")
-        if (
-            upload is not None
-            and hasattr(upload, "filename")
-            and upload.filename
-        ):
-            attachment_path, attachment_name = await _save_task_action_attachment(
-                upload
+        uploads = list(form.getlist("attachments"))
+        legacy_upload = form.get("attachment")
+        if legacy_upload is not None:
+            uploads.append(legacy_upload)
+        if len(uploads) > MAX_REFERRAL_ATTACHMENT_COUNT:
+            raise HTTPException(
+                status_code=422,
+                detail="حداکثر ۱۰ فایل برای هر ارجاع مجاز است.",
             )
+        for upload in uploads:
+            if hasattr(upload, "filename") and upload.filename:
+                saved_attachments.append(
+                    await _save_task_action_attachment(upload)
+                )
     else:
         try:
             payload = await request.json()
@@ -1203,9 +1209,11 @@ async def refer_task_endpoint(
             to_user_ids,
             note,
             allow_repeat=allow_repeat,
-            attachment_path=attachment_path,
-            attachment_name=attachment_name,
+            attachments=saved_attachments,
             cc_user_ids=cc_user_ids,
+            allow_submitter=request.url.path.startswith(
+                f"/api/v1/submissions/{submission_id}/"
+            ),
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -1289,14 +1297,27 @@ def download_submission_status_history_attachment(
     return _serve_task_action_file(history.attachment_path, history.attachment_name)
 
 
-@router.get("/tasks/{submission_id}/referrals/{referral_id}/attachment")
-def download_task_referral_attachment(
-    submission_id: int,
+def _referral_attachment_values(
+    referral: SubmissionReferral,
+) -> tuple[list[str], list[str]]:
+    try:
+        paths = json.loads(referral.attachment_paths or "[]")
+        names = json.loads(referral.attachment_names or "[]")
+    except (json.JSONDecodeError, TypeError):
+        paths, names = [], []
+    if not isinstance(paths, list) or not isinstance(names, list):
+        paths, names = [], []
+    if not paths and referral.attachment_path and referral.attachment_name:
+        return [referral.attachment_path], [referral.attachment_name]
+    return [str(path) for path in paths], [str(name) for name in names]
+
+
+def _download_referral_attachment(
+    db: Session,
+    submission: Submission,
     referral_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    submission = _get_viewable_submission(db, current_user, submission_id)
+    index: int,
+) -> FileResponse:
     referral = (
         db.query(SubmissionReferral)
         .filter(
@@ -1306,26 +1327,32 @@ def download_task_referral_attachment(
         .first()
     )
     if not referral:
-        raise HTTPException(status_code=404, detail="پیوست یافت نشد")
-    return _serve_task_action_file(referral.attachment_path, referral.attachment_name)
+        raise HTTPException(status_code=404, detail="Referral attachment not found")
+    paths, names = _referral_attachment_values(referral)
+    if index >= len(paths) or index >= len(names):
+        raise HTTPException(status_code=404, detail="Referral attachment not found")
+    return _serve_task_action_file(paths[index], names[index])
+
+
+@router.get("/tasks/{submission_id}/referrals/{referral_id}/attachment")
+def download_task_referral_attachment(
+    submission_id: int,
+    referral_id: int,
+    index: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    submission = _get_viewable_submission(db, current_user, submission_id)
+    return _download_referral_attachment(db, submission, referral_id, index)
 
 
 @router.get("/submissions/{submission_id}/referrals/{referral_id}/attachment")
 def download_submission_referral_attachment(
     submission_id: int,
     referral_id: int,
+    index: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     submission = _get_viewable_submission(db, current_user, submission_id)
-    referral = (
-        db.query(SubmissionReferral)
-        .filter(
-            SubmissionReferral.id == referral_id,
-            SubmissionReferral.submission_id == submission.id,
-        )
-        .first()
-    )
-    if not referral:
-        raise HTTPException(status_code=404, detail="پیوست یافت نشد")
-    return _serve_task_action_file(referral.attachment_path, referral.attachment_name)
+    return _download_referral_attachment(db, submission, referral_id, index)

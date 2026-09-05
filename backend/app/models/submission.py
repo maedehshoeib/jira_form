@@ -77,6 +77,8 @@ class SubmissionReferral(Base):
     note: Mapped[str] = mapped_column(String(512), default="")
     attachment_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
     attachment_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    attachment_paths: Mapped[str | None] = mapped_column(Text, nullable=True)
+    attachment_names: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 

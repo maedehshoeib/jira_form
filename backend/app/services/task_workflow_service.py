@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from pathlib import Path
 
@@ -391,7 +392,9 @@ def refer_task(
     allow_repeat: bool = False,
     attachment_path: str | None = None,
     attachment_name: str | None = None,
+    attachments: list[tuple[str, str]] | None = None,
     cc_user_ids: list[int] | None = None,
+    allow_submitter: bool = False,
 ) -> SubmissionReferral:
     referrals = refer_tasks(
         db,
@@ -402,7 +405,9 @@ def refer_task(
         allow_repeat=allow_repeat,
         attachment_path=attachment_path,
         attachment_name=attachment_name,
+        attachments=attachments,
         cc_user_ids=cc_user_ids,
+        allow_submitter=allow_submitter,
     )
     return referrals[0]
 
@@ -417,7 +422,9 @@ def refer_tasks(
     allow_repeat: bool = False,
     attachment_path: str | None = None,
     attachment_name: str | None = None,
+    attachments: list[tuple[str, str]] | None = None,
     cc_user_ids: list[int] | None = None,
+    allow_submitter: bool = False,
 ) -> list[SubmissionReferral]:
     unique_ids: list[int] = []
     for user_id in to_user_ids:
@@ -429,7 +436,9 @@ def refer_tasks(
     submission = db.query(Submission).filter(Submission.id == submission_id).first()
     if not submission:
         raise LookupError("درخواست یافت نشد")
-    if not user_can_access_task(db, actor, submission):
+    if not user_can_access_task(db, actor, submission) and not (
+        allow_submitter and submission.user_id == actor.id
+    ):
         raise PermissionError("شما به این وظیفه دسترسی ندارید.")
     if is_meeting_room_submission(submission):
         raise ValueError("ارجاع این درخواست به‌صورت خودکار و طبق زنجیره تایید انجام می‌شود.")
@@ -477,18 +486,38 @@ def refer_tasks(
         raise ValueError("این درخواست قبلاً به یکی از کاربران انتخاب‌شده ارجاع شده است.")
 
     cleaned_note = (note or "").strip()[:512]
-    cleaned_attachment_path = (attachment_path or "").strip() or None
-    cleaned_attachment_name = (attachment_name or "").strip()[:256] or None
-    if cleaned_attachment_path and not cleaned_attachment_name:
-        cleaned_attachment_name = Path(cleaned_attachment_path).name
+    cleaned_attachments: list[tuple[str, str]] = []
+    for path, name in attachments or []:
+        cleaned_path = (path or "").strip()
+        cleaned_name = (name or "").strip()[:256]
+        if cleaned_path:
+            cleaned_attachments.append(
+                (cleaned_path, cleaned_name or Path(cleaned_path).name[:256])
+            )
+    if not cleaned_attachments:
+        cleaned_attachment_path = (attachment_path or "").strip() or None
+        cleaned_attachment_name = (attachment_name or "").strip()[:256] or None
+        if cleaned_attachment_path and not cleaned_attachment_name:
+            cleaned_attachment_name = Path(cleaned_attachment_path).name
+        if cleaned_attachment_path and cleaned_attachment_name:
+            cleaned_attachments.append(
+                (cleaned_attachment_path, cleaned_attachment_name)
+            )
+    first_attachment = cleaned_attachments[0] if cleaned_attachments else (None, None)
     referrals = [
         SubmissionReferral(
             submission_id=submission.id,
             from_user_id=actor.id,
             to_user_id=user_id,
             note=cleaned_note,
-            attachment_path=cleaned_attachment_path,
-            attachment_name=cleaned_attachment_name,
+            attachment_path=first_attachment[0],
+            attachment_name=first_attachment[1],
+            attachment_paths=json.dumps(
+                [path for path, _ in cleaned_attachments], ensure_ascii=False
+            ),
+            attachment_names=json.dumps(
+                [name for _, name in cleaned_attachments], ensure_ascii=False
+            ),
         )
         for user_id in unique_ids
     ]

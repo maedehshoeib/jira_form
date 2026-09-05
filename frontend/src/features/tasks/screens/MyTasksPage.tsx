@@ -94,7 +94,7 @@ export default function MyTasksPage() {
   const [referNote, setReferNote] = useState("");
   const [colleaguesLoading, setColleaguesLoading] = useState(false);
   const [statusAttachment, setStatusAttachment] = useState<File | null>(null);
-  const [referAttachment, setReferAttachment] = useState<File | null>(null);
+  const [referAttachments, setReferAttachments] = useState<File[]>([]);
   const [purchasePreviewOpen, setPurchasePreviewOpen] = useState(false);
 
   const syncTask = (updated: SubmissionListItem | SubmissionDetail) => {
@@ -283,7 +283,7 @@ export default function MyTasksPage() {
     setStatusAttachment(null);
     setProgressNote("");
     setProgressAttachment(null);
-    setReferAttachment(null);
+    setReferAttachments([]);
     try {
       const [detailResponse, templateResponse] = await Promise.all([
         client.get<SubmissionDetail>(`${endpoints.tasks}/${task.id}`),
@@ -311,7 +311,7 @@ export default function MyTasksPage() {
   const openStatusPanel = (status: "approved" | "rejected") => {
     if (!selected || selected.status === status) return;
     setReferOpen(false);
-    setReferAttachment(null);
+    setReferAttachments([]);
     setStatusPanel(status);
     setStatusNote(selected.status_note || "");
     setStatusAttachment(null);
@@ -445,7 +445,7 @@ export default function MyTasksPage() {
     setSelectedColleagueIds([]);
     setMentionedColleagueIds([]);
     setReferNote("");
-    setReferAttachment(null);
+    setReferAttachments([]);
     if (colleagues.length > 0) return;
     setColleaguesLoading(true);
     try {
@@ -464,7 +464,7 @@ export default function MyTasksPage() {
     setActionError("");
     try {
       let data: SubmissionDetail;
-      if (referAttachment) {
+      if (referAttachments.length > 0) {
         const formData = new FormData();
         selectedColleagueIds.forEach((id) => {
           formData.append("to_user_ids", String(id));
@@ -477,7 +477,7 @@ export default function MyTasksPage() {
           "allow_repeat",
           String((selected.referrals?.length ?? 0) > 0),
         );
-        formData.append("attachment", referAttachment);
+        referAttachments.forEach((file) => formData.append("attachments", file));
         const response = await client.post<SubmissionDetail>(
           `${endpoints.tasks}/${selected.id}/refer`,
           formData,
@@ -500,7 +500,7 @@ export default function MyTasksPage() {
       setReferOpen(false);
       setSelectedColleagueIds([]);
       setMentionedColleagueIds([]);
-      setReferAttachment(null);
+      setReferAttachments([]);
       window.dispatchEvent(new Event("tasks:refresh-notifications"));
     } catch (err: unknown) {
       setActionError(apiErrorDetail(err, "ارجاع درخواست با مشکل مواجه شد."));
@@ -565,11 +565,15 @@ export default function MyTasksPage() {
     );
   };
 
-  const downloadReferralAttachment = async (referral: ReferralItem) => {
-    if (!selected || !referral.attachment_name) return;
+  const downloadReferralAttachment = async (
+    referral: ReferralItem,
+    index: number,
+    fileName: string,
+  ) => {
+    if (!selected) return;
     await downloadAuthFile(
-      `${API_BASE}/tasks/${selected.id}/referrals/${referral.id}/attachment`,
-      referral.attachment_name,
+      `${API_BASE}/tasks/${selected.id}/referrals/${referral.id}/attachment?index=${index}`,
+      fileName,
     );
   };
 
@@ -1023,7 +1027,7 @@ export default function MyTasksPage() {
             setStatusPanel(null);
             setStatusNote("");
             setStatusAttachment(null);
-            setReferAttachment(null);
+            setReferAttachments([]);
           }}
         >
           <section
@@ -1067,7 +1071,7 @@ export default function MyTasksPage() {
                   setStatusPanel(null);
                   setStatusNote("");
                   setStatusAttachment(null);
-                  setReferAttachment(null);
+                  setReferAttachments([]);
                 }}
                 className="shrink-0 rounded-xl"
               >
@@ -1403,7 +1407,7 @@ export default function MyTasksPage() {
                       variant="ghost"
                       onClick={() => {
                         setReferOpen(false);
-                        setReferAttachment(null);
+                        setReferAttachments([]);
                       }}
                       className="h-8 px-2 text-muted-foreground"
                     >
@@ -1547,25 +1551,30 @@ export default function MyTasksPage() {
                     </Label>
                     <Input
                       type="file"
+                      multiple
                       onChange={(event) =>
-                        setReferAttachment(event.target.files?.[0] ?? null)
+                        setReferAttachments(Array.from(event.target.files ?? []))
                       }
                       className="h-10 rounded-xl bg-card file:ml-3 file:rounded-lg file:border-0 file:bg-muted file:px-3 file:py-1 file:text-xs file:font-semibold"
                     />
-                    {referAttachment ? (
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    {referAttachments.map((file, index) => (
+                      <div key={`${file.name}-${file.lastModified}-${index}`} className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                         <Paperclip size={14} className="text-muted-foreground" />
-                        <span className="font-semibold">{referAttachment.name}</span>
+                        <span className="font-semibold">{file.name}</span>
                         <Button
                           type="button"
                           variant="ghost"
-                          onClick={() => setReferAttachment(null)}
+                          onClick={() =>
+                            setReferAttachments((files) =>
+                              files.filter((_, fileIndex) => fileIndex !== index),
+                            )
+                          }
                           className="h-7 px-2 text-muted-foreground"
                         >
                           حذف
                         </Button>
                       </div>
-                    ) : null}
+                    ))}
                   </div>
                   <Button
                     type="button"
@@ -1776,16 +1785,24 @@ export default function MyTasksPage() {
                         {referral.note ? (
                           <div className="mt-1 text-sky-700">{referral.note}</div>
                         ) : null}
-                        {referral.attachment_name ? (
+                        {(referral.attachment_names?.length
+                          ? referral.attachment_names
+                          : referral.attachment_name
+                            ? [referral.attachment_name]
+                            : []
+                        ).map((fileName, index) => (
                           <Button
+                            key={`${fileName}-${index}`}
                             type="button"
-                            onClick={() => void downloadReferralAttachment(referral)}
+                            onClick={() =>
+                              void downloadReferralAttachment(referral, index, fileName)
+                            }
                             className="mt-1 inline-flex items-center gap-1 font-semibold text-sky-700 underline-offset-2 hover:underline"
                           >
                             <Paperclip size={12} />
-                            {referral.attachment_name}
+                            {fileName}
                           </Button>
-                        ) : null}
+                        ))}
                         <div className="mt-1 text-sky-600">
                           {formatPersianDateTime(referral.created_at)}
                         </div>
