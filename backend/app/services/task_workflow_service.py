@@ -568,7 +568,6 @@ def list_colleagues(db: Session, exclude_user_id: int) -> list[User]:
         .filter(
             User.is_active.is_(True),
             User.id != exclude_user_id,
-            User.is_admin.is_(False),
         )
         .order_by(User.display_name.asc(), User.username.asc())
         .all()

@@ -19,6 +19,10 @@ WebSocket clients use `NEXT_PUBLIC_WS_BASE_URL` when configured. The local fallb
 
 ## Request referral attachments
 
+The `GET /api/v1/tasks/colleagues` endpoint returns every active user except
+the caller, including users with administrator access. This shared directory
+is used for request referrals, CC recipients, and comment mentions.
+
 Both `POST /api/v1/tasks/{submission_id}/refer` and
 `POST /api/v1/submissions/{submission_id}/refer` accept multipart uploads.
 Send each file as a repeated `attachments` field; the legacy singular

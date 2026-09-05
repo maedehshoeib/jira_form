@@ -510,7 +510,7 @@ class TaskWorkflowMockTests(unittest.TestCase):
         ids = {item["id"] for item in colleagues.json()}
         self.assertIn(self.colleague.id, ids)
         self.assertNotIn(self.handler.id, ids)
-        self.assertNotIn(self.admin.id, ids)
+        self.assertIn(self.admin.id, ids)
 
         referred = self.client.post(
             f"/api/v1/tasks/{self.submission.id}/refer",
