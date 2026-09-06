@@ -1,30 +1,32 @@
 import { Button } from "@/components/ui/button";
 import { useEffect, useMemo, useState } from "react";
+import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
 import {
-  BarChart3,
   BookOpen,
-  BriefcaseBusiness,
-  Building2,
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
-  ClipboardCheck,
-  Clock3,
-  FileText,
-  FolderOpen,
-  GraduationCap,
-  Landmark,
-  LucideIcon,
-  Mail,
   Megaphone,
-  Monitor,
-  Network,
   X,
 } from "lucide-react";
 
 import client from "@/api/client";
 import { endpoints } from "@/api/endpoints";
+import businessIcon from "@/assets/home-icons/business.png";
+import contractsIcon from "@/assets/home-icons/contracts.png";
+import documentsIcon from "@/assets/home-icons/documents.png";
+import externalLettersIcon from "@/assets/home-icons/external-letters.png";
+import formsIcon from "@/assets/home-icons/forms.png";
+import guidelinesIcon from "@/assets/home-icons/guidelines.png";
+import internalLettersIcon from "@/assets/home-icons/internal-letters.png";
+import itIcon from "@/assets/home-icons/it.png";
+import meetingRoomIcon from "@/assets/home-icons/meeting-room.png";
+import newsIcon from "@/assets/home-icons/news.png";
+import planningIcon from "@/assets/home-icons/planning.png";
+import reportsIcon from "@/assets/home-icons/reports.png";
+import resourceDevelopmentIcon from "@/assets/home-icons/resource-development.png";
+import timesheetIcon from "@/assets/home-icons/timesheet.png";
+import trainingIcon from "@/assets/home-icons/training.png";
 import AppShell from "@/components/layout/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { API_BASE, Department } from "@/config/portal";
@@ -39,7 +41,7 @@ type HomeCard = {
   title: string;
   description: string;
   href?: string;
-  icon: LucideIcon;
+  image: StaticImageData;
   departmentIds?: string[];
   featured?: boolean;
 };
@@ -50,7 +52,7 @@ const HOME_CARDS: HomeCard[] = [
     title: "رزرو اتاق جلسات",
     description: "ثبت و پیگیری درخواست رزرو اتاق جلسه",
     href: "/forms/meeting-room-reservation-form?department=meeting-room&section=meeting-room-reservation",
-    icon: CalendarDays,
+    image: meetingRoomIcon,
     departmentIds: ["meeting-room"],
     featured: true,
   },
@@ -59,7 +61,7 @@ const HOME_CARDS: HomeCard[] = [
     title: LETTER_WORKFLOWS.internal.title,
     description: LETTER_WORKFLOWS.internal.description,
     href: LETTER_WORKFLOWS.internal.homePath,
-    icon: Mail,
+    image: internalLettersIcon,
     departmentIds: [LETTER_WORKFLOWS.internal.accessDepartmentId],
     featured: true,
   },
@@ -68,35 +70,35 @@ const HOME_CARDS: HomeCard[] = [
     title: "دستورالعمل",
     description: "آیین‌نامه‌ها و دستورالعمل‌ها",
     href: "/guidelines",
-    icon: FileText,
+    image: guidelinesIcon,
   },
   {
     id: "training",
     title: "آموزش",
     description: "محتوای آموزشی سامانه",
     href: "/training",
-    icon: GraduationCap,
+    image: trainingIcon,
   },
   {
     id: "forms",
     title: "فرم",
     description: "فرم‌های عمومی سازمان",
     href: "/pdf-forms",
-    icon: ClipboardCheck,
+    image: formsIcon,
   },
   {
     id: "documents",
     title: "مستندات",
     description: "اسناد و مستندات",
     href: "/documents",
-    icon: FolderOpen,
+    image: documentsIcon,
   },
   {
     id: "it",
     title: "معاونت فناوری اطلاعات",
     description: "خدمات و پشتیبانی فناوری",
     href: "/departments/it",
-    icon: Monitor,
+    image: itIcon,
     departmentIds: ["it"],
   },
   {
@@ -104,7 +106,7 @@ const HOME_CARDS: HomeCard[] = [
     title: "معاونت کسب و کار",
     description: "خدمات کسب و کار و بانک",
     href: "/departments/business",
-    icon: BriefcaseBusiness,
+    image: businessIcon,
     departmentIds: ["business", "bank"],
   },
   {
@@ -112,7 +114,7 @@ const HOME_CARDS: HomeCard[] = [
     title: "معاونت توسعه منابع",
     description: "منابع انسانی و امور مالی",
     href: "/departments/resource-development",
-    icon: Building2,
+    image: resourceDevelopmentIcon,
     departmentIds: ["hr", "finance"],
   },
   {
@@ -120,7 +122,7 @@ const HOME_CARDS: HomeCard[] = [
     title: "مدیریت طرح و توسعه",
     description: "طرح‌ها، فرایندها و توسعه",
     href: "/departments/planning",
-    icon: Landmark,
+    image: planningIcon,
     departmentIds: ["planning"],
   },
   {
@@ -128,7 +130,7 @@ const HOME_CARDS: HomeCard[] = [
     title: "گزارش شورای معاونین و مدیران",
     description: "ثبت و مشاهده گزارشات",
     href: "/departments/reports",
-    icon: BarChart3,
+    image: reportsIcon,
     departmentIds: ["reports"],
   },
   {
@@ -136,7 +138,7 @@ const HOME_CARDS: HomeCard[] = [
     title: "امور قراردادها",
     description: "قراردادها و آرشیو قراردادها",
     href: "/departments/contracts",
-    icon: FileText,
+    image: contractsIcon,
     departmentIds: ["contracts", "contract-archive"],
   },
   {
@@ -144,14 +146,14 @@ const HOME_CARDS: HomeCard[] = [
     title: "تایم شیت",
     description: "ثبت و مدیریت کارکرد",
     href: "/timesheet",
-    icon: Clock3,
+    image: timesheetIcon,
   },
   {
     id: "external-letters",
     title: LETTER_WORKFLOWS.external.title,
     description: LETTER_WORKFLOWS.external.description,
     href: LETTER_WORKFLOWS.external.homePath,
-    icon: Network,
+    image: externalLettersIcon,
     departmentIds: [LETTER_WORKFLOWS.external.accessDepartmentId],
   },
 ];
@@ -162,23 +164,6 @@ const HOME_CARD_ROWS = [
   ["business", "it", "resource-development", "planning"],
   ["reports", "contracts", "meeting-room"],
 ] as const;
-
-const HOME_ICON_STYLES: Record<string, string> = {
-  "meeting-room": "border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-400/40 dark:bg-teal-500/20 dark:text-teal-200",
-  guidelines: "border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-400/40 dark:bg-cyan-500/20 dark:text-cyan-200",
-  training: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-400/40 dark:bg-blue-500/20 dark:text-blue-200",
-  forms: "border-primary/30 bg-primary/10 text-primary dark:border-red-400/40 dark:bg-primary/20 dark:text-red-200",
-  documents: "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-400/40 dark:bg-purple-500/20 dark:text-purple-200",
-  it: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/40 dark:bg-emerald-500/20 dark:text-emerald-200",
-  business: "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-400/40 dark:bg-violet-500/20 dark:text-violet-200",
-  "resource-development": "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-400/40 dark:bg-orange-500/20 dark:text-orange-200",
-  planning: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-400/40 dark:bg-rose-500/20 dark:text-rose-200",
-  reports: "border-green-200 bg-green-50 text-green-700 dark:border-green-400/40 dark:bg-green-500/20 dark:text-green-200",
-  contracts: "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-400/40 dark:bg-orange-500/20 dark:text-orange-200",
-  timesheet: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-400/40 dark:bg-blue-500/20 dark:text-blue-200",
-  "external-letters": "border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-400/40 dark:bg-indigo-500/20 dark:text-indigo-200",
-  "internal-letters": "border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-400/40 dark:bg-indigo-500/20 dark:text-indigo-200",
-};
 
 const formatNewsDate = (value: string) => formatPersianDateTime(value);
 
@@ -261,7 +246,6 @@ function NewsDetailModal({
 }
 
 function DestinationCard({ card }: { card: HomeCard }) {
-  const Icon = card.icon;
   const isFeatured = card.featured && Boolean(card.href);
   const content = (
     <Card
@@ -310,13 +294,21 @@ function DestinationCard({ card }: { card: HomeCard }) {
 
         <div
           className={cn(
-            "relative z-10 mb-6 flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border shadow-[0_12px_28px_-14px_rgba(15,23,42,0.3)] ring-1 ring-white/50 transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-[0_18px_34px_-16px_rgba(15,23,42,0.38)] dark:ring-white/10",
-            card.href
-              ? cn(HOME_ICON_STYLES[card.id], "group-hover:scale-110 group-hover:-rotate-3")
-              : "border-border bg-muted text-muted-foreground dark:border-white/20 dark:bg-card/10 dark:text-white/40",
+            "relative z-10 mb-5 h-24 w-24 shrink-0 transition-all duration-300 group-hover:-translate-y-1 group-hover:scale-105",
+            !card.href && "grayscale opacity-55",
           )}
         >
-          <Icon className="h-8 w-8 shrink-0" strokeWidth={2} />
+          <Image
+            src={card.image}
+            alt=""
+            fill
+            sizes="96px"
+            className="object-contain"
+            style={{
+              filter: "drop-shadow(0 8px 10px hsl(var(--primary) / 0.24))",
+            }}
+            aria-hidden="true"
+          />
         </div>
 
         <h3
@@ -518,8 +510,18 @@ export default function HomePage() {
               <h2 className="text-base font-bold text-foreground">آخرین اخبار</h2>
               <p className="mt-1 text-xs text-muted-foreground">تازه‌ترین اطلاعیه‌های سازمان</p>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/15 bg-primary/10 text-primary shadow-sm">
-              <Megaphone className="h-5 w-5" />
+            <div className="relative h-14 w-14 shrink-0">
+              <Image
+                src={newsIcon}
+                alt=""
+                fill
+                sizes="56px"
+                className="object-contain"
+                style={{
+                  filter: "drop-shadow(0 6px 8px hsl(var(--primary) / 0.22))",
+                }}
+                aria-hidden="true"
+              />
             </div>
           </div>
 
