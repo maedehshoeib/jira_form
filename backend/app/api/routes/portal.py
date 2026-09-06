@@ -129,18 +129,28 @@ async def _save_task_action_attachment(
 ) -> tuple[str, str]:
     safe_name = Path(upload.filename or "attachment").name[:256]
     content = await upload.read(MAX_TASK_ACTION_ATTACHMENT_SIZE + 1)
+
     if len(content) > MAX_TASK_ACTION_ATTACHMENT_SIZE:
         raise HTTPException(
             status_code=413,
             detail="حداکثر حجم فایل ۱۵ مگابایت است",
         )
+
     extension = Path(safe_name).suffix.lower()[:16]
-    upload_dir = (Path(settings.UPLOAD_DIR) / "task-actions").resolve()
+
+    upload_root = Path(settings.UPLOAD_DIR).resolve()
+    upload_dir = (upload_root / "task-actions").resolve()
+
     upload_dir.mkdir(parents=True, exist_ok=True)
+
     target = upload_dir / f"{uuid.uuid4().hex}{extension}"
     target.write_bytes(content)
-    return str(target), safe_name
 
+    # Store a relative path in the database instead of
+    # an absolute Docker/container filesystem path.
+    relative_path = target.relative_to(upload_root)
+
+    return str(relative_path), safe_name
 
 async def _save_submission_attachment(
     upload: UploadFile,
@@ -176,10 +186,38 @@ def _serve_task_action_file(
 ) -> FileResponse:
     if not file_path or not file_name:
         raise HTTPException(status_code=404, detail="پیوست یافت نشد")
-    path = Path(file_path).resolve()
-    allowed_root = (Path(settings.UPLOAD_DIR) / "task-actions").resolve()
+
+    upload_root = Path(settings.UPLOAD_DIR).resolve()
+    allowed_root = (upload_root / "task-actions").resolve()
+
+    raw_path = Path(file_path)
+
+    if raw_path.is_absolute():
+        # Backward compatibility for legacy database records.
+        #
+        # Old records may contain:
+        # /app/backend/data/uploads/task-actions/file.docx
+        #
+        # Current container uses:
+        # /app/data/uploads/task-actions/file.docx
+        legacy_upload_root = Path("/app/backend/data/uploads").resolve()
+
+        try:
+            relative_path = raw_path.resolve().relative_to(legacy_upload_root)
+            path = (upload_root / relative_path).resolve()
+        except ValueError:
+            # Current absolute path or another absolute path.
+            path = raw_path.resolve()
+    else:
+        # New database records store relative paths such as:
+        # task-actions/file.docx
+        path = (upload_root / raw_path).resolve()
+
+    # Security check:
+    # Only allow files inside /data/uploads/task-actions.
     if allowed_root not in path.parents or not path.is_file():
         raise HTTPException(status_code=404, detail="فایل پیوست موجود نیست")
+
     return FileResponse(
         path=path,
         filename=file_name,
