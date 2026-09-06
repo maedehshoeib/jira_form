@@ -32,6 +32,14 @@ class SubmissionAssigneeItem(BaseModel):
     assigned_at: str
 
 
+class SubmissionAssigneeProgressItem(BaseModel):
+    user_id: int
+    username: str
+    display_name: str
+    progress_percent: int = 0
+    updated_at: str | None = None
+
+
 class SubmissionTimelineItem(BaseModel):
     id: str
     event_type: Literal["submitted", "viewed", "referred", "status_changed"]
@@ -62,6 +70,7 @@ class SubmissionListItem(BaseModel):
     status: str
     workflow_status: str
     progress_percent: int = 0
+    viewer_progress_percent: int | None = None
     is_read: bool = False
     first_viewed_at: str | None = None
     last_viewed_at: str | None = None
@@ -78,6 +87,7 @@ class SubmissionListItem(BaseModel):
     jira_issue_key: str = ""
     jira_status: str = ""
     initial_assignees: list[SubmissionAssigneeItem] = Field(default_factory=list)
+    assignee_progress: list[SubmissionAssigneeProgressItem] = Field(default_factory=list)
     referrals: list[SubmissionReferralItem] = Field(default_factory=list)
     cc_recipients: list[SubmissionCcRecipientItem] = Field(default_factory=list)
     can_act: bool = False
@@ -96,6 +106,7 @@ class SubmissionResponse(BaseModel):
     status: str
     workflow_status: str
     progress_percent: int = 0
+    viewer_progress_percent: int | None = None
     is_read: bool = False
     first_viewed_at: str | None = None
     last_viewed_at: str | None = None
@@ -113,6 +124,7 @@ class SubmissionResponse(BaseModel):
     jira_issue_key: str = ""
     jira_status: str = ""
     initial_assignees: list[SubmissionAssigneeItem] = Field(default_factory=list)
+    assignee_progress: list[SubmissionAssigneeProgressItem] = Field(default_factory=list)
     referrals: list[SubmissionReferralItem] = Field(default_factory=list)
     cc_recipients: list[SubmissionCcRecipientItem] = Field(default_factory=list)
     timeline: list[SubmissionTimelineItem] = Field(default_factory=list)

@@ -61,6 +61,29 @@ class SubmissionInitialAssignee(Base):
     assigned_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class SubmissionAssigneeProgress(Base):
+    """The latest progress reported by one assignee for one submission."""
+
+    __tablename__ = "submission_assignee_progress"
+    __table_args__ = (
+        UniqueConstraint(
+            "submission_id",
+            "user_id",
+            name="uq_submission_assignee_progress_user",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    submission_id: Mapped[int] = mapped_column(
+        ForeignKey("submissions.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    progress_percent: Mapped[int] = mapped_column(Integer, default=0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class SubmissionReferral(Base):
     __tablename__ = "submission_referrals"
 

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.timezone import utc_now
 from app.models.submission import (
     Submission,
+    SubmissionAssigneeProgress,
     SubmissionCcRecipient,
     SubmissionComment,
     SubmissionCommentMention,
@@ -18,6 +19,7 @@ from app.models.submission import (
     SubmissionView,
 )
 from app.models.user import User
+from app.repositories.submissions import SubmissionRepository
 from app.services.form_duty_service import list_user_duty_assignments, user_handles_target
 from app.services.meeting_room_workflow_service import (
     active_meeting_room_approver_id,
@@ -343,7 +345,18 @@ def set_task_status(
     elif not user_can_access_task(db, actor, submission):
         raise PermissionError("شما به این وظیفه دسترسی ندارید.")
     old_status = submission.status or "submitted"
-    old_progress = int(submission.progress_percent or 0)
+    submission_progress = int(submission.progress_percent or 0)
+    progress_repository = SubmissionRepository(db)
+    assignee_progress = (
+        progress_repository.assignee_progress(submission.id, actor.id)
+        if status == "in_progress"
+        else None
+    )
+    old_progress = (
+        int(assignee_progress.progress_percent or 0)
+        if assignee_progress is not None
+        else (0 if status == "in_progress" else submission_progress)
+    )
     if progress_percent is not None and not 0 <= progress_percent <= 100:
         raise ValueError("درصد پیشرفت باید بین صفر تا صد باشد.")
     if status == "approved" and is_meeting_room:
@@ -382,10 +395,22 @@ def set_task_status(
     ):
         return submission
 
+    update_time = datetime.utcnow()
     submission.status = status
     submission.progress_percent = new_progress
-    submission.status_updated_at = datetime.utcnow()
+    submission.status_updated_at = update_time
     submission.status_updated_by_id = actor.id
+    if status == "in_progress":
+        if assignee_progress is None:
+            assignee_progress = SubmissionAssigneeProgress(
+                submission_id=submission.id,
+                user_id=actor.id,
+            )
+            db.add(assignee_progress)
+        assignee_progress.progress_percent = new_progress
+        assignee_progress.updated_at = update_time
+    elif status == "submitted":
+        progress_repository.clear_assignee_progress(submission.id)
     if status == "submitted":
         submission.status_note = ""
     else:

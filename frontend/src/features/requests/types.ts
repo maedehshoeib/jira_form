@@ -14,6 +14,14 @@ export type InitialAssignee = {
   display_name: string;
 };
 
+export type AssigneeProgress = {
+  user_id: number;
+  username: string;
+  display_name: string;
+  progress_percent: number;
+  updated_at: string | null;
+};
+
 export type ReferralItem = {
   id: number;
   from_user_id: number;
@@ -56,6 +64,7 @@ export type SubmissionListItem = {
   status: string;
   workflow_status: WorkflowStatus;
   progress_percent: number;
+  assignee_progress?: AssigneeProgress[];
   jira_issue_key?: string;
   jira_status?: string;
   first_viewed_at: string | null;

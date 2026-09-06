@@ -49,6 +49,7 @@ import {
 import type {
   SortOrder,
   StatusTab,
+  AssigneeProgress,
   Colleague,
   SubmissionDetail,
   SubmissionListItem,
@@ -84,6 +85,48 @@ function WorkflowStatusIcon({
   if (status === "in_progress") return <Clock3 size={size} aria-hidden="true" />;
   if (status === "completed") return <CheckCircle2 size={size} aria-hidden="true" />;
   return <XCircle size={size} aria-hidden="true" />;
+}
+
+function AssigneeProgressList({
+  items,
+  compact = false,
+}: {
+  items: AssigneeProgress[];
+  compact?: boolean;
+}) {
+  return (
+    <div className={compact ? "space-y-2" : "grid gap-3 sm:grid-cols-2"}>
+      {items.map((item) => {
+        const progress = normalizedProgress(item.progress_percent);
+        const name = item.display_name || item.username || "نامشخص";
+        return (
+          <div key={item.user_id} className="rounded-xl border border-border/70 bg-muted/40 p-3">
+            <div className="mb-2 flex items-center justify-between gap-3 text-xs">
+              <span className="min-w-0 truncate font-semibold text-foreground" title={name}>
+                {name}
+              </span>
+              <span className="shrink-0 font-extrabold tabular-nums text-foreground">
+                {progress.toLocaleString("fa-IR")}٪
+              </span>
+            </div>
+            <div
+              role="progressbar"
+              aria-label={`درصد پیشرفت ${name}`}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progress}
+              className="h-2 overflow-hidden rounded-full bg-slate-200"
+            >
+              <div
+                className="h-full rounded-full bg-blue-600 transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function WorkflowOverview({ status }: { status: WorkflowStatus }) {
@@ -839,11 +882,7 @@ export default function MyRequestsPage() {
         <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
           {filteredRequests.map((request) => {
             const statusMeta = workflowStatusMeta(request.workflow_status);
-            const progress = normalizedProgress(request.progress_percent);
-            const showProgress =
-              progress > 0 ||
-              request.workflow_status === "in_progress" ||
-              request.workflow_status === "completed";
+            const progressItems = request.assignee_progress ?? [];
             const requestTitle =
               request.subject || request.section_title || request.form_title;
             const initialAssigneeNames = uniqueNames(
@@ -959,27 +998,12 @@ export default function MyRequestsPage() {
                   </p>
                 )}
 
-                {showProgress && (
+                {progressItems.length > 0 && (
                   <div className="mt-5 w-full rounded-lg bg-muted/40 p-3">
-                    <div className="mb-2 flex items-center justify-between text-xs">
-                      <span className="font-semibold text-muted-foreground">میزان پیشرفت</span>
-                      <span className="font-extrabold text-foreground">
-                        {progress.toLocaleString("fa-IR")}٪
-                      </span>
-                    </div>
-                    <div
-                      role="progressbar"
-                      aria-label="میزان پیشرفت رسیدگی"
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-valuenow={progress}
-                      className="h-2 overflow-hidden rounded-full bg-slate-200"
-                    >
-                      <div
-                        className={"h-full rounded-full transition-all " + statusMeta.barClass}
-                        style={{ width: progress + "%" }}
-                      />
-                    </div>
+                    <p className="mb-2 text-xs font-bold text-muted-foreground">
+                      پیشرفت هر مسئول
+                    </p>
+                    <AssigneeProgressList items={progressItems} compact />
                   </div>
                 )}
 
@@ -1024,7 +1048,7 @@ export default function MyRequestsPage() {
               <tbody className="divide-y divide-border">
                 {filteredRequests.map((request) => {
                   const statusMeta = workflowStatusMeta(request.workflow_status);
-                  const progress = normalizedProgress(request.progress_percent);
+                  const progressItems = request.assignee_progress ?? [];
                   const requestTitle =
                     request.subject || request.section_title || request.form_title;
                   const initialAssigneeNames = uniqueNames(
@@ -1099,22 +1123,11 @@ export default function MyRequestsPage() {
                         </Badge>
                       </td>
                       <td className="w-40 px-5 py-3.5 align-middle">
-                        <span className="mb-1.5 block text-xs font-bold text-foreground">
-                          {progress.toLocaleString("fa-IR")}٪
-                        </span>
-                        <div
-                          role="progressbar"
-                          aria-label={`پیشرفت درخواست ${request.id}`}
-                          aria-valuemin={0}
-                          aria-valuemax={100}
-                          aria-valuenow={progress}
-                          className="h-1.5 overflow-hidden rounded-full bg-slate-200"
-                        >
-                          <div
-                            className={"h-full rounded-full " + statusMeta.barClass}
-                            style={{ width: progress + "%" }}
-                          />
-                        </div>
+                        {progressItems.length > 0 ? (
+                          <AssigneeProgressList items={progressItems} compact />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">ثبت نشده</span>
+                        )}
                       </td>
                       <td className="whitespace-nowrap px-5 py-3.5 align-middle text-xs leading-5 text-muted-foreground">
                         {formatPersianDateTime(request.created_at)}
@@ -1422,39 +1435,17 @@ export default function MyRequestsPage() {
                 aria-label="میزان پیشرفت رسیدگی"
                 className="rounded-3xl border border-border bg-card p-5 shadow-sm"
               >
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div>
-                    <h4 className="font-bold text-foreground">
-                      {selected.workflow_status === "rejected"
-                        ? "پیشرفت ثبت‌شده تا زمان رد"
-                        : "میزان پیشرفت رسیدگی"}
-                    </h4>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      آخرین درصدی که مسئول رسیدگی ثبت کرده است
-                    </p>
-                  </div>
-                  <span className="text-2xl font-extrabold text-foreground">
-                    {normalizedProgress(selected.progress_percent).toLocaleString("fa-IR")}٪
-                  </span>
+                <div className="mb-4">
+                  <h4 className="font-bold text-foreground">پیشرفت هر مسئول رسیدگی</h4>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    درصد پیشرفت هر فرد به‌صورت جداگانه نمایش داده می‌شود.
+                  </p>
                 </div>
-                <div
-                  role="progressbar"
-                  aria-label="درصد پیشرفت درخواست"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={normalizedProgress(selected.progress_percent)}
-                  className="h-3 overflow-hidden rounded-full bg-muted"
-                >
-                  <div
-                    className={
-                      "h-full rounded-full transition-all " +
-                      workflowStatusMeta(selected.workflow_status).barClass
-                    }
-                    style={{
-                      width: normalizedProgress(selected.progress_percent) + "%",
-                    }}
-                  />
-                </div>
+                {(selected.assignee_progress?.length ?? 0) > 0 ? (
+                  <AssigneeProgressList items={selected.assignee_progress ?? []} />
+                ) : (
+                  <p className="text-sm text-muted-foreground">هنوز پیشرفتی ثبت نشده است.</p>
+                )}
               </section>
 
               <div className="grid gap-3 rounded-2xl bg-muted/40 p-4 text-sm sm:grid-cols-2">

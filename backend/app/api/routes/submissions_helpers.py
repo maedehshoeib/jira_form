@@ -10,6 +10,7 @@ from app.api.routes.reports_helpers import _format_dt, _verify_api_key
 from app.core.deps import get_optional_user
 from app.models.submission import (
     Submission,
+    SubmissionAssigneeProgress,
     SubmissionCcRecipient,
     SubmissionInitialAssignee,
     SubmissionReferral,
@@ -17,8 +18,10 @@ from app.models.submission import (
     SubmissionView,
 )
 from app.models.user import User
+from app.repositories.submissions import SubmissionRepository
 from app.schemas.submission import (
     SubmissionAssigneeItem,
+    SubmissionAssigneeProgressItem,
     SubmissionCcRecipientItem,
     SubmissionListItem,
     SubmissionReferralItem,
@@ -172,6 +175,7 @@ class SubmissionWorkflowContext:
     cc_recipients_by_submission: dict[int, list[SubmissionCcRecipient]]
     views_by_submission: dict[int, list[SubmissionView]]
     histories_by_submission: dict[int, list[SubmissionStatusHistory]]
+    assignee_progress_by_submission: dict[int, list[SubmissionAssigneeProgress]]
     users_by_id: dict[int, User]
     viewer_user_id: int | None = None
 
@@ -192,6 +196,7 @@ def build_submission_workflow_context(
             cc_recipients_by_submission={},
             views_by_submission={},
             histories_by_submission={},
+            assignee_progress_by_submission={},
             users_by_id={},
             viewer_user_id=viewer_user_id,
         )
@@ -240,6 +245,9 @@ def build_submission_workflow_context(
         if include_history
         else []
     )
+    assignee_progress_rows = SubmissionRepository(db).assignee_progress_for(
+        set(submission_ids)
+    )
 
     initial_assignees_by_submission: dict[
         int, list[SubmissionInitialAssignee]
@@ -248,6 +256,9 @@ def build_submission_workflow_context(
     cc_recipients_by_submission: dict[int, list[SubmissionCcRecipient]] = defaultdict(list)
     views_by_submission: dict[int, list[SubmissionView]] = defaultdict(list)
     histories_by_submission: dict[int, list[SubmissionStatusHistory]] = defaultdict(list)
+    assignee_progress_by_submission: dict[
+        int, list[SubmissionAssigneeProgress]
+    ] = defaultdict(list)
     for row in initial_assignees:
         initial_assignees_by_submission[row.submission_id].append(row)
     for row in referrals:
@@ -258,6 +269,8 @@ def build_submission_workflow_context(
         views_by_submission[row.submission_id].append(row)
     for row in histories:
         histories_by_submission[row.submission_id].append(row)
+    for row in assignee_progress_rows:
+        assignee_progress_by_submission[row.submission_id].append(row)
 
     user_ids = {item.user_id for item in submissions}
     user_ids.update(row.user_id for row in initial_assignees)
@@ -272,6 +285,7 @@ def build_submission_workflow_context(
         user_ids.update((row.user_id, row.mentioned_by_id))
     user_ids.update(row.user_id for row in views)
     user_ids.update(row.changed_by_id for row in histories)
+    user_ids.update(row.user_id for row in assignee_progress_rows)
     users = {
         user.id: user
         for user in db.query(User).filter(User.id.in_(user_ids)).all()
@@ -284,6 +298,7 @@ def build_submission_workflow_context(
         cc_recipients_by_submission=dict(cc_recipients_by_submission),
         views_by_submission=dict(views_by_submission),
         histories_by_submission=dict(histories_by_submission),
+        assignee_progress_by_submission=dict(assignee_progress_by_submission),
         users_by_id=users,
         viewer_user_id=viewer_user_id,
     )
@@ -305,6 +320,54 @@ def _initial_assignee_items(
             )
         )
     return items
+
+
+def _assignee_progress_items(
+    context: SubmissionWorkflowContext,
+    submission_id: int,
+) -> list[SubmissionAssigneeProgressItem]:
+    rows = context.assignee_progress_by_submission.get(submission_id, [])
+    rows_by_user_id = {row.user_id: row for row in rows}
+    user_ids: list[int] = []
+    for row in context.initial_assignees_by_submission.get(submission_id, []):
+        if row.user_id not in user_ids:
+            user_ids.append(row.user_id)
+    for row in context.referrals_by_submission.get(submission_id, []):
+        if row.to_user_id not in user_ids:
+            user_ids.append(row.to_user_id)
+    for row in rows:
+        if row.user_id not in user_ids:
+            user_ids.append(row.user_id)
+
+    items: list[SubmissionAssigneeProgressItem] = []
+    for user_id in user_ids:
+        row = rows_by_user_id.get(user_id)
+        user = context.users_by_id.get(user_id)
+        items.append(
+            SubmissionAssigneeProgressItem(
+                user_id=user_id,
+                username=user.username if user else "",
+                display_name=_user_display(user),
+                progress_percent=int(row.progress_percent or 0) if row else 0,
+                updated_at=_format_dt(row.updated_at) if row else None,
+            )
+        )
+    return items
+
+
+def _viewer_progress_percent(
+    context: SubmissionWorkflowContext,
+    submission_id: int,
+) -> int:
+    row = next(
+        (
+            item
+            for item in context.assignee_progress_by_submission.get(submission_id, [])
+            if item.user_id == context.viewer_user_id
+        ),
+        None,
+    )
+    return int(row.progress_percent or 0) if row else 0
 
 
 def _referral_items(
@@ -553,6 +616,7 @@ def _submission_to_list_item(
                 cc_recipients_by_submission={},
                 views_by_submission={},
                 histories_by_submission={},
+                assignee_progress_by_submission={},
                 users_by_id={user.id: user} if user is not None else {},
             )
         )
@@ -562,6 +626,7 @@ def _submission_to_list_item(
         submission.data,
     )
     initial_assignees = _initial_assignee_items(context, submission.id)
+    assignee_progress = _assignee_progress_items(context, submission.id)
     referrals = _referral_items(context, submission.id)
     cc_recipients = _cc_recipient_items(context, submission.id)
     workflow_status, is_read, first_viewed_at, last_viewed_at = (
@@ -579,6 +644,9 @@ def _submission_to_list_item(
         status=submission.status,
         workflow_status=workflow_status,
         progress_percent=int(submission.progress_percent or 0),
+        viewer_progress_percent=(
+            _viewer_progress_percent(context, submission.id) if can_act else None
+        ),
         is_read=is_read,
         first_viewed_at=first_viewed_at,
         last_viewed_at=last_viewed_at,
@@ -599,6 +667,7 @@ def _submission_to_list_item(
         jira_issue_key=submission.jira_issue_key or "",
         jira_status=submission.jira_status or "",
         initial_assignees=initial_assignees,
+        assignee_progress=assignee_progress,
         referrals=referrals,
         cc_recipients=cc_recipients,
         can_act=can_act,
@@ -629,6 +698,7 @@ def _submission_to_response(
                 cc_recipients_by_submission={},
                 views_by_submission={},
                 histories_by_submission={},
+                assignee_progress_by_submission={},
                 users_by_id={user.id: user} if user is not None else {},
             )
         )
@@ -638,6 +708,7 @@ def _submission_to_response(
         submission.data,
     )
     initial_assignees = _initial_assignee_items(context, submission.id)
+    assignee_progress = _assignee_progress_items(context, submission.id)
     referrals = _referral_items(context, submission.id)
     cc_recipients = _cc_recipient_items(context, submission.id)
     workflow_status, is_read, first_viewed_at, last_viewed_at = (
@@ -655,6 +726,9 @@ def _submission_to_response(
         status=submission.status,
         workflow_status=workflow_status,
         progress_percent=int(submission.progress_percent or 0),
+        viewer_progress_percent=(
+            _viewer_progress_percent(context, submission.id) if can_act else None
+        ),
         is_read=is_read,
         first_viewed_at=first_viewed_at,
         last_viewed_at=last_viewed_at,
@@ -676,6 +750,7 @@ def _submission_to_response(
         jira_issue_key=submission.jira_issue_key or "",
         jira_status=submission.jira_status or "",
         initial_assignees=initial_assignees,
+        assignee_progress=assignee_progress,
         referrals=referrals,
         cc_recipients=cc_recipients,
         timeline=_submission_timeline(context, submission),

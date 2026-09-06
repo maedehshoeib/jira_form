@@ -22,6 +22,7 @@ from app.models.department import Department  # noqa: F401
 from app.models.form_template import FormDutyAssignment  # noqa: F401
 from app.models.submission import (
     Submission,
+    SubmissionAssigneeProgress,
     SubmissionCcRecipient,
     SubmissionComment,
     SubmissionCommentMention,
@@ -1128,6 +1129,75 @@ class TaskWorkflowMockTests(unittest.TestCase):
             all(event["id"].startswith("status:") for event in status_events)
         )
 
+    def test_each_assignee_has_independent_progress(self):
+        replace_assignments(
+            self.db,
+            [
+                (self.handler.id, "finance:petty-cash:common-form"),
+                (self.colleague.id, "finance:petty-cash:common-form"),
+            ],
+        )
+        self.db.add(
+            SubmissionInitialAssignee(
+                submission_id=self.submission.id,
+                user_id=self.colleague.id,
+            )
+        )
+        self.db.commit()
+
+        self._actor = self.handler
+        first = self.client.patch(
+            f"/api/v1/tasks/{self.submission.id}/status",
+            json={"status": "in_progress", "progress_percent": 35},
+        )
+        self.assertEqual(first.status_code, 200, first.text)
+        self.assertEqual(first.json()["viewer_progress_percent"], 35)
+
+        self._actor = self.colleague
+        before = self.client.get(f"/api/v1/tasks/{self.submission.id}")
+        self.assertEqual(before.status_code, 200, before.text)
+        self.assertEqual(before.json()["viewer_progress_percent"], 0)
+        self.assertEqual(
+            {
+                item["user_id"]: item["progress_percent"]
+                for item in before.json()["assignee_progress"]
+            },
+            {self.handler.id: 35, self.colleague.id: 0},
+        )
+
+        second = self.client.patch(
+            f"/api/v1/tasks/{self.submission.id}/status",
+            json={"status": "in_progress", "progress_percent": 70},
+        )
+        self.assertEqual(second.status_code, 200, second.text)
+        self.assertEqual(second.json()["viewer_progress_percent"], 70)
+        self.assertEqual(
+            {
+                item["user_id"]: item["progress_percent"]
+                for item in second.json()["assignee_progress"]
+            },
+            {self.handler.id: 35, self.colleague.id: 70},
+        )
+        stored = (
+            self.db.query(SubmissionAssigneeProgress)
+            .filter(SubmissionAssigneeProgress.submission_id == self.submission.id)
+            .all()
+        )
+        self.assertEqual(
+            {item.user_id: item.progress_percent for item in stored},
+            {self.handler.id: 35, self.colleague.id: 70},
+        )
+        self._as(self.submitter)
+        sender_view = self.client.get(f"/api/v1/submissions/{self.submission.id}")
+        self.assertEqual(sender_view.status_code, 200, sender_view.text)
+        self.assertIsNone(sender_view.json()["viewer_progress_percent"])
+        self.assertEqual(
+            {
+                item["user_id"]: item["progress_percent"]
+                for item in sender_view.json()["assignee_progress"]
+            },
+            {self.handler.id: 35, self.colleague.id: 70},
+        )
     def test_in_progress_rejects_one_hundred_percent(self):
         self._as(self.handler)
         response = self.client.patch(

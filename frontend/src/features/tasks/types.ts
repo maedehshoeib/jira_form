@@ -30,6 +30,14 @@ export type InitialAssignee = {
   assigned_at: string;
 };
 
+export type AssigneeProgress = {
+  user_id: number;
+  username: string;
+  display_name: string;
+  progress_percent: number;
+  updated_at: string | null;
+};
+
 export type CcRecipient = {
   user_id: number;
   username: string;
@@ -51,6 +59,7 @@ export type SubmissionListItem = {
   status: string;
   workflow_status: string;
   progress_percent: number;
+  viewer_progress_percent?: number | null;
   jira_issue_key?: string;
   jira_status?: string;
   is_read: boolean;
@@ -65,6 +74,7 @@ export type SubmissionListItem = {
   status_note?: string;
   status_attachment_name?: string | null;
   initial_assignees?: InitialAssignee[];
+  assignee_progress?: AssigneeProgress[];
   referrals?: ReferralItem[];
   cc_recipients?: CcRecipient[];
   can_act?: boolean;

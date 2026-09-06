@@ -35,9 +35,15 @@ referral attachment endpoint.
 
 For ordinary requests, status ownership is split by role:
 
-- Receivers use `PATCH /api/v1/tasks/{submission_id}/status` only to submit an `in_progress` status, a progress percentage from 0 through 99, notes, and optional attachments.
+- Receivers use `PATCH /api/v1/tasks/{submission_id}/status` only to submit an `in_progress` status, a progress percentage from 0 through 99, notes, and optional attachments. Progress is stored independently for each receiver; one receiver's update never overwrites another receiver's value.
 - The original sender uses `PATCH /api/v1/submissions/{submission_id}/status` to record the final result as `approved` (finished) or `rejected` (not finished), and may use `submitted` to reopen the request.
 - The backend enforces this ownership; hiding controls in the UI is not the authorization boundary.
+
+Task and submission responses expose `assignee_progress`, containing the latest
+percentage and update time for every initial or referred assignee. Task
+responses also expose `viewer_progress_percent`, which is the signed-in
+receiver's editable value. The existing `progress_percent` field remains in
+the response for backward compatibility with older clients.
 
 Meeting-room reservations retain their separate chained approver workflow.
 

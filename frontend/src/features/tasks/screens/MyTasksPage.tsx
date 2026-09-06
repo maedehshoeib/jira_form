@@ -296,7 +296,10 @@ export default function MyTasksPage() {
       syncTask(detailResponse.data);
       setSelected(detailResponse.data);
       setProgressDraft(
-        normalizedProgress(detailResponse.data.progress_percent, detailResponse.data.status),
+        normalizedProgress(
+          detailResponse.data.viewer_progress_percent ?? 0,
+          detailResponse.data.status === "approved" ? "approved" : "in_progress",
+        ),
       );
       setTemplate(templateResponse.data);
       window.dispatchEvent(new Event("tasks:refresh-notifications"));
@@ -351,7 +354,12 @@ export default function MyTasksPage() {
       }
       syncTask(data);
       setSelected((prev) => (prev ? { ...data, data: prev.data } : data));
-      setProgressDraft(normalizedProgress(data.progress_percent, data.status));
+      setProgressDraft(
+        normalizedProgress(
+          data.viewer_progress_percent ?? 0,
+          data.status === "approved" ? "approved" : "in_progress",
+        ),
+      );
       setStatusPanel(null);
       setStatusNote("");
       setStatusAttachment(null);
@@ -381,7 +389,7 @@ export default function MyTasksPage() {
     const note = progressNote.trim();
     if (
       selected.status === "in_progress" &&
-      nextProgress === normalizedProgress(selected.progress_percent, selected.status) &&
+      nextProgress === normalizedProgress(selected.viewer_progress_percent ?? 0) &&
       !note &&
       !progressAttachment
     ) {
@@ -412,7 +420,7 @@ export default function MyTasksPage() {
       }
       syncTask(data);
       setSelected((prev) => (prev ? { ...data, data: prev.data } : data));
-      setProgressDraft(normalizedProgress(data.progress_percent, data.status));
+      setProgressDraft(normalizedProgress(data.viewer_progress_percent ?? 0));
       setProgressNote("");
       setProgressAttachment(null);
       window.dispatchEvent(new Event("tasks:refresh-notifications"));
@@ -1002,10 +1010,10 @@ export default function MyTasksPage() {
               )}
               {(task.status === "in_progress" ||
                 task.status === "approved" ||
-                normalizedProgress(task.progress_percent, task.status) > 0) && (
+                normalizedProgress(task.viewer_progress_percent ?? 0) > 0) && (
                 <TaskProgress
                   compact
-                  progress={task.progress_percent}
+                  progress={task.viewer_progress_percent ?? 0}
                   status={task.status}
                 />
               )}
@@ -1129,7 +1137,7 @@ export default function MyTasksPage() {
 
               {!selected.is_announcement && (
                 <TaskProgress
-                  progress={selected.progress_percent}
+                  progress={selected.viewer_progress_percent ?? 0}
                   status={selected.status}
                 />
               )}
@@ -1235,8 +1243,7 @@ export default function MyTasksPage() {
                             (selected.status === "in_progress" &&
                               progressDraft ===
                                 normalizedProgress(
-                                  selected.progress_percent,
-                                  selected.status,
+                                  selected.viewer_progress_percent ?? 0,
                                 ) &&
                               !progressNote.trim() &&
                               !progressAttachment)
