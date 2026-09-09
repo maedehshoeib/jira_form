@@ -38,7 +38,8 @@ Follow the staged process in `docs/04-nextjs-migration.md`.
 
 ## Data and forms
 
-- Browser REST requests remain relative to `/api/v1`; server-only routing uses `BACKEND_URL`.
+- Browser REST requests remain relative to `/api/v1`; the App Router handler
+  in `src/app/api/v1/[...path]/route.ts` proxies them to `BACKEND_URL`.
 - Never expose credentials through `NEXT_PUBLIC_*`. Only public browser configuration may use that prefix.
 - Keep API payloads typed outside visual components.
 - Use React Query for server state where already established; do not mirror remote data unnecessarily.

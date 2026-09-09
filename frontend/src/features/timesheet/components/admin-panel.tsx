@@ -28,6 +28,7 @@ import {
   TimerReset,
   Trash2,
   Users,
+  UserRound,
   X,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -244,7 +245,11 @@ function TrendChart({
   );
 }
 
-export function AdminPanel(): JSX.Element {
+export function AdminPanel({
+  onOpenSelf,
+}: {
+  onOpenSelf?: () => void;
+} = {}): JSX.Element {
   const { user } = useAuth();
   const router = useRouter();
   const today = useMemo(() => jalaliToday(), []);
@@ -925,6 +930,16 @@ export function AdminPanel(): JSX.Element {
               </p>
               <p className='text-[10px] text-muted-foreground dark:text-muted-foreground'>مدیر تایم‌شیت</p>
             </div>
+            {onOpenSelf && (
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={onOpenSelf}
+                className='gap-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'
+              >
+                <UserRound className='h-4 w-4' /> کارکرد من
+              </Button>
+            )}
             <Button variant='outline' size='sm' onClick={() => router.push('/')} className='gap-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'>
               <ArrowRight className='h-4 w-4' /> بازگشت
             </Button>

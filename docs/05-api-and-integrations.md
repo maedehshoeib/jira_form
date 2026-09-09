@@ -1,6 +1,9 @@
 # API and integration map
 
-The browser uses relative `/api/v1` URLs. In Next.js these requests are rewritten server-side to `BACKEND_URL`.
+The browser uses relative `/api/v1` URLs. Next.js forwards them through
+`src/app/api/v1/[...path]/route.ts` to `BACKEND_URL`, preserving GET, POST, PUT,
+PATCH, DELETE, HEAD, and OPTIONS. A `next.config.ts` rewrite remains as fallback
+for other `/api` paths.
 
 | Domain | Prefix |
 |---|---|
@@ -14,6 +17,14 @@ The browser uses relative `/api/v1` URLs. In Next.js these requests are rewritte
 | Contracts | `/api/v1/contracts` |
 | Jira proxy | `/api/v1/jira` |
 | Timesheet | `/api/v1/timesheet` |
+
+Every signed-in user can manage their own timesheet:
+
+- Live clock: `POST /api/v1/timesheet/attendance/check-in` and `.../check-out`
+- Manual entrance/exit: `POST /api/v1/timesheet/attendance/entries`, `POST /api/v1/timesheet/attendance/entries/{id}`, `POST /api/v1/timesheet/attendance/entries/{id}/delete`
+- Tasks: `POST /api/v1/timesheet/tasks`, `POST /api/v1/timesheet/tasks/entries/{id}`, `POST /api/v1/timesheet/tasks/entries/{id}/delete`
+
+Users may only create or change their own attendance and tasks. Other-day attendance must include both entrance and exit. Tasks must still fall inside a presence window. Admin-only `/api/v1/timesheet/admin/*` routes continue to manage other employees, projects, and reports.
 
 WebSocket clients use `NEXT_PUBLIC_WS_BASE_URL` when configured. The local fallback connects to port `8000` on the current hostname. Production should provide a TLS WebSocket origin or reverse-proxy `/api/v1/chat/ws` to FastAPI.
 

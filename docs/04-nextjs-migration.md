@@ -3,7 +3,8 @@
 ## Completed milestone
 
 The build system, root layout, providers, metadata, loading/error boundaries, API
-rewrites, shadcn config, and production container use Next.js. Every supported
+proxy (`src/app/api/v1/[...path]/route.ts`), shadcn config, and production
+container use Next.js. Every supported
 URL now has a native App Router page. React Router, `src/App.tsx`,
 `src/legacy-pages`, and the catch-all compatibility route were removed.
 

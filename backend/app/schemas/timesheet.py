@@ -107,39 +107,29 @@ class AdminTaskPayload(TaskPayload):
     employee_id: int = Field(gt=0)
 
 
-class AdminAttendancePayload(WorkDatePayload):
+class AttendanceWritePayload(WorkDatePayload):
+    check_in_time: str
+    check_out_time: str | None = None
+
+    @field_validator("check_in_time", mode="before")
+    @classmethod
+    def validate_check_in(cls, value: object) -> object:
+        return _normalize_hhmm(value)
+
+    @field_validator("check_out_time", mode="before")
+    @classmethod
+    def validate_check_out(cls, value: object) -> object:
+        if value is None or value == "":
+            return None
+        return _normalize_hhmm(value)
+
+
+class AdminAttendancePayload(AttendanceWritePayload):
     employee_id: int = Field(gt=0)
-    check_in_time: str
-    check_out_time: str | None = None
-
-    @field_validator("check_in_time", mode="before")
-    @classmethod
-    def validate_check_in(cls, value: object) -> object:
-        return _normalize_hhmm(value)
-
-    @field_validator("check_out_time", mode="before")
-    @classmethod
-    def validate_check_out(cls, value: object) -> object:
-        if value is None or value == "":
-            return None
-        return _normalize_hhmm(value)
 
 
-class AdminAttendanceUpdatePayload(WorkDatePayload):
-    check_in_time: str
-    check_out_time: str | None = None
-
-    @field_validator("check_in_time", mode="before")
-    @classmethod
-    def validate_check_in(cls, value: object) -> object:
-        return _normalize_hhmm(value)
-
-    @field_validator("check_out_time", mode="before")
-    @classmethod
-    def validate_check_out(cls, value: object) -> object:
-        if value is None or value == "":
-            return None
-        return _normalize_hhmm(value)
+class AdminAttendanceUpdatePayload(AttendanceWritePayload):
+    pass
 
 
 class DateRangePayload(BaseModel):

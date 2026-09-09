@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
     root: process.cwd(),
   },
   reactStrictMode: true,
+  // App Router `src/app/api/v1/[...path]/route.ts` owns `/api/v1/*` so POST/PUT/
+  // PATCH/DELETE are forwarded. This rewrite remains a fallback for other `/api` paths.
   async rewrites() {
     return [
       {

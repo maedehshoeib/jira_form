@@ -21,6 +21,7 @@ from app.schemas.timesheet import (
     AdminAttendancePayload,
     AdminAttendanceUpdatePayload,
     AdminTaskPayload,
+    AttendanceWritePayload,
     CheckInPayload,
     CheckOutPayload,
     ProjectPayload,
@@ -49,6 +50,33 @@ def _duration(start: str, end: str) -> int:
             detail="زمان پایان باید بعد از زمان شروع باشد.",
         )
     return duration
+
+
+def _segment_end_minutes(
+    *,
+    work_date: str,
+    check_out_time: str | None,
+    now: int | None = None,
+) -> int:
+    """End of a presence segment in minutes from midnight.
+
+    Today's open shift ends at the current clock. Other days use end-of-day so
+    users can still submit and edit tasks on past dates without a live clock.
+    """
+    if check_out_time:
+        return _minutes(check_out_time)
+    if work_date != jalali_today():
+        return 24 * 60
+    return now if now is not None else _minutes(_local_now_time())
+
+
+def _require_checkout_for_other_days(work_date: str, check_out_time: str | None) -> None:
+    if check_out_time or work_date == jalali_today():
+        return
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="برای روزهای دیگر باید ساعت خروج را هم وارد کنید.",
+    )
 
 
 def _serialize_attendance(item: TimesheetAttendance) -> dict:
@@ -193,7 +221,7 @@ def _resolve_active_users(db: Session, user_ids: list[int]) -> list[User]:
         return []
     users = (
         db.query(User)
-        .filter(User.id.in_(user_ids), User.is_active.is_(True), User.is_admin.is_(False))
+        .filter(User.id.in_(user_ids), User.is_active.is_(True))
         .all()
     )
     found = {user.id for user in users}
@@ -366,10 +394,26 @@ def _assert_attendance_fits_tasks(
     for item in attendance:
         if ignore_attendance_id is not None and item.id == ignore_attendance_id:
             continue
-        end = _minutes(item.check_out_time) if item.check_out_time else now
-        segments.append((_minutes(item.check_in_time), end))
-    edited_end = _minutes(check_out_time) if check_out_time else now
-    segments.append((_minutes(check_in_time), edited_end))
+        segments.append(
+            (
+                _minutes(item.check_in_time),
+                _segment_end_minutes(
+                    work_date=item.work_date,
+                    check_out_time=item.check_out_time,
+                    now=now,
+                ),
+            )
+        )
+    segments.append(
+        (
+            _minutes(check_in_time),
+            _segment_end_minutes(
+                work_date=work_date,
+                check_out_time=check_out_time,
+                now=now,
+            ),
+        )
+    )
 
     for task in tasks:
         start, end = _minutes(task.start_time), _minutes(task.end_time)
@@ -545,7 +589,12 @@ def _assert_task_window(
     now = _minutes(_local_now_time())
     inside_attendance = any(
         start >= _minutes(item.check_in_time)
-        and end <= (_minutes(item.check_out_time) if item.check_out_time else now)
+        and end
+        <= _segment_end_minutes(
+            work_date=item.work_date,
+            check_out_time=item.check_out_time,
+            now=now,
+        )
         for item in attendance
     )
     if not inside_attendance:
@@ -598,6 +647,227 @@ def _create_task_for_user(
     }
 
 
+def _update_task_for_user(
+    db: Session,
+    *,
+    item: TimesheetTask,
+    payload: TaskPayload,
+    enforce_assignees: bool,
+) -> dict:
+    project, subproject_code = _resolve_task_codes(
+        db,
+        user_id=item.user_id,
+        work_date=payload.work_date,
+        project_code=payload.project_code,
+        subproject_code=payload.subproject_code,
+        enforce_assignees=enforce_assignees,
+    )
+    duration = _assert_task_window(
+        db,
+        user_id=item.user_id,
+        work_date=payload.work_date,
+        start_time=payload.start_time,
+        end_time=payload.end_time,
+        ignore_task_id=item.id,
+    )
+    item.work_date = payload.work_date
+    item.project_code = project.code
+    item.subproject_code = subproject_code
+    item.task_name = payload.task_name
+    item.start_time = payload.start_time
+    item.end_time = payload.end_time
+    item.minutes_spent = duration
+    db.commit()
+    db.refresh(item)
+    return {
+        "message": "فعالیت با موفقیت ویرایش شد.",
+        "minutes_spent": duration,
+        "task": _serialize_task(item),
+    }
+
+
+def _create_attendance_for_user(
+    db: Session,
+    *,
+    user_id: int,
+    work_date: str,
+    check_in_time: str,
+    check_out_time: str | None,
+) -> TimesheetAttendance:
+    _require_checkout_for_other_days(work_date, check_out_time)
+    if check_out_time:
+        _duration(check_in_time, check_out_time)
+    _assert_single_open_attendance(
+        db,
+        user_id=user_id,
+        check_out_time=check_out_time,
+    )
+    _assert_no_attendance_overlap(
+        db,
+        user_id=user_id,
+        work_date=work_date,
+        check_in_time=check_in_time,
+        check_out_time=check_out_time,
+    )
+    item = TimesheetAttendance(
+        user_id=user_id,
+        work_date=work_date,
+        check_in_time=check_in_time,
+        check_out_time=check_out_time,
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+def _assert_remaining_attendance_covers_tasks(
+    db: Session,
+    *,
+    user_id: int,
+    work_date: str,
+    ignore_attendance_id: int,
+    detail: str,
+) -> None:
+    tasks = (
+        db.query(TimesheetTask)
+        .filter(
+            TimesheetTask.user_id == user_id,
+            TimesheetTask.work_date == work_date,
+        )
+        .all()
+    )
+    if not tasks:
+        return
+    remaining = (
+        db.query(TimesheetAttendance)
+        .filter(
+            TimesheetAttendance.user_id == user_id,
+            TimesheetAttendance.work_date == work_date,
+            TimesheetAttendance.id != ignore_attendance_id,
+        )
+        .all()
+    )
+    now = _minutes(_local_now_time())
+    segments = [
+        (
+            _minutes(row.check_in_time),
+            _segment_end_minutes(
+                work_date=row.work_date,
+                check_out_time=row.check_out_time,
+                now=now,
+            ),
+        )
+        for row in remaining
+    ]
+    for task in tasks:
+        start, end = _minutes(task.start_time), _minutes(task.end_time)
+        if not any(
+            start >= seg_start and end <= seg_end for seg_start, seg_end in segments
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=detail,
+            )
+
+
+def _update_attendance_record(
+    db: Session,
+    *,
+    item: TimesheetAttendance,
+    work_date: str,
+    check_in_time: str,
+    check_out_time: str | None,
+) -> TimesheetAttendance:
+    _require_checkout_for_other_days(work_date, check_out_time)
+    if check_out_time:
+        _duration(check_in_time, check_out_time)
+    _assert_single_open_attendance(
+        db,
+        user_id=item.user_id,
+        check_out_time=check_out_time,
+        ignore_id=item.id,
+    )
+    _assert_no_attendance_overlap(
+        db,
+        user_id=item.user_id,
+        work_date=work_date,
+        check_in_time=check_in_time,
+        check_out_time=check_out_time,
+        ignore_id=item.id,
+    )
+    _assert_attendance_fits_tasks(
+        db,
+        user_id=item.user_id,
+        work_date=work_date,
+        check_in_time=check_in_time,
+        check_out_time=check_out_time,
+        ignore_attendance_id=item.id,
+    )
+    if work_date != item.work_date:
+        _assert_remaining_attendance_covers_tasks(
+            db,
+            user_id=item.user_id,
+            work_date=item.work_date,
+            ignore_attendance_id=item.id,
+            detail=(
+                "تغییر تاریخ این تردد باعث می‌شود فعالیت‌های "
+                "روز قبلی بدون پوشش حضور بمانند."
+            ),
+        )
+    item.work_date = work_date
+    item.check_in_time = check_in_time
+    item.check_out_time = check_out_time
+    item.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+def _delete_attendance_record(db: Session, item: TimesheetAttendance) -> int:
+    _assert_remaining_attendance_covers_tasks(
+        db,
+        user_id=item.user_id,
+        work_date=item.work_date,
+        ignore_attendance_id=item.id,
+        detail=(
+            "این تردد قابل حذف نیست؛ ابتدا فعالیت‌هایی که داخل "
+            "این بازه هستند را ویرایش یا حذف کنید."
+        ),
+    )
+    attendance_id = item.id
+    db.delete(item)
+    db.commit()
+    return attendance_id
+
+
+def _owned_attendance(
+    db: Session, user: User, attendance_id: int
+) -> TimesheetAttendance:
+    item = db.get(TimesheetAttendance, attendance_id)
+    if not item or item.user_id != user.id:
+        raise HTTPException(status_code=404, detail="تردد پیدا نشد.")
+    return item
+
+
+def _owned_task(db: Session, user: User, task_id: int) -> TimesheetTask:
+    item = db.get(TimesheetTask, task_id)
+    if not item or item.user_id != user.id:
+        raise HTTPException(status_code=404, detail="فعالیت پیدا نشد.")
+    return item
+
+
+def _attendance_employee_payload(item: TimesheetAttendance, employee: User) -> dict:
+    return {
+        **_serialize_attendance(item),
+        "employee_id": str(employee.id),
+        "username": employee.username,
+        "full_name": employee.display_name or employee.username,
+        "department": employee.department or "بدون واحد",
+        "job_title": employee.job_title or "",
+    }
+
+
 def _open_attendance(db: Session, user_id: int) -> TimesheetAttendance | None:
     """Return the user's latest open attendance, regardless of work date."""
     return (
@@ -630,12 +900,17 @@ def _day_summary(db: Session, user_id: int, work_date: str) -> dict:
         )
         .all()
     )
-    now_time = _local_now_time()
+    now = _minutes(_local_now_time())
     attendance_minutes = 0
     for item in attendance:
-        end = item.check_out_time or now_time
-        if _minutes(end) > _minutes(item.check_in_time):
-            attendance_minutes += _minutes(end) - _minutes(item.check_in_time)
+        end = _segment_end_minutes(
+            work_date=item.work_date,
+            check_out_time=item.check_out_time,
+            now=now,
+        )
+        start = _minutes(item.check_in_time)
+        if end > start:
+            attendance_minutes += end - start
     task_minutes = sum(item.minutes_spent for item in tasks)
     return {
         "employee_id": str(user_id),
@@ -745,6 +1020,62 @@ def check_out(
     }
 
 
+@router.post("/attendance/entries")
+@router.post("/me/attendance")
+def create_my_attendance(
+    payload: AttendanceWritePayload,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    item = _create_attendance_for_user(
+        db,
+        user_id=user.id,
+        work_date=payload.work_date,
+        check_in_time=payload.check_in_time,
+        check_out_time=payload.check_out_time,
+    )
+    return {
+        "message": "تردد با موفقیت ثبت شد.",
+        "attendance": _serialize_attendance(item),
+        "summary": _day_summary(db, user.id, payload.work_date),
+    }
+
+
+@router.post("/attendance/entries/{attendance_id}")
+@router.post("/me/attendance/{attendance_id}")
+def update_my_attendance(
+    attendance_id: int,
+    payload: AttendanceWritePayload,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    item = _owned_attendance(db, user, attendance_id)
+    item = _update_attendance_record(
+        db,
+        item=item,
+        work_date=payload.work_date,
+        check_in_time=payload.check_in_time,
+        check_out_time=payload.check_out_time,
+    )
+    return {
+        "message": "تردد با موفقیت ویرایش شد.",
+        "attendance": _serialize_attendance(item),
+        "summary": _day_summary(db, user.id, payload.work_date),
+    }
+
+
+@router.post("/attendance/entries/{attendance_id}/delete")
+@router.post("/me/attendance/{attendance_id}/delete")
+def delete_my_attendance(
+    attendance_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    item = _owned_attendance(db, user, attendance_id)
+    deleted_id = _delete_attendance_record(db, item)
+    return {"message": "تردد حذف شد.", "attendance_id": deleted_id}
+
+
 @router.post("/tasks")
 def add_task(
     payload: TaskPayload,
@@ -757,6 +1088,36 @@ def add_task(
         payload=payload,
         enforce_assignees=True,
     )
+
+
+@router.post("/tasks/entries/{task_id}")
+@router.post("/me/tasks/{task_id}")
+def update_my_task(
+    task_id: int,
+    payload: TaskPayload,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    item = _owned_task(db, user, task_id)
+    return _update_task_for_user(
+        db,
+        item=item,
+        payload=payload,
+        enforce_assignees=True,
+    )
+
+
+@router.post("/tasks/entries/{task_id}/delete")
+@router.post("/me/tasks/{task_id}/delete")
+def delete_my_task(
+    task_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    item = _owned_task(db, user, task_id)
+    db.delete(item)
+    db.commit()
+    return {"message": "فعالیت حذف شد.", "task_id": task_id}
 
 
 @router.get("/me/day/timeline")
@@ -905,43 +1266,20 @@ def admin_create_attendance(
     db: Session = Depends(get_db),
 ):
     employee = _get_employee(db, payload.employee_id)
-    if payload.check_out_time:
-        _duration(payload.check_in_time, payload.check_out_time)
-    _assert_single_open_attendance(
-        db,
-        user_id=employee.id,
-        check_out_time=payload.check_out_time,
-    )
-    _assert_no_attendance_overlap(
+    item = _create_attendance_for_user(
         db,
         user_id=employee.id,
         work_date=payload.work_date,
         check_in_time=payload.check_in_time,
         check_out_time=payload.check_out_time,
     )
-    item = TimesheetAttendance(
-        user_id=employee.id,
-        work_date=payload.work_date,
-        check_in_time=payload.check_in_time,
-        check_out_time=payload.check_out_time,
-    )
-    db.add(item)
-    db.commit()
-    db.refresh(item)
     return {
         "message": "تردد با موفقیت ثبت شد.",
-        "attendance": {
-            **_serialize_attendance(item),
-            "employee_id": str(employee.id),
-            "username": employee.username,
-            "full_name": employee.display_name or employee.username,
-            "department": employee.department or "بدون واحد",
-            "job_title": employee.job_title or "",
-        },
+        "attendance": _attendance_employee_payload(item, employee),
     }
 
 
-@router.put("/admin/attendance/{attendance_id}")
+@router.api_route("/admin/attendance/{attendance_id}", methods=["POST", "PUT"])
 def admin_update_attendance(
     attendance_id: int,
     payload: AdminAttendanceUpdatePayload,
@@ -952,92 +1290,20 @@ def admin_update_attendance(
     if not item:
         raise HTTPException(status_code=404, detail="تردد پیدا نشد.")
     employee = _get_employee(db, item.user_id, require_active=False)
-    if payload.check_out_time:
-        _duration(payload.check_in_time, payload.check_out_time)
-    _assert_single_open_attendance(
+    item = _update_attendance_record(
         db,
-        user_id=employee.id,
-        check_out_time=payload.check_out_time,
-        ignore_id=item.id,
-    )
-    _assert_no_attendance_overlap(
-        db,
-        user_id=employee.id,
+        item=item,
         work_date=payload.work_date,
         check_in_time=payload.check_in_time,
         check_out_time=payload.check_out_time,
-        ignore_id=item.id,
     )
-    _assert_attendance_fits_tasks(
-        db,
-        user_id=employee.id,
-        work_date=payload.work_date,
-        check_in_time=payload.check_in_time,
-        check_out_time=payload.check_out_time,
-        ignore_attendance_id=item.id,
-    )
-    # If the work date changes, also ensure tasks on the old date remain covered
-    # by remaining attendance (or that there are no orphaned tasks).
-    if payload.work_date != item.work_date:
-        remaining = (
-            db.query(TimesheetAttendance)
-            .filter(
-                TimesheetAttendance.user_id == employee.id,
-                TimesheetAttendance.work_date == item.work_date,
-                TimesheetAttendance.id != item.id,
-            )
-            .all()
-        )
-        old_tasks = (
-            db.query(TimesheetTask)
-            .filter(
-                TimesheetTask.user_id == employee.id,
-                TimesheetTask.work_date == item.work_date,
-            )
-            .all()
-        )
-        if old_tasks:
-            now = _minutes(_local_now_time())
-            segments = [
-                (
-                    _minutes(row.check_in_time),
-                    _minutes(row.check_out_time) if row.check_out_time else now,
-                )
-                for row in remaining
-            ]
-            for task in old_tasks:
-                start, end = _minutes(task.start_time), _minutes(task.end_time)
-                if not any(
-                    start >= seg_start and end <= seg_end
-                    for seg_start, seg_end in segments
-                ):
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=(
-                            "تغییر تاریخ این تردد باعث می‌شود فعالیت‌های "
-                            "روز قبلی بدون پوشش حضور بمانند."
-                        ),
-                    )
-
-    item.work_date = payload.work_date
-    item.check_in_time = payload.check_in_time
-    item.check_out_time = payload.check_out_time
-    item.updated_at = datetime.utcnow()
-    db.commit()
-    db.refresh(item)
     return {
         "message": "تردد با موفقیت ویرایش شد.",
-        "attendance": {
-            **_serialize_attendance(item),
-            "employee_id": str(employee.id),
-            "username": employee.username,
-            "full_name": employee.display_name or employee.username,
-            "department": employee.department or "بدون واحد",
-            "job_title": employee.job_title or "",
-        },
+        "attendance": _attendance_employee_payload(item, employee),
     }
 
 
+@router.post("/admin/attendance/{attendance_id}/delete")
 @router.delete("/admin/attendance/{attendance_id}")
 def admin_delete_attendance(
     attendance_id: int,
@@ -1047,47 +1313,8 @@ def admin_delete_attendance(
     item = db.get(TimesheetAttendance, attendance_id)
     if not item:
         raise HTTPException(status_code=404, detail="تردد پیدا نشد.")
-    tasks = (
-        db.query(TimesheetTask)
-        .filter(
-            TimesheetTask.user_id == item.user_id,
-            TimesheetTask.work_date == item.work_date,
-        )
-        .all()
-    )
-    if tasks:
-        remaining = (
-            db.query(TimesheetAttendance)
-            .filter(
-                TimesheetAttendance.user_id == item.user_id,
-                TimesheetAttendance.work_date == item.work_date,
-                TimesheetAttendance.id != item.id,
-            )
-            .all()
-        )
-        now = _minutes(_local_now_time())
-        segments = [
-            (
-                _minutes(row.check_in_time),
-                _minutes(row.check_out_time) if row.check_out_time else now,
-            )
-            for row in remaining
-        ]
-        for task in tasks:
-            start, end = _minutes(task.start_time), _minutes(task.end_time)
-            if not any(
-                start >= seg_start and end <= seg_end for seg_start, seg_end in segments
-            ):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=(
-                        "این تردد قابل حذف نیست؛ ابتدا فعالیت‌هایی که داخل "
-                        "این بازه هستند را ویرایش یا حذف کنید."
-                    ),
-                )
-    db.delete(item)
-    db.commit()
-    return {"message": "تردد حذف شد.", "attendance_id": attendance_id}
+    deleted_id = _delete_attendance_record(db, item)
+    return {"message": "تردد حذف شد.", "attendance_id": deleted_id}
 
 
 @router.post("/admin/tasks")
@@ -1105,7 +1332,7 @@ def admin_create_task(
     )
 
 
-@router.put("/admin/tasks/{task_id}")
+@router.api_route("/admin/tasks/{task_id}", methods=["POST", "PUT"])
 def admin_update_task(
     task_id: int,
     payload: TaskPayload,
@@ -1115,39 +1342,15 @@ def admin_update_task(
     item = db.get(TimesheetTask, task_id)
     if not item:
         raise HTTPException(status_code=404, detail="فعالیت پیدا نشد.")
-    employee = _get_employee(db, item.user_id, require_active=False)
-    project, subproject_code = _resolve_task_codes(
+    return _update_task_for_user(
         db,
-        user_id=employee.id,
-        work_date=payload.work_date,
-        project_code=payload.project_code,
-        subproject_code=payload.subproject_code,
+        item=item,
+        payload=payload,
         enforce_assignees=False,
     )
-    duration = _assert_task_window(
-        db,
-        user_id=employee.id,
-        work_date=payload.work_date,
-        start_time=payload.start_time,
-        end_time=payload.end_time,
-        ignore_task_id=item.id,
-    )
-    item.work_date = payload.work_date
-    item.project_code = project.code
-    item.subproject_code = subproject_code
-    item.task_name = payload.task_name
-    item.start_time = payload.start_time
-    item.end_time = payload.end_time
-    item.minutes_spent = duration
-    db.commit()
-    db.refresh(item)
-    return {
-        "message": "فعالیت با موفقیت ویرایش شد.",
-        "minutes_spent": duration,
-        "task": _serialize_task(item),
-    }
 
 
+@router.post("/admin/tasks/{task_id}/delete")
 @router.delete("/admin/tasks/{task_id}")
 def admin_delete_task(
     task_id: int,

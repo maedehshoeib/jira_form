@@ -5,7 +5,7 @@
 ```text
 Browser -> Next.js web (:3000 / Docker :8080)
              |-- UI and route delivery
-             `-- /api/* rewrite -> FastAPI (:8000)
+             `-- /api/v1/* Route Handler proxy -> FastAPI (:8000)
                                       |-- PostgreSQL
                                       |-- upload volume
                                       `-- Jira integration

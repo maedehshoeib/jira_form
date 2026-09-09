@@ -148,15 +148,51 @@ export async function saveCheckOut(payload: {
   return data.summary;
 }
 
-export async function saveTask(payload: {
+export type AttendanceWritePayload = {
+  work_date: string;
+  check_in_time: string;
+  check_out_time?: string | null;
+};
+
+export type TaskWritePayload = {
   work_date: string;
   project_code: string;
   subproject_code?: string | null;
   task_name: string;
   start_time: string;
   end_time: string;
-}): Promise<void> {
+};
+
+export async function saveTask(payload: TaskWritePayload): Promise<void> {
   await client.post(`${base}/tasks`, payload);
+}
+
+export async function createMyAttendance(
+  payload: AttendanceWritePayload,
+): Promise<void> {
+  await client.post(`${base}/attendance/entries`, payload);
+}
+
+export async function updateMyAttendance(
+  attendanceId: number,
+  payload: AttendanceWritePayload,
+): Promise<void> {
+  await client.post(`${base}/attendance/entries/${attendanceId}`, payload);
+}
+
+export async function deleteMyAttendance(attendanceId: number): Promise<void> {
+  await client.post(`${base}/attendance/entries/${attendanceId}/delete`);
+}
+
+export async function updateMyTask(
+  taskId: number,
+  payload: TaskWritePayload,
+): Promise<void> {
+  await client.post(`${base}/tasks/entries/${taskId}`, payload);
+}
+
+export async function deleteMyTask(taskId: number): Promise<void> {
+  await client.post(`${base}/tasks/entries/${taskId}/delete`);
 }
 
 export async function fetchProjects(): Promise<ProjectItem[]> {
@@ -323,7 +359,7 @@ export async function adminUpdateAttendance(
     check_out_time?: string | null;
   },
 ): Promise<{ message: string; attendance: AdminAttendanceRecord }> {
-  const { data } = await client.put<{ message: string; attendance: AdminAttendanceRecord }>(
+  const { data } = await client.post<{ message: string; attendance: AdminAttendanceRecord }>(
     `${base}/admin/attendance/${attendanceId}`,
     payload,
   );
@@ -333,7 +369,9 @@ export async function adminUpdateAttendance(
 export async function adminDeleteAttendance(
   attendanceId: number,
 ): Promise<{ message: string; attendance_id: number }> {
-  const { data } = await client.delete(`${base}/admin/attendance/${attendanceId}`);
+  const { data } = await client.post(
+    `${base}/admin/attendance/${attendanceId}/delete`,
+  );
   return data;
 }
 
@@ -361,13 +399,13 @@ export async function adminUpdateTask(
     end_time: string;
   },
 ): Promise<{ message: string; minutes_spent: number }> {
-  const { data } = await client.put(`${base}/admin/tasks/${taskId}`, payload);
+  const { data } = await client.post(`${base}/admin/tasks/${taskId}`, payload);
   return data;
 }
 
 export async function adminDeleteTask(
   taskId: number,
 ): Promise<{ message: string; task_id: number }> {
-  const { data } = await client.delete(`${base}/admin/tasks/${taskId}`);
+  const { data } = await client.post(`${base}/admin/tasks/${taskId}/delete`);
   return data;
 }

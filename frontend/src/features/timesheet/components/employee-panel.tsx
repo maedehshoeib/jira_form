@@ -7,6 +7,7 @@ import Papa from 'papaparse';
 import {
   ArrowLeft,
   ArrowUpLeft,
+  BarChart3,
   BriefcaseBusiness,
   CalendarDays,
   CheckCircle2,
@@ -22,9 +23,11 @@ import {
   Loader2,
   LogIn,
   LogOut,
+  Pencil,
   Plus,
   Sparkles,
   TimerReset,
+  Trash2,
   UserRound,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -32,12 +35,14 @@ import { useAuth } from '@/context/AuthContext';
 import UserDisplayName from '@/components/UserDisplayName';
 
 import {
+  deleteMyTask,
   fetchMyRangeRecords,
   fetchProjects,
   fetchSummary,
   saveCheckIn,
   saveCheckOut,
   saveTask,
+  updateMyTask,
   type AttendanceSegment,
   type DaySummary,
   type ProjectItem,
@@ -47,10 +52,11 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { JalaliDateTimePicker } from '@/features/timesheet/components/jalali-date-time-picker';
+import { SelfAttendanceEditor } from '@/features/timesheet/components/self-attendance-editor';
 import { TasksGanttChart } from '@/features/timesheet/components/tasks-gantt-chart';
 import logo from '@/assets/logo.png';
 import { assetUrl } from '@/lib/assetUrl';
-import { getTehranTime, getTodayPersian } from '@/lib/persianDate';
+import { getTehranTime, getTodayPersian, toLatinDigits } from '@/lib/persianDate';
 
 type WeekTimelineDay = {
   work_date: string;
@@ -79,6 +85,29 @@ function normalizeDigits(value: string): string {
 
 function formatDate(value: DateObject): string {
   return normalizeDigits(value.format('YYYY/MM/DD'));
+}
+
+function parseJalali(value?: string | null): DateObject | null {
+  if (!value) return null;
+  return new DateObject({
+    date: value,
+    format: 'YYYY/MM/DD',
+    calendar: persian,
+    locale: persianFa,
+  });
+}
+
+function parseTime(value?: string | null): DateObject | null {
+  if (!value) return null;
+  const match = /^(\d{1,2}):(\d{2})/.exec(value);
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour > 23 || minute > 59) return null;
+  return new DateObject({
+    calendar: persian,
+    locale: persianFa,
+  }).set({ hour, minute, second: 0, millisecond: 0 });
 }
 
 function dateRange(days: number): { start: DateObject; end: DateObject } {
@@ -193,7 +222,11 @@ function SummaryCard({ label, value, icon, color, hint }: SummaryCardProps) {
   );
 }
 
-export function EmployeePanel(): JSX.Element {
+export function EmployeePanel({
+  onOpenAdmin,
+}: {
+  onOpenAdmin?: () => void;
+} = {}): JSX.Element {
   const { user } = useAuth();
   const router = useRouter();
   const initialDate = useMemo(() => today(), []);
@@ -227,6 +260,7 @@ export function EmployeePanel(): JSX.Element {
   const [attendanceBusy, setAttendanceBusy] = useState(false);
   const [taskBusy, setTaskBusy] = useState(false);
   const [activityPage, setActivityPage] = useState(1);
+  const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
 
   const selectedTaskDate =
     taskDate ? formatDate(taskDate) : formatDate(initialDate);
@@ -267,6 +301,17 @@ export function EmployeePanel(): JSX.Element {
           second.start_time.localeCompare(first.start_time),
       ),
     [tasks],
+  );
+  const attendanceRows = useMemo(
+    () =>
+      weekTimeline
+        .flatMap((day) => day.attendance)
+        .sort(
+          (first, second) =>
+            second.work_date.localeCompare(first.work_date) ||
+            second.check_in_time.localeCompare(first.check_in_time),
+        ),
+    [weekTimeline],
   );
   const activityPageCount = Math.max(
     1,
@@ -410,6 +455,18 @@ export function EmployeePanel(): JSX.Element {
     }
   }
 
+  async function reloadIncludingDate(workDate?: string): Promise<void> {
+    const date = workDate ? toLatinDigits(workDate) : '';
+    const start = date && date < appliedStart ? date : appliedStart;
+    const end = date && date > appliedEnd ? date : appliedEnd;
+    if (start !== appliedStart || end !== appliedEnd) {
+      setPeriodPreset('custom');
+      setRangeStart(parseJalali(start));
+      setRangeEnd(parseJalali(end));
+    }
+    await loadRange(start, end);
+  }
+
   function applyPreset(preset: Exclude<PeriodPreset, 'custom'>) {
     const days = preset === 'today' ? 1 : preset === 'week' ? 7 : 30;
     const nextRange = dateRange(days);
@@ -486,13 +543,15 @@ export function EmployeePanel(): JSX.Element {
     }
   }
 
-  async function handleAddTask(): Promise<void> {
+  async function handleSaveTask(): Promise<void> {
     setError('');
     setStatus('');
 
     const workDate = taskDate ? formatDate(taskDate) : '';
-    const startTime = taskStartTime?.format('HH:mm');
-    const endTime = taskEndTime?.format('HH:mm');
+    const startTime = taskStartTime
+      ? toLatinDigits(taskStartTime.format('HH:mm'))
+      : '';
+    const endTime = taskEndTime ? toLatinDigits(taskEndTime.format('HH:mm')) : '';
 
     if (!workDate || !startTime || !endTime || !taskName.trim() || !projectCode) {
       setError('لطفاً تاریخ، ساعت، پروژه و شرح فعالیت را کامل کنید.');
@@ -501,35 +560,68 @@ export function EmployeePanel(): JSX.Element {
 
     setTaskBusy(true);
     try {
-      await saveTask({
+      const payload = {
         work_date: workDate,
         project_code: projectCode,
         subproject_code: subprojectCode || null,
         task_name: taskName.trim(),
         start_time: startTime,
         end_time: endTime,
-      });
+      };
+      if (editingTaskId) {
+        await updateMyTask(editingTaskId, payload);
+        setStatus('فعالیت با موفقیت ویرایش شد.');
+        setEditingTaskId(null);
+      } else {
+        await saveTask(payload);
+        setStatus('فعالیت جدید با موفقیت ثبت شد.');
+      }
 
-      setStatus('فعالیت جدید با موفقیت ثبت شد.');
       setTaskName('');
       setTaskStartTime(null);
       setTaskEndTime(null);
-      const selectedDate = new DateObject({
-        date: workDate,
-        format: 'YYYY/MM/DD',
-        calendar: persian,
-        locale: persianFa,
-      });
-      setPeriodPreset('custom');
-      setRangeStart(selectedDate);
-      setRangeEnd(new DateObject(selectedDate));
-      await loadRange(workDate, workDate);
+      await reloadIncludingDate(workDate);
     } catch (taskError) {
       setError(
         mapErrorToPersian(extractApiError(taskError, 'Failed to save task')),
       );
     } finally {
       setTaskBusy(false);
+    }
+  }
+
+  function startEditTask(task: TaskItem): void {
+    setEditingTaskId(task.id);
+    setTaskDate(parseJalali(task.work_date));
+    setTaskStartTime(parseTime(task.start_time));
+    setTaskEndTime(parseTime(task.end_time));
+    setProjectCode(task.project_code);
+    setSubprojectCode(task.subproject_code || '');
+    setTaskName(task.task_name);
+    setError('');
+    setStatus('');
+  }
+
+  function cancelEditTask(): void {
+    setEditingTaskId(null);
+    setTaskName('');
+    setTaskStartTime(null);
+    setTaskEndTime(null);
+  }
+
+  async function handleDeleteTask(task: TaskItem): Promise<void> {
+    if (!window.confirm(`فعالیت «${task.task_name}» حذف شود؟`)) return;
+    setError('');
+    setStatus('');
+    try {
+      await deleteMyTask(task.id);
+      if (editingTaskId === task.id) cancelEditTask();
+      setStatus('فعالیت حذف شد.');
+      await loadRange(appliedStart, appliedEnd);
+    } catch (taskError) {
+      setError(
+        mapErrorToPersian(extractApiError(taskError, 'Failed to save task')),
+      );
     }
   }
 
@@ -581,15 +673,27 @@ export function EmployeePanel(): JSX.Element {
             </div>
           </div>
 
-          <Button
-            variant='outline'
-            onClick={() => router.push('/')}
-            className='h-10 shrink-0 gap-2 border-border bg-card text-foreground shadow-none hover:bg-muted/40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'
-            aria-label='بازگشت به صفحه اصلی'
-          >
-            <span>بازگشت</span>
-            <ArrowLeft className='h-4 w-4' />
-          </Button>
+          <div className='flex shrink-0 items-center gap-2'>
+            {onOpenAdmin && (
+              <Button
+                variant='outline'
+                onClick={onOpenAdmin}
+                className='h-10 gap-2 border-border bg-card text-foreground shadow-none hover:bg-muted/40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'
+              >
+                <BarChart3 className='h-4 w-4' />
+                <span className='hidden sm:inline'>گزارش مدیریتی</span>
+              </Button>
+            )}
+            <Button
+              variant='outline'
+              onClick={() => router.push('/')}
+              className='h-10 shrink-0 gap-2 border-border bg-card text-foreground shadow-none hover:bg-muted/40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'
+              aria-label='بازگشت به صفحه اصلی'
+            >
+              <span>بازگشت</span>
+              <ArrowLeft className='h-4 w-4' />
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -613,7 +717,7 @@ export function EmployeePanel(): JSX.Element {
                   />
                 </h1>
                 <p className='mt-2 text-sm leading-6 text-slate-300'>
-                  حضور امروز را ثبت کنید و فعالیت‌های روزانه‌تان را منظم پیش ببرید.
+                  ورود و خروج خود را ثبت یا ویرایش کنید و فعالیت‌های روزانه‌تان را ثبت نمایید.
                 </p>
               </div>
             </div>
@@ -806,6 +910,18 @@ export function EmployeePanel(): JSX.Element {
           </div>
         </section>
 
+        <SelfAttendanceEditor
+          attendance={attendanceRows}
+          formatMinutes={formatMinutes}
+          segmentMinutes={segmentMinutes}
+          onChanged={reloadIncludingDate}
+          onError={setError}
+          onStatus={(message) => {
+            setError('');
+            setStatus(message);
+          }}
+        />
+
         <section className='grid items-start gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]'>
           <div className='rounded-3xl border border-border bg-card shadow-sm dark:border-slate-700 dark:bg-slate-800/90'>
             <div className='flex items-start gap-3 border-b border-border p-5 sm:p-6'>
@@ -814,7 +930,7 @@ export function EmployeePanel(): JSX.Element {
               </span>
               <div>
                 <h2 className='text-lg font-extrabold text-foreground'>
-                  ثبت فعالیت جدید
+                  {editingTaskId ? 'ویرایش فعالیت' : 'ثبت فعالیت جدید'}
                 </h2>
                 <p className='mt-1 text-sm text-muted-foreground'>
                   زمان و شرح کاری که انجام داده‌اید را وارد کنید.
@@ -960,19 +1076,32 @@ export function EmployeePanel(): JSX.Element {
                 />
               </div>
 
-              <Button
-                size='lg'
-                onClick={handleAddTask}
-                disabled={taskBusy || availableProjects.length === 0}
-                className='h-12 w-full gap-2 bg-sky-600 text-base shadow-lg shadow-sky-100 hover:bg-sky-700'
-              >
-                {taskBusy ? (
-                  <Loader2 className='h-5 w-5 animate-spin' />
-                ) : (
-                  <CheckCircle2 className='h-5 w-5' />
+              <div className='flex flex-col gap-2 sm:flex-row'>
+                {editingTaskId && (
+                  <Button
+                    type='button'
+                    variant='outline'
+                    size='lg'
+                    onClick={cancelEditTask}
+                    className='h-12 w-full gap-2'
+                  >
+                    انصراف از ویرایش
+                  </Button>
                 )}
-                ثبت فعالیت
-              </Button>
+                <Button
+                  size='lg'
+                  onClick={handleSaveTask}
+                  disabled={taskBusy || availableProjects.length === 0}
+                  className='h-12 w-full gap-2 bg-sky-600 text-base shadow-lg shadow-sky-100 hover:bg-sky-700'
+                >
+                  {taskBusy ? (
+                    <Loader2 className='h-5 w-5 animate-spin' />
+                  ) : (
+                    <CheckCircle2 className='h-5 w-5' />
+                  )}
+                  {editingTaskId ? 'ذخیره فعالیت' : 'ثبت فعالیت'}
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -1048,6 +1177,28 @@ export function EmployeePanel(): JSX.Element {
                             </div>
                             <div className='mt-1 text-xs text-muted-foreground'>
                               {formatMinutes(task.minutes_spent)}
+                            </div>
+                            <div className='mt-3 flex justify-end gap-2'>
+                              <Button
+                                type='button'
+                                variant='outline'
+                                size='sm'
+                                onClick={() => startEditTask(task)}
+                                className='gap-1'
+                              >
+                                <Pencil className='h-3.5 w-3.5' />
+                                ویرایش
+                              </Button>
+                              <Button
+                                type='button'
+                                variant='outline'
+                                size='sm'
+                                onClick={() => void handleDeleteTask(task)}
+                                className='gap-1 text-rose-700'
+                              >
+                                <Trash2 className='h-3.5 w-3.5' />
+                                حذف
+                              </Button>
                             </div>
                           </div>
                         </div>
