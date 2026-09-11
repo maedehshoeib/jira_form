@@ -9,5 +9,6 @@ This directory follows the documentation-first skeleton used by the reference pr
 5. [API and integration map](05-api-and-integrations.md)
 6. [Operations and deployment](06-operations.md)
 7. [Production SQLite migration](07-production-sqlite-migration.md)
+8. [Architecture standards](08-architecture-standards.md)
 
 Diagrams are stored in [`diagrams/`](diagrams/).

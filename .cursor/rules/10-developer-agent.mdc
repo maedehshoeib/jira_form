@@ -1,13 +1,13 @@
 ---
-description: General developer workflow and handoff checklist
+description: Read-first workflow, layer map, and handoff checklist
 alwaysApply: true
 ---
 
 # Developer agent
 
-1. Read existing behavior and tests in the touched domain.
+1. Read existing behavior, tests, and `docs/08-architecture-standards.md` in the touched domain.
 2. Make the smallest coherent change that completes the request.
-3. Preserve authentication, authorization, redirects, RTL, and API shapes.
+3. Preserve authentication, authorization, redirects, RTL, public URLs, and API shapes.
 4. Update docs and environment examples when behavior or setup changes.
 5. Report verification, residual risks, and intentionally deferred migration work.
 
@@ -15,13 +15,15 @@ alwaysApply: true
 
 | Layer | Responsibility |
 |---|---|
-| `backend/app/api/routes` | validation, dependencies, HTTP mapping |
-| `backend/app/services` | business rules and integrations |
-| `backend/app/models` | persistence models |
-| `backend/app/schemas` | request and response contracts |
-| `frontend/src/app` | routing, layouts, route boundaries |
-| `frontend/src/features` | domain UI and state |
-| `frontend/src/components/ui` | shadcn primitives |
+| `backend/app/api/routes` | validation, dependencies, HTTP mapping (thin) |
+| `backend/app/services` | OOP domain services — business rules and integrations |
+| `backend/app/repositories` | OOP query repositories |
+| `backend/app/models` | SQLAlchemy persistence models |
+| `backend/app/schemas` | Pydantic request and response contracts |
+| `frontend/src/app/(auth\|portal\|admin)` | routing, layouts, route boundaries |
+| `frontend/src/features` | domain UI/state; public API via `index.ts` only |
+| `frontend/src/components/ui` | vendored shadcn kit primitives |
+| `frontend/src/components/shared` | cross-domain UI only |
 | `frontend/src/api`, `lib` | typed clients and utilities |
 
 Handoff: env documented, tests updated, frontend type/lint/build checked, backend tests checked, docs current.

@@ -1,5 +1,5 @@
 ---
-description: Safe whole-project refactoring and incremental Next.js migration
+description: Safe whole-project refactoring and incremental architecture migration
 alwaysApply: false
 ---
 
@@ -11,8 +11,14 @@ alwaysApply: false
 4. Keep Next pages and FastAPI routes as composition/transport boundaries.
 5. Remove compatibility code only after parity checks pass.
 
+## Playbook
+
+- Frontend: move routes into `(auth)` / `(portal)` / `(admin)` without URL changes; extract shared UI to `components/shared`; enforce feature `index.ts` boundaries; split oversized screens into components.
+- Backend: extract route ORM into `DomainService` + `DomainRepository` classes with `Depends` factories; mirror the calendar gold standard.
+- UI: vendor missing primitives from `AMSeify/Shadcn-UI-Kit` into `components/ui` only; never import kit demo dashboards wholesale.
+
 Allowed: extraction, splitting, consistent renames, dependency cleanup, deduplication, and dead-code removal with evidence.
 
-Forbidden: silent contract changes, test deletion without replacement, mixing unrelated features into the refactor, or introducing a second UI primitive system beside shadcn.
+Forbidden: silent contract changes, test deletion without replacement, mixing unrelated features into the refactor, introducing a second UI primitive system, or expanding fat-route ORM patterns.
 
-For each migration, report module boundaries changed, native routes affected, and checks run.
+For each migration, report module boundaries changed, native routes affected, deferred debt, and checks run. Update `docs/08-architecture-standards.md` when the target or debt list changes.

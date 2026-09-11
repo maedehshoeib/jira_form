@@ -1,23 +1,26 @@
 ---
-description: Next.js App Router, shadcn/ui, RTL, and frontend architecture
+description: Next.js route groups, feature isolation, shadcn kit, RTL
 globs: frontend/**
 alwaysApply: false
 ---
 
 # Frontend agent
 
-Stack: Next.js App Router, strict TypeScript, Tailwind CSS, shadcn/ui, React Query, React Hook Form, and Zod.
+Stack: Next.js App Router with `(auth)` / `(portal)` / `(admin)` route groups, strict TypeScript, Tailwind CSS, vendored shadcn/ui (AMSeify/Shadcn-UI-Kit), React Query, React Hook Form, and Zod.
 
 - Read installed Next.js docs before framework-sensitive changes.
-- Keep `src/app` pages thin and import features through their public `index.ts` APIs.
+- Keep `src/app` pages thin; place routes in the correct route group without changing public URLs.
+- Import features only through their public `index.ts` APIs. Never import another feature's private modules.
+- Cross-domain UI belongs in `components/shared`; kit primitives belong in `components/ui`.
 - Prefer Server Components; add `"use client"` only for state, events, browser APIs, or client libraries.
-- Use shadcn primitives from `components/ui` and `cn()` from `lib/utils`.
-- Keep raw buttons, inputs, textareas, selects, labels, and tables inside
-  `components/ui`; screens and features must consume shared primitives.
+- Use shadcn primitives from `components/ui` and `cn()` from `lib/utils`. No second UI system.
+- Keep raw buttons, inputs, textareas, selects, labels, and tables inside `components/ui`.
 - Style with theme tokens and RTL-safe logical layout; avoid new hardcoded palette values.
 - Put remote data access in each domain's typed `api/` helpers or hooks, not page components.
+- Prefer many small abstracted components; when editing a domain, reduce oversized screens toward the 300-line limit.
 - Forms use React Hook Form plus Zod and show server and field errors.
 - Every route needs meaningful loading, empty, error, and unauthorized behavior.
-- Use `next/link` and `next/navigation` for migrated routes.
+- Use `next/link` and `next/navigation` for routes.
+- Layout/shell code may use a feature's public API only — never deep feature imports.
 
-The completed migration record is in `docs/04-nextjs-migration.md`. Verify with lint, TypeScript, and a production build.
+Verify with lint, TypeScript, and a production build. See `docs/08-architecture-standards.md`.
