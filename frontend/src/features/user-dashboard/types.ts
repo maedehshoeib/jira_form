@@ -1,7 +1,3 @@
-import client from "../api/client";
-import { endpoints } from "../api/endpoints";
-import { fetchLegacyUserDashboard } from "./userDashboardFallback";
-
 export type DashboardChartItem = { label: string; value: number };
 
 export type UserDashboardData = {
@@ -32,21 +28,3 @@ export type UserDashboardData = {
     received_by_status: DashboardChartItem[];
   };
 };
-
-export async function fetchUserDashboard(): Promise<UserDashboardData> {
-  try {
-    const { data } = await client.get<unknown>(endpoints.userDashboard);
-    if (
-      data &&
-      typeof data === "object" &&
-      "summary" in data &&
-      "task_statuses" in data &&
-      Array.isArray((data as Partial<UserDashboardData>).task_statuses)
-    ) {
-      return data as UserDashboardData;
-    }
-  } catch {
-    // Older running backends do not expose the aggregated endpoint yet.
-  }
-  return fetchLegacyUserDashboard();
-}

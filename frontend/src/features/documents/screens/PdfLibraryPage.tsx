@@ -30,7 +30,7 @@ import {
   PdfFormItem,
   PdfLibraryCategory,
   PdfLibraryConfig,
-} from "@/features/pdfForms";
+} from "@/features/pdf-forms";
 
 const fileSize = (bytes: number) =>
   bytes < 1024 * 1024
