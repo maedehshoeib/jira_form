@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/AuthContext";
-import { JalaliDateTimePicker } from "@/features/timesheet/components/jalali-date-time-picker";
+import { JalaliDateTimePicker } from "@/components/shared/jalali-date-time-picker";
 import { toLatinDigits } from "@/lib/persianDate";
 import { formatUserDisplayName } from "@/lib/userDisplay";
 import { BirthdayBadge } from "@/components/UserDisplayName";

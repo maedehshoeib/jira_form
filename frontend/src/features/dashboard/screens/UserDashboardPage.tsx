@@ -18,7 +18,7 @@ import {
   fetchUserDashboard,
   type DashboardChartItem,
   type UserDashboardData,
-} from "@/features/userDashboard";
+} from "@/features/user-dashboard";
 
 const colors = ["#dc2626", "#2563eb", "#059669", "#d97706", "#7c3aed", "#0891b2"];
 const number = (value: number) => value.toLocaleString("fa-IR");

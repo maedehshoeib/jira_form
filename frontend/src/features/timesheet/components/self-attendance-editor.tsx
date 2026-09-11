@@ -12,7 +12,7 @@ import {
   updateMyAttendance,
   type AttendanceSegment,
 } from "@/features/timesheet/api";
-import { JalaliDateTimePicker } from "@/features/timesheet/components/jalali-date-time-picker";
+import { JalaliDateTimePicker } from "@/components/shared/jalali-date-time-picker";
 import { getTodayPersian, toLatinDigits } from "@/lib/persianDate";
 
 function parseJalali(value?: string | null): DateObject | null {

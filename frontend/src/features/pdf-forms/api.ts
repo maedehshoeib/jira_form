@@ -1,5 +1,5 @@
-import client from "../api/client";
-import { endpoints } from "../api/endpoints";
+import client from "@/api/client";
+import { endpoints } from "@/api/endpoints";
 
 export type PdfLibraryCategory =
   | "forms"

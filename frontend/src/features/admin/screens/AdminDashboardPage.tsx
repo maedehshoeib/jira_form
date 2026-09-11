@@ -41,7 +41,7 @@ import {
   type ChartItem,
   type DailyTimesheetPoint,
 } from "@/features/admin/analytics";
-import { JalaliDateTimePicker } from "@/features/timesheet/components/jalali-date-time-picker";
+import { JalaliDateTimePicker } from "@/components/shared/jalali-date-time-picker";
 import { formatPersianDate, formatPersianDateTime, getTodayPersian } from "@/lib/persianDate";
 
 type AnalyticsTab = "overview" | "employees" | "projects" | "departments" | "forms" | "letters";

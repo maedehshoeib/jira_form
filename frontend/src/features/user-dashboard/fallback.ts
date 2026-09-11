@@ -1,6 +1,6 @@
-import client from "../api/client";
-import { endpoints } from "../api/endpoints";
-import type { DashboardChartItem, UserDashboardData } from "./userDashboard";
+import client from "@/api/client";
+import { endpoints } from "@/api/endpoints";
+import type { DashboardChartItem, UserDashboardData } from "./types";
 
 type LegacySubmission = {
   id: number;
