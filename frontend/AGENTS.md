@@ -4,32 +4,48 @@ This file extends the repository-root `AGENTS.md` for all work under `frontend/`
 
 ## Read first
 
-Before editing, inspect the route, provider, feature module, API client, and relevant shadcn primitive. Read `package.json`, `.env.example`, `components.json`, `next.config.ts`, and installed Next.js documentation for framework-sensitive work.
+Before editing, inspect the route group, provider, feature public `index.ts`, API client, and relevant shadcn primitive. Read `package.json`, `.env.example`, `components.json`, `next.config.ts`, `docs/08-architecture-standards.md`, and installed Next.js documentation for framework-sensitive work.
 
 ## Target architecture
 
 ```text
-src/app/             App Router pages, layouts, loading/error boundaries
-src/features/        Domain UI, hooks, state, typed transport adapters
-src/components/ui/   shadcn primitives
-src/components/      Shared composition components
-src/api/, src/lib/   Typed clients and framework-neutral utilities
+src/app/(auth)/          guest route group (login, change-password)
+src/app/(portal)/        authenticated product routes
+src/app/(admin)/admin/   admin routes
+src/app/_components/     route helpers only (ProtectedFeature, RedirectTo)
+src/features/<domain>/   screens, private components, api, hooks, types + public index.ts
+src/components/ui/       vendored AMSeify/Shadcn-UI-Kit primitives (only UI system)
+src/components/shared/   cross-domain UI (date pickers, etc.)
+src/components/layout/   shells; must not deep-import feature internals
+src/api/, src/lib/       typed clients and framework-neutral utilities
 ```
 
-- Add routes under `src/app` as thin composition modules.
-- Import domains through `src/features/<domain>/index.ts`; do not reach into another feature's private screen files.
-- Prefer Server Components. Use `"use client"` only for hooks, events, browser APIs, or client-only libraries.
-- Keep page modules focused on routing and data wiring; feature modules own interaction logic.
-- Use `next/link` and `next/navigation` in migrated routes.
-- Preserve direct navigation, refresh, redirects, and authorization behavior.
+### Route groups
 
-Follow the staged process in `docs/04-nextjs-migration.md`.
+- Place new pages under `(auth)`, `(portal)`, or `(admin)` as appropriate.
+- Route groups must preserve existing public URLs.
+- Prefer group-level layouts for guest vs portal vs admin chrome; keep page modules thin.
+
+### Feature isolation
+
+- Import domains only through `src/features/<domain>/index.ts`.
+- Never reach into another feature's `screens/`, `components/`, `api/`, or `hooks/`.
+- If two features need the same UI, move it to `components/shared` (or promote a tiny public export).
+- Flat one-file domains must become a proper `features/<domain>/` folder or live under `lib` / `components/shared`.
+- Until an eslint boundary plugin is added, treat cross-feature private imports as a hard agent rule.
+
+### Abstraction
+
+- Pages: composition and route wiring only.
+- Screens: orchestrate hooks/api and compose components.
+- Components: presentational units; prefer many small abstracted components over monolithic screens.
+- When touching a domain, split oversized screens toward the 300-line file limit.
 
 ## UI and RTL
 
-- Use shadcn primitives from `src/components/ui` and `cn()` from `src/lib/utils`.
-- Never add raw form controls or tables in page/feature code; extend the shared
-  shadcn layer when a primitive is missing.
+- Use shadcn primitives from `src/components/ui` (vendored from `AMSeify/Shadcn-UI-Kit`) and `cn()` from `src/lib/utils`.
+- Never add raw form controls or tables in page/feature code; extend the kit layer when a primitive is missing.
+- Sync kit updates deliberately; pin the kit commit in `docs/08-architecture-standards.md`. Do not vendor demo dashboards/apps wholesale.
 - Use CSS variables and semantic Tailwind tokens; do not introduce a second component system.
 - Preserve Persian copy, `lang="fa"`, `dir="rtl"`, keyboard access, focus visibility, and responsive behavior.
 - Use logical alignment and spacing so mixed Persian/Latin content remains correct.
@@ -38,19 +54,19 @@ Follow the staged process in `docs/04-nextjs-migration.md`.
 
 ## Data and forms
 
-- Browser REST requests remain relative to `/api/v1`; the App Router handler
-  in `src/app/api/v1/[...path]/route.ts` proxies them to `BACKEND_URL`.
+- Browser REST requests remain relative to `/api/v1`; the App Router handler in `src/app/api/v1/[...path]/route.ts` proxies them to `BACKEND_URL`.
 - Never expose credentials through `NEXT_PUBLIC_*`. Only public browser configuration may use that prefix.
-- Keep API payloads typed outside visual components.
+- Keep API payloads typed outside visual components (`features/<domain>/api` or `src/api`).
 - Use React Query for server state where already established; do not mirror remote data unnecessarily.
 - Use React Hook Form and Zod for new or substantially rewritten forms.
 - Preserve WebSocket reconnect and unread behavior when changing chat.
+- Layout/shell code may consume only a feature's public `index.ts` API (for example chat unread helpers), never private modules.
 
 ## Quality gates
 
 Run the narrow check first, then all frontend gates:
 
-```powershell
+```bash
 cd frontend
 npm run lint
 npx tsc --noEmit
@@ -64,6 +80,7 @@ Treat React compiler findings in legacy screens as migration debt. Do not disabl
 
 - Existing URLs and redirects still work.
 - Auth/admin boundaries and RTL verified.
+- No new cross-feature private imports.
 - New environment variables documented.
 - Lint, TypeScript, and production build pass.
 - User-facing or architectural changes documented under `docs/`.

@@ -22,21 +22,26 @@ copy.
 ## Backend layers
 
 `api/router.py` is the API composition root. `api/routes` owns HTTP validation,
-authorization, and dependency injection; `services` owns workflows and
-transactions; `repositories` owns reusable query construction; `models` declares
-persistence; and `schemas` defines stable API contracts.
+authorization, and dependency injection. Domain **service classes** own workflows
+and transactions. Domain **repository classes** own reusable query construction.
+`models` declares persistence; `schemas` defines stable API contracts. New work
+must follow route → service → repository (see calendar as the gold standard).
 
 Alembic owns PostgreSQL schema versions under `backend/alembic`. Application
 startup upgrades the schema before the idempotent SQLite-to-PostgreSQL data import.
 
 ## Frontend layers
 
-`app` contains thin native route compositions and layouts, `components/ui`
-contains shadcn primitives, and `features/<domain>` owns screens, components,
-types, constants, utilities, and transport adapters. Every feature exposes a
-public `index.ts`; cross-domain consumers should use that public API. `lib` and
-`api` contain framework-neutral shared infrastructure, while `context` contains
-narrowly scoped client providers.
+`app` uses Next.js route groups `(auth)`, `(portal)`, and `(admin)` for thin
+route compositions and layouts without changing public URLs. `components/ui`
+holds vendored shadcn kit primitives from `AMSeify/Shadcn-UI-Kit`.
+`components/shared` holds cross-domain UI. `features/<domain>` owns screens,
+private components, types, and transport adapters behind a public `index.ts`.
+`lib` and `api` contain framework-neutral shared infrastructure; `context`
+contains narrowly scoped client providers.
 
 The React Router compatibility tree has been removed. All supported URLs are
 native App Router routes.
+
+Deep standards, isolation rules, kit pinning, and migration debt:
+[08-architecture-standards.md](08-architecture-standards.md).
