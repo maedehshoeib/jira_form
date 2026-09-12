@@ -86,3 +86,7 @@ matching inbox items. The home page shows these messages behind the notification
 icon; the sidebar badge next to «وظایف من» no longer displays the unread count.
 Clicking an inbox message navigates to `/my-tasks?open={submission_id}` and
 opens the task card.
+
+The home page also shows a small welcome bot that greets the signed-in user by
+display name. When `birth_date` matches today (Tehran calendar day, same rule as
+`is_birthday` on `/api/v1/auth/me`), the bot switches to a birthday message.

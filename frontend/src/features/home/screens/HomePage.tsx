@@ -36,6 +36,7 @@ import { formatPersianDateTime } from "@/lib/persianDate";
 import { cn } from "@/lib/utils";
 import { LETTER_WORKFLOWS } from "@/features/management";
 import HomeNotifications from "../components/HomeNotifications";
+import WelcomeBot from "../components/WelcomeBot";
 
 type HomeCard = {
   id: string;
@@ -429,6 +430,7 @@ export default function HomePage() {
       <div className="mb-4 flex items-center justify-start">
         <HomeNotifications />
       </div>
+      <WelcomeBot />
       {banner?.is_active && banner.images.length > 0 && (
         <section
           aria-label="بنرهای صفحه اصلی"
