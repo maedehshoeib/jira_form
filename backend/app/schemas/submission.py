@@ -182,6 +182,20 @@ class TaskPendingNotification(BaseModel):
     ids: list[int] = Field(default_factory=list)
 
 
+class TaskInboxNotificationItem(BaseModel):
+    id: str
+    kind: str
+    submission_id: int
+    subject: str
+    message: str
+    created_at: str
+
+
+class TaskInboxNotificationResponse(BaseModel):
+    count: int
+    items: list[TaskInboxNotificationItem] = Field(default_factory=list)
+
+
 class TaskCommentCreate(BaseModel):
     body: str = Field(min_length=1, max_length=2000)
     mention_user_ids: list[int] = Field(default_factory=list)

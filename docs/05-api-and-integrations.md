@@ -70,3 +70,19 @@ reminders. Each CC recipient receives a read-only announcement: it appears in
 their task/announcement feed and unread count, but it is excluded from pending
 task counts and cannot be progressed or referred. Letter reports expose each
 recipient''s `delivery_type` as `direct` or `cc`.
+
+## Task inbox notifications
+
+`GET /api/v1/tasks/notifications` returns unread home-page inbox items for the
+signed-in user:
+
+- reminder and deadline rows from `submission_reminders` that are due and newer
+  than the user's last task view
+- completed-task rows from `approved` status history on tasks the user can view,
+  excluding changes made by the same user
+
+Opening a task (`GET /api/v1/tasks/{id}`) updates the view timestamp and clears
+matching inbox items. The home page shows these messages behind the notification
+icon; the sidebar badge next to «وظایف من» no longer displays the unread count.
+Clicking an inbox message navigates to `/my-tasks?open={submission_id}` and
+opens the task card.

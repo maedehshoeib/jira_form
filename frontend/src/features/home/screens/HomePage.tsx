@@ -35,6 +35,7 @@ import { SiteNews } from "@/features/news";
 import { formatPersianDateTime } from "@/lib/persianDate";
 import { cn } from "@/lib/utils";
 import { LETTER_WORKFLOWS } from "@/features/management";
+import HomeNotifications from "../components/HomeNotifications";
 
 type HomeCard = {
   id: string;
@@ -425,6 +426,9 @@ export default function HomePage() {
 
   return (
     <AppShell>
+      <div className="mb-4 flex items-center justify-start">
+        <HomeNotifications />
+      </div>
       {banner?.is_active && banner.images.length > 0 && (
         <section
           aria-label="بنرهای صفحه اصلی"

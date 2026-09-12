@@ -1,6 +1,7 @@
 import { NativeSelect } from "@/components/ui/native-select";
 import { Label } from "@/components/ui/label";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   AtSign,
   CalendarDays,
@@ -65,6 +66,8 @@ import {
 } from "../utils";
 
 export default function MyTasksPage() {
+  const searchParams = useSearchParams();
+  const openedFromQueryRef = useRef<number | null>(null);
   const [tasks, setTasks] = useState<SubmissionListItem[]>([]);
   const [selected, setSelected] = useState<SubmissionDetail | null>(null);
   const [template, setTemplate] = useState<FormTemplate | null>(null);
@@ -309,6 +312,19 @@ export default function MyTasksPage() {
       setDetailLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (loading || tasks.length === 0) return;
+    const raw = searchParams.get("open");
+    if (!raw) return;
+    const openId = Number(raw);
+    if (!Number.isFinite(openId) || openId <= 0) return;
+    if (openedFromQueryRef.current === openId) return;
+    const task = tasks.find((item) => item.id === openId);
+    if (!task) return;
+    openedFromQueryRef.current = openId;
+    void openTask(task);
+  }, [loading, tasks, searchParams]);
 
   const openStatusPanel = (status: "approved" | "rejected") => {
     if (!selected || selected.status === status) return;

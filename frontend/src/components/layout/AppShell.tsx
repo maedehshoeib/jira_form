@@ -106,7 +106,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
-  const [taskUnreadCount, setTaskUnreadCount] = useState(0);
   const [calendarUnreadCount, setCalendarUnreadCount] = useState(0);
   const [calendarToast, setCalendarToast] = useState<CalendarNotification | null>(null);
   const [chatSoundMuted, setChatSoundMuted] = useState(
@@ -157,7 +156,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
       const hasNewTask =
         previous !== null && data.ids.some((id) => !previous.has(id));
       knownUnreadTaskIdsRef.current = nextIds;
-      setTaskUnreadCount(data.count);
       if (hasNewTask) playTaskNotificationSound();
     } catch {
       // Keep navigation usable if task notifications are temporarily unavailable.
@@ -321,8 +319,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 <Icon size={19} />
               </span>
               <span className="flex-1">{label}</span>
-              {item.href === "/my-tasks" && taskUnreadCount > 0 &&
-                renderCountBadge(taskUnreadCount, active)}
               {item.href === "/my-calendar" && calendarUnreadCount > 0 &&
                 renderCountBadge(calendarUnreadCount, active)}
               {item.href === "/my-tasks" &&

@@ -53,6 +53,7 @@ from app.schemas.submission import (
     TaskColleague,
     TaskConversationResponse,
     TaskConversationUser,
+    TaskInboxNotificationResponse,
     TaskPendingNotification,
     TaskReferRequest,
     TaskReminderCreate,
@@ -83,6 +84,7 @@ from app.services.meeting_room_workflow_service import (
     initialize_meeting_room_workflow,
     prepare_meeting_room_data,
 )
+from app.services.task_notification_service import TaskNotificationService
 from app.services.task_workflow_service import (
     add_task_comment,
     list_colleagues,
@@ -1037,6 +1039,15 @@ def get_unseen_task_count(
 ):
     ids = list_unseen_task_ids(db, current_user.id)
     return TaskPendingNotification(count=len(ids), ids=ids)
+
+
+@router.get("/tasks/notifications", response_model=TaskInboxNotificationResponse)
+def get_task_notifications(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    limit: int = Query(default=40, ge=1, le=100),
+):
+    return TaskNotificationService(db).list_inbox(current_user.id, limit=limit)
 
 
 @router.get("/tasks", response_model=list[SubmissionListItem])
