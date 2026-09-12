@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import LoginMascot from "../components/LoginMascot";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -50,72 +51,76 @@ export default function LoginPage() {
   return (
     <div
       dir="rtl"
-      className="relative grid min-h-screen place-items-center overflow-hidden bg-background px-4 font-sans"
+      className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10 font-sans"
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/0.10),transparent_32%),radial-gradient(circle_at_bottom_left,hsl(var(--muted)),transparent_38%)]" />
-      <div className="absolute left-4 top-4 sm:left-6 sm:top-6">
+      <div className="absolute left-4 top-4 z-20 sm:left-6 sm:top-6">
         <ThemeToggle />
       </div>
 
-      <Card className="relative w-full max-w-md gap-0 overflow-hidden border-border/80 py-0 shadow-2xl shadow-foreground/5">
-        <CardHeader className="flex flex-col items-center border-b bg-muted/30 px-8 py-8 text-center">
-          <img src={assetUrl(logo)} alt="وثوق گستر" className="mb-4 h-20 object-contain" />
-          <CardTitle className="text-2xl font-bold text-foreground">سامانه جامع خدمات</CardTitle>
-          <CardDescription className="mt-2 leading-6">
-            با نام کاربری و رمز عبور سیستم سازمانی وارد شوید
-          </CardDescription>
-        </CardHeader>
+      <div className="relative z-10 flex w-full max-w-5xl flex-col-reverse items-center justify-center gap-8 lg:flex-row lg:gap-12">
+        <Card className="relative w-full max-w-md gap-0 overflow-hidden border-border/80 py-0 shadow-2xl shadow-foreground/5">
+          <CardHeader className="flex flex-col items-center border-b bg-muted/30 px-8 py-8 text-center">
+            <img src={assetUrl(logo)} alt="وثوق گستر" className="mb-4 h-20 object-contain" />
+            <CardTitle className="text-2xl font-bold text-foreground">سامانه جامع خدمات</CardTitle>
+            <CardDescription className="mt-2 leading-6">
+              با نام کاربری و رمز عبور سیستم سازمانی وارد شوید
+            </CardDescription>
+          </CardHeader>
 
-        <CardContent className="p-8">
-          {error && (
-            <Alert variant="destructive" className="mb-5">
-              <AlertDescription className="text-destructive">{error}</AlertDescription>
-            </Alert>
-          )}
+          <CardContent className="p-8">
+            {error && (
+              <Alert variant="destructive" className="mb-5">
+                <AlertDescription className="text-destructive">{error}</AlertDescription>
+              </Alert>
+            )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <Label className="mb-2 block text-sm font-medium text-foreground">
-              نام کاربری
-            </Label>
-            <Input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="مثال: f.amiri"
-              required
-              className="h-12 rounded-xl"
-            />
-          </div>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <Label className="mb-2 block text-sm font-medium text-foreground">
+                  نام کاربری
+                </Label>
+                <Input
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="مثال: f.amiri"
+                  required
+                  className="h-12 rounded-xl"
+                />
+              </div>
 
-          <div>
-            <Label className="mb-2 block text-sm font-medium text-foreground">
-              رمز عبور
-            </Label>
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="رمز عبور"
-              required
-              className="h-12 rounded-xl"
-            />
-          </div>
+              <div>
+                <Label className="mb-2 block text-sm font-medium text-foreground">
+                  رمز عبور
+                </Label>
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="رمز عبور"
+                  required
+                  className="h-12 rounded-xl"
+                />
+              </div>
 
-          <Button
-            type="submit"
-            disabled={loading}
-            className="h-11 w-full text-base"
-          >
-            <LogIn size={18} />
-            {loading ? "در حال ورود..." : "ورود به سامانه"}
-          </Button>
-          </form>
+              <Button
+                type="submit"
+                disabled={loading}
+                className="h-11 w-full text-base"
+              >
+                <LogIn size={18} />
+                {loading ? "در حال ورود..." : "ورود به سامانه"}
+              </Button>
+            </form>
 
-          <p className="mt-6 text-center text-xs text-muted-foreground">
-            در اولین ورود، تغییر رمز عبور پیش‌فرض الزامی است.
-          </p>
-        </CardContent>
-      </Card>
+            <p className="mt-6 text-center text-xs text-muted-foreground">
+              در اولین ورود، تغییر رمز عبور پیش‌فرض الزامی است.
+            </p>
+          </CardContent>
+        </Card>
+
+        <LoginMascot className="max-w-[200px] sm:max-w-[260px] lg:max-w-[380px]" />
+      </div>
     </div>
   );
 }

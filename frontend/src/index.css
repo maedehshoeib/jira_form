@@ -562,6 +562,34 @@ button {
   color: rgb(252 165 165);
 }
 
+@keyframes login-mascot-glow {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.08);
+  }
+}
+
+.login-mascot-media {
+  /* Soft edge only — GIF already has a transparent background. */
+  -webkit-mask-image: radial-gradient(ellipse 88% 92% at 50% 50%, #000 70%, transparent 100%);
+  mask-image: radial-gradient(ellipse 88% 92% at 50% 50%, #000 70%, transparent 100%);
+}
+
+.login-mascot-glow {
+  animation: login-mascot-glow 3.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-mascot-glow {
+    animation: none;
+  }
+}
+
 @media print {
   @page {
     margin: 12mm;
