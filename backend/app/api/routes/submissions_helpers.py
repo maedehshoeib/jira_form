@@ -29,7 +29,12 @@ from app.schemas.submission import (
     SubmissionTimelineItem,
 )
 from app.services.portal_service import DEPARTMENTS, FORM_TEMPLATES
-from app.services.task_workflow_service import derive_workflow_status, is_letter_announcement
+from app.services.task_workflow_service import (
+    derive_workflow_status,
+    is_letter_announcement,
+    is_no_action_letter,
+    letter_needs_action,
+)
 
 
 def _parse_submission_data(raw: str) -> dict:
@@ -670,8 +675,9 @@ def _submission_to_list_item(
         assignee_progress=assignee_progress,
         referrals=referrals,
         cc_recipients=cc_recipients,
-        can_act=can_act,
+        can_act=can_act and not is_no_action_letter(submission),
         is_announcement=is_letter_announcement(submission),
+        needs_action=letter_needs_action(submission),
     )
 
 
@@ -754,8 +760,9 @@ def _submission_to_response(
         referrals=referrals,
         cc_recipients=cc_recipients,
         timeline=_submission_timeline(context, submission),
-        can_act=can_act,
+        can_act=can_act and not is_no_action_letter(submission),
         is_announcement=is_letter_announcement(submission),
+        needs_action=letter_needs_action(submission),
     )
 
 

@@ -30,16 +30,36 @@ from app.services.meeting_room_workflow_service import (
 
 ALLOWED_TASK_STATUSES = {"approved", "rejected", "submitted", "in_progress"}
 TERMINAL_TASK_STATUSES = {"approved", "rejected"}
+LETTER_NO_ACTION_VALUE = "ندارد(جهت اطلاع)"
 
 
-def is_letter_announcement(submission: Submission) -> bool:
+def _management_letter_data(submission: Submission) -> dict:
     if submission.form_id != "management-letter-form":
-        return False
+        return {}
     try:
         data = json.loads(submission.data or "{}")
     except (json.JSONDecodeError, TypeError):
-        return False
-    return data.get("recipient_delivery_type") == "cc"
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def letter_needs_action(submission: Submission) -> str:
+    return str(_management_letter_data(submission).get("needs_action") or "")
+
+
+def is_letter_announcement(submission: Submission) -> bool:
+    """True when this management-letter copy was delivered as CC/رونوشت."""
+    return _management_letter_data(submission).get("recipient_delivery_type") == "cc"
+
+
+def is_no_action_letter(submission: Submission) -> bool:
+    """True when the letter is marked نیاز به اقدام ندارد (inform-only)."""
+    return letter_needs_action(submission) == LETTER_NO_ACTION_VALUE
+
+
+def is_letter_inbox_item(submission: Submission) -> bool:
+    """CC copies and no-action letters belong in the نامه inbox, not task tabs."""
+    return is_letter_announcement(submission) or is_no_action_letter(submission)
 
 
 def user_is_referral_recipient(db: Session, user_id: int, submission_id: int) -> bool:
@@ -177,7 +197,7 @@ def list_pending_task_ids(db: Session, user_id: int) -> list[int]:
     return [
         row.id
         for row in rows
-        if not is_letter_announcement(row)
+        if not is_letter_inbox_item(row)
         and (
             not is_meeting_room_submission(row)
             or active_meeting_room_approver_id(row) == user_id

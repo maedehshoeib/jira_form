@@ -18,7 +18,11 @@ from app.schemas.user_dashboard import (
 )
 from app.services.admin_analytics_service import _form_title, _portal_department_title
 from app.services.portal_service import MANAGEMENT_LETTER_FORM_ID
-from app.services.task_workflow_service import is_letter_announcement, list_task_submissions
+from app.services.task_workflow_service import (
+    is_letter_announcement,
+    is_letter_inbox_item,
+    list_task_submissions,
+)
 
 STATUS_LABELS = {
     "submitted": "اقدام‌نشده",
@@ -71,7 +75,7 @@ def build_user_dashboard(db: Session, user: User) -> UserDashboardResponse:
     users_repository = UserRepository(db)
     requests = submissions.owned_by(user.id)
     tasks = list_task_submissions(db, user.id, limit=1_000_000)
-    actionable_tasks = [item for item in tasks if not is_letter_announcement(item)]
+    actionable_tasks = [item for item in tasks if not is_letter_inbox_item(item)]
 
     user_ids = {item.user_id for item in tasks}
     users = users_repository.by_ids(user_ids)

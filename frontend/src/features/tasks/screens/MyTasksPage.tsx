@@ -58,6 +58,7 @@ import {
   initialAssigneeNames,
   isInternalLetterTask,
   isLetterInboxItem,
+  LETTER_NO_ACTION_VALUE,
   matchesStatusTab,
   normalizedProgress,
   parseSubmittedAt,
@@ -949,6 +950,10 @@ export default function MyTasksPage() {
                     <Badge variant="outline" className="border-violet-200 bg-violet-50 text-violet-700">
                       اعلان نامه (رونوشت)
                     </Badge>
+                  ) : task.needs_action === LETTER_NO_ACTION_VALUE ? (
+                    <Badge variant="outline" className="border-violet-200 bg-violet-50 text-violet-700">
+                      جهت اطلاع
+                    </Badge>
                   ) : (
                     <Badge variant="outline" className={statusBadgeClass(task.status)}>
                       {displayStatus(task.status)}
@@ -1068,7 +1073,9 @@ export default function MyTasksPage() {
           <section
             role="dialog"
             aria-modal="true"
-            aria-label={selected.is_announcement ? "جزئیات اعلان" : "جزئیات وظیفه"}
+            aria-label={
+              isLetterInboxItem(selected) ? "جزئیات اعلان" : "جزئیات وظیفه"
+            }
             className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-t-3xl bg-card shadow-2xl sm:rounded-3xl"
             onMouseDown={(event) => event.stopPropagation()}
           >
@@ -1078,6 +1085,10 @@ export default function MyTasksPage() {
                   {selected.is_announcement ? (
                     <Badge variant="outline" className="border-violet-200 bg-violet-50 text-violet-700">
                       اعلان نامه (رونوشت)
+                    </Badge>
+                  ) : selected.needs_action === LETTER_NO_ACTION_VALUE ? (
+                    <Badge variant="outline" className="border-violet-200 bg-violet-50 text-violet-700">
+                      جهت اطلاع
                     </Badge>
                   ) : (
                     <Badge variant="outline" className={statusBadgeClass(selected.status)}>
@@ -1126,6 +1137,12 @@ export default function MyTasksPage() {
                   این نامه برای اطلاع شما رونوشت شده است و نیازی به اقدام ندارد.
                 </div>
               )}
+              {!selected.is_announcement &&
+                selected.needs_action === LETTER_NO_ACTION_VALUE && (
+                <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-800">
+                  این نامه جهت اطلاع ارسال شده و نیاز به اقدام ندارد.
+                </div>
+              )}
               {actionError && (
                 <div className="rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary">
                   {actionError}
@@ -1157,7 +1174,7 @@ export default function MyTasksPage() {
                 </div>
               )}
 
-              {!selected.is_announcement && (
+              {!isLetterInboxItem(selected) && (
                 <TaskProgress
                   progress={selected.viewer_progress_percent ?? 0}
                   status={selected.status}

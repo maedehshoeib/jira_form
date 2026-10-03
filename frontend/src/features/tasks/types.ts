@@ -79,6 +79,7 @@ export type SubmissionListItem = {
   cc_recipients?: CcRecipient[];
   can_act?: boolean;
   is_announcement?: boolean;
+  needs_action?: string;
   timeline?: TimelineItem[];
 };
 

@@ -92,6 +92,7 @@ class SubmissionListItem(BaseModel):
     cc_recipients: list[SubmissionCcRecipientItem] = Field(default_factory=list)
     can_act: bool = False
     is_announcement: bool = False
+    needs_action: str = ""
 
 
 class SubmissionResponse(BaseModel):
@@ -130,6 +131,7 @@ class SubmissionResponse(BaseModel):
     timeline: list[SubmissionTimelineItem] = Field(default_factory=list)
     can_act: bool = False
     is_announcement: bool = False
+    needs_action: str = ""
 
 
 class JiraStatusUpdate(BaseModel):

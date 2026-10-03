@@ -35,6 +35,9 @@ from app.services.management_letter_service import (
     user_can_use_management_workflow,
 )
 from app.services.task_workflow_service import (
+    is_letter_announcement,
+    is_letter_inbox_item,
+    is_no_action_letter,
     list_pending_task_ids,
     list_task_submissions,
     user_can_access_task,
@@ -263,6 +266,33 @@ class ManagementLetterServiceTests(unittest.TestCase):
                 for item in submissions
             )
         )
+
+    def test_letter_inbox_includes_cc_and_no_action_only(self):
+        submissions = self._create_letters(
+            needs_action="دارد",
+            recipient_ids=[self.first_recipient.id],
+            cc_recipient_ids=[self.second_recipient.id],
+        )
+        payloads = {json.loads(item.data)["recipient_id"]: item for item in submissions}
+        actionable = payloads[self.first_recipient.id]
+        cc_copy = payloads[self.second_recipient.id]
+        inform_only = self._create_letters(
+            needs_action="ندارد(جهت اطلاع)",
+            recipient_ids=[self.first_recipient.id],
+            cc_recipient_ids=[],
+        )[0]
+
+        self.assertFalse(is_letter_inbox_item(actionable))
+        self.assertFalse(is_no_action_letter(actionable))
+        self.assertTrue(is_letter_announcement(cc_copy))
+        self.assertTrue(is_letter_inbox_item(cc_copy))
+        self.assertTrue(is_no_action_letter(inform_only))
+        self.assertTrue(is_letter_inbox_item(inform_only))
+
+        pending_ids = list_pending_task_ids(self.db, self.first_recipient.id)
+        self.assertIn(actionable.id, pending_ids)
+        self.assertNotIn(inform_only.id, pending_ids)
+        self.assertNotIn(cc_copy.id, list_pending_task_ids(self.db, self.second_recipient.id))
 
     def test_backfill_expands_existing_incomplete_letter_batch_snapshots(self):
         submissions = self._create_letters(

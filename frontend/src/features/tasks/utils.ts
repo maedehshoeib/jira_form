@@ -58,14 +58,15 @@ export function statusBadgeClass(status: string) {
   return "border-amber-200 bg-amber-50 text-amber-700";
 }
 
+/** Matches backend LETTER_NO_ACTION_VALUE — inform-only management letters. */
+export const LETTER_NO_ACTION_VALUE = "ندارد(جهت اطلاع)";
+
 export function isLetterInboxItem(task: SubmissionListItem) {
-  // Management letters (direct, CC, inform) belong in نامه — not actionable task tabs.
-  // Includes legacy rows that predate recipient_delivery_type / is_announcement.
-  return (
-    Boolean(task.is_announcement) ||
-    task.form_id === "management-letter-form" ||
-    isInternalLetterTask(task)
-  );
+  // نامه: CC/رونوشت copies, or letters marked نیاز به اقدام ندارد.
+  // Actionable direct letters (needs_action = دارد) stay in normal task tabs.
+  if (Boolean(task.is_announcement)) return true;
+  if (task.form_id !== "management-letter-form") return false;
+  return task.needs_action === LETTER_NO_ACTION_VALUE;
 }
 
 export function matchesStatusTab(task: SubmissionListItem, tab: StatusTab) {
