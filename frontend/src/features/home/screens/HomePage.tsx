@@ -170,9 +170,9 @@ const HOME_CARDS: HomeCard[] = [
 
 const HOME_CARD_ROWS = [
   ["internal-letters", "timesheet", "external-letters"],
-  ["guidelines", "training", "forms", "job-descriptions", "documents"],
+  ["guidelines", "training", "forms", "job-descriptions"],
+  ["documents", "reports", "contracts", "meeting-room"],
   ["business", "it", "resource-development", "planning"],
-  ["reports", "contracts", "meeting-room"],
 ] as const;
 
 const formatNewsDate = (value: string) => formatPersianDateTime(value);
