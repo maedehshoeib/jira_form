@@ -173,7 +173,7 @@ def _message_dict(
                 "name": message.attachment_name,
                 "type": message.attachment_type,
                 "size": message.attachment_size,
-                "url": f"/api/v1/chat/messages/{message.id}/attachment",
+                "url": f"/chat/messages/{message.id}/attachment",
             }
             if message.attachment_path and not deleted
             else None

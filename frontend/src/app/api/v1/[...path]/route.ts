@@ -9,7 +9,7 @@ type ProxyInit = RequestInit & { duplex?: "half" };
 const HOP_BY_HOP = new Set([
   "connection",
   "content-encoding",
-  "content-length",
+  // Keep content-length so multipart uploads reach FastAPI intact.
   "host",
   "keep-alive",
   "proxy-authenticate",

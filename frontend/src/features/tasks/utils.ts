@@ -58,7 +58,20 @@ export function statusBadgeClass(status: string) {
   return "border-amber-200 bg-amber-50 text-amber-700";
 }
 
+export function isLetterInboxItem(task: SubmissionListItem) {
+  // Management letters (direct, CC, inform) belong in نامه — not actionable task tabs.
+  // Includes legacy rows that predate recipient_delivery_type / is_announcement.
+  return (
+    Boolean(task.is_announcement) ||
+    task.form_id === "management-letter-form" ||
+    isInternalLetterTask(task)
+  );
+}
+
 export function matchesStatusTab(task: SubmissionListItem, tab: StatusTab) {
+  if (tab === "letter") return isLetterInboxItem(task);
+  // Keep actionable workflow tabs free of inform/CC letters.
+  if (isLetterInboxItem(task)) return false;
   if (tab === "in_progress") return task.status === "in_progress";
   if (tab === "pending") return task.status === "submitted";
   if (tab === "rejected") return task.status === "rejected";

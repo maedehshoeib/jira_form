@@ -98,4 +98,10 @@ export type Colleague = {
 
 export type TimeRange = "all" | "today" | "7days" | "30days" | "90days";
 export type SortOrder = "newest" | "oldest";
-export type StatusTab = "pending" | "in_progress" | "rejected" | "approved" | "referred";
+export type StatusTab =
+  | "pending"
+  | "in_progress"
+  | "rejected"
+  | "approved"
+  | "referred"
+  | "letter";

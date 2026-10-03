@@ -114,6 +114,21 @@ export const chatService = {
     const { data } = await client.post<ChatMessage>(
       `/chat/conversations/${conversationId}/messages`,
       form,
+      {
+        transformRequest: [
+          (payload, headers) => {
+            // Ensure axios/browser set the multipart boundary (never force JSON).
+            if (payload instanceof FormData && headers) {
+              if (typeof headers.delete === "function") {
+                headers.delete("Content-Type");
+              } else {
+                delete (headers as Record<string, unknown>)["Content-Type"];
+              }
+            }
+            return payload;
+          },
+        ],
+      },
     );
     return data;
   },
@@ -179,7 +194,9 @@ export const chatService = {
 
   async downloadAttachment(message: ChatMessage) {
     if (!message.attachment) return;
-    const response = await client.get(message.attachment.url, {
+    // Backend may return a full `/api/v1/...` path; axios already prefixes baseURL.
+    const path = message.attachment.url.replace(/^\/api\/v1(?=\/)/, "");
+    const response = await client.get(path, {
       responseType: "blob",
     });
     const url = URL.createObjectURL(response.data);

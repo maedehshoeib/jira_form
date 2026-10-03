@@ -57,6 +57,7 @@ import {
   displayStatus,
   initialAssigneeNames,
   isInternalLetterTask,
+  isLetterInboxItem,
   matchesStatusTab,
   normalizedProgress,
   parseSubmittedAt,
@@ -178,12 +179,17 @@ export default function MyTasksPage() {
   const tabCounts = useMemo(() => {
     const counts: Record<StatusTab, number> = {
       pending: 0,
+      letter: 0,
       in_progress: 0,
       rejected: 0,
       approved: 0,
       referred: 0,
     };
     tasks.forEach((task) => {
+      if (isLetterInboxItem(task)) {
+        counts.letter += 1;
+        return;
+      }
       if (task.status === "submitted") counts.pending += 1;
       if (task.status === "in_progress") counts.in_progress += 1;
       if (task.status === "rejected") counts.rejected += 1;
@@ -742,7 +748,7 @@ export default function MyTasksPage() {
         <div
           role="tablist"
           aria-label="فیلتر وظایف بر اساس وضعیت"
-          className="mb-6 grid gap-2 rounded-3xl border border-border bg-card p-2 shadow-md sm:grid-cols-2 lg:grid-cols-5"
+          className="mb-6 grid gap-2 rounded-3xl border border-border bg-card p-2 shadow-md sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
         >
           {STATUS_TABS.map((tab) => {
             const active = statusTab === tab.id;
