@@ -17,6 +17,7 @@ from app.schemas.user_dashboard import (
     UserDashboardSummary,
 )
 from app.services.admin_analytics_service import _form_title, _portal_department_title
+from app.services.management_letter_service import collapse_letter_batch_submissions
 from app.services.portal_service import MANAGEMENT_LETTER_FORM_ID
 from app.services.task_workflow_service import (
     is_letter_announcement,
@@ -73,7 +74,9 @@ def _monthly(submissions: list[Submission]):
 def build_user_dashboard(db: Session, user: User) -> UserDashboardResponse:
     submissions = SubmissionRepository(db)
     users_repository = UserRepository(db)
-    requests = submissions.owned_by(user.id)
+    owned_requests = submissions.owned_by(user.id)
+    # One card / KPI per logical letter (multi-recipient copies share a batch).
+    requests = collapse_letter_batch_submissions(owned_requests)
     tasks = list_task_submissions(db, user.id, limit=1_000_000)
     actionable_tasks = [item for item in tasks if not is_letter_inbox_item(item)]
 
@@ -91,7 +94,7 @@ def build_user_dashboard(db: Session, user: User) -> UserDashboardResponse:
         ] += 1
 
     recipient_counts: dict[str, int] = defaultdict(int)
-    request_ids = {item.id for item in requests}
+    request_ids = {item.id for item in owned_requests}
     assignees = submissions.assignees_for(request_ids)
     seen: set[tuple[int, int]] = set()
     for assignee, recipient in assignees:
@@ -108,7 +111,7 @@ def build_user_dashboard(db: Session, user: User) -> UserDashboardResponse:
 
     sent_batches: dict[str, list[Submission]] = defaultdict(list)
     received_letters: list[Submission] = []
-    for submission in requests:
+    for submission in owned_requests:
         if submission.form_id == MANAGEMENT_LETTER_FORM_ID:
             data = _data(submission)
             batch_id = str(data.get("letter_batch_id") or f"single-{submission.id}")

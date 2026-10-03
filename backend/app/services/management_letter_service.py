@@ -46,6 +46,63 @@ def validate_letter_type(letter_type: str) -> LetterType:
     return cast(LetterType, letter_type)
 
 
+def _parse_letter_data(submission: Submission) -> dict:
+    try:
+        data = json.loads(submission.data or "{}")
+    except (json.JSONDecodeError, TypeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def letter_batch_id(submission: Submission) -> str | None:
+    """Return the shared batch id for a management-letter submission, if any."""
+    if submission.form_id != MANAGEMENT_LETTER_FORM_ID:
+        return None
+    data = _parse_letter_data(submission)
+    raw = data.get("letter_batch_id")
+    if raw:
+        return str(raw)
+    return f"single-{submission.id}"
+
+
+def _letter_batch_sort_key(submission: Submission) -> tuple[int, int]:
+    data = _parse_letter_data(submission)
+    delivery = str(data.get("recipient_delivery_type") or "direct")
+    # Prefer a direct-recipient copy so the card keeps an actionable referral.
+    return (0 if delivery == "direct" else 1, submission.id or 0)
+
+
+def collapse_letter_batch_submissions(
+    submissions: list[Submission],
+) -> list[Submission]:
+    """Keep one row per logical letter for sender-facing request lists.
+
+    Multi-recipient / CC sends persist one submission per person, all sharing
+    ``letter_batch_id``. Callers that render «درخواست‌های من» should collapse
+    those copies so each letter appears as a single card.
+    """
+    batches: dict[str, list[Submission]] = {}
+    for submission in submissions:
+        batch_id = letter_batch_id(submission)
+        if batch_id is None:
+            continue
+        batches.setdefault(batch_id, []).append(submission)
+
+    seen: set[str] = set()
+    collapsed: list[Submission] = []
+    for submission in submissions:
+        batch_id = letter_batch_id(submission)
+        if batch_id is None:
+            collapsed.append(submission)
+            continue
+        if batch_id in seen:
+            continue
+        seen.add(batch_id)
+        representative = min(batches[batch_id], key=_letter_batch_sort_key)
+        collapsed.append(representative)
+    return collapsed
+
+
 def user_can_use_management_workflow(
     db: Session,
     user: User,

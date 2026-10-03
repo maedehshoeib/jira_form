@@ -109,6 +109,7 @@ from app.services.report_submission_service import (
     create_report_from_submission,
     is_performance_report_submission,
 )
+from app.services.management_letter_service import collapse_letter_batch_submissions
 from app.services.user_dashboard_builder import build_user_dashboard
 
 
@@ -783,7 +784,12 @@ def list_submissions(
     if section_id:
         query = query.filter(Submission.section_id == section_id)
 
-    submissions = query.offset(offset).limit(limit).all()
+    # Interactive portal lists collapse multi-recipient letter copies so each
+    # logical letter is one card. API-key integrations keep every copy.
+    candidates = query.all()
+    if auth is not None:
+        candidates = collapse_letter_batch_submissions(candidates)
+    submissions = candidates[offset : offset + limit]
     workflow_context = build_submission_workflow_context(
         db,
         submissions,

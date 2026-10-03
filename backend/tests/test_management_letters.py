@@ -29,6 +29,7 @@ from app.services.form_access_service import (
     parse_duty_target_keys,
 )
 from app.services.management_letter_service import (
+    collapse_letter_batch_submissions,
     create_management_letters,
     list_letter_recipients,
     list_sent_letters,
@@ -202,6 +203,38 @@ class ManagementLetterServiceTests(unittest.TestCase):
                 self._initial_recipient_ids(submission.id),
                 expected_ids,
             )
+
+    def test_sender_request_list_collapses_multi_recipient_letter_to_one_card(self):
+        submissions = self._create_letters(
+            needs_action="دارد",
+            recipient_ids=[self.first_recipient.id, self.second_recipient.id],
+            cc_recipient_ids=[],
+        )
+        self.assertEqual(len(submissions), 2)
+
+        collapsed = collapse_letter_batch_submissions(list(reversed(submissions)))
+        self.assertEqual(len(collapsed), 1)
+        self.assertEqual(
+            json.loads(collapsed[0].data)["recipient_delivery_type"],
+            "direct",
+        )
+        self.assertEqual(
+            collapsed[0].id,
+            min(item.id for item in submissions),
+        )
+
+        with_cc = self._create_letters(
+            needs_action="دارد",
+            recipient_ids=[self.first_recipient.id],
+            cc_recipient_ids=[self.second_recipient.id],
+        )
+        owned = [*submissions, *with_cc]
+        collapsed_owned = collapse_letter_batch_submissions(owned)
+        self.assertEqual(len(collapsed_owned), 2)
+        self.assertEqual(
+            {json.loads(item.data)["letter_batch_id"] for item in collapsed_owned},
+            {json.loads(item.data)["letter_batch_id"] for item in (submissions[0], with_cc[0])},
+        )
 
     def test_cc_recipient_receives_read_only_announcement(self):
         submissions = self._create_letters(

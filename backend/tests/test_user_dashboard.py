@@ -107,7 +107,8 @@ class UserDashboardTests(unittest.TestCase):
 
         self.assertEqual(result.summary.total_tasks, 2)
         self.assertEqual(result.summary.open_tasks, 2)
-        self.assertEqual(result.summary.total_requests, 3)
+        # Multi-recipient letter copies collapse to one request card/KPI.
+        self.assertEqual(result.summary.total_requests, 2)
         self.assertEqual(result.summary.sent_letters, 1)
         self.assertEqual(result.summary.received_letters, 2)
         self.assertEqual(result.top_requesters[0].label, "آلیس")
