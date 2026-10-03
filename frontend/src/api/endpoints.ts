@@ -9,6 +9,8 @@ export const endpoints = {
   departments: "/departments",
   banner: "/banner",
   pdfForms: "/pdf-forms",
+  jobDescriptions: "/job-descriptions",
+  adminJobDescriptions: "/admin/job-descriptions",
   forms: "/forms",
   reports: "/reports",
   reportsPublic: "/reports/public",

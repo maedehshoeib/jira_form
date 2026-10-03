@@ -20,6 +20,7 @@ import formsIcon from "@/assets/home-icons/forms.png";
 import guidelinesIcon from "@/assets/home-icons/guidelines.png";
 import internalLettersIcon from "@/assets/home-icons/internal-letters.png";
 import itIcon from "@/assets/home-icons/it.png";
+import jobDescriptionsIcon from "@/assets/home-icons/job-descriptions.png";
 import meetingRoomIcon from "@/assets/home-icons/meeting-room.png";
 import newsIcon from "@/assets/home-icons/news.png";
 import planningIcon from "@/assets/home-icons/planning.png";
@@ -87,6 +88,13 @@ const HOME_CARDS: HomeCard[] = [
     description: "فرم‌های عمومی سازمان",
     href: "/pdf-forms",
     image: formsIcon,
+  },
+  {
+    id: "job-descriptions",
+    title: "شرح وظایف",
+    description: "سمت‌ها، واحدها و شرایط احراز",
+    href: "/job-descriptions",
+    image: jobDescriptionsIcon,
   },
   {
     id: "documents",
@@ -162,7 +170,7 @@ const HOME_CARDS: HomeCard[] = [
 
 const HOME_CARD_ROWS = [
   ["internal-letters", "timesheet", "external-letters"],
-  ["guidelines", "training", "forms", "documents"],
+  ["guidelines", "training", "forms", "job-descriptions", "documents"],
   ["business", "it", "resource-development", "planning"],
   ["reports", "contracts", "meeting-room"],
 ] as const;

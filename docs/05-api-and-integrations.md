@@ -11,12 +11,28 @@ for other `/api` paths.
 | Administration | `/api/v1/admin` |
 | Chat and WebSocket | `/api/v1/chat` |
 | Calendar | `/api/v1/calendar` |
+| Job descriptions (شرح وظایف) | `/api/v1/job-descriptions` |
 | Portal forms and submissions | `/api/v1` |
 | Management letters | `/api/v1` |
 | Reports | `/api/v1/reports` |
 | Contracts | `/api/v1/contracts` |
 | Jira proxy | `/api/v1/jira` |
 | Timesheet | `/api/v1/timesheet` |
+
+## Job descriptions (شرح وظایف)
+
+Authenticated users can list and view published job descriptions:
+
+- `GET /api/v1/job-descriptions`
+- `GET /api/v1/job-descriptions/{id}`
+- `GET /api/v1/job-descriptions/{id}/photo`
+- `GET /api/v1/job-descriptions/{id}/attachment`
+
+Only administrators may create, update, or delete records through multipart
+`/api/v1/admin/job-descriptions` endpoints. Each record stores organizational
+position, organizational unit, unit responsibility, qualification requirements,
+an optional photo (JPG/PNG/WebP), and an optional attachment
+(PDF/Word/Excel/TXT/ZIP).
 
 Every signed-in user can manage their own timesheet:
 

@@ -8,6 +8,8 @@ from app.api.routes.calendar import router as calendar_router
 from app.api.routes.chat import router as chat_router
 from app.api.routes.contracts import router as contracts_router
 from app.api.routes.jira import router as jira_router
+from app.api.routes.job_descriptions import admin_router as job_descriptions_admin_router
+from app.api.routes.job_descriptions import router as job_descriptions_router
 from app.api.routes.management_letters import router as management_letters_router
 from app.api.routes.portal import router as portal_router
 from app.api.routes.reports import router as reports_router
@@ -16,8 +18,18 @@ from app.api.routes.timesheet import router as timesheet_router
 api_router = APIRouter()
 api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
 api_router.include_router(admin_router, prefix="/admin", tags=["admin"])
+api_router.include_router(
+    job_descriptions_admin_router,
+    prefix="/admin/job-descriptions",
+    tags=["admin"],
+)
 api_router.include_router(chat_router, prefix="/chat", tags=["chat"])
 api_router.include_router(calendar_router, prefix="/calendar", tags=["calendar"])
+api_router.include_router(
+    job_descriptions_router,
+    prefix="/job-descriptions",
+    tags=["job-descriptions"],
+)
 api_router.include_router(portal_router, tags=["portal"])
 api_router.include_router(management_letters_router, tags=["management-letters"])
 api_router.include_router(reports_router, prefix="/reports", tags=["reports"])

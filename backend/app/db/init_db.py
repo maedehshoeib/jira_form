@@ -20,6 +20,7 @@ from app.models import (  # noqa: F401
     contract,
     department,
     form_template,  # FormDutyAssignment + form access tables
+    job_description,
     pdf_form,
     report,
     site_banner,

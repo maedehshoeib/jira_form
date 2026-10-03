@@ -1,6 +1,6 @@
 # Purpose and terminology
 
-The Jira Form Portal is an internal, Persian-first service portal for employee requests, task workflows, reports, timesheets, calendars, documents, contracts, management letters, and internal chat.
+The Jira Form Portal is an internal, Persian-first service portal for employee requests, task workflows, reports, timesheets, calendars, documents, job descriptions (شرح وظایف), contracts, management letters, and internal chat.
 
 ## Terms
 

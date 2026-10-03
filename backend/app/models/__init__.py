@@ -1,6 +1,7 @@
 from app.models.admin_session import AdminSession
 from app.models.calendar_event import CalendarEvent, CalendarNotification
 from app.models.chat import ChatConversation, ChatMessage, ChatParticipant, ChatReaction
+from app.models.job_description import JobDescription
 from app.models.site_banner import SiteBanner, SiteBannerImage
 from app.models.site_news import SiteNews
 from app.models.pdf_form import PdfForm
@@ -14,6 +15,7 @@ __all__ = [
     "ChatMessage",
     "ChatParticipant",
     "ChatReaction",
+    "JobDescription",
     "PdfForm",
     "SiteBanner",
     "SiteNews",
