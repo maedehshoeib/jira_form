@@ -47,6 +47,8 @@ type HomeCard = {
   image: StaticImageData;
   departmentIds?: string[];
   featured?: boolean;
+  /** Soft accent to set one destination apart from default cards. */
+  accent?: "emerald";
 };
 
 const HOME_CARDS: HomeCard[] = [
@@ -95,6 +97,7 @@ const HOME_CARDS: HomeCard[] = [
     description: "سمت‌ها، واحدها و شرایط احراز",
     href: "/job-descriptions",
     image: jobDescriptionsIcon,
+    accent: "emerald",
   },
   {
     id: "documents",
@@ -257,6 +260,7 @@ function NewsDetailModal({
 
 function DestinationCard({ card }: { card: HomeCard }) {
   const isFeatured = card.featured && Boolean(card.href);
+  const isEmerald = card.accent === "emerald" && Boolean(card.href) && !isFeatured;
   const content = (
     <Card
       className={cn(
@@ -264,14 +268,16 @@ function DestinationCard({ card }: { card: HomeCard }) {
         card.href
           ? isFeatured
             ? "border-indigo-200/90 bg-gradient-to-br from-indigo-50 via-white to-sky-50 shadow-[0_18px_45px_-18px_rgba(79,70,229,0.38),0_8px_18px_-12px_rgba(14,165,233,0.24)] hover:-translate-y-2 hover:scale-[1.015] hover:border-indigo-300 hover:shadow-[0_30px_65px_-20px_rgba(79,70,229,0.5),0_14px_28px_-16px_rgba(14,165,233,0.35)] focus-within:-translate-y-1 dark:border-indigo-300/45 dark:from-indigo-950/80 dark:via-slate-800 dark:to-sky-950/60 dark:shadow-[0_22px_52px_-20px_rgba(0,0,0,0.72),0_10px_28px_-18px_rgba(129,140,248,0.5)] dark:hover:border-indigo-300/70 dark:hover:shadow-[0_32px_70px_-22px_rgba(0,0,0,0.82),0_16px_34px_-18px_rgba(129,140,248,0.62)]"
-            : "border-border/90 bg-gradient-to-br from-card via-card to-primary/[0.04] shadow-[0_18px_45px_-20px_rgba(15,23,42,0.28),0_8px_18px_-14px_rgba(15,23,42,0.16)] hover:-translate-y-2 hover:scale-[1.015] hover:border-primary/35 hover:shadow-[0_30px_65px_-22px_rgba(15,23,42,0.34),0_14px_28px_-18px_rgba(15,23,42,0.22)] focus-within:-translate-y-1 dark:border-slate-600 dark:from-slate-800/95 dark:via-slate-800/90 dark:to-primary/10 dark:shadow-[0_22px_52px_-20px_rgba(0,0,0,0.72),0_10px_24px_-18px_rgba(0,0,0,0.68)] dark:hover:border-primary/55 dark:hover:shadow-[0_32px_70px_-22px_rgba(0,0,0,0.82),0_16px_34px_-20px_rgba(0,0,0,0.76)]"
+            : isEmerald
+              ? "border-emerald-200/90 bg-gradient-to-br from-emerald-50 via-white to-teal-50 shadow-[0_18px_45px_-18px_rgba(16,185,129,0.32),0_8px_18px_-12px_rgba(20,184,166,0.2)] hover:-translate-y-2 hover:scale-[1.015] hover:border-emerald-300 hover:shadow-[0_30px_65px_-20px_rgba(16,185,129,0.42),0_14px_28px_-16px_rgba(20,184,166,0.28)] focus-within:-translate-y-1 dark:border-emerald-400/40 dark:from-emerald-950/70 dark:via-slate-800 dark:to-teal-950/50 dark:shadow-[0_22px_52px_-20px_rgba(0,0,0,0.72),0_10px_28px_-18px_rgba(52,211,153,0.4)] dark:hover:border-emerald-300/65 dark:hover:shadow-[0_32px_70px_-22px_rgba(0,0,0,0.82),0_16px_34px_-18px_rgba(52,211,153,0.55)]"
+              : "border-border/90 bg-gradient-to-br from-card via-card to-primary/[0.04] shadow-[0_18px_45px_-20px_rgba(15,23,42,0.28),0_8px_18px_-14px_rgba(15,23,42,0.16)] hover:-translate-y-2 hover:scale-[1.015] hover:border-primary/35 hover:shadow-[0_30px_65px_-22px_rgba(15,23,42,0.34),0_14px_28px_-18px_rgba(15,23,42,0.22)] focus-within:-translate-y-1 dark:border-slate-600 dark:from-slate-800/95 dark:via-slate-800/90 dark:to-primary/10 dark:shadow-[0_22px_52px_-20px_rgba(0,0,0,0.72),0_10px_24px_-18px_rgba(0,0,0,0.68)] dark:hover:border-primary/55 dark:hover:shadow-[0_32px_70px_-22px_rgba(0,0,0,0.82),0_16px_34px_-20px_rgba(0,0,0,0.76)]"
           : "border-dashed border-border/80 bg-gradient-to-br from-muted/55 to-muted/25 shadow-[0_12px_30px_-22px_rgba(15,23,42,0.22)] dark:border-slate-600 dark:from-slate-800/55 dark:to-slate-900/35 dark:shadow-[0_16px_34px_-24px_rgba(0,0,0,0.55)]",
       )}
     >
       <div
         className={cn(
           "pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent to-transparent",
-          isFeatured ? "via-indigo-500/80" : "via-primary/45",
+          isFeatured ? "via-indigo-500/80" : isEmerald ? "via-emerald-500/80" : "via-primary/45",
         )}
       />
       <div
@@ -279,7 +285,9 @@ function DestinationCard({ card }: { card: HomeCard }) {
           "pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full blur-3xl transition-all duration-500",
           isFeatured
             ? "bg-indigo-500/20 group-hover:bg-indigo-400/30 dark:bg-indigo-400/20 dark:group-hover:bg-indigo-300/30"
-            : "bg-primary/10 group-hover:bg-primary/20 dark:bg-primary/15 dark:group-hover:bg-primary/25",
+            : isEmerald
+              ? "bg-emerald-500/20 group-hover:bg-emerald-400/30 dark:bg-emerald-400/20 dark:group-hover:bg-emerald-300/30"
+              : "bg-primary/10 group-hover:bg-primary/20 dark:bg-primary/15 dark:group-hover:bg-primary/25",
         )}
       />
       <div
@@ -287,7 +295,9 @@ function DestinationCard({ card }: { card: HomeCard }) {
           "pointer-events-none absolute -bottom-16 -left-12 h-36 w-36 rounded-full blur-3xl",
           isFeatured
             ? "bg-sky-300/25 dark:bg-sky-300/10"
-            : "bg-primary/[0.07] dark:bg-primary/[0.08]",
+            : isEmerald
+              ? "bg-teal-300/30 dark:bg-teal-300/12"
+              : "bg-primary/[0.07] dark:bg-primary/[0.08]",
         )}
       />
       <CardContent className="relative flex h-full min-h-56 flex-col items-center justify-center p-7 text-center sm:p-8">
@@ -315,7 +325,9 @@ function DestinationCard({ card }: { card: HomeCard }) {
             sizes="96px"
             className="object-contain"
             style={{
-              filter: "drop-shadow(0 8px 10px hsl(var(--primary) / 0.24))",
+              filter: isEmerald
+                ? "drop-shadow(0 8px 10px rgba(16, 185, 129, 0.28))"
+                : "drop-shadow(0 8px 10px hsl(var(--primary) / 0.24))",
             }}
             aria-hidden="true"
           />
@@ -326,7 +338,9 @@ function DestinationCard({ card }: { card: HomeCard }) {
             "text-xl font-extrabold leading-8 tracking-tight",
             isFeatured
               ? "text-indigo-950 dark:text-indigo-50"
-              : "text-foreground dark:text-white",
+              : isEmerald
+                ? "text-emerald-950 dark:text-emerald-50"
+                : "text-foreground dark:text-white",
           )}
         >
           {card.title}
@@ -341,7 +355,9 @@ function DestinationCard({ card }: { card: HomeCard }) {
                 "absolute bottom-4 left-4 h-10 w-10 shrink-0 rounded-full border p-2.5 shadow-sm transition-all duration-300 group-hover:-translate-x-1.5 group-hover:shadow-md dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_0_14px_rgba(255,255,255,0.08)] dark:backdrop-blur",
                 isFeatured
                   ? "border-indigo-200 bg-card/80 text-indigo-600 group-hover:border-indigo-300 group-hover:bg-indigo-100 dark:border-indigo-300/30 dark:bg-indigo-300/10 dark:text-indigo-100 dark:group-hover:border-indigo-200/60 dark:group-hover:bg-indigo-300/20"
-                  : "border-border bg-card/90 text-muted-foreground group-hover:border-primary/40 group-hover:bg-primary/10 group-hover:text-primary dark:border-white/25 dark:bg-card/10 dark:text-white/80 dark:group-hover:border-primary/60 dark:group-hover:bg-primary/20 dark:group-hover:text-white/90",
+                  : isEmerald
+                    ? "border-emerald-200 bg-card/80 text-emerald-700 group-hover:border-emerald-300 group-hover:bg-emerald-100 dark:border-emerald-300/30 dark:bg-emerald-300/10 dark:text-emerald-100 dark:group-hover:border-emerald-200/60 dark:group-hover:bg-emerald-300/20"
+                    : "border-border bg-card/90 text-muted-foreground group-hover:border-primary/40 group-hover:bg-primary/10 group-hover:text-primary dark:border-white/25 dark:bg-card/10 dark:text-white/80 dark:group-hover:border-primary/60 dark:group-hover:bg-primary/20 dark:group-hover:text-white/90",
               )}
             />
           )}

@@ -1,4 +1,6 @@
-import { FormEvent } from "react";
+"use client";
+
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { BriefcaseBusiness, Loader2, Pencil, Upload, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -7,6 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 import type { JobDescriptionDraft, JobDescriptionItem } from "../types";
+import {
+  ClickableImage,
+  FullscreenImageViewer,
+} from "./FullscreenImageViewer";
 
 type EditorMode = "create" | "edit";
 
@@ -31,6 +37,25 @@ export default function JobDescriptionEditor({
   onClose,
   onSubmit,
 }: JobDescriptionEditorProps) {
+  const [fullscreenSrc, setFullscreenSrc] = useState<string | null>(null);
+  const [localPhotoPreview, setLocalPhotoPreview] = useState<string | null>(null);
+  const closeFullscreen = useCallback(() => setFullscreenSrc(null), []);
+
+  useEffect(() => {
+    if (!draft.photo) {
+      setLocalPhotoPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(draft.photo);
+    setLocalPhotoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [draft.photo]);
+
+  const photoPreviewSrc =
+    localPhotoPreview ||
+    (!draft.remove_photo ? editingItem?.photo_url : null) ||
+    null;
+
   return (
     <div
       role="dialog"
@@ -106,18 +131,19 @@ export default function JobDescriptionEditor({
             }
           />
 
-          <FileField
-            label="تصویر"
-            hint="JPG، PNG یا WebP — حداکثر ۱۰ مگابایت"
-            accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+          <PhotoField
             currentName={
               draft.photo?.name ||
               (!draft.remove_photo ? editingItem?.photo_name : "") ||
               ""
             }
+            previewSrc={photoPreviewSrc}
             onFile={(file) =>
               onChange({ ...draft, photo: file, remove_photo: false })
             }
+            onOpenFullscreen={() => {
+              if (photoPreviewSrc) setFullscreenSrc(photoPreviewSrc);
+            }}
             onClear={
               mode === "edit" && (editingItem?.photo_url || draft.photo)
                 ? () =>
@@ -126,7 +152,9 @@ export default function JobDescriptionEditor({
                       photo: null,
                       remove_photo: true,
                     })
-                : undefined
+                : draft.photo
+                  ? () => onChange({ ...draft, photo: null, remove_photo: false })
+                  : undefined
             }
           />
 
@@ -189,6 +217,14 @@ export default function JobDescriptionEditor({
           </Button>
         </div>
       </form>
+
+      {fullscreenSrc && (
+        <FullscreenImageViewer
+          src={fullscreenSrc}
+          alt={draft.organizational_position || "تصویر شرح وظایف"}
+          onClose={closeFullscreen}
+        />
+      )}
     </div>
   );
 }
@@ -244,6 +280,79 @@ function AreaField({
         className="w-full resize-none rounded-xl border border-border px-4 py-3 outline-none transition focus:border-emerald-300 focus:ring-4 focus:ring-emerald-50"
       />
     </Label>
+  );
+}
+
+function PhotoField({
+  currentName,
+  previewSrc,
+  onFile,
+  onClear,
+  onOpenFullscreen,
+}: {
+  currentName: string;
+  previewSrc: string | null;
+  onFile: (file: File | null) => void;
+  onClear?: () => void;
+  onOpenFullscreen: () => void;
+}) {
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <span className="text-sm font-bold text-foreground">تصویر</span>
+        {onClear && currentName && (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onClear}
+            className="h-8 px-2 text-xs text-primary"
+          >
+            حذف
+          </Button>
+        )}
+      </div>
+
+      {previewSrc ? (
+        <div className="space-y-3">
+          <ClickableImage
+            src={previewSrc}
+            alt={currentName || "پیش‌نمایش تصویر"}
+            onOpen={onOpenFullscreen}
+            fit="contain"
+            className="mx-auto aspect-[4/3] w-full max-w-md border border-border bg-muted/40 shadow-sm"
+          />
+          <p className="text-center text-xs text-muted-foreground">
+            برای نمایش تمام‌صفحه روی تصویر کلیک کنید
+          </p>
+          <Label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/30 px-4 py-3 text-sm font-medium text-foreground transition hover:border-emerald-300 hover:bg-emerald-50/50">
+            <Upload size={16} className="text-emerald-600" />
+            تغییر تصویر
+            <Input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+              className="sr-only"
+              onChange={(event) => onFile(event.target.files?.[0] || null)}
+            />
+          </Label>
+        </div>
+      ) : (
+        <Label className="flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-muted/40 px-4 text-center transition hover:border-emerald-300 hover:bg-emerald-50/40">
+          <Upload size={28} className="mb-2 text-emerald-600" />
+          <span className="max-w-full truncate text-sm font-bold text-foreground">
+            برای انتخاب تصویر کلیک کنید
+          </span>
+          <span className="mt-1 text-xs text-muted-foreground">
+            JPG، PNG یا WebP — حداکثر ۱۰ مگابایت
+          </span>
+          <Input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+            className="sr-only"
+            onChange={(event) => onFile(event.target.files?.[0] || null)}
+          />
+        </Label>
+      )}
+    </div>
   );
 }
 

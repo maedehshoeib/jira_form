@@ -1,9 +1,15 @@
-import { useEffect } from "react";
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
 import { Download, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
 import type { JobDescriptionItem } from "../types";
+import {
+  ClickableImage,
+  FullscreenImageViewer,
+} from "./FullscreenImageViewer";
 
 type JobDescriptionDetailProps = {
   item: JobDescriptionItem;
@@ -16,7 +22,11 @@ export default function JobDescriptionDetail({
   onClose,
   onDownload,
 }: JobDescriptionDetailProps) {
+  const [fullscreenOpen, setFullscreenOpen] = useState(false);
+  const closeFullscreen = useCallback(() => setFullscreenOpen(false), []);
+
   useEffect(() => {
+    if (fullscreenOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
@@ -27,7 +37,7 @@ export default function JobDescriptionDetail({
       window.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previousOverflow;
     };
-  }, [onClose]);
+  }, [onClose, fullscreenOpen]);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" dir="rtl">
@@ -69,11 +79,18 @@ export default function JobDescriptionDetail({
 
         <div className="overflow-y-auto px-5 py-5">
           {item.photo_url && (
-            <img
-              src={item.photo_url}
-              alt={item.organizational_position}
-              className="mb-5 max-h-64 w-full rounded-2xl object-cover"
-            />
+            <div className="mb-5">
+              <ClickableImage
+                src={item.photo_url}
+                alt={item.organizational_position}
+                onOpen={() => setFullscreenOpen(true)}
+                fit="contain"
+                className="mx-auto aspect-[4/3] w-full max-h-[28rem] border border-border bg-muted/30"
+              />
+              <p className="mt-2 text-center text-xs text-muted-foreground">
+                برای نمایش تمام‌صفحه روی تصویر کلیک کنید
+              </p>
+            </div>
           )}
 
           <DetailBlock title="مسئولیت معاونت/واحد" body={item.unit_responsibility} />
@@ -95,6 +112,14 @@ export default function JobDescriptionDetail({
           )}
         </div>
       </section>
+
+      {fullscreenOpen && item.photo_url && (
+        <FullscreenImageViewer
+          src={item.photo_url}
+          alt={item.organizational_position}
+          onClose={closeFullscreen}
+        />
+      )}
     </div>
   );
 }
