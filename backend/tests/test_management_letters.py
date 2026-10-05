@@ -20,6 +20,7 @@ from app.models.submission import (
     SubmissionInitialAssignee,
     SubmissionReferral,
     SubmissionReminder,
+    SubmissionStatusHistory,
 )
 from app.models.user import User
 from app.services.form_duty_service import backfill_submission_initial_assignees
@@ -31,6 +32,8 @@ from app.services.form_access_service import (
 from app.services.management_letter_service import (
     collapse_letter_batch_submissions,
     create_management_letters,
+    expand_with_letter_batch_siblings,
+    list_letter_batch_siblings,
     list_letter_recipients,
     list_sent_letters,
     user_can_use_management_workflow,
@@ -235,6 +238,82 @@ class ManagementLetterServiceTests(unittest.TestCase):
             {json.loads(item.data)["letter_batch_id"] for item in collapsed_owned},
             {json.loads(item.data)["letter_batch_id"] for item in (submissions[0], with_cc[0])},
         )
+
+    def test_collapsed_letter_detail_keeps_all_recipient_histories(self):
+        from app.api.routes.submissions_helpers import (
+            _submission_to_response,
+            build_letter_aware_workflow_context,
+        )
+
+        submissions = self._create_letters(
+            needs_action="دارد",
+            recipient_ids=[self.first_recipient.id, self.second_recipient.id],
+            cc_recipient_ids=[],
+        )
+        first, second = submissions
+        self.db.add_all(
+            [
+                SubmissionStatusHistory(
+                    submission_id=first.id,
+                    changed_by_id=self.first_recipient.id,
+                    from_status="submitted",
+                    to_status="in_progress",
+                    from_progress_percent=0,
+                    to_progress_percent=40,
+                    note="پیشرفت گیرنده اول",
+                    attachment_name="first.pdf",
+                    attachment_path="/tmp/first.pdf",
+                ),
+                SubmissionStatusHistory(
+                    submission_id=second.id,
+                    changed_by_id=self.second_recipient.id,
+                    from_status="submitted",
+                    to_status="approved",
+                    from_progress_percent=0,
+                    to_progress_percent=100,
+                    note="اتمام گیرنده دوم",
+                    attachment_name="second.pdf",
+                    attachment_path="/tmp/second.pdf",
+                ),
+            ]
+        )
+        self.db.commit()
+
+        siblings = list_letter_batch_siblings(self.db, first)
+        self.assertEqual({item.id for item in siblings}, {first.id, second.id})
+        self.assertEqual(
+            len(expand_with_letter_batch_siblings(self.db, [first])),
+            2,
+        )
+
+        representative = collapse_letter_batch_submissions(submissions)[0]
+        context = build_letter_aware_workflow_context(
+            self.db,
+            [representative],
+            viewer_user_id=self.actor.id,
+            include_history=True,
+        )
+        detail = _submission_to_response(
+            representative,
+            self.actor,
+            db=self.db,
+            workflow_context=context,
+        )
+        status_events = [
+            event
+            for event in detail.timeline
+            if event.event_type == "status_changed"
+        ]
+        self.assertEqual(len(status_events), 2)
+        self.assertEqual(
+            {event.attachment_name for event in status_events},
+            {"first.pdf", "second.pdf"},
+        )
+        self.assertEqual(
+            {event.note for event in status_events},
+            {"پیشرفت گیرنده اول", "اتمام گیرنده دوم"},
+        )
+        self.assertEqual(len(detail.referrals), 2)
 
     def test_cc_recipient_receives_read_only_announcement(self):
         submissions = self._create_letters(

@@ -22,6 +22,7 @@ from app.api.routes.reports_helpers import _format_dt, _verify_api_key
 from app.api.routes.submissions_helpers import (
     _submission_to_list_item,
     _submission_to_response,
+    build_letter_aware_workflow_context,
     build_submission_workflow_context,
     require_api_key_or_user,
 )
@@ -109,7 +110,10 @@ from app.services.report_submission_service import (
     create_report_from_submission,
     is_performance_report_submission,
 )
-from app.services.management_letter_service import collapse_letter_batch_submissions
+from app.services.management_letter_service import (
+    collapse_letter_batch_submissions,
+    list_letter_batch_siblings,
+)
 from app.services.user_dashboard_builder import build_user_dashboard
 
 
@@ -242,13 +246,20 @@ def _get_viewable_submission(
 def _latest_status_attachment(
     db: Session,
     submission: Submission,
+    *,
+    include_letter_batch: bool = False,
 ) -> SubmissionStatusHistory:
     if submission.status not in {"approved", "rejected"}:
         raise HTTPException(status_code=404, detail="پیوست یافت نشد")
+    submission_ids = [submission.id]
+    if include_letter_batch:
+        submission_ids = [
+            item.id for item in list_letter_batch_siblings(db, submission)
+        ]
     history = (
         db.query(SubmissionStatusHistory)
         .filter(
-            SubmissionStatusHistory.submission_id == submission.id,
+            SubmissionStatusHistory.submission_id.in_(submission_ids),
             SubmissionStatusHistory.to_status == submission.status,
             SubmissionStatusHistory.attachment_path.isnot(None),
         )
@@ -259,6 +270,31 @@ def _latest_status_attachment(
         .first()
     )
     if not history or not history.attachment_path:
+        raise HTTPException(status_code=404, detail="پیوست یافت نشد")
+    return history
+
+
+def _status_history_attachment(
+    db: Session,
+    submission: Submission,
+    history_id: int,
+    *,
+    include_letter_batch: bool = False,
+) -> SubmissionStatusHistory:
+    submission_ids = [submission.id]
+    if include_letter_batch:
+        submission_ids = [
+            item.id for item in list_letter_batch_siblings(db, submission)
+        ]
+    history = (
+        db.query(SubmissionStatusHistory)
+        .filter(
+            SubmissionStatusHistory.id == history_id,
+            SubmissionStatusHistory.submission_id.in_(submission_ids),
+        )
+        .first()
+    )
+    if not history:
         raise HTTPException(status_code=404, detail="پیوست یافت نشد")
     return history
 
@@ -790,7 +826,7 @@ def list_submissions(
     if auth is not None:
         candidates = collapse_letter_batch_submissions(candidates)
     submissions = candidates[offset : offset + limit]
-    workflow_context = build_submission_workflow_context(
+    workflow_context = build_letter_aware_workflow_context(
         db,
         submissions,
         viewer_user_id=auth.id if auth is not None else None,
@@ -850,7 +886,7 @@ def get_submission(
         # Return 404 so request identifiers belonging to other employees are not exposed.
         raise HTTPException(status_code=404, detail="درخواست یافت نشد")
 
-    workflow_context = build_submission_workflow_context(
+    workflow_context = build_letter_aware_workflow_context(
         db,
         [submission],
         viewer_user_id=auth.id if auth is not None else None,
@@ -1312,7 +1348,9 @@ def download_submission_status_attachment(
     current_user: User = Depends(get_current_user),
 ):
     submission = _get_viewable_submission(db, current_user, submission_id)
-    history = _latest_status_attachment(db, submission)
+    history = _latest_status_attachment(
+        db, submission, include_letter_batch=True
+    )
     return _serve_task_action_file(history.attachment_path, history.attachment_name)
 
 
@@ -1324,16 +1362,7 @@ def download_task_status_history_attachment(
     current_user: User = Depends(get_current_user),
 ):
     submission = _get_viewable_submission(db, current_user, submission_id)
-    history = (
-        db.query(SubmissionStatusHistory)
-        .filter(
-            SubmissionStatusHistory.id == history_id,
-            SubmissionStatusHistory.submission_id == submission.id,
-        )
-        .first()
-    )
-    if not history:
-        raise HTTPException(status_code=404, detail="پیوست یافت نشد")
+    history = _status_history_attachment(db, submission, history_id)
     return _serve_task_action_file(history.attachment_path, history.attachment_name)
 
 
@@ -1345,16 +1374,9 @@ def download_submission_status_history_attachment(
     current_user: User = Depends(get_current_user),
 ):
     submission = _get_viewable_submission(db, current_user, submission_id)
-    history = (
-        db.query(SubmissionStatusHistory)
-        .filter(
-            SubmissionStatusHistory.id == history_id,
-            SubmissionStatusHistory.submission_id == submission.id,
-        )
-        .first()
+    history = _status_history_attachment(
+        db, submission, history_id, include_letter_batch=True
     )
-    if not history:
-        raise HTTPException(status_code=404, detail="پیوست یافت نشد")
     return _serve_task_action_file(history.attachment_path, history.attachment_name)
 
 
@@ -1378,12 +1400,19 @@ def _download_referral_attachment(
     submission: Submission,
     referral_id: int,
     index: int,
+    *,
+    include_letter_batch: bool = False,
 ) -> FileResponse:
+    submission_ids = [submission.id]
+    if include_letter_batch:
+        submission_ids = [
+            item.id for item in list_letter_batch_siblings(db, submission)
+        ]
     referral = (
         db.query(SubmissionReferral)
         .filter(
             SubmissionReferral.id == referral_id,
-            SubmissionReferral.submission_id == submission.id,
+            SubmissionReferral.submission_id.in_(submission_ids),
         )
         .first()
     )
@@ -1416,4 +1445,10 @@ def download_submission_referral_attachment(
     current_user: User = Depends(get_current_user),
 ):
     submission = _get_viewable_submission(db, current_user, submission_id)
-    return _download_referral_attachment(db, submission, referral_id, index)
+    return _download_referral_attachment(
+        db,
+        submission,
+        referral_id,
+        index,
+        include_letter_batch=True,
+    )

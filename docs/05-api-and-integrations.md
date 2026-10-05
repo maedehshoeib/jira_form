@@ -87,6 +87,12 @@ their task/announcement feed and unread count, but it is excluded from pending
 task counts and cannot be progressed or referred. Letter reports expose each
 recipient''s `delivery_type` as `direct` or `cc`.
 
+Multi-recipient sends still persist one submission per person (shared
+`letter_batch_id`). Sender-facing list endpoints collapse those copies to one
+card, while detail/timeline responses merge sibling status history, referrals,
+CC rows, views, and assignee progress so attachments from every recipient stay
+visible. Recipient task endpoints continue to show only that person's copy.
+
 ## Task inbox notifications
 
 `GET /api/v1/tasks/notifications` returns unread home-page inbox items for the

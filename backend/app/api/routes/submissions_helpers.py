@@ -29,6 +29,10 @@ from app.schemas.submission import (
     SubmissionTimelineItem,
 )
 from app.services.portal_service import DEPARTMENTS, FORM_TEMPLATES
+from app.services.management_letter_service import (
+    expand_with_letter_batch_siblings,
+    letter_batch_sibling_ids_by_target,
+)
 from app.services.task_workflow_service import (
     derive_workflow_status,
     is_letter_announcement,
@@ -306,6 +310,73 @@ def build_submission_workflow_context(
         assignee_progress_by_submission=dict(assignee_progress_by_submission),
         users_by_id=users,
         viewer_user_id=viewer_user_id,
+    )
+
+
+def _merge_rows_by_id(rows_by_submission: dict, sibling_ids: list[int]) -> list:
+    merged: list = []
+    seen: set[int] = set()
+    for sibling_id in sibling_ids:
+        for row in rows_by_submission.get(sibling_id, []):
+            row_id = getattr(row, "id", None)
+            if row_id is not None:
+                if row_id in seen:
+                    continue
+                seen.add(row_id)
+            merged.append(row)
+    return merged
+
+
+def merge_letter_batch_workflow_context(
+    context: SubmissionWorkflowContext,
+    sibling_ids_by_target: dict[int, list[int]],
+) -> SubmissionWorkflowContext:
+    """Fold per-recipient letter copies into one card's workflow maps.
+
+    Collapsing the list to one submission must not hide sibling status history,
+    referrals, views, CC rows, or assignee progress (including attachments).
+    Initial assignee snapshots stay on the representative copy — each copy
+    already stores the full audience.
+    """
+    for target_id, sibling_ids in sibling_ids_by_target.items():
+        if len(sibling_ids) <= 1:
+            continue
+        context.referrals_by_submission[target_id] = _merge_rows_by_id(
+            context.referrals_by_submission, sibling_ids
+        )
+        context.cc_recipients_by_submission[target_id] = _merge_rows_by_id(
+            context.cc_recipients_by_submission, sibling_ids
+        )
+        context.views_by_submission[target_id] = _merge_rows_by_id(
+            context.views_by_submission, sibling_ids
+        )
+        context.histories_by_submission[target_id] = _merge_rows_by_id(
+            context.histories_by_submission, sibling_ids
+        )
+        context.assignee_progress_by_submission[target_id] = _merge_rows_by_id(
+            context.assignee_progress_by_submission, sibling_ids
+        )
+    return context
+
+
+def build_letter_aware_workflow_context(
+    db: Session,
+    submissions: list[Submission],
+    *,
+    viewer_user_id: int | None = None,
+    include_history: bool = False,
+) -> SubmissionWorkflowContext:
+    """Load workflow data for submissions and merge multi-recipient letter copies."""
+    expanded = expand_with_letter_batch_siblings(db, submissions)
+    context = build_submission_workflow_context(
+        db,
+        expanded,
+        viewer_user_id=viewer_user_id,
+        include_history=include_history,
+    )
+    return merge_letter_batch_workflow_context(
+        context,
+        letter_batch_sibling_ids_by_target(expanded),
     )
 
 

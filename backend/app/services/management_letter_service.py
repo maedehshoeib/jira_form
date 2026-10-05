@@ -103,6 +103,94 @@ def collapse_letter_batch_submissions(
     return collapsed
 
 
+def _shared_letter_batch_id(submission: Submission) -> str | None:
+    """Return a real multi-recipient batch id, or None for single-copy letters."""
+    batch_id = letter_batch_id(submission)
+    if batch_id is None or batch_id.startswith("single-"):
+        return None
+    return batch_id
+
+
+def list_letter_batch_siblings(
+    db: Session,
+    submission: Submission,
+) -> list[Submission]:
+    """Return every per-recipient copy for the same logical letter."""
+    batch_id = _shared_letter_batch_id(submission)
+    if batch_id is None:
+        return [submission]
+    candidates = (
+        db.query(Submission)
+        .filter(
+            Submission.form_id == MANAGEMENT_LETTER_FORM_ID,
+            Submission.user_id == submission.user_id,
+            Submission.data.contains(f'"letter_batch_id": "{batch_id}"'),
+        )
+        .order_by(Submission.id.asc())
+        .all()
+    )
+    matched = [
+        item for item in candidates if letter_batch_id(item) == batch_id
+    ]
+    return matched or [submission]
+
+
+def expand_with_letter_batch_siblings(
+    db: Session,
+    submissions: list[Submission],
+) -> list[Submission]:
+    """Include missing letter-batch copies so workflow history can be merged."""
+    if not submissions:
+        return []
+    by_id = {item.id: item for item in submissions}
+    batch_ids: set[str] = set()
+    sender_ids: set[int] = set()
+    for submission in submissions:
+        batch_id = _shared_letter_batch_id(submission)
+        if batch_id is None:
+            continue
+        batch_ids.add(batch_id)
+        sender_ids.add(submission.user_id)
+    if not batch_ids:
+        return list(submissions)
+
+    candidates = (
+        db.query(Submission)
+        .filter(
+            Submission.form_id == MANAGEMENT_LETTER_FORM_ID,
+            Submission.user_id.in_(sender_ids),
+        )
+        .all()
+    )
+    for candidate in candidates:
+        if letter_batch_id(candidate) in batch_ids:
+            by_id[candidate.id] = candidate
+    return list(by_id.values())
+
+
+def letter_batch_sibling_ids_by_target(
+    submissions: list[Submission],
+) -> dict[int, list[int]]:
+    """Map each submission id to all ids in its letter batch (self included)."""
+    batches: dict[tuple[int, str], list[int]] = {}
+    for submission in submissions:
+        batch_id = _shared_letter_batch_id(submission)
+        if batch_id is None:
+            continue
+        batches.setdefault((submission.user_id, batch_id), []).append(submission.id)
+
+    result: dict[int, list[int]] = {}
+    for submission in submissions:
+        batch_id = _shared_letter_batch_id(submission)
+        if batch_id is None:
+            result[submission.id] = [submission.id]
+            continue
+        result[submission.id] = list(
+            batches.get((submission.user_id, batch_id), [submission.id])
+        )
+    return result
+
+
 def user_can_use_management_workflow(
     db: Session,
     user: User,
