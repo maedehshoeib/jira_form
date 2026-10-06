@@ -3,14 +3,59 @@ import { parseTehranDateTime } from "@/lib/persianDate";
 import { INTERNAL_LETTERS_TITLE, WORKFLOW_STATUS_META } from "./constants";
 import type { SubmissionListItem, TimelineItem, WorkflowStatus } from "./types";
 
+const LETTER_DEPARTMENT_IDS = new Set(["management-workflow", "internal-letters"]);
+const LETTER_DEPARTMENT_TITLES = new Set([
+  INTERNAL_LETTERS_TITLE,
+  "نامه‌های درون‌سازمانی",
+  "نامه‌های برون‌سازمانی",
+  "نامه‌های درون سازمانی",
+  "نامه‌های برون سازمانی",
+]);
+
 export function parseSubmittedAt(value: string) {
   return parseTehranDateTime(value);
 }
+
+/** Strip zero-width / bidi marks that can make a "title" look blank. */
+export function cleanDisplayText(value: string | null | undefined) {
+  return (value ?? "")
+    .replace(/[\u200b-\u200f\u202a-\u202e\ufeff]/g, "")
+    .trim();
+}
+
+export function requestDisplayTitle(
+  request: SubmissionListItem & { data?: Record<string, unknown> },
+) {
+  const subject = cleanDisplayText(request.subject);
+  if (subject) return subject;
+  const dataSubject = cleanDisplayText(
+    typeof request.data?.subject === "string" ? request.data.subject : "",
+  );
+  if (dataSubject) return dataSubject;
+  const section = cleanDisplayText(request.section_title);
+  if (section) return section;
+  const formTitle = cleanDisplayText(request.form_title);
+  if (formTitle) return formTitle;
+  return "بدون عنوان";
+}
+
 export function isInternalLetterRequest(request: SubmissionListItem) {
   return (
     request.department_title === INTERNAL_LETTERS_TITLE ||
     request.section_title === INTERNAL_LETTERS_TITLE
   );
+}
+
+export function isManagementLetterRequest(request: SubmissionListItem) {
+  if (request.form_id === "management-letter-form") return true;
+  if (LETTER_DEPARTMENT_IDS.has(request.department_id)) return true;
+  if (LETTER_DEPARTMENT_TITLES.has(cleanDisplayText(request.department_title))) {
+    return true;
+  }
+  if (LETTER_DEPARTMENT_TITLES.has(cleanDisplayText(request.section_title))) {
+    return true;
+  }
+  return isInternalLetterRequest(request);
 }
 
 export function workflowStatusMeta(status: WorkflowStatus) {

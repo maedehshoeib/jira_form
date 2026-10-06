@@ -91,6 +91,7 @@ from app.services.task_workflow_service import (
     list_colleagues,
     list_pending_task_ids,
     list_task_submissions,
+    list_unseen_letter_ids,
     list_unseen_task_ids,
     mark_task_viewed,
     refer_tasks,
@@ -1080,6 +1081,15 @@ def get_unseen_task_count(
     current_user: User = Depends(get_current_user),
 ):
     ids = list_unseen_task_ids(db, current_user.id)
+    return TaskPendingNotification(count=len(ids), ids=ids)
+
+
+@router.get("/tasks/letters/unseen-count", response_model=TaskPendingNotification)
+def get_unseen_letter_count(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    ids = list_unseen_letter_ids(db, current_user.id)
     return TaskPendingNotification(count=len(ids), ids=ids)
 
 

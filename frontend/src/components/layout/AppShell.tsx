@@ -9,6 +9,7 @@ import {
   Home,
   ListTodo,
   LogOut,
+  Mail,
   Menu,
   MessagesSquare,
   Volume2,
@@ -62,6 +63,7 @@ const navigationItems: NavigationItem[] = [
   { label: "داشبورد من", href: "/dashboard", icon: BarChart3 },
   { label: "درخواست‌های من", href: "/my-requests", icon: ClipboardList },
   { label: "وظایف من", href: "/my-tasks", icon: ListTodo },
+  { label: "نامه‌ها", href: "/my-letters", icon: Mail },
   { label: "تقویم من", href: "/my-calendar", icon: CalendarDays },
   { label: "گفتگو درون سازمانی", href: "/internal-chat", icon: MessagesSquare },
 ];
@@ -107,6 +109,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [taskUnreadCount, setTaskUnreadCount] = useState(0);
+  const [letterUnreadCount, setLetterUnreadCount] = useState(0);
   const [calendarUnreadCount, setCalendarUnreadCount] = useState(0);
   const [calendarToast, setCalendarToast] = useState<CalendarNotification | null>(null);
   const [chatSoundMuted, setChatSoundMuted] = useState(
@@ -117,6 +120,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   );
   const knownUnreadRef = useRef<Map<number, number> | null>(null);
   const knownUnreadTaskIdsRef = useRef<Set<number> | null>(null);
+  const knownUnreadLetterIdsRef = useRef<Set<number> | null>(null);
   const knownCalendarNotificationIdsRef = useRef<Set<number> | null>(null);
 
   const playChatNotificationSound = useCallback(() => {
@@ -164,6 +168,21 @@ export default function AppShell({ children }: { children: ReactNode }) {
     }
   }, [playTaskNotificationSound]);
 
+  const refreshLetterNotifications = useCallback(async () => {
+    try {
+      const { data } = await client.get<TaskUnreadNotification>(endpoints.letterUnseenCount);
+      const nextIds = new Set(data.ids);
+      const previous = knownUnreadLetterIdsRef.current;
+      const hasNewLetter =
+        previous !== null && data.ids.some((id) => !previous.has(id));
+      knownUnreadLetterIdsRef.current = nextIds;
+      setLetterUnreadCount(data.count);
+      if (hasNewLetter) playTaskNotificationSound();
+    } catch {
+      // Keep navigation usable if letter notifications are temporarily unavailable.
+    }
+  }, [playTaskNotificationSound]);
+
   const refreshCalendarNotifications = useCallback(async () => {
     try {
       const { data } = await client.get<CalendarUnreadNotification>(endpoints.calendarNotifications);
@@ -207,6 +226,19 @@ export default function AppShell({ children }: { children: ReactNode }) {
       window.removeEventListener("tasks:refresh-notifications", refreshTaskNotifications);
     };
   }, [refreshTaskNotifications]);
+
+  useEffect(() => {
+    void refreshLetterNotifications();
+    const timer = window.setInterval(() => void refreshLetterNotifications(), 8000);
+    const onRefresh = () => void refreshLetterNotifications();
+    window.addEventListener("letters:refresh-notifications", onRefresh);
+    window.addEventListener("tasks:refresh-notifications", onRefresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("letters:refresh-notifications", onRefresh);
+      window.removeEventListener("tasks:refresh-notifications", onRefresh);
+    };
+  }, [refreshLetterNotifications]);
 
   useEffect(() => {
     void refreshCalendarNotifications();
@@ -323,6 +355,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
               <span className="flex-1">{label}</span>
               {item.href === "/my-tasks" && taskUnreadCount > 0 &&
                 renderCountBadge(taskUnreadCount, active)}
+              {item.href === "/my-letters" && letterUnreadCount > 0 &&
+                renderCountBadge(letterUnreadCount, active)}
               {item.href === "/my-calendar" && calendarUnreadCount > 0 &&
                 renderCountBadge(calendarUnreadCount, active)}
               {item.href === "/my-tasks" &&
@@ -332,6 +366,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
                   toggleTaskSound,
                   "فعال کردن صدای اعلان وظایف",
                   "بی‌صدا کردن اعلان وظایف",
+                )}
+              {item.href === "/my-letters" &&
+                renderSoundToggle(
+                  taskSoundMuted,
+                  active,
+                  toggleTaskSound,
+                  "فعال کردن صدای اعلان نامه‌ها",
+                  "بی‌صدا کردن اعلان نامه‌ها",
                 )}
               {item.href === "/internal-chat" && chatUnreadCount > 0 &&
                 renderCountBadge(chatUnreadCount, active)}

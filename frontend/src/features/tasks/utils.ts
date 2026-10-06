@@ -61,23 +61,73 @@ export function statusBadgeClass(status: string) {
 /** Matches backend LETTER_NO_ACTION_VALUE — inform-only management letters. */
 export const LETTER_NO_ACTION_VALUE = "ندارد(جهت اطلاع)";
 
+export function isManagementLetterTask(task: SubmissionListItem) {
+  if (task.form_id === "management-letter-form" || Boolean(task.is_announcement)) {
+    return true;
+  }
+  return (
+    task.department_id === "management-workflow" ||
+    task.department_id === "internal-letters"
+  );
+}
+
 export function isLetterInboxItem(task: SubmissionListItem) {
   // نامه: CC/رونوشت copies, or letters marked نیاز به اقدام ندارد.
-  // Actionable direct letters (needs_action = دارد) stay in normal task tabs.
   if (Boolean(task.is_announcement)) return true;
   if (task.form_id !== "management-letter-form") return false;
   return task.needs_action === LETTER_NO_ACTION_VALUE;
 }
 
+export function isActionableLetter(task: SubmissionListItem) {
+  return (
+    isManagementLetterTask(task) &&
+    !isLetterInboxItem(task) &&
+    task.needs_action !== LETTER_NO_ACTION_VALUE
+  );
+}
+
 export function matchesStatusTab(task: SubmissionListItem, tab: StatusTab) {
-  if (tab === "letter") return isLetterInboxItem(task);
-  // Keep actionable workflow tabs free of inform/CC letters.
-  if (isLetterInboxItem(task)) return false;
+  // All management letters live on /my-letters — keep task tabs free of them.
+  if (isManagementLetterTask(task)) return false;
   if (tab === "in_progress") return task.status === "in_progress";
   if (tab === "pending") return task.status === "submitted";
   if (tab === "rejected") return task.status === "rejected";
   if (tab === "approved") return task.status === "approved";
   return (task.referrals?.length ?? 0) > 0;
+}
+
+export function timelineEventLabel(item: {
+  event_type: string;
+  from_status?: string | null;
+  to_status?: string | null;
+}) {
+  const labels: Record<string, string> = {
+    submitted: "نامه ثبت شد",
+    created: "نامه ثبت شد",
+    viewed: "نامه دیده شد",
+    seen: "نامه دیده شد",
+    referred: "نامه ارجاع شد",
+    progress_updated: "درصد پیشرفت به‌روزرسانی شد",
+    in_progress: "رسیدگی آغاز شد",
+    completed: "نامه انجام شد",
+    approved: "نامه انجام شد",
+    rejected: "نامه رد شد",
+    reopened: "نامه دوباره باز شد",
+  };
+  if (item.event_type === "status_changed") {
+    if (item.from_status === "in_progress" && item.to_status === "in_progress") {
+      return labels.progress_updated;
+    }
+    const destinationLabels: Record<string, string> = {
+      in_progress: "وضعیت به «در حال انجام» تغییر کرد",
+      approved: "نامه انجام شد",
+      completed: "نامه انجام شد",
+      rejected: "نامه رد شد",
+      submitted: "وضعیت به «اقدام‌نشده» بازگشت",
+    };
+    return destinationLabels[item.to_status || ""] ?? "وضعیت نامه تغییر کرد";
+  }
+  return labels[item.event_type] ?? "رویداد نامه";
 }
 
 export function isInternalLetterTask(task: SubmissionListItem) {

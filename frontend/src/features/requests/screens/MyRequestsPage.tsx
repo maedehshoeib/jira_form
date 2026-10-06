@@ -41,8 +41,6 @@ import {
 } from "@/lib/persianDate";
 
 import {
-  INTERNAL_LETTERS_FILTER,
-  INTERNAL_LETTERS_TITLE,
   STATUS_TABS,
   WORKFLOW_STATUS_META,
 } from "../constants";
@@ -61,10 +59,12 @@ import type {
 import {
   compactNames,
   downloadWithAuth,
-  isInternalLetterRequest,
+  isManagementLetterRequest,
   normalizedProgress,
   parseSubmittedAt,
   parseTimelineEntityId,
+  requestDisplayTitle,
+  cleanDisplayText,
   timelineEventDotClass,
   timelineEventLabel,
   uniqueNames,
@@ -90,13 +90,20 @@ function WorkflowStatusIcon({
 function AssigneeProgressList({
   items,
   compact = false,
+  maxVisible,
 }: {
   items: AssigneeProgress[];
   compact?: boolean;
+  /** When set, only this many rows render; remaining count is summarized. */
+  maxVisible?: number;
 }) {
+  const limit = maxVisible ?? (compact ? 3 : undefined);
+  const visible = limit != null ? items.slice(0, limit) : items;
+  const hiddenCount = items.length - visible.length;
+
   return (
-    <div className={compact ? "space-y-2" : "grid gap-3 sm:grid-cols-2"}>
-      {items.map((item) => {
+    <div className={compact ? "max-h-36 space-y-2 overflow-hidden" : "grid gap-3 sm:grid-cols-2"}>
+      {visible.map((item) => {
         const progress = normalizedProgress(item.progress_percent);
         const name = item.display_name || item.username || "نامشخص";
         return (
@@ -125,6 +132,11 @@ function AssigneeProgressList({
           </div>
         );
       })}
+      {hiddenCount > 0 && (
+        <p className="px-1 text-[11px] font-semibold text-muted-foreground">
+          و {hiddenCount.toLocaleString("fa-IR")} نفر دیگر
+        </p>
+      )}
     </div>
   );
 }
@@ -315,7 +327,7 @@ export default function MyRequestsPage() {
         offset += pageSize;
       }
 
-      setRequests(allRequests);
+      setRequests(allRequests.filter((request) => !isManagementLetterRequest(request)));
     } catch {
       setError("دریافت درخواست‌ها با مشکل مواجه شد. لطفاً دوباره تلاش کنید.");
     } finally {
@@ -341,11 +353,6 @@ export default function MyRequestsPage() {
 
   const sections = useMemo(() => {
     const items = new Map<string, string>();
-    const hasInternalLetters = requests.some(
-      (request) =>
-        (departmentFilter === "all" || request.department_id === departmentFilter) &&
-        isInternalLetterRequest(request),
-    );
     requests
       .filter(
         (request) =>
@@ -357,9 +364,6 @@ export default function MyRequestsPage() {
           items.set(key, request.section_title || request.form_title);
         }
       });
-    if (hasInternalLetters) {
-      items.set(INTERNAL_LETTERS_FILTER, INTERNAL_LETTERS_TITLE);
-    }
     return Array.from(items, ([id, title]) => ({ id, title })).sort((a, b) =>
       a.title.localeCompare(b.title, "fa")
     );
@@ -426,14 +430,7 @@ export default function MyRequestsPage() {
         }
         if (
           sectionFilter !== "all" &&
-          sectionFilter !== INTERNAL_LETTERS_FILTER &&
           `${request.department_id}::${request.section_id}` !== sectionFilter
-        ) {
-          return false;
-        }
-        if (
-          sectionFilter === INTERNAL_LETTERS_FILTER &&
-          !isInternalLetterRequest(request)
         ) {
           return false;
         }
@@ -883,8 +880,12 @@ export default function MyRequestsPage() {
           {filteredRequests.map((request) => {
             const statusMeta = workflowStatusMeta(request.workflow_status);
             const progressItems = request.assignee_progress ?? [];
-            const requestTitle =
-              request.subject || request.section_title || request.form_title;
+            const requestTitle = requestDisplayTitle(request);
+            const sectionLine = cleanDisplayText(
+              request.section_title || request.form_title,
+            );
+            const showSectionLine = Boolean(sectionLine) && sectionLine !== requestTitle;
+            const departmentLine = cleanDisplayText(request.department_title);
             const initialAssigneeNames = uniqueNames(
               (request.initial_assignees ?? []).map(
                 (assignee) => assignee.display_name || assignee.username,
@@ -911,7 +912,7 @@ export default function MyRequestsPage() {
                     : "")
                 }
                 className={[
-                  "group relative h-auto min-h-[22rem] w-full flex-col items-stretch justify-start overflow-hidden whitespace-normal rounded-xl border p-5 text-right shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60",
+                  "group relative h-auto min-h-[18rem] max-h-[28rem] w-full flex-col items-stretch justify-start overflow-hidden whitespace-normal rounded-xl border p-5 text-right shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60",
                   request.workflow_status === "unseen"
                     ? "border-amber-200 bg-amber-50/30 hover:border-amber-300"
                     : "border-border bg-card hover:border-primary/20",
@@ -934,12 +935,14 @@ export default function MyRequestsPage() {
                 <h3 className="w-full line-clamp-2 text-base font-bold leading-7 text-foreground">
                   {requestTitle}
                 </h3>
-                <p className="mt-2 w-full text-sm leading-6 text-muted-foreground">
-                  {request.section_title || request.form_title}
-                </p>
-                {request.department_title && (
+                {showSectionLine && (
+                  <p className="mt-2 w-full text-sm leading-6 text-muted-foreground">
+                    {sectionLine}
+                  </p>
+                )}
+                {departmentLine && departmentLine !== requestTitle && departmentLine !== sectionLine && (
                   <p className="mt-1 w-full text-xs leading-5 text-muted-foreground">
-                    {request.department_title}
+                    {departmentLine}
                   </p>
                 )}
                 <div className="mt-3 w-full space-y-1.5 rounded-lg border border-border/60 bg-muted/40 px-3 py-2.5 text-xs">
@@ -1049,8 +1052,10 @@ export default function MyRequestsPage() {
                 {filteredRequests.map((request) => {
                   const statusMeta = workflowStatusMeta(request.workflow_status);
                   const progressItems = request.assignee_progress ?? [];
-                  const requestTitle =
-                    request.subject || request.section_title || request.form_title;
+                  const requestTitle = requestDisplayTitle(request);
+                  const sectionLine = cleanDisplayText(
+                    request.section_title || request.form_title,
+                  );
                   const initialAssigneeNames = uniqueNames(
                     (request.initial_assignees ?? []).map(
                       (assignee) => assignee.display_name || assignee.username,
@@ -1087,9 +1092,11 @@ export default function MyRequestsPage() {
                           <span className="block truncate" title={requestTitle}>
                             {requestTitle}
                           </span>
-                          <span className="mt-1 block truncate text-xs font-normal text-muted-foreground">
-                            {request.section_title || request.form_title}
-                          </span>
+                          {sectionLine && sectionLine !== requestTitle && (
+                            <span className="mt-1 block truncate text-xs font-normal text-muted-foreground">
+                              {sectionLine}
+                            </span>
+                          )}
                         </Button>
                       </td>
                       <td className="min-w-48 max-w-56 px-5 py-3.5 align-middle text-foreground/70">
@@ -1124,7 +1131,7 @@ export default function MyRequestsPage() {
                       </td>
                       <td className="w-40 px-5 py-3.5 align-middle">
                         {progressItems.length > 0 ? (
-                          <AssigneeProgressList items={progressItems} compact />
+                          <AssigneeProgressList items={progressItems} compact maxVisible={2} />
                         ) : (
                           <span className="text-xs text-muted-foreground">ثبت نشده</span>
                         )}
@@ -1182,7 +1189,9 @@ export default function MyRequestsPage() {
                   </Badge>
                   <span className="text-xs text-muted-foreground">شناسه درخواست: {selected.id}</span>
                 </div>
-                <h3 className="text-2xl font-bold text-foreground">{selected.subject || selected.section_title || selected.form_title}</h3>
+                <h3 className="text-2xl font-bold text-foreground">
+                  {requestDisplayTitle(selected)}
+                </h3>
                 <p className="mt-1 text-sm text-muted-foreground">{selected.department_title} / {selected.section_title || selected.form_title}</p>
               </div>
               <Button variant="outline" onClick={() => setSelected(null)} className="shrink-0 rounded-xl">بستن</Button>

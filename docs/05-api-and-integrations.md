@@ -105,9 +105,17 @@ signed-in user:
 
 Opening a task (`GET /api/v1/tasks/{id}`) updates the view timestamp and clears
 matching inbox items. The home page shows these messages behind the notification
-icon; the sidebar badge next to «وظایف من» no longer displays the unread count.
-Clicking an inbox message navigates to `/my-tasks?open={submission_id}` and
-opens the task card.
+icon; the sidebar badge next to «وظایف من» shows unread actionable tasks, and
+«نامه‌ها» shows unread inform/CC letters via `GET /api/v1/tasks/letters/unseen-count`.
+Clicking an inbox message navigates to `/my-tasks?open={submission_id}` (or
+`/my-letters?open={id}` for نامه inbox items) and opens the item.
+
+نامه inbox and actionable management letters are shown on `/my-letters` in an
+Outlook-style layout (folders / list / reading pane with متن نامه، پیوست‌ها،
+گردش کار و پیگیری، یادداشت‌ها). Attachments download via
+`GET /api/v1/tasks/{id}/attachment`. Actionable letters keep refer/progress
+actions when `can_act` is true. «نامه‌ها» (`/my-letters`) is the only inbox for management letters. Sender and
+recipient letter rows are excluded from «درخواست‌های من» and «وظایف من».
 
 The home page also shows a small welcome bot that greets the signed-in user by
 display name. When `birth_date` matches today (Tehran calendar day, same rule as

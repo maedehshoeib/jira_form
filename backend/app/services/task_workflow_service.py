@@ -205,8 +205,8 @@ def list_pending_task_ids(db: Session, user_id: int) -> list[int]:
     ]
 
 
-def list_unseen_task_ids(db: Session, user_id: int) -> list[int]:
-    """IDs of accessible tasks not opened since their latest referral."""
+def _list_unseen_submissions(db: Session, user_id: int) -> list[Submission]:
+    """Accessible submissions not opened since their latest referral/CC/comment."""
     conditions = _task_view_conditions(db, user_id)
     if not conditions:
         return []
@@ -247,8 +247,8 @@ def list_unseen_task_ids(db: Session, user_id: int) -> list[int]:
         )
         .exists()
     )
-    rows = (
-        db.query(Submission.id)
+    return (
+        db.query(Submission)
         .outerjoin(
             SubmissionView,
             and_(
@@ -269,7 +269,24 @@ def list_unseen_task_ids(db: Session, user_id: int) -> list[int]:
         .order_by(Submission.created_at.desc())
         .all()
     )
-    return [row.id for row in rows]
+
+
+def list_unseen_task_ids(db: Session, user_id: int) -> list[int]:
+    """IDs of actionable tasks not yet opened (excludes management letters)."""
+    return [
+        row.id
+        for row in _list_unseen_submissions(db, user_id)
+        if row.form_id != "management-letter-form"
+    ]
+
+
+def list_unseen_letter_ids(db: Session, user_id: int) -> list[int]:
+    """IDs of management letters not yet opened."""
+    return [
+        row.id
+        for row in _list_unseen_submissions(db, user_id)
+        if row.form_id == "management-letter-form"
+    ]
 
 
 def mark_task_viewed(

@@ -1,7 +1,7 @@
 import { NativeSelect } from "@/components/ui/native-select";
 import { Label } from "@/components/ui/label";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   AtSign,
   CalendarDays,
@@ -11,10 +11,12 @@ import {
   Eye,
   FileText,
   Forward,
+  Grid2X2,
   ListTodo,
   Loader2,
   Paperclip,
   RefreshCw,
+  Rows3,
   Search,
   SlidersHorizontal,
   UserRound,
@@ -30,6 +32,7 @@ import TaskConversation from "@/components/tasks/TaskConversation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Table } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { API_BASE, FormTemplate } from "@/config/portal";
 import {
@@ -49,6 +52,7 @@ import type {
   SubmissionDetail,
   SubmissionListItem,
   TimeRange,
+  ViewMode,
 } from "../types";
 import {
   apiErrorDetail,
@@ -58,6 +62,7 @@ import {
   initialAssigneeNames,
   isInternalLetterTask,
   isLetterInboxItem,
+  isManagementLetterTask,
   LETTER_NO_ACTION_VALUE,
   matchesStatusTab,
   normalizedProgress,
@@ -69,6 +74,7 @@ import {
 
 export default function MyTasksPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const openedFromQueryRef = useRef<number | null>(null);
   const [tasks, setTasks] = useState<SubmissionListItem[]>([]);
   const [selected, setSelected] = useState<SubmissionDetail | null>(null);
@@ -84,6 +90,7 @@ export default function MyTasksPage() {
   const [timeRange, setTimeRange] = useState<TimeRange>("all");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
   const [statusTab, setStatusTab] = useState<StatusTab>("pending");
+  const [viewMode, setViewMode] = useState<ViewMode>("cards");
 
   const [referOpen, setReferOpen] = useState(false);
   const [statusPanel, setStatusPanel] = useState<"approved" | "rejected" | null>(null);
@@ -180,17 +187,13 @@ export default function MyTasksPage() {
   const tabCounts = useMemo(() => {
     const counts: Record<StatusTab, number> = {
       pending: 0,
-      letter: 0,
       in_progress: 0,
       rejected: 0,
       approved: 0,
       referred: 0,
     };
     tasks.forEach((task) => {
-      if (isLetterInboxItem(task)) {
-        counts.letter += 1;
-        return;
-      }
+      if (isManagementLetterTask(task)) return;
       if (task.status === "submitted") counts.pending += 1;
       if (task.status === "in_progress") counts.in_progress += 1;
       if (task.status === "rejected") counts.rejected += 1;
@@ -199,6 +202,11 @@ export default function MyTasksPage() {
     });
     return counts;
   }, [tasks]);
+
+  const actionableTasks = useMemo(
+    () => tasks.filter((task) => !isManagementLetterTask(task)),
+    [tasks],
+  );
 
   const filteredTasks = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLocaleLowerCase("fa");
@@ -214,6 +222,7 @@ export default function MyTasksPage() {
 
     return tasks
       .filter((task) => {
+        if (isManagementLetterTask(task)) return false;
         if (!matchesStatusTab(task, statusTab)) return false;
 
         const searchableText = [
@@ -330,8 +339,12 @@ export default function MyTasksPage() {
     const task = tasks.find((item) => item.id === openId);
     if (!task) return;
     openedFromQueryRef.current = openId;
+    if (isManagementLetterTask(task)) {
+      router.replace(`/my-letters?open=${openId}`);
+      return;
+    }
     void openTask(task);
-  }, [loading, tasks, searchParams]);
+  }, [loading, tasks, searchParams, router]);
 
   const openStatusPanel = (status: "approved" | "rejected") => {
     if (!selected || selected.status === status) return;
@@ -745,11 +758,11 @@ export default function MyTasksPage() {
         </div>
       )}
 
-      {!loading && tasks.length > 0 && (
+      {!loading && actionableTasks.length > 0 && (
         <div
           role="tablist"
           aria-label="فیلتر وظایف بر اساس وضعیت"
-          className="mb-6 grid gap-2 rounded-3xl border border-border bg-card p-2 shadow-md sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
+          className="mb-6 grid gap-2 rounded-3xl border border-border bg-card p-2 shadow-md sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
         >
           {STATUS_TABS.map((tab) => {
             const active = statusTab === tab.id;
@@ -782,7 +795,7 @@ export default function MyTasksPage() {
         </div>
       )}
 
-      {!loading && tasks.length > 0 && (
+      {!loading && actionableTasks.length > 0 && (
         <div className="mb-6 rounded-3xl border border-border bg-card p-5 shadow-md">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 font-bold text-foreground">
@@ -869,10 +882,48 @@ export default function MyTasksPage() {
             </NativeSelect>
           </div>
 
-          <p className="mt-4 text-xs text-muted-foreground">
-            {filteredTasks.length.toLocaleString("fa-IR")} مورد از{" "}
-            {tasks.length.toLocaleString("fa-IR")} وظیفه و اعلان
-          </p>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">
+              {filteredTasks.length.toLocaleString("fa-IR")} مورد از{" "}
+              {actionableTasks.length.toLocaleString("fa-IR")} وظیفه
+            </p>
+            <div
+              role="group"
+              aria-label="نوع نمایش وظایف"
+              className="flex items-center rounded-xl border border-border bg-muted/40 p-1"
+            >
+              <Button
+                type="button"
+                variant="ghost"
+                aria-pressed={viewMode === "cards"}
+                onClick={() => setViewMode("cards")}
+                className={[
+                  "flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold transition",
+                  viewMode === "cards"
+                    ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 hover:text-primary-foreground"
+                    : "bg-transparent text-foreground/70 hover:bg-background hover:text-foreground",
+                ].join(" ")}
+              >
+                <Grid2X2 size={15} aria-hidden="true" />
+                کارت‌ها
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                aria-pressed={viewMode === "table"}
+                onClick={() => setViewMode("table")}
+                className={[
+                  "flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold transition",
+                  viewMode === "table"
+                    ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 hover:text-primary-foreground"
+                    : "bg-transparent text-foreground/70 hover:bg-background hover:text-foreground",
+                ].join(" ")}
+              >
+                <Rows3 size={16} aria-hidden="true" />
+                جدول
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -880,7 +931,7 @@ export default function MyTasksPage() {
         <div className="flex min-h-64 items-center justify-center gap-3 text-muted-foreground">
           <Loader2 className="animate-spin" /> در حال دریافت وظایف...
         </div>
-      ) : tasks.length === 0 ? (
+      ) : actionableTasks.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-border bg-card p-14 text-center shadow-sm">
           <ListTodo className="mx-auto mb-4 text-slate-300" size={48} />
           <h3 className="text-xl font-bold text-foreground">هنوز وظیفه‌ای ندارید</h3>
@@ -901,7 +952,7 @@ export default function MyTasksPage() {
             پاک کردن فیلترها
           </Button>
         </div>
-      ) : (
+      ) : viewMode === "cards" ? (
         <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
           {filteredTasks.map((task) => (
             <Button
@@ -914,7 +965,7 @@ export default function MyTasksPage() {
                   ? "\u060c \u062c\u062f\u06cc\u062f \u0648 \u062f\u06cc\u062f\u0647\u200c\u0646\u0634\u062f\u0647"
                   : ""
               }`}
-              className={`group relative h-auto min-h-[22rem] w-full flex-col items-stretch justify-start overflow-hidden whitespace-normal rounded-xl border p-5 text-right shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-ring disabled:opacity-60 ${
+              className={`group relative h-auto min-h-[18rem] max-h-[28rem] w-full flex-col items-stretch justify-start overflow-hidden whitespace-normal rounded-xl border p-5 text-right shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-ring disabled:opacity-60 ${
                 task.is_read === false
                   ? "border-amber-300 bg-amber-50 ring-2 ring-amber-200/80 shadow-amber-100"
                   : "border-border bg-card hover:border-primary/20"
@@ -946,34 +997,24 @@ export default function MyTasksPage() {
                       ارجاع‌شده
                     </Badge>
                   )}
-                  {task.is_announcement ? (
-                    <Badge variant="outline" className="border-violet-200 bg-violet-50 text-violet-700">
-                      اعلان نامه (رونوشت)
-                    </Badge>
-                  ) : task.needs_action === LETTER_NO_ACTION_VALUE ? (
-                    <Badge variant="outline" className="border-violet-200 bg-violet-50 text-violet-700">
-                      جهت اطلاع
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className={statusBadgeClass(task.status)}>
-                      {displayStatus(task.status)}
-                    </Badge>
-                  )}
+                  <Badge variant="outline" className={statusBadgeClass(task.status)}>
+                    {displayStatus(task.status)}
+                  </Badge>
                 </div>
               </div>
               <h3 className="w-full line-clamp-2 text-base font-bold leading-7 text-foreground">
                 {task.subject || task.section_title || task.form_title}
               </h3>
-              <p className="mt-2 w-full text-sm leading-6 text-muted-foreground">
+              <p className="mt-2 w-full truncate text-sm leading-6 text-muted-foreground">
                 {task.section_title || task.form_title}
               </p>
               {task.department_title && (
-                <p className="mt-1 w-full text-xs leading-5 text-muted-foreground">{task.department_title}</p>
+                <p className="mt-1 w-full truncate text-xs leading-5 text-muted-foreground">{task.department_title}</p>
               )}
               {task.submitted_by && (
                 <p className="mt-2 flex w-full items-center gap-1.5 text-xs font-medium text-muted-foreground">
                   <UserRound size={13} />
-                  ثبت‌کننده: {task.submitted_by}
+                  <span className="truncate">ثبت‌کننده: {task.submitted_by}</span>
                 </p>
               )}
               {(initialAssigneeNames(task).length > 0 ||
@@ -987,9 +1028,7 @@ export default function MyTasksPage() {
                         aria-hidden="true"
                       />
                       <span className="shrink-0 text-muted-foreground">
-                        {task.form_id === "management-letter-form"
-                          ? "\u06af\u06cc\u0631\u0646\u062f\u06af\u0627\u0646 \u0646\u0627\u0645\u0647:"
-                          : "\u0645\u0633\u0626\u0648\u0644\u0627\u0646 \u0627\u0648\u0644\u06cc\u0647:"}
+                        {"\u0645\u0633\u0626\u0648\u0644\u0627\u0646 \u0627\u0648\u0644\u06cc\u0647:"}
                       </span>
                       <span
                         className="min-w-0 truncate font-semibold text-foreground"
@@ -1055,6 +1094,114 @@ export default function MyTasksPage() {
               </div>
             </Button>
           ))}
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-md">
+          <div className="overflow-x-auto">
+            <Table className="w-full min-w-[980px] text-right text-sm">
+              <thead className="border-b border-border bg-muted/60 text-xs font-bold text-foreground/70">
+                <tr>
+                  <th scope="col" className="whitespace-nowrap px-5 py-3.5">شناسه</th>
+                  <th scope="col" className="whitespace-nowrap px-5 py-3.5">وظیفه</th>
+                  <th scope="col" className="whitespace-nowrap px-5 py-3.5">دسته‌بندی</th>
+                  <th scope="col" className="whitespace-nowrap px-5 py-3.5">مسئول / ارجاع</th>
+                  <th scope="col" className="whitespace-nowrap px-5 py-3.5">وضعیت</th>
+                  <th scope="col" className="whitespace-nowrap px-5 py-3.5">پیشرفت</th>
+                  <th scope="col" className="whitespace-nowrap px-5 py-3.5">زمان ثبت</th>
+                  <th scope="col" className="whitespace-nowrap px-5 py-3.5">عملیات</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filteredTasks.map((task) => {
+                  const title = task.subject || task.section_title || task.form_title;
+                  const assignees = referralTargetNames(task).length > 0
+                    ? referralTargetNames(task)
+                    : initialAssigneeNames(task);
+                  const progress = normalizedProgress(
+                    task.viewer_progress_percent ?? 0,
+                    task.status,
+                  );
+                  return (
+                    <tr
+                      key={task.id}
+                      className={
+                        task.is_read === false
+                          ? "bg-amber-50/40 transition-colors hover:bg-amber-50/70"
+                          : "bg-card transition-colors hover:bg-muted/50"
+                      }
+                    >
+                      <td className="whitespace-nowrap px-5 py-3.5 align-middle text-sm font-extrabold text-foreground/80">
+                        {task.id.toLocaleString("fa-IR")}
+                      </td>
+                      <td className="min-w-72 max-w-80 px-5 py-3.5 align-middle">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => void openTask(task)}
+                          disabled={detailLoading}
+                          className="h-auto w-full min-w-0 flex-col items-start gap-0.5 rounded-xl px-3 py-2 text-right font-bold text-foreground hover:bg-muted hover:text-primary"
+                        >
+                          <span className="block truncate" title={title}>{title}</span>
+                          <span className="mt-1 block truncate text-xs font-normal text-muted-foreground">
+                            {task.section_title || task.form_title}
+                          </span>
+                        </Button>
+                      </td>
+                      <td className="min-w-48 max-w-56 px-5 py-3.5 align-middle text-foreground/70">
+                        <span className="block truncate" title={task.department_title}>
+                          {task.department_title || "—"}
+                        </span>
+                      </td>
+                      <td className="min-w-52 max-w-60 px-5 py-3.5 align-middle text-foreground/70">
+                        <span className="block truncate" title={assignees.join("، ") || "—"}>
+                          {compactNames(assignees)}
+                        </span>
+                        {referralTargetNames(task).length > 0 && (
+                          <span className="mt-1 block text-xs font-semibold text-sky-700">
+                            ارجاع‌شده
+                          </span>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-3.5 align-middle">
+                        <Badge variant="outline" className={statusBadgeClass(task.status)}>
+                          {displayStatus(task.status)}
+                        </Badge>
+                      </td>
+                      <td className="w-36 px-5 py-3.5 align-middle">
+                        <div className="space-y-1.5">
+                          <span dir="ltr" className="text-xs font-extrabold tabular-nums text-foreground">
+                            {progress}%
+                          </span>
+                          <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+                            <div
+                              className="h-full rounded-full bg-blue-500"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-3.5 align-middle text-xs leading-5 text-muted-foreground">
+                        {formatPersianDateTime(task.created_at)}
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-3.5">
+                        <Button
+                          type="button"
+                          onClick={() => void openTask(task)}
+                          disabled={detailLoading}
+                          aria-label={`مشاهده جزئیات وظیفه ${title}`}
+                          variant="outline"
+                          className="h-9 gap-1.5 rounded-xl bg-card px-3 text-primary hover:bg-primary/10 hover:text-primary"
+                        >
+                          <span>جزئیات</span>
+                          <ChevronLeft size={16} aria-hidden="true" />
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          </div>
         </div>
       )}
 

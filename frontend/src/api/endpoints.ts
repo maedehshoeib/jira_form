@@ -22,6 +22,7 @@ export const endpoints = {
   taskColleagues: "/tasks/colleagues",
   taskPendingCount: "/tasks/pending-count",
   taskUnseenCount: "/tasks/unseen-count",
+  letterUnseenCount: "/tasks/letters/unseen-count",
   taskNotifications: "/tasks/notifications",
   taskConversation: (submissionId: number) => `/submissions/${submissionId}/conversation`,
   taskComments: (submissionId: number) => `/submissions/${submissionId}/comments`,

@@ -104,5 +104,6 @@ export type StatusTab =
   | "in_progress"
   | "rejected"
   | "approved"
-  | "referred"
-  | "letter";
+  | "referred";
+
+export type ViewMode = "cards" | "table";
