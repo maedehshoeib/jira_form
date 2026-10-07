@@ -93,6 +93,7 @@ class SubmissionListItem(BaseModel):
     can_act: bool = False
     is_announcement: bool = False
     needs_action: str = ""
+    is_archived: bool = False
 
 
 class SubmissionResponse(BaseModel):
@@ -132,6 +133,7 @@ class SubmissionResponse(BaseModel):
     can_act: bool = False
     is_announcement: bool = False
     needs_action: str = ""
+    is_archived: bool = False
 
 
 class JiraStatusUpdate(BaseModel):
@@ -167,6 +169,15 @@ class TaskReferRequest(BaseModel):
             if user_id not in ids:
                 ids.append(user_id)
         return ids
+
+
+class TaskArchiveUpdate(BaseModel):
+    archived: bool
+
+
+class TaskArchiveResponse(BaseModel):
+    submission_id: int
+    is_archived: bool
 
 
 class TaskColleague(BaseModel):

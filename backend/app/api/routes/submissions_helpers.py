@@ -521,6 +521,20 @@ def _status_updated_by_name(
     return _user_display(context.users_by_id.get(submission.status_updated_by_id))
 
 
+def _viewer_is_archived(
+    context: SubmissionWorkflowContext,
+    submission: Submission,
+) -> bool:
+    if context.viewer_user_id is None:
+        return False
+    return any(
+        item.user_id == context.viewer_user_id
+        and item.submission_id == submission.id
+        and bool(item.is_archived)
+        for item in context.views_by_submission.get(submission.id, [])
+    )
+
+
 def _workflow_fields(
     context: SubmissionWorkflowContext,
     submission: Submission,
@@ -749,6 +763,7 @@ def _submission_to_list_item(
         can_act=can_act and not is_no_action_letter(submission),
         is_announcement=is_letter_announcement(submission),
         needs_action=letter_needs_action(submission),
+        is_archived=_viewer_is_archived(context, submission),
     )
 
 
@@ -834,6 +849,7 @@ def _submission_to_response(
         can_act=can_act and not is_no_action_letter(submission),
         is_announcement=is_letter_announcement(submission),
         needs_action=letter_needs_action(submission),
+        is_archived=_viewer_is_archived(context, submission),
     )
 
 

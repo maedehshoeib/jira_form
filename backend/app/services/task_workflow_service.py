@@ -281,12 +281,52 @@ def list_unseen_task_ids(db: Session, user_id: int) -> list[int]:
 
 
 def list_unseen_letter_ids(db: Session, user_id: int) -> list[int]:
-    """IDs of management letters not yet opened."""
+    """IDs of non-archived management letters not yet opened."""
+    archived_ids = {
+        row.submission_id
+        for row in db.query(SubmissionView.submission_id).filter(
+            SubmissionView.user_id == user_id,
+            SubmissionView.is_archived.is_(True),
+        )
+    }
     return [
         row.id
         for row in _list_unseen_submissions(db, user_id)
-        if row.form_id == "management-letter-form"
+        if row.form_id == "management-letter-form" and row.id not in archived_ids
     ]
+
+
+def set_task_archived(
+    db: Session,
+    actor: User,
+    submission: Submission,
+    archived: bool,
+) -> SubmissionView:
+    """Archive or restore a task/letter in the actor's own inbox only."""
+    if not user_can_view_task(db, actor, submission):
+        raise PermissionError("شما به این مورد دسترسی ندارید.")
+
+    now = datetime.utcnow()
+    view = (
+        db.query(SubmissionView)
+        .filter(
+            SubmissionView.submission_id == submission.id,
+            SubmissionView.user_id == actor.id,
+        )
+        .first()
+    )
+    if view is None:
+        view = SubmissionView(
+            submission_id=submission.id,
+            user_id=actor.id,
+            first_viewed_at=now,
+            last_viewed_at=now,
+        )
+        db.add(view)
+    view.is_archived = archived
+    db.commit()
+    db.refresh(view)
+    return view
 
 
 def mark_task_viewed(

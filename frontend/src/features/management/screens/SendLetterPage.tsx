@@ -7,8 +7,10 @@ import {
   FileText,
   Loader2,
   Paperclip,
+  Save,
   Search,
   Send,
+  Trash2,
   X,
 } from "lucide-react";
 import DatePicker from "react-multi-date-picker";
@@ -17,6 +19,7 @@ import persian_fa from "react-date-object/locales/persian_fa";
 
 import client from "@/api/client";
 import { endpoints } from "@/api/endpoints";
+import type { LetterDraft } from "@/api/letterDrafts";
 import AppShell from "@/components/layout/AppShell";
 import RedirectTo from "@/app/_components/RedirectTo";
 import UserDisplayName from "@/components/UserDisplayName";
@@ -32,6 +35,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { API_BASE } from "@/config/portal";
 import { normalizePersianDate, PERSIAN_DATE_FORMAT } from "@/lib/persianDate";
+
+import { useLetterDraft } from "../hooks/useLetterDraft";
 import { LETTER_WORKFLOWS, LetterType } from "./letterWorkflow";
 
 type LetterRecipient = {
@@ -270,6 +275,50 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
   const [done, setDone] = useState(false);
   const [submittedSystemLetterNumber, setSubmittedSystemLetterNumber] = useState("");
   const [error, setError] = useState("");
+  const [draftNotice, setDraftNotice] = useState("");
+
+  const applyDraft = (draft: LetterDraft) => {
+    setSubject(draft.subject);
+    setDescription(draft.description);
+    setLetterNumber(draft.letter_number);
+    setNeedsReply(
+      (NEEDS_REPLY_OPTIONS as readonly string[]).includes(draft.needs_reply)
+        ? (draft.needs_reply as NeedsReplyOption)
+        : "",
+    );
+    setNeedsAction(
+      (NEEDS_ACTION_OPTIONS as readonly string[]).includes(draft.needs_action)
+        ? (draft.needs_action as NeedsActionOption)
+        : "",
+    );
+    setDueDate(draft.due_date);
+    const draftSender = (SENDER_OPTIONS as readonly string[]).includes(draft.sender)
+      ? (draft.sender as SenderOption)
+      : "";
+    setSender(draftSender);
+    setHoldingUnit(
+      draftSender === "هلدینگ" &&
+        (HOLDING_OPTIONS as readonly string[]).includes(draft.sender_detail)
+        ? (draft.sender_detail as HoldingOption)
+        : "",
+    );
+    setSelectedIds(new Set(draft.recipient_ids));
+    setCcIds(new Set(draft.cc_recipient_ids));
+    setCommentTargetIds(new Set([...draft.recipient_ids, ...draft.cc_recipient_ids]));
+    setRecipientComments(
+      Object.fromEntries(
+        Object.entries(draft.recipient_comments).map(([id, comment]) => [Number(id), comment]),
+      ),
+    );
+    setAttachments([]);
+    setDone(false);
+    setError("");
+  };
+
+  const letterDraft = useLetterDraft({ letterType, applyDraft, onError: setError });
+  const keptDraftAttachments = letterDraft.storedAttachments.filter(
+    (_, index) => !letterDraft.removedIndexes.has(index),
+  );
 
   const attachmentPreviewUrls = useMemo(
     () =>
@@ -507,6 +556,51 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
     setError("");
     setDone(false);
 
+    try {
+      let systemNumber = "";
+      if (letterDraft.draftId) {
+        const result = await letterDraft.sendDraft(buildFormData());
+        systemNumber = result.system_letter_number;
+      } else {
+        systemNumber = await sendNewLetter(buildFormData());
+      }
+      setReviewOpen(false);
+      resetForm({ keepDone: true });
+      letterDraft.clearDraft();
+      setSubmittedSystemLetterNumber(systemNumber);
+      setDone(true);
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : apiErrorDetail(requestError, "ارسال نامه انجام نشد."),
+      );
+      setReviewOpen(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    if (letterDraft.draftSaving || saving) return;
+    setError("");
+    setDraftNotice("");
+    const ok = await letterDraft.saveDraft(buildFormData());
+    if (ok) {
+      setAttachments([]);
+      setDraftNotice("پیش‌نویس ذخیره شد. می‌توانید بعداً از «نامه‌ها › پیش‌نویس‌ها» ادامه دهید.");
+    }
+  };
+
+  const handleDiscardDraft = async () => {
+    if (!window.confirm("این پیش‌نویس حذف شود؟")) return;
+    if (await letterDraft.discardDraft()) {
+      resetForm();
+      setDraftNotice("");
+    }
+  };
+
+  function buildFormData() {
     const fd = new FormData();
     fd.append("letter_type", letterType);
     fd.append("subject", subject.trim());
@@ -537,43 +631,28 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
       ),
     );
     attachments.forEach((file) => fd.append("attachments", file));
+    return fd;
+  }
 
+  async function sendNewLetter(fd: FormData) {
     const token = localStorage.getItem("access_token");
-    try {
-      const res = await fetch(`${API_BASE}${endpoints.managementLetters}`, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: fd,
-      });
-      const payload = (await res.json().catch(() => null)) as
-        | (Partial<LetterSendResponse> & { detail?: unknown })
-        | null;
-      if (!res.ok) {
-        throw new Error(
-          typeof payload?.detail === "string"
-            ? payload.detail
-            : "ارسال نامه انجام نشد.",
-        );
-      }
-      setReviewOpen(false);
-      resetForm({ keepDone: true });
-      setSubmittedSystemLetterNumber(
-        typeof payload?.system_letter_number === "string"
-          ? payload.system_letter_number
-          : "",
+    const res = await fetch(`${API_BASE}${endpoints.managementLetters}`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+    });
+    const payload = (await res.json().catch(() => null)) as
+      | (Partial<LetterSendResponse> & { detail?: unknown })
+      | null;
+    if (!res.ok) {
+      throw new Error(
+        typeof payload?.detail === "string" ? payload.detail : "ارسال نامه انجام نشد.",
       );
-      setDone(true);
-    } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : apiErrorDetail(requestError, "ارسال نامه انجام نشد."),
-      );
-      setReviewOpen(false);
-    } finally {
-      setSaving(false);
     }
-  };
+    return typeof payload?.system_letter_number === "string"
+      ? payload.system_letter_number
+      : "";
+  }
 
   if (allowed === false) {
     return <RedirectTo href="/" />;
@@ -631,6 +710,25 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
             {error && (
               <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm font-semibold text-primary">
                 {error}
+              </div>
+            )}
+            {(letterDraft.draftId || letterDraft.draftLoading || draftNotice) && (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <span className="flex items-center gap-2 font-semibold">
+                  {letterDraft.draftLoading ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Save size={16} />
+                  )}
+                  {letterDraft.draftLoading
+                    ? "در حال بارگذاری پیش‌نویس..."
+                    : draftNotice || "در حال ویرایش پیش‌نویس"}
+                </span>
+                {letterDraft.draftSavedAt && !letterDraft.draftLoading && (
+                  <span className="text-xs text-amber-800">
+                    آخرین ذخیره: {letterDraft.draftSavedAt}
+                  </span>
+                )}
               </div>
             )}
 
@@ -806,6 +904,30 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
                     }}
                   />
                 </Label>
+                {letterDraft.storedAttachments.map((name, index) => {
+                  const removed = letterDraft.removedIndexes.has(index);
+                  return (
+                    <span
+                      key={`stored-${name}-${index}`}
+                      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                        removed
+                          ? "border-dashed border-border bg-card text-muted-foreground line-through"
+                          : "border-amber-200 bg-amber-50 text-amber-900"
+                      }`}
+                      title="پیوست ذخیره‌شده در پیش‌نویس"
+                    >
+                      {name}
+                      <Button
+                        type="button"
+                        onClick={() => letterDraft.toggleStoredAttachment(index)}
+                        className="text-muted-foreground hover:text-primary"
+                        aria-label={removed ? "بازگرداندن پیوست" : "حذف پیوست"}
+                      >
+                        <X size={14} />
+                      </Button>
+                    </span>
+                  );
+                })}
                 {attachments.map((file, index) => (
                   <span
                     key={`${file.name}-${file.size}-${index}`}
@@ -1042,7 +1164,19 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
               )}
             </section>
 
-            <div className="flex justify-end gap-3 border-t border-border pt-5">
+            <div className="flex flex-wrap justify-end gap-3 border-t border-border pt-5">
+              {letterDraft.draftId && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={saving || letterDraft.draftSaving}
+                  onClick={() => void handleDiscardDraft()}
+                  className="gap-2 rounded-xl text-muted-foreground hover:text-primary sm:ml-auto"
+                >
+                  <Trash2 size={16} />
+                  حذف پیش‌نویس
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="outline"
@@ -1050,6 +1184,20 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
                 className="rounded-xl"
               >
                 پاک کردن
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={saving || letterDraft.draftSaving || letterDraft.draftLoading}
+                onClick={() => void handleSaveDraft()}
+                className="gap-2 rounded-xl"
+              >
+                {letterDraft.draftSaving ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Save size={16} />
+                )}
+                ذخیره پیش‌نویس
               </Button>
               <Button
                 disabled={saving || recipients.length === 0}
@@ -1124,7 +1272,21 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
               <ReviewRow label="توضیحات" value={description.trim()} multiline />
               <div>
                 <p className="mb-2 text-xs font-bold text-muted-foreground">پیوست‌ها</p>
-                {attachmentPreviewUrls.length === 0 ? (
+                {keptDraftAttachments.length > 0 && (
+                  <div className="mb-3 space-y-2">
+                    {keptDraftAttachments.map((name, index) => (
+                      <div
+                        key={`kept-${name}-${index}`}
+                        className="flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-900"
+                      >
+                        <Paperclip size={14} className="shrink-0" />
+                        <span className="truncate">{name}</span>
+                        <span className="mr-auto text-xs font-medium">از پیش‌نویس</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {attachmentPreviewUrls.length === 0 && keptDraftAttachments.length > 0 ? null : attachmentPreviewUrls.length === 0 ? (
                   <div className="rounded-2xl border border-border bg-muted/40 px-4 py-3 font-semibold text-foreground">
                     بدون پیوست
                   </div>

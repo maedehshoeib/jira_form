@@ -80,6 +80,7 @@ export type SubmissionListItem = {
   can_act?: boolean;
   is_announcement?: boolean;
   needs_action?: string;
+  is_archived?: boolean;
   timeline?: TimelineItem[];
 };
 

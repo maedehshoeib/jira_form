@@ -352,6 +352,13 @@ def _migrate_task_action_attachments_db():
                 "ADD COLUMN attachment_name VARCHAR(256)",
             ),
         ],
+        "submission_views": [
+            (
+                "is_archived",
+                "ALTER TABLE submission_views "
+                "ADD COLUMN is_archived BOOLEAN NOT NULL DEFAULT FALSE",
+            ),
+        ],
     }
     with engine.begin() as conn:
         for table_name, migrations in table_migrations.items():

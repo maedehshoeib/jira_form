@@ -1,6 +1,15 @@
 ﻿from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    false,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -155,6 +164,27 @@ class SubmissionView(Base):
     )
     first_viewed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     last_viewed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    is_archived: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=false(), index=True
+    )
+
+
+class LetterDraft(Base):
+    """An unsent management letter owned by its author."""
+
+    __tablename__ = "letter_drafts"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    letter_type: Mapped[str] = mapped_column(String(16), default="external")
+    subject: Mapped[str] = mapped_column(String(512), default="")
+    description: Mapped[str] = mapped_column(Text, default="")
+    payload: Mapped[str] = mapped_column(Text, default="{}")
+    attachments: Mapped[str] = mapped_column(Text, default="[]")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class SubmissionStatusHistory(Base):

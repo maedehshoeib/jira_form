@@ -2,26 +2,26 @@ import json
 from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.api.routes.management_letter_form import LetterFormFields, parse_letter_form
 from app.api.routes.submissions_helpers import require_api_key_or_user
 from app.core.birthday import is_birthday_today, user_display_name
 from app.core.deps import get_current_user
 from app.core.timezone import format_tehran_datetime
 from app.db.session import get_db
+from app.models.submission import Submission
 from app.models.user import User
 from app.services.management_letter_service import (
     DEFAULT_LETTER_TYPE,
-    MAX_RECIPIENT_COMMENT_LENGTH,
     LetterType,
     create_management_letters,
     list_letter_recipients,
     list_sent_letters,
     save_attachments,
     user_can_use_management_workflow,
-    validate_letter_type,
 )
 
 
@@ -131,119 +131,41 @@ def get_letter_recipients(
     ]
 
 
-@router.post("", response_model=LetterSendResponse)
-async def send_management_letter(
-    request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    form = await request.form()
-    raw_letter_type = form.get("letter_type")
-    try:
-        letter_type = validate_letter_type(
-            DEFAULT_LETTER_TYPE
-            if raw_letter_type is None
-            else str(raw_letter_type)
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    subject = str(form.get("subject") or "")
-    description = str(form.get("description") or "")
-    letter_number = str(form.get("letter_number") or "")
-    needs_reply = str(form.get("needs_reply") or "")
-    needs_action = str(form.get("needs_action") or "")
-    due_date = str(form.get("due_date") or "")
-    sender = str(form.get("sender") or "")
-    sender_detail = str(form.get("sender_detail") or "")
-    recipient_ids = str(form.get("recipient_ids") or "[]")
-    cc_recipient_ids = str(form.get("cc_recipient_ids") or "[]")
-    recipient_comments = str(form.get("recipient_comments") or "{}")
-
-    try:
-        parsed_ids = json.loads(recipient_ids)
-        if not isinstance(parsed_ids, list):
-            raise ValueError("فهرست گیرندگان نامعتبر است.")
-        if any(
-            not isinstance(item, int)
-            or isinstance(item, bool)
-            or item <= 0
-            for item in parsed_ids
-        ):
-            raise ValueError("فهرست گیرندگان نامعتبر است.")
-        ids = parsed_ids
-    except (json.JSONDecodeError, TypeError, ValueError):
-        raise HTTPException(status_code=400, detail="فهرست گیرندگان نامعتبر است.")
-
-    try:
-        parsed_cc_ids = json.loads(cc_recipient_ids)
-        if not isinstance(parsed_cc_ids, list):
-            raise ValueError("فهرست رونوشت‌ها نامعتبر است.")
-        if any(
-            not isinstance(item, int)
-            or isinstance(item, bool)
-            or item <= 0
-            for item in parsed_cc_ids
-        ):
-            raise ValueError("فهرست رونوشت‌ها نامعتبر است.")
-        cc_ids = parsed_cc_ids
-    except (json.JSONDecodeError, TypeError, ValueError):
-        raise HTTPException(status_code=400, detail="فهرست رونوشت‌ها نامعتبر است.")
-
-    try:
-        parsed_comments = json.loads(recipient_comments)
-        if not isinstance(parsed_comments, dict):
-            raise ValueError("یادداشت گیرندگان نامعتبر است.")
-        comments: dict[int, str] = {}
-        for recipient_id, comment in parsed_comments.items():
-            if (
-                not recipient_id.isascii()
-                or not recipient_id.isdigit()
-                or recipient_id.startswith("0")
-                or not isinstance(comment, str)
-            ):
-                raise ValueError("یادداشت گیرندگان نامعتبر است.")
-            normalized_id = int(recipient_id)
-            if normalized_id in comments:
-                raise ValueError("یادداشت گیرندگان نامعتبر است.")
-            comments[normalized_id] = comment
-        if not set(comments).issubset({*ids, *cc_ids}) or any(
-            len(comment.strip()) > MAX_RECIPIENT_COMMENT_LENGTH
-            for comment in comments.values()
-        ):
-            raise ValueError("یادداشت گیرندگان نامعتبر است.")
-    except (json.JSONDecodeError, TypeError, ValueError, OverflowError):
-        raise HTTPException(status_code=400, detail="یادداشت گیرندگان نامعتبر است.")
-
-    uploads: list[UploadFile] = []
-    for key in ("attachments", "attachment"):
-        for item in form.getlist(key):
-            if hasattr(item, "filename") and item.filename:
-                uploads.append(item)  # type: ignore[arg-type]
-    saved_files = await save_attachments(uploads)
-
+def send_letter_fields(
+    db: Session,
+    actor: User,
+    fields: LetterFormFields,
+    attachments: list[dict[str, str]],
+) -> LetterSendResponse:
+    """Create the letter batch and map domain errors to HTTP errors."""
     try:
         submissions = create_management_letters(
             db,
-            actor=current_user,
-            subject=subject,
-            description=description,
-            recipient_comments=comments,
-            letter_number=letter_number,
-            needs_reply=needs_reply,
-            needs_action=needs_action,
-            due_date=due_date,
-            sender=sender,
-            sender_detail=sender_detail,
-            recipient_ids=ids,
-            cc_recipient_ids=cc_ids,
-            attachments=saved_files,
-            letter_type=letter_type,
+            actor=actor,
+            subject=fields.subject,
+            description=fields.description,
+            recipient_comments=fields.recipient_comments,
+            letter_number=fields.letter_number,
+            needs_reply=fields.needs_reply,
+            needs_action=fields.needs_action,
+            due_date=fields.due_date,
+            sender=fields.sender,
+            sender_detail=fields.sender_detail,
+            recipient_ids=fields.recipient_ids,
+            cc_recipient_ids=fields.cc_recipient_ids,
+            attachments=attachments,
+            letter_type=fields.letter_type,
         )
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _send_response(submissions, fields.letter_type)
 
+
+def _send_response(
+    submissions: list[Submission], letter_type: LetterType
+) -> LetterSendResponse:
     batch_id = ""
     system_letter_number = ""
     if submissions:
@@ -263,6 +185,17 @@ async def send_management_letter(
         count=len(submissions),
         ids=[item.id for item in submissions],
     )
+
+
+@router.post("", response_model=LetterSendResponse)
+async def send_management_letter(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    fields = parse_letter_form(await request.form())
+    saved_files = await save_attachments(fields.uploads)
+    return send_letter_fields(db, current_user, fields, saved_files)
 
 
 @router.get("/report", response_model=list[LetterReportItem])

@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
+  Archive,
+  ArchiveRestore,
   Download,
+  FilePenLine,
   Forward,
   GitBranch,
   Inbox,
@@ -18,6 +21,11 @@ import {
 
 import client from "@/api/client";
 import { endpoints } from "@/api/endpoints";
+import {
+  deleteLetterDraft,
+  listLetterDrafts,
+  type LetterDraftSummary,
+} from "@/api/letterDrafts";
 import AppShell from "@/components/layout/AppShell";
 import TaskConversation from "@/components/tasks/TaskConversation";
 import { Badge } from "@/components/ui/badge";
@@ -37,9 +45,18 @@ import {
   type SubmissionListItem,
 } from "@/features/tasks";
 
+import { setLetterArchived } from "../api";
 import { LetterActionsPanel } from "../components/LetterActionsPanel";
+import { LetterDraftsList } from "../components/LetterDraftsList";
 
-type LetterFolder = "inbox" | "unread" | "actionable" | "cc" | "inform";
+type LetterFolder =
+  | "inbox"
+  | "unread"
+  | "actionable"
+  | "cc"
+  | "inform"
+  | "drafts"
+  | "archive";
 type DetailTab = "body" | "attachments" | "workflow" | "notes";
 
 const FOLDERS: { id: LetterFolder; label: string; icon: typeof Inbox }[] = [
@@ -48,6 +65,8 @@ const FOLDERS: { id: LetterFolder; label: string; icon: typeof Inbox }[] = [
   { id: "actionable", label: "نیاز به اقدام", icon: Forward },
   { id: "cc", label: "رونوشت", icon: MailOpen },
   { id: "inform", label: "جهت اطلاع", icon: MailOpen },
+  { id: "drafts", label: "پیش‌نویس‌ها", icon: FilePenLine },
+  { id: "archive", label: "بایگانی", icon: Archive },
 ];
 
 const META_FIELD_KEYS = new Set([
@@ -128,6 +147,8 @@ function resolveAttachmentNames(letter: SubmissionDetail) {
 }
 
 function matchesFolder(letter: SubmissionListItem, folder: LetterFolder) {
+  if (folder === "archive") return Boolean(letter.is_archived);
+  if (letter.is_archived || folder === "drafts") return false;
   if (folder === "unread") return letter.is_read === false;
   if (folder === "actionable") return isActionableLetter(letter);
   if (folder === "cc") return Boolean(letter.is_announcement);
@@ -190,6 +211,53 @@ export default function MyLettersPage() {
   const [detailTab, setDetailTab] = useState<DetailTab>("body");
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [drafts, setDrafts] = useState<LetterDraftSummary[]>([]);
+  const [draftsLoading, setDraftsLoading] = useState(true);
+  const [deletingDraftId, setDeletingDraftId] = useState<number | null>(null);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+
+  const loadDrafts = async () => {
+    setDraftsLoading(true);
+    try {
+      setDrafts(await listLetterDrafts());
+    } catch {
+      setError("دریافت پیش‌نویس‌ها با مشکل مواجه شد.");
+    } finally {
+      setDraftsLoading(false);
+    }
+  };
+
+  const removeDraft = async (draft: LetterDraftSummary) => {
+    if (!window.confirm(`پیش‌نویس «${draft.subject || "بدون موضوع"}» حذف شود؟`)) return;
+    setDeletingDraftId(draft.id);
+    try {
+      await deleteLetterDraft(draft.id);
+      setDrafts((prev) => prev.filter((item) => item.id !== draft.id));
+    } catch {
+      setError("حذف پیش‌نویس انجام نشد.");
+    } finally {
+      setDeletingDraftId(null);
+    }
+  };
+
+  const toggleArchive = async () => {
+    if (!selected || archiveLoading) return;
+    const archived = !selected.is_archived;
+    setArchiveLoading(true);
+    setActionError("");
+    try {
+      await setLetterArchived(selected.id, archived);
+      setLetters((prev) =>
+        prev.map((item) => (item.id === selected.id ? { ...item, is_archived: archived } : item)),
+      );
+      setSelected(null);
+      window.dispatchEvent(new Event("letters:refresh-notifications"));
+    } catch {
+      setActionError(archived ? "بایگانی نامه انجام نشد." : "بازگردانی نامه انجام نشد.");
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
 
   const syncLetter = (updated: SubmissionDetail) => {
     setLetters((prev) =>
@@ -229,17 +297,25 @@ export default function MyLettersPage() {
 
   useEffect(() => {
     void loadLetters();
+    void loadDrafts();
   }, []);
 
   const folderCounts = useMemo(() => {
     const counts: Record<LetterFolder, number> = {
-      inbox: letters.length,
+      inbox: 0,
       unread: 0,
       actionable: 0,
       cc: 0,
       inform: 0,
+      drafts: drafts.length,
+      archive: 0,
     };
     letters.forEach((letter) => {
+      if (letter.is_archived) {
+        counts.archive += 1;
+        return;
+      }
+      counts.inbox += 1;
       if (letter.is_read === false) counts.unread += 1;
       if (isActionableLetter(letter)) counts.actionable += 1;
       if (letter.is_announcement) counts.cc += 1;
@@ -248,7 +324,7 @@ export default function MyLettersPage() {
       }
     });
     return counts;
-  }, [letters]);
+  }, [letters, drafts]);
 
   const filteredLetters = useMemo(() => {
     const query = searchQuery.trim().toLocaleLowerCase("fa");
@@ -382,6 +458,26 @@ export default function MyLettersPage() {
     return "در انتظار اقدام";
   };
 
+  const archiveButton = selected ? (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      disabled={archiveLoading}
+      onClick={() => void toggleArchive()}
+      className="h-8 gap-1.5 rounded-lg px-3 text-xs font-bold"
+    >
+      {archiveLoading ? (
+        <Loader2 size={14} className="animate-spin" />
+      ) : selected.is_archived ? (
+        <ArchiveRestore size={14} />
+      ) : (
+        <Archive size={14} />
+      )}
+      {selected.is_archived ? "بازگردانی به صندوق" : "بایگانی"}
+    </Button>
+  ) : null;
+
   return (
     <AppShell>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -398,7 +494,10 @@ export default function MyLettersPage() {
         </div>
         <Button
           variant="outline"
-          onClick={() => void loadLetters()}
+          onClick={() => {
+            void loadLetters();
+            void loadDrafts();
+          }}
           disabled={loading}
           className="h-10 gap-2 rounded-xl px-4"
         >
@@ -485,7 +584,14 @@ export default function MyLettersPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            {loading ? (
+            {folder === "drafts" ? (
+              <LetterDraftsList
+                drafts={drafts}
+                loading={draftsLoading}
+                deletingId={deletingDraftId}
+                onDelete={(draft) => void removeDraft(draft)}
+              />
+            ) : loading ? (
               <div className="flex h-40 items-center justify-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="animate-spin" size={18} />
                 در حال دریافت...
@@ -590,6 +696,7 @@ export default function MyLettersPage() {
                     <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">
                       {statusBadgeForList(selected)}
                     </Badge>
+                    {archiveButton}
                   </div>
                 </div>
 
@@ -825,9 +932,12 @@ export default function MyLettersPage() {
                   {letterSender(selected)} · {formatPersianDateTime(selected.created_at)}
                 </p>
               </div>
-              <Button variant="outline" className="shrink-0 rounded-xl" onClick={() => setSelected(null)}>
-                بستن
-              </Button>
+              <div className="flex shrink-0 items-center gap-2">
+                {archiveButton}
+                <Button variant="outline" className="rounded-xl" onClick={() => setSelected(null)}>
+                  بستن
+                </Button>
+              </div>
             </div>
             <div className="space-y-4 p-4">
               <LetterInfoBox letter={selected} />

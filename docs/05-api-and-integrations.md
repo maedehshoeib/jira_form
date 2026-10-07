@@ -117,6 +117,36 @@ Outlook-style layout (folders / list / reading pane with متن نامه، پی�
 actions when `can_act` is true. «نامه‌ها» (`/my-letters`) is the only inbox for management letters. Sender and
 recipient letter rows are excluded from «درخواست‌های من» and «وظایف من».
 
+### Letter archive (بایگانی)
+
+`PATCH /api/v1/tasks/{id}/archive` with body `{"archived": true|false}` archives
+or restores an item in the caller's own inbox only (stored per user on
+`submission_views.is_archived`). The caller must be able to view the item;
+otherwise the API returns 404. List and detail task responses expose
+`is_archived` for the current viewer. Archived letters are hidden from the other
+`/my-letters` folders, appear under «بایگانی», and are excluded from
+`/tasks/letters/unseen-count`.
+
+### Letter drafts (پیش‌نویس‌ها)
+
+Unsent letters are stored per author in `letter_drafts` and are only visible to
+their owner (other users get 404):
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/management-letters/drafts` | List the caller's drafts |
+| `POST` | `/api/v1/management-letters/drafts` | Create a draft (multipart, same fields as send) |
+| `GET` | `/api/v1/management-letters/drafts/{id}` | Load a draft for editing |
+| `PUT` | `/api/v1/management-letters/drafts/{id}` | Replace draft fields; new files are appended |
+| `DELETE` | `/api/v1/management-letters/drafts/{id}` | Delete the draft and its stored files |
+| `POST` | `/api/v1/management-letters/drafts/{id}/send` | Send with full validation, then delete the draft |
+
+Draft endpoints accept the same multipart fields as `POST /management-letters`
+plus `remove_attachments` (JSON list of stored attachment indexes to drop).
+Saving a draft does not enforce required fields; sending does. If sending fails,
+the draft is kept. The send form opens a draft via
+`/management-workflow/{internal|external}/send?draft={id}`.
+
 The home page also shows a small welcome bot that greets the signed-in user by
 display name. When `birth_date` matches today (Tehran calendar day, same rule as
 `is_birthday` on `/api/v1/auth/me`), the bot switches to a birthday message.

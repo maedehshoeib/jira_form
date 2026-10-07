@@ -49,6 +49,8 @@ from app.schemas.submission import (
     JiraStatusUpdate,
     SubmissionListItem,
     SubmissionResponse,
+    TaskArchiveResponse,
+    TaskArchiveUpdate,
     TaskCommentCreate,
     TaskCommentItem,
     TaskColleague,
@@ -95,6 +97,7 @@ from app.services.task_workflow_service import (
     list_unseen_task_ids,
     mark_task_viewed,
     refer_tasks,
+    set_task_archived,
     set_task_status,
     send_task_reminders,
     task_participant_ids,
@@ -1166,6 +1169,22 @@ def get_task(
         db=db,
         workflow_context=workflow_context,
         can_act=user_can_access_task(db, current_user, submission),
+    )
+
+
+@router.patch("/tasks/{submission_id}/archive", response_model=TaskArchiveResponse)
+def archive_task(
+    submission_id: int,
+    payload: TaskArchiveUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    submission = db.query(Submission).filter(Submission.id == submission_id).first()
+    if not submission or not user_can_view_task(db, current_user, submission):
+        raise HTTPException(status_code=404, detail="درخواست یافت نشد")
+    view = set_task_archived(db, current_user, submission, payload.archived)
+    return TaskArchiveResponse(
+        submission_id=submission.id, is_archived=bool(view.is_archived)
     )
 
 
