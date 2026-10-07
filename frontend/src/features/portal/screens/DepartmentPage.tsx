@@ -82,12 +82,8 @@ export default function DepartmentPage() {
     return <RedirectTo href="/contracts-archive" />;
   }
 
-  if (departmentId === "management-workflow") {
-    return <RedirectTo href="/management-workflow/external" />;
-  }
-
-  if (departmentId === "internal-letters") {
-    return <RedirectTo href="/management-workflow/internal" />;
+  if (departmentId === "management-workflow" || departmentId === "internal-letters") {
+    return <RedirectTo href="/my-letters" />;
   }
 
   if (loadError) {

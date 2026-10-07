@@ -51,6 +51,7 @@ class LetterRecipientStatus(BaseModel):
     referred_to: str | None = None
     comment: str = ""
     delivery_type: Literal["direct", "cc"] = "direct"
+    is_read: bool = False
 
 
 class LetterReportItem(BaseModel):
@@ -201,11 +202,14 @@ async def send_management_letter(
 @router.get("/report", response_model=list[LetterReportItem])
 def management_letter_report(
     letter_type: LetterType = DEFAULT_LETTER_TYPE,
+    mine: bool = False,
     db: Session = Depends(get_db),
     current_user: User | None = Depends(require_api_key_or_user),
 ):
     try:
-        rows = list_sent_letters(db, current_user, letter_type=letter_type)
+        rows = list_sent_letters(
+            db, current_user, letter_type=letter_type, only_own=mine
+        )
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
 
@@ -250,6 +254,7 @@ def management_letter_report(
                         referred_to=item.get("referred_to"),
                         comment=item.get("comment") or "",
                         delivery_type=item.get("delivery_type") or "direct",
+                        is_read=bool(item.get("is_read")),
                     )
                     for item in row["recipients"]
                 ],

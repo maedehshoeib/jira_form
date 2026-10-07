@@ -15,10 +15,8 @@ import { endpoints } from "@/api/endpoints";
 import businessIcon from "@/assets/home-icons/business.png";
 import contractsIcon from "@/assets/home-icons/contracts.png";
 import documentsIcon from "@/assets/home-icons/documents.png";
-import externalLettersIcon from "@/assets/home-icons/external-letters.png";
 import formsIcon from "@/assets/home-icons/forms.png";
 import guidelinesIcon from "@/assets/home-icons/guidelines.png";
-import internalLettersIcon from "@/assets/home-icons/internal-letters.png";
 import itIcon from "@/assets/home-icons/it.png";
 import jobDescriptionsIcon from "@/assets/home-icons/job-descriptions.png";
 import meetingRoomIcon from "@/assets/home-icons/meeting-room.png";
@@ -35,7 +33,6 @@ import { bannerImageUrl, SiteBanner } from "@/features/banner";
 import { SiteNews } from "@/features/news";
 import { formatPersianDateTime } from "@/lib/persianDate";
 import { cn } from "@/lib/utils";
-import { LETTER_WORKFLOWS } from "@/features/management";
 import HomeNotifications from "../components/HomeNotifications";
 import WelcomeBot from "../components/WelcomeBot";
 
@@ -59,15 +56,6 @@ const HOME_CARDS: HomeCard[] = [
     href: "/forms/meeting-room-reservation-form?department=meeting-room&section=meeting-room-reservation",
     image: meetingRoomIcon,
     departmentIds: ["meeting-room"],
-    featured: true,
-  },
-  {
-    id: "internal-letters",
-    title: LETTER_WORKFLOWS.internal.title,
-    description: LETTER_WORKFLOWS.internal.description,
-    href: LETTER_WORKFLOWS.internal.homePath,
-    image: internalLettersIcon,
-    departmentIds: [LETTER_WORKFLOWS.internal.accessDepartmentId],
     featured: true,
   },
   {
@@ -161,20 +149,12 @@ const HOME_CARDS: HomeCard[] = [
     href: "/timesheet",
     image: timesheetIcon,
   },
-  {
-    id: "external-letters",
-    title: LETTER_WORKFLOWS.external.title,
-    description: LETTER_WORKFLOWS.external.description,
-    href: LETTER_WORKFLOWS.external.homePath,
-    image: externalLettersIcon,
-    departmentIds: [LETTER_WORKFLOWS.external.accessDepartmentId],
-  },
 ];
 
 const HOME_CARD_ROWS = [
-  ["internal-letters", "timesheet", "external-letters"],
+  ["meeting-room", "timesheet"],
   ["guidelines", "training", "forms", "job-descriptions"],
-  ["documents", "reports", "contracts", "meeting-room"],
+  ["documents", "reports", "contracts"],
   ["business", "it", "resource-development", "planning"],
 ] as const;
 
@@ -432,15 +412,6 @@ export default function HomePage() {
     if (!card.departmentIds) return card;
     const isAvailable = card.departmentIds.some((id) => visibleDepartmentIds.has(id));
     return isAvailable ? card : { ...card, href: undefined };
-  }).filter((card) => {
-    // Restricted admin card: hide completely when the user has no access.
-    const isRestrictedLetterCard = card.departmentIds?.some(
-      (id) =>
-        id === LETTER_WORKFLOWS.external.accessDepartmentId ||
-        id === LETTER_WORKFLOWS.internal.accessDepartmentId,
-    );
-    if (isRestrictedLetterCard && !card.href) return false;
-    return true;
   });
 
   const cardRows = HOME_CARD_ROWS.map((row) =>
@@ -615,9 +586,11 @@ export default function HomePage() {
                 key={HOME_CARD_ROWS[rowIndex].join("-")}
                 className={cn(
                   "grid gap-8 sm:grid-cols-2",
-                  HOME_CARD_ROWS[rowIndex].length === 3
-                    ? "lg:grid-cols-3"
-                    : "lg:grid-cols-4",
+                  HOME_CARD_ROWS[rowIndex].length === 2
+                    ? "lg:grid-cols-2"
+                    : HOME_CARD_ROWS[rowIndex].length === 3
+                      ? "lg:grid-cols-3"
+                      : "lg:grid-cols-4",
                 )}
               >
                 {row.map((card) => (

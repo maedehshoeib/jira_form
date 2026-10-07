@@ -1,6 +1,5 @@
 import { Label } from "@/components/ui/label";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import {
   CheckCircle2,
   ChevronLeft,
@@ -20,8 +19,6 @@ import persian_fa from "react-date-object/locales/persian_fa";
 import client from "@/api/client";
 import { endpoints } from "@/api/endpoints";
 import type { LetterDraft } from "@/api/letterDrafts";
-import AppShell from "@/components/layout/AppShell";
-import RedirectTo from "@/app/_components/RedirectTo";
 import UserDisplayName from "@/components/UserDisplayName";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -246,7 +243,13 @@ function SenderDropdown({
   );
 }
 
-export default function SendLetterPage({ letterType }: { letterType: LetterType }) {
+export default function SendLetterPage({
+  letterType,
+  onClose,
+}: {
+  letterType: LetterType;
+  onClose: () => void;
+}) {
   const workflow = LETTER_WORKFLOWS[letterType];
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [recipients, setRecipients] = useState<LetterRecipient[]>([]);
@@ -655,21 +658,30 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
   }
 
   if (allowed === false) {
-    return <RedirectTo href="/" />;
+    return (
+      <div className="mx-auto max-w-4xl rounded-3xl border border-border bg-card p-10 text-center">
+        <p className="font-bold text-foreground">شما به ارسال این نوع نامه دسترسی ندارید.</p>
+        <Button type="button" variant="outline" onClick={onClose} className="mt-5 rounded-xl">
+          بازگشت به نامه‌ها
+        </Button>
+      </div>
+    );
   }
 
   return (
-    <AppShell>
+    <>
       <div className="mx-auto max-w-4xl">
-        <Link
-          href={workflow.homePath}
-          className="inline-flex items-center gap-2 font-semibold text-primary hover:text-primary"
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onClose}
+          className="gap-2 px-0 font-semibold text-primary hover:bg-transparent hover:text-primary"
         >
           <ChevronLeft size={18} />
-          بازگشت
-        </Link>
+          بازگشت به نامه‌ها
+        </Button>
 
-        <div className="mt-8 mb-8 rounded-3xl bg-card p-6 shadow-lg">
+        <div className="mt-4 mb-8 rounded-3xl bg-card p-6 shadow-lg">
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Send size={28} />
@@ -698,7 +710,7 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
               <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-700">
                 <CheckCircle2 size={20} />
                 <div>
-                  <p>نامه با موفقیت ارسال شد؛ گیرندگان مستقیم آن را در وظایف و افراد رونوشت‌شده آن را به‌صورت اعلان دریافت کردند.</p>
+                  <p>نامه با موفقیت ارسال شد؛ گیرندگان مستقیم و رونوشت آن را در «نامه‌ها» دریافت کردند.</p>
                   {submittedSystemLetterNumber && (
                     <p className="mt-1 font-extrabold">
                       شماره نامه سیستمی: {submittedSystemLetterNumber}
@@ -1391,7 +1403,7 @@ export default function SendLetterPage({ letterType }: { letterType: LetterType 
           </section>
         </div>
       )}
-    </AppShell>
+    </>
   );
 }
 

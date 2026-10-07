@@ -603,6 +603,7 @@ def list_sent_letters(
     user: User | None,
     *,
     letter_type: str = DEFAULT_LETTER_TYPE,
+    only_own: bool = False,
 ) -> list[dict]:
     normalized_letter_type = validate_letter_type(letter_type)
     if user is not None and not user_can_use_management_workflow(
@@ -617,7 +618,7 @@ def list_sent_letters(
         Submission.section_id == MANAGEMENT_LETTER_SECTION,
         Submission.form_id == MANAGEMENT_LETTER_FORM_ID,
     )
-    if user is not None and not user.is_admin:
+    if user is not None and (only_own or not user.is_admin):
         query = query.filter(Submission.user_id == user.id)
 
     submissions = query.order_by(Submission.created_at.desc(), Submission.id.desc()).all()

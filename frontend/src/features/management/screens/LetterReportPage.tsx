@@ -1,7 +1,6 @@
 import { Table } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
   BarChart3,
   CalendarRange,
@@ -19,8 +18,6 @@ import persian_fa from "react-date-object/locales/persian_fa";
 
 import client from "@/api/client";
 import { endpoints } from "@/api/endpoints";
-import AppShell from "@/components/layout/AppShell";
-import RedirectTo from "@/app/_components/RedirectTo";
 import { API_BASE } from "@/config/portal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -105,7 +102,15 @@ function batchSummary(item: LetterReportItem) {
   return { total, announcements, done, rejected, referred, inProgress, pending };
 }
 
-export default function LetterReportPage({ letterType }: { letterType: LetterType }) {
+export default function LetterReportPage({
+  letterType,
+  onClose,
+  onCompose,
+}: {
+  letterType: LetterType;
+  onClose: () => void;
+  onCompose: () => void;
+}) {
   const workflow = LETTER_WORKFLOWS[letterType];
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [items, setItems] = useState<LetterReportItem[]>([]);
@@ -227,22 +232,31 @@ export default function LetterReportPage({ letterType }: { letterType: LetterTyp
   };
 
   if (allowed === false) {
-    return <RedirectTo href="/" />;
+    return (
+      <div className="mx-auto max-w-5xl rounded-3xl border border-border bg-card p-10 text-center">
+        <p className="font-bold text-foreground">شما به گزارش این نوع نامه دسترسی ندارید.</p>
+        <Button type="button" variant="outline" onClick={onClose} className="mt-5 rounded-xl">
+          بازگشت به نامه‌ها
+        </Button>
+      </div>
+    );
   }
 
   return (
-    <AppShell>
+    <>
       <div className="mx-auto max-w-5xl">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <Link
-              href={workflow.homePath}
-              className="inline-flex items-center gap-2 font-semibold text-primary hover:text-primary"
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={onClose}
+              className="gap-2 px-0 font-semibold text-primary hover:bg-transparent hover:text-primary"
             >
               <ChevronLeft size={18} />
-              بازگشت
-            </Link>
-            <div className="mt-5 flex items-center gap-3">
+              بازگشت به نامه‌ها
+            </Button>
+            <div className="mt-4 flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
                 <BarChart3 size={24} />
               </div>
@@ -381,12 +395,14 @@ export default function LetterReportPage({ letterType }: { letterType: LetterTyp
             <p className="mt-1 text-sm text-muted-foreground">
               پس از ارسال نامه از بخش «ارسال نامه»، وضعیت اینجا نمایش داده می‌شود.
             </p>
-            <Link
-              href={`${workflow.homePath}/send`}
-              className="mt-5 inline-block font-bold text-primary"
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={onCompose}
+              className="mt-5 font-bold text-primary hover:text-primary"
             >
               ارسال نامه جدید
-            </Link>
+            </Button>
           </div>
         ) : (
           <div className="space-y-4">
@@ -528,6 +544,6 @@ export default function LetterReportPage({ letterType }: { letterType: LetterTyp
           </div>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }

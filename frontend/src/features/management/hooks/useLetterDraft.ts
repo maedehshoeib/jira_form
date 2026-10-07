@@ -45,6 +45,14 @@ export function useLetterDraft({ letterType, applyDraft, onError }: UseLetterDra
   };
 
   const rawDraftId = searchParams.get("draft");
+
+  const replaceDraftParam = (value: string | null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) params.set("draft", value);
+    else params.delete("draft");
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname);
+  };
   useEffect(() => {
     const id = Number(rawDraftId);
     if (!rawDraftId || !Number.isInteger(id) || id <= 0 || id === draftIdRef.current) return;
@@ -91,9 +99,7 @@ export function useLetterDraft({ letterType, applyDraft, onError }: UseLetterDra
     try {
       const saved = await saveLetterDraft(withRemovals(form), draftId);
       loadInto(saved);
-      if (rawDraftId !== String(saved.id)) {
-        router.replace(`${pathname}?draft=${saved.id}`);
-      }
+      if (rawDraftId !== String(saved.id)) replaceDraftParam(String(saved.id));
       return true;
     } catch (err) {
       onError(apiDetail(err, "ذخیره پیش‌نویس انجام نشد."));
@@ -109,7 +115,7 @@ export function useLetterDraft({ letterType, applyDraft, onError }: UseLetterDra
     setStoredAttachments([]);
     setRemovedIndexes(new Set());
     setDraftSavedAt("");
-    if (rawDraftId) router.replace(pathname);
+    if (rawDraftId) replaceDraftParam(null);
   };
 
   const sendDraft = async (form: FormData) => {

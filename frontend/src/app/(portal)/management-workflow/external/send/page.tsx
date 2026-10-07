@@ -1,8 +1,11 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import ProtectedFeature from "@/app/_components/ProtectedFeature";
-import { SendLetterPage } from "@/features/management";
-
-export default function Page() {
-  return <ProtectedFeature><SendLetterPage letterType="external" /></ProtectedFeature>;
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ draft?: string }>;
+}) {
+  const { draft } = await searchParams;
+  const draftQuery = draft && /^\d+$/.test(draft) ? `&draft=${draft}` : "";
+  redirect(`/my-letters?compose=external${draftQuery}`);
 }

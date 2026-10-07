@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function Page() {
-  redirect("/management-workflow/external/report");
+  redirect("/my-letters?report=external");
 }

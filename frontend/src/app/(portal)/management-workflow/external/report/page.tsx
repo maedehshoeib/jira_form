@@ -1,8 +1,5 @@
-"use client";
-
-import ProtectedFeature from "@/app/_components/ProtectedFeature";
-import { LetterReportPage } from "@/features/management";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <ProtectedFeature><LetterReportPage letterType="external" /></ProtectedFeature>;
+  redirect("/my-letters?report=external");
 }

@@ -196,6 +196,26 @@ class LetterDraftsArchiveTests(unittest.TestCase):
         self.assertEqual([item["name"] for item in stored], ["a.txt"])
         self.assertTrue(Path(stored[0]["path"]).exists())
 
+    def test_sent_report_mine_filter_and_read_state(self):
+        letter = self._letter()
+        url = "/api/v1/management-letters/report?letter_type=external&mine=true"
+
+        report = self.client.get(url).json()
+        self.assertEqual(len(report), 1)
+        self.assertFalse(report[0]["recipients"][0]["is_read"])
+
+        self._actor = self.recipient
+        self.assertEqual(self.client.get(f"/api/v1/tasks/{letter.id}").status_code, 200)
+        self._actor = self.author
+        report = self.client.get(url).json()
+        self.assertTrue(report[0]["recipients"][0]["is_read"])
+
+        self._actor = self._user("boss", "مدیر", is_admin=True)
+        self.db.commit()
+        all_rows = "/api/v1/management-letters/report?letter_type=external"
+        self.assertEqual(len(self.client.get(all_rows).json()), 1)
+        self.assertEqual(self.client.get(url).json(), [])
+
     def test_failed_send_keeps_draft(self):
         created = self.client.post(
             "/api/v1/management-letters/drafts",

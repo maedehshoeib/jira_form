@@ -144,8 +144,23 @@ their owner (other users get 404):
 Draft endpoints accept the same multipart fields as `POST /management-letters`
 plus `remove_attachments` (JSON list of stored attachment indexes to drop).
 Saving a draft does not enforce required fields; sending does. If sending fails,
-the draft is kept. The send form opens a draft via
-`/management-workflow/{internal|external}/send?draft={id}`.
+the draft is kept.
+
+### Letters workspace
+
+Everything about letters lives on `/my-letters`; the home page no longer shows
+letter cards. Users with send access see «نامه جدید» and «گزارش ارسالی» per
+letter type. The compose form opens at `/my-letters?compose={internal|external}`
+(drafts add `&draft={id}`) and the sent report at
+`/my-letters?report={internal|external}`. The old `/management-workflow/...`
+URLs redirect to these, keeping any `draft` parameter.
+
+The sidebar has a «دریافتی» group (inbox folders, drafts, archive) and an
+«ارسالی» group built from `GET /management-letters/report?letter_type=&mine=true`.
+`mine=true` limits the report to the caller's own letters even for admins, and
+each recipient row carries `is_read`. Sent sub-folders are computed client-side:
+not read by every recipient, awaiting action, past `due_date` while still
+pending, completed by all direct recipients, and «جهت اطلاع».
 
 The home page also shows a small welcome bot that greets the signed-in user by
 display name. When `birth_date` matches today (Tehran calendar day, same rule as

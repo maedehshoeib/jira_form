@@ -41,7 +41,7 @@ export type LetterDraftSendResult = {
 const UPLOAD_TIMEOUT_MS = 120000;
 
 export function letterDraftEditHref(draft: Pick<LetterDraftSummary, "id" | "letter_type">) {
-  return `/management-workflow/${draft.letter_type}/send?draft=${draft.id}`;
+  return `/my-letters?compose=${draft.letter_type}&draft=${draft.id}`;
 }
 
 export async function listLetterDrafts() {

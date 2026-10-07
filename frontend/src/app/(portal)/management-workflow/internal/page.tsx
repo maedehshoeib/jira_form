@@ -1,8 +1,5 @@
-"use client";
-
-import ProtectedFeature from "@/app/_components/ProtectedFeature";
-import { ManagementWorkflowHome } from "@/features/management";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <ProtectedFeature><ManagementWorkflowHome letterType="internal" /></ProtectedFeature>;
+  redirect("/my-letters");
 }
