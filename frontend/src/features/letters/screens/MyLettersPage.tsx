@@ -791,7 +791,7 @@ export default function MyLettersPage() {
                               unread ? "font-extrabold text-foreground" : "font-semibold text-foreground",
                             )}
                           >
-                            {letter.submitted_by || "فرستنده نامشخص"}
+                            {letterTitle(letter)}
                           </span>
                           <span className="shrink-0 text-[10px] text-muted-foreground">
                             {formatPersianDateTime(letter.created_at)}
@@ -803,7 +803,7 @@ export default function MyLettersPage() {
                             unread ? "font-bold text-foreground" : "text-foreground/80",
                           )}
                         >
-                          {letterTitle(letter)}
+                          از: {letter.submitted_by || "فرستنده نامشخص"}
                         </p>
                         <div className="flex flex-wrap gap-1">
                           {unread && (
