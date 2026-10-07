@@ -16,13 +16,12 @@ class CalendarService(BaseService):
         self.repo = CalendarRepository(db)
 
     def list_users(self, actor: User) -> list[User]:
-        if not actor.is_admin:
-            return [actor]
+        del actor
         return self.repo.list_assignable_users()
 
     def list_events(self, actor: User) -> list[CalendarEventResponse]:
-        owner_id = None if actor.is_admin else actor.id
-        rows = self.repo.list_events_with_users(owner_user_id=owner_id)
+        del actor
+        rows = self.repo.list_events_with_users()
         return [
             self._serialize(event, event_owner, event_creator)
             for event, event_owner, event_creator in rows
@@ -30,22 +29,27 @@ class CalendarService(BaseService):
 
     def create_event(
         self, actor: User, body: CalendarEventPayload
-    ) -> CalendarEventResponse:
-        target_id = body.user_id if actor.is_admin and body.user_id else actor.id
-        target = self.repo.get_active_user(target_id)
-        if not target or (actor.is_admin and target.is_admin and target.id != actor.id):
-            raise HTTPException(status_code=404, detail="Calendar user not found.")
-        event = CalendarEvent(
-            **body.model_dump(exclude={"user_id"}),
-            user_id=target.id,
-            created_by_id=actor.id,
-        )
-        self.repo.add_event(event)
+    ) -> list[CalendarEventResponse]:
+        targets = self._resolve_targets(actor, body)
+        event_fields = body.model_dump(exclude={"user_id", "user_ids"})
+        created: list[tuple[CalendarEvent, User]] = []
+        for target in targets:
+            event = CalendarEvent(
+                **event_fields,
+                user_id=target.id,
+                created_by_id=actor.id,
+            )
+            self.repo.add_event(event)
+            created.append((event, target))
         self.repo.flush()
-        self._notify_assignee(event, actor, target)
+        for event, target in created:
+            self._notify_assignee(event, actor, target)
         self.db.commit()
-        self.db.refresh(event)
-        return self._serialize(event, target, actor)
+        responses: list[CalendarEventResponse] = []
+        for event, target in created:
+            self.db.refresh(event)
+            responses.append(self._serialize(event, target, actor))
+        return responses
 
     def update_event(
         self, actor: User, event_id: int, body: CalendarEventPayload
@@ -54,15 +58,12 @@ class CalendarService(BaseService):
         if not row:
             raise HTTPException(status_code=404, detail="Calendar event not found.")
         event, _, _ = row
-        if not actor.is_admin and event.user_id != actor.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="Access denied."
-            )
-        target_id = body.user_id if actor.is_admin and body.user_id else event.user_id
+        self._ensure_can_mutate(actor, event)
+        target_id = body.user_id or event.user_id
         target = self.repo.get_active_user(target_id)
         if not target:
             raise HTTPException(status_code=404, detail="Calendar user not found.")
-        for key, value in body.model_dump(exclude={"user_id"}).items():
+        for key, value in body.model_dump(exclude={"user_id", "user_ids"}).items():
             setattr(event, key, value)
         event.user_id = target.id
         self._notify_assignee(event, actor, target)
@@ -75,10 +76,7 @@ class CalendarService(BaseService):
         event = self.repo.get_event(event_id)
         if not event:
             raise HTTPException(status_code=404, detail="Calendar event not found.")
-        if not actor.is_admin and event.user_id != actor.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="Access denied."
-            )
+        self._ensure_can_mutate(actor, event)
         self.repo.delete_notifications_for_event(event.id)
         self.repo.delete_event(event)
         self.db.commit()
@@ -104,10 +102,38 @@ class CalendarService(BaseService):
         self.repo.mark_notifications_read(actor.id, datetime.utcnow())
         self.db.commit()
 
+    def _resolve_targets(
+        self, actor: User, body: CalendarEventPayload
+    ) -> list[User]:
+        requested_ids = list(dict.fromkeys(body.user_ids or []))
+        if not requested_ids and body.user_id is not None:
+            requested_ids = [body.user_id]
+        if not requested_ids:
+            requested_ids = [actor.id]
+        targets: list[User] = []
+        for user_id in requested_ids:
+            target = self.repo.get_active_user(user_id)
+            if not target:
+                raise HTTPException(
+                    status_code=404, detail="Calendar user not found."
+                )
+            targets.append(target)
+        return targets
+
+    @staticmethod
+    def _ensure_can_mutate(actor: User, event: CalendarEvent) -> None:
+        if actor.is_admin:
+            return
+        if event.user_id == actor.id or event.created_by_id == actor.id:
+            return
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied."
+        )
+
     def _notify_assignee(
         self, event: CalendarEvent, actor: User, target: User
     ) -> None:
-        if actor.is_admin and target.id != actor.id and not target.is_admin:
+        if target.id != actor.id:
             self.repo.add_notification(
                 event_id=event.id,
                 user_id=target.id,

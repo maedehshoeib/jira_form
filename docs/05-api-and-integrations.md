@@ -12,6 +12,19 @@ for other `/api` paths.
 | Chat and WebSocket | `/api/v1/chat` |
 | Calendar | `/api/v1/calendar` |
 | Job descriptions (شرح وظایف) | `/api/v1/job-descriptions` |
+
+## Calendar
+
+Authenticated users share a team calendar under `/api/v1/calendar`:
+
+- `GET /users` — every active user (including administrators)
+- `GET /events` — all calendar events across users
+- `POST /events` — create one event per target user; body accepts `user_id`
+  and/or `user_ids` (any active user, including admins). Response is a list.
+- `PUT /events/{id}` / `DELETE /events/{id}` — allowed for the event owner,
+  the creator, or an administrator
+- `GET /notifications/unread` / `POST /notifications/read` — assignees are
+  notified when someone else schedules time for them
 | Portal forms and submissions | `/api/v1` |
 | Management letters | `/api/v1` |
 | Reports | `/api/v1/reports` |

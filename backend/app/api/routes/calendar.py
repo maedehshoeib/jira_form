@@ -34,7 +34,7 @@ def list_events(
     return service.list_events(current_user)
 
 
-@router.post("/events", response_model=CalendarEventResponse, status_code=201)
+@router.post("/events", response_model=list[CalendarEventResponse], status_code=201)
 def create_event(
     body: CalendarEventPayload,
     current_user: User = Depends(get_current_user),

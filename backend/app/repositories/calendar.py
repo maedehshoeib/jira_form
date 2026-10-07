@@ -11,7 +11,7 @@ class CalendarRepository(BaseRepository):
     def list_assignable_users(self) -> list[User]:
         return (
             self.db.query(User)
-            .filter(User.is_active.is_(True), User.is_admin.is_(False))
+            .filter(User.is_active.is_(True))
             .order_by(User.display_name, User.username)
             .all()
         )

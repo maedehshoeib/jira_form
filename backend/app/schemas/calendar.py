@@ -14,6 +14,7 @@ class CalendarEventPayload(BaseModel):
     end_time: str
     color: str = "#2563eb"
     user_id: int | None = None
+    user_ids: list[int] = Field(default_factory=list)
 
     @field_validator("title", "description", "location")
     @classmethod
