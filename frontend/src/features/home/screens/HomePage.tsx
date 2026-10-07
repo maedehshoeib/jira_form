@@ -60,7 +60,7 @@ const HOME_CARDS: HomeCard[] = [
   },
   {
     id: "guidelines",
-    title: "دستورالعمل",
+    title: "دستور العمل(ابلاغیه/برنامه)",
     description: "آیین‌نامه‌ها و دستورالعمل‌ها",
     href: "/guidelines",
     image: guidelinesIcon,
@@ -74,7 +74,7 @@ const HOME_CARDS: HomeCard[] = [
   },
   {
     id: "forms",
-    title: "فرم",
+    title: "فرم ها",
     description: "فرم‌های عمومی سازمان",
     href: "/pdf-forms",
     image: formsIcon,
@@ -152,10 +152,10 @@ const HOME_CARDS: HomeCard[] = [
 ];
 
 const HOME_CARD_ROWS = [
-  ["meeting-room", "timesheet"],
-  ["guidelines", "training", "forms", "job-descriptions"],
-  ["documents", "reports", "contracts"],
-  ["business", "it", "resource-development", "planning"],
+  ["timesheet", "job-descriptions"],
+  ["guidelines", "documents", "training", "forms"],
+  ["resource-development", "it", "business", "planning"],
+  ["contracts", "reports", "meeting-room"],
 ] as const;
 
 const formatNewsDate = (value: string) => formatPersianDateTime(value);

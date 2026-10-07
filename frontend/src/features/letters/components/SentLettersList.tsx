@@ -64,14 +64,14 @@ export function SentLettersList({ letters, loading, selectedId, onSelect }: Sent
             >
               <div className="flex items-start justify-between gap-2">
                 <span className="line-clamp-1 text-sm font-semibold text-foreground">
-                  به: {recipientNames(letter) || "—"}
+                  {letter.subject || "نامه"}
                 </span>
                 <span className="shrink-0 text-[10px] text-muted-foreground">
                   {formatPersianDateTime(letter.created_at)}
                 </span>
               </div>
               <p className="line-clamp-1 text-sm text-foreground/80">
-                {letter.subject || "نامه"}
+                به: {recipientNames(letter) || "—"}
               </p>
               <div className="flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
                 <Badge

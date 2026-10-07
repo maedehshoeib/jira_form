@@ -897,6 +897,7 @@ export default function MyRequestsPage() {
             return (
               <Button
                 variant="ghost"
+                size="free"
                 type="button"
                 key={request.id}
                 onClick={() => void openRequest(request)}
@@ -912,7 +913,7 @@ export default function MyRequestsPage() {
                     : "")
                 }
                 className={[
-                  "group relative h-auto min-h-[18rem] max-h-[28rem] w-full flex-col items-stretch justify-start overflow-hidden whitespace-normal rounded-xl border p-5 text-right shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60",
+                  "group relative min-h-[18rem] w-full min-w-0 flex-col items-stretch justify-start gap-0 overflow-hidden whitespace-normal rounded-xl border p-5 text-right text-base font-normal text-foreground shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60",
                   request.workflow_status === "unseen"
                     ? "border-amber-200 bg-amber-50/30 hover:border-amber-300"
                     : "border-border bg-card hover:border-primary/20",
@@ -920,7 +921,7 @@ export default function MyRequestsPage() {
                 disabled={detailLoading}
               >
                 <div className={"absolute inset-x-0 top-0 h-1 " + statusMeta.barClass} />
-                <div className="mb-4 flex w-full items-start justify-between gap-3">
+                <div className="mb-4 flex w-full shrink-0 items-start justify-between gap-3">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                     <FileText size={21} />
                   </div>
@@ -932,20 +933,23 @@ export default function MyRequestsPage() {
                     {statusMeta.label}
                   </Badge>
                 </div>
-                <h3 className="w-full line-clamp-2 text-base font-bold leading-7 text-foreground">
+                <h3
+                  className="w-full shrink-0 text-base font-bold leading-7 text-foreground [overflow-wrap:anywhere] line-clamp-3"
+                  title={requestTitle}
+                >
                   {requestTitle}
                 </h3>
                 {showSectionLine && (
-                  <p className="mt-2 w-full text-sm leading-6 text-muted-foreground">
+                  <p className="mt-2 w-full shrink-0 text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere] line-clamp-2">
                     {sectionLine}
                   </p>
                 )}
                 {departmentLine && departmentLine !== requestTitle && departmentLine !== sectionLine && (
-                  <p className="mt-1 w-full text-xs leading-5 text-muted-foreground">
+                  <p className="mt-1 w-full shrink-0 truncate text-xs leading-5 text-muted-foreground" title={departmentLine}>
                     {departmentLine}
                   </p>
                 )}
-                <div className="mt-3 w-full space-y-1.5 rounded-lg border border-border/60 bg-muted/40 px-3 py-2.5 text-xs">
+                <div className="mt-3 w-full shrink-0 space-y-1.5 rounded-lg border border-border/60 bg-muted/40 px-3 py-2.5 text-xs">
                   <p className="flex min-w-0 items-center gap-1.5">
                     <UserRound
                       size={13}
@@ -1002,15 +1006,15 @@ export default function MyRequestsPage() {
                 )}
 
                 {progressItems.length > 0 && (
-                  <div className="mt-5 w-full rounded-lg bg-muted/40 p-3">
+                  <div className="mt-5 w-full min-h-0 shrink rounded-lg bg-muted/40 p-3">
                     <p className="mb-2 text-xs font-bold text-muted-foreground">
                       پیشرفت هر مسئول
                     </p>
-                    <AssigneeProgressList items={progressItems} compact />
+                    <AssigneeProgressList items={progressItems} compact maxVisible={2} />
                   </div>
                 )}
 
-                <div className="mt-auto flex w-full flex-wrap items-center justify-between gap-2 border-t border-border pt-4 text-xs text-muted-foreground">
+                <div className="mt-auto flex w-full shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border pt-4 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1.5">
                     <CalendarDays size={14} />
                     {formatPersianDateTime(request.created_at)}
@@ -1089,11 +1093,11 @@ export default function MyRequestsPage() {
                           disabled={detailLoading}
                           className="h-auto w-full min-w-0 flex-col items-start gap-0.5 rounded-xl px-3 py-2 text-right font-bold text-foreground hover:bg-muted hover:text-primary"
                         >
-                          <span className="block truncate" title={requestTitle}>
+                          <span className="block min-w-0 max-w-full truncate" title={requestTitle}>
                             {requestTitle}
                           </span>
                           {sectionLine && sectionLine !== requestTitle && (
-                            <span className="mt-1 block truncate text-xs font-normal text-muted-foreground">
+                            <span className="mt-1 block min-w-0 max-w-full truncate text-xs font-normal text-muted-foreground">
                               {sectionLine}
                             </span>
                           )}
@@ -1189,7 +1193,7 @@ export default function MyRequestsPage() {
                   </Badge>
                   <span className="text-xs text-muted-foreground">شناسه درخواست: {selected.id}</span>
                 </div>
-                <h3 className="text-2xl font-bold text-foreground">
+                <h3 className="break-words text-2xl font-bold text-foreground [overflow-wrap:anywhere]">
                   {requestDisplayTitle(selected)}
                 </h3>
                 <p className="mt-1 text-sm text-muted-foreground">{selected.department_title} / {selected.section_title || selected.form_title}</p>

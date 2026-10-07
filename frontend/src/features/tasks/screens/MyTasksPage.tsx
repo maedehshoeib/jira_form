@@ -57,6 +57,7 @@ import type {
 import {
   apiErrorDetail,
   ccRecipientNames,
+  cleanDisplayText,
   compactNames,
   displayStatus,
   initialAssigneeNames,
@@ -70,6 +71,7 @@ import {
   referralTargetNames,
   statusActionLabel,
   statusBadgeClass,
+  taskDisplayTitle,
 } from "../utils";
 
 export default function MyTasksPage() {
@@ -954,25 +956,33 @@ export default function MyTasksPage() {
         </div>
       ) : viewMode === "cards" ? (
         <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-          {filteredTasks.map((task) => (
+          {filteredTasks.map((task) => {
+            const taskTitle = taskDisplayTitle(task);
+            const sectionLine = cleanDisplayText(
+              task.section_title || task.form_title,
+            );
+            const showSectionLine = Boolean(sectionLine) && sectionLine !== taskTitle;
+            const departmentLine = cleanDisplayText(task.department_title);
+            return (
             <Button
               variant="ghost"
+              size="free"
               type="button"
               key={task.id}
               onClick={() => void openTask(task)}
-              aria-label={`${task.subject || task.section_title || task.form_title}${
+              aria-label={`${taskTitle}${
                 task.is_read === false
                   ? "\u060c \u062c\u062f\u06cc\u062f \u0648 \u062f\u06cc\u062f\u0647\u200c\u0646\u0634\u062f\u0647"
                   : ""
               }`}
-              className={`group relative h-auto min-h-[18rem] max-h-[28rem] w-full flex-col items-stretch justify-start overflow-hidden whitespace-normal rounded-xl border p-5 text-right shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-ring disabled:opacity-60 ${
+              className={`group relative min-h-[18rem] w-full min-w-0 flex-col items-stretch justify-start gap-0 overflow-hidden whitespace-normal rounded-xl border p-5 text-right text-base font-normal text-foreground shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:text-foreground focus-visible:ring-ring disabled:opacity-60 ${
                 task.is_read === false
                   ? "border-amber-300 bg-amber-50 ring-2 ring-amber-200/80 shadow-amber-100"
                   : "border-border bg-card hover:border-primary/20"
               }`}
               disabled={detailLoading}
             >
-              <div className="mb-4 flex w-full items-start justify-between gap-3">
+              <div className="mb-4 flex w-full shrink-0 items-start justify-between gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <FileText size={21} />
                 </div>
@@ -1002,14 +1012,23 @@ export default function MyTasksPage() {
                   </Badge>
                 </div>
               </div>
-              <h3 className="w-full line-clamp-2 text-base font-bold leading-7 text-foreground">
-                {task.subject || task.section_title || task.form_title}
+              <h3
+                className="w-full shrink-0 text-base font-bold leading-7 text-foreground [overflow-wrap:anywhere] line-clamp-3"
+                title={taskTitle}
+              >
+                {taskTitle}
               </h3>
-              <p className="mt-2 w-full truncate text-sm leading-6 text-muted-foreground">
-                {task.section_title || task.form_title}
-              </p>
-              {task.department_title && (
-                <p className="mt-1 w-full truncate text-xs leading-5 text-muted-foreground">{task.department_title}</p>
+              {showSectionLine && (
+                <p className="mt-2 w-full shrink-0 text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere] line-clamp-2">
+                  {sectionLine}
+                </p>
+              )}
+              {departmentLine &&
+                departmentLine !== taskTitle &&
+                departmentLine !== sectionLine && (
+                <p className="mt-1 w-full shrink-0 truncate text-xs leading-5 text-muted-foreground" title={departmentLine}>
+                  {departmentLine}
+                </p>
               )}
               {task.submitted_by && (
                 <p className="mt-2 flex w-full items-center gap-1.5 text-xs font-medium text-muted-foreground">
@@ -1019,7 +1038,7 @@ export default function MyTasksPage() {
               )}
               {(initialAssigneeNames(task).length > 0 ||
                 referralTargetNames(task).length > 0) && (
-                <div className="mt-3 w-full space-y-1.5 rounded-lg border border-border/60 bg-muted/40 px-3 py-2.5 text-xs">
+                <div className="mt-3 w-full shrink-0 space-y-1.5 rounded-lg border border-border/60 bg-muted/40 px-3 py-2.5 text-xs">
                   {initialAssigneeNames(task).length > 0 && (
                     <p className="flex min-w-0 items-center gap-1.5">
                       <UserRound
@@ -1083,7 +1102,7 @@ export default function MyTasksPage() {
                   status={task.status}
                 />
               )}
-              <div className="mt-auto flex w-full flex-wrap items-center justify-between gap-2 border-t border-border pt-4 text-xs text-muted-foreground">
+              <div className="mt-auto flex w-full shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border pt-4 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <CalendarDays size={14} />
                   {formatPersianDateTime(task.created_at)}
@@ -1093,7 +1112,8 @@ export default function MyTasksPage() {
                 </span>
               </div>
             </Button>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-md">
@@ -1113,7 +1133,10 @@ export default function MyTasksPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {filteredTasks.map((task) => {
-                  const title = task.subject || task.section_title || task.form_title;
+                  const title = taskDisplayTitle(task);
+                  const sectionLine = cleanDisplayText(
+                    task.section_title || task.form_title,
+                  );
                   const assignees = referralTargetNames(task).length > 0
                     ? referralTargetNames(task)
                     : initialAssigneeNames(task);
@@ -1141,10 +1164,12 @@ export default function MyTasksPage() {
                           disabled={detailLoading}
                           className="h-auto w-full min-w-0 flex-col items-start gap-0.5 rounded-xl px-3 py-2 text-right font-bold text-foreground hover:bg-muted hover:text-primary"
                         >
-                          <span className="block truncate" title={title}>{title}</span>
-                          <span className="mt-1 block truncate text-xs font-normal text-muted-foreground">
-                            {task.section_title || task.form_title}
-                          </span>
+                          <span className="block min-w-0 max-w-full truncate" title={title}>{title}</span>
+                          {sectionLine && sectionLine !== title && (
+                            <span className="mt-1 block min-w-0 max-w-full truncate text-xs font-normal text-muted-foreground">
+                              {sectionLine}
+                            </span>
+                          )}
                         </Button>
                       </td>
                       <td className="min-w-48 max-w-56 px-5 py-3.5 align-middle text-foreground/70">
@@ -1254,12 +1279,12 @@ export default function MyTasksPage() {
                     شناسه درخواست: {selected.id}
                   </span>
                 </div>
-                <h3 className="text-2xl font-bold text-foreground">
-                  {selected.subject || selected.section_title || selected.form_title}
+                <h3 className="break-words text-2xl font-bold text-foreground [overflow-wrap:anywhere]">
+                  {taskDisplayTitle(selected)}
                 </h3>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {selected.department_title} /{" "}
-                  {selected.section_title || selected.form_title}
+                  {cleanDisplayText(selected.section_title || selected.form_title)}
                 </p>
               </div>
               <Button

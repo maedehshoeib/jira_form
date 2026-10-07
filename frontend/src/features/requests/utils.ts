@@ -1,7 +1,14 @@
+import {
+  cleanDisplayText,
+  hasVisibleText,
+  submissionDisplayTitle,
+} from "@/lib/displayText";
 import { parseTehranDateTime } from "@/lib/persianDate";
 
 import { INTERNAL_LETTERS_TITLE, WORKFLOW_STATUS_META } from "./constants";
 import type { SubmissionListItem, TimelineItem, WorkflowStatus } from "./types";
+
+export { cleanDisplayText, hasVisibleText };
 
 const LETTER_DEPARTMENT_IDS = new Set(["management-workflow", "internal-letters"]);
 const LETTER_DEPARTMENT_TITLES = new Set([
@@ -16,27 +23,10 @@ export function parseSubmittedAt(value: string) {
   return parseTehranDateTime(value);
 }
 
-/** Strip zero-width / bidi marks that can make a "title" look blank. */
-export function cleanDisplayText(value: string | null | undefined) {
-  return (value ?? "")
-    .replace(/[\u200b-\u200f\u202a-\u202e\ufeff]/g, "")
-    .trim();
-}
-
 export function requestDisplayTitle(
   request: SubmissionListItem & { data?: Record<string, unknown> },
 ) {
-  const subject = cleanDisplayText(request.subject);
-  if (subject) return subject;
-  const dataSubject = cleanDisplayText(
-    typeof request.data?.subject === "string" ? request.data.subject : "",
-  );
-  if (dataSubject) return dataSubject;
-  const section = cleanDisplayText(request.section_title);
-  if (section) return section;
-  const formTitle = cleanDisplayText(request.form_title);
-  if (formTitle) return formTitle;
-  return "بدون عنوان";
+  return submissionDisplayTitle(request);
 }
 
 export function isInternalLetterRequest(request: SubmissionListItem) {

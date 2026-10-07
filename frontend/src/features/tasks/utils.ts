@@ -1,7 +1,19 @@
+import {
+  cleanDisplayText,
+  submissionDisplayTitle,
+} from "@/lib/displayText";
 import { parseTehranDateTime } from "@/lib/persianDate";
 
 import { INTERNAL_LETTERS_TITLE } from "./constants";
 import type { StatusTab, SubmissionListItem } from "./types";
+
+export { cleanDisplayText };
+
+export function taskDisplayTitle(
+  task: SubmissionListItem & { data?: Record<string, unknown> },
+) {
+  return submissionDisplayTitle(task);
+}
 
 export function uniqueNames(names: Array<string | null | undefined>) {
   return Array.from(
