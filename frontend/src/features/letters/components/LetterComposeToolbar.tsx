@@ -77,7 +77,7 @@ export function LetterComposeToolbar({
           title={LETTER_WORKFLOWS[letterType].reportTitle}
         >
           <BarChart3 size={14} />
-          گزارش ارسالی {SHORT_LABELS[letterType]}
+          گزارش {SHORT_LABELS[letterType]}
         </Button>
       ))}
     </div>

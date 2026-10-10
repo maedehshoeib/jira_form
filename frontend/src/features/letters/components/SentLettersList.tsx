@@ -71,6 +71,9 @@ export function SentLettersList({ letters, loading, selectedId, onSelect }: Sent
                 </span>
               </div>
               <p className="line-clamp-1 text-sm text-foreground/80">
+                از: {letter.sent_by || "فرستنده نامشخص"}
+              </p>
+              <p className="line-clamp-1 text-xs text-muted-foreground">
                 به: {recipientNames(letter) || "—"}
               </p>
               <div className="flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">

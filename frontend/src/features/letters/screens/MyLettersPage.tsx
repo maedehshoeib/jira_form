@@ -32,6 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { API_BASE, FormTemplate } from "@/config/portal";
+import { useAuth } from "@/context/AuthContext";
 import { formatPersianDate, formatPersianDateTime } from "@/lib/persianDate";
 import { cn } from "@/lib/utils";
 import {
@@ -57,6 +58,11 @@ import { setLetterArchived } from "../api";
 import { LetterActionsPanel } from "../components/LetterActionsPanel";
 import { LetterComposeToolbar, useLetterSendAccess } from "../components/LetterComposeToolbar";
 import { LetterDraftsList } from "../components/LetterDraftsList";
+import {
+  LetterListPagination,
+  LETTER_LIST_PAGE_SIZE,
+  paginateItems,
+} from "../components/LetterListPagination";
 import { SentLetterDetail } from "../components/SentLetterDetail";
 import { SentLettersList } from "../components/SentLettersList";
 import { downloadAuthFile } from "../download";
@@ -80,6 +86,8 @@ type InboxFolder =
   | "archive";
 type LetterFolder = InboxFolder | SentFolder;
 type DetailTab = "body" | "attachments" | "workflow" | "notes";
+
+const ADMIN_MONITOR_LETTER_TYPES: LetterType[] = ["internal", "external"];
 
 const FOLDERS: { id: InboxFolder; label: string; icon: typeof Inbox }[] = [
   { id: "inbox", label: "صندوق ورودی", icon: Inbox },
@@ -267,6 +275,8 @@ function FolderNavButton({
 export default function MyLettersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
+  const isAdmin = Boolean(user?.is_admin);
   const composeType = asLetterType(searchParams.get("compose"));
   const reportType = composeType ? null : asLetterType(searchParams.get("report"));
   const workspaceOpen = Boolean(composeType || reportType);
@@ -280,6 +290,7 @@ export default function MyLettersPage() {
   const [error, setError] = useState("");
   const [folder, setFolder] = useState<LetterFolder>("inbox");
   const [searchQuery, setSearchQuery] = useState("");
+  const [listPage, setListPage] = useState(1);
   const [detailTab, setDetailTab] = useState<DetailTab>("body");
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState("");
@@ -291,13 +302,23 @@ export default function MyLettersPage() {
   const [sentLoading, setSentLoading] = useState(false);
   const [selectedSent, setSelectedSent] = useState<SentLetter | null>(null);
   const sentFolderActive = isSentFolder(folder);
-  const showSentFolders = sendableTypes.length > 0 || sentLetters.length > 0;
+  const showSentFolders = isAdmin || sendableTypes.length > 0 || sentLetters.length > 0;
+  const sentSectionLabel = isAdmin ? "نظارت" : "ارسالی";
+  const sentFolderItems = useMemo(
+    () =>
+      SENT_FOLDERS.map((item) =>
+        item.id === "sent" && isAdmin ? { ...item, label: "همه نامه‌ها" } : item,
+      ),
+    [isAdmin],
+  );
+  const monitorLetterTypes = isAdmin ? ADMIN_MONITOR_LETTER_TYPES : sendableTypes;
 
   const loadSent = async () => {
-    if (sendableTypes.length === 0) return;
+    if (monitorLetterTypes.length === 0) return;
     setSentLoading(true);
     try {
-      const next = await listSentLetters(sendableTypes);
+      // Admins monitor every organizational letter; others only see their own sent mail.
+      const next = await listSentLetters(monitorLetterTypes, { mine: !isAdmin });
       setSentLetters(next);
       setSelectedSent((prev) =>
         prev ? next.find((item) => item.batch_id === prev.batch_id) ?? null : null,
@@ -309,7 +330,7 @@ export default function MyLettersPage() {
 
   useEffect(() => {
     void loadSent();
-  }, [sendableTypes]);
+  }, [monitorLetterTypes, isAdmin]);
 
   const loadDrafts = async () => {
     setDraftsLoading(true);
@@ -353,6 +374,7 @@ export default function MyLettersPage() {
 
   const selectFolder = (next: LetterFolder) => {
     setFolder(next);
+    setListPage(1);
     if (isSentFolder(next)) setSelected(null);
     else setSelectedSent(null);
     if (workspaceOpen) backToMailbox();
@@ -457,6 +479,7 @@ export default function MyLettersPage() {
         letter.description,
         letter.system_letter_number,
         letter.letter_number,
+        letter.sent_by,
         ...letter.recipients.map((row) => row.display_name),
       ]
         .join(" ")
@@ -490,6 +513,35 @@ export default function MyLettersPage() {
         return bTime - aTime;
       });
   }, [letters, folder, searchQuery]);
+
+  useEffect(() => {
+    setListPage(1);
+  }, [folder, searchQuery]);
+
+  const sentPagination = useMemo(
+    () => paginateItems(filteredSent, listPage, LETTER_LIST_PAGE_SIZE),
+    [filteredSent, listPage],
+  );
+  const draftPagination = useMemo(
+    () => paginateItems(drafts, listPage, LETTER_LIST_PAGE_SIZE),
+    [drafts, listPage],
+  );
+  const inboxPagination = useMemo(
+    () => paginateItems(filteredLetters, listPage, LETTER_LIST_PAGE_SIZE),
+    [filteredLetters, listPage],
+  );
+  const activePagination = sentFolderActive
+    ? sentPagination
+    : folder === "drafts"
+      ? draftPagination
+      : inboxPagination;
+  const {
+    pageCount: listPageCount,
+    safePage: safeListPage,
+    total: listTotal,
+    rangeStart: listRangeStart,
+    rangeEnd: listRangeEnd,
+  } = activePagination;
 
   const openLetter = async (letter: SubmissionListItem) => {
     setDetailLoading(true);
@@ -611,7 +663,7 @@ export default function MyLettersPage() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {sendableTypes.map((letterType) => (
+          {(isAdmin ? ADMIN_MONITOR_LETTER_TYPES : sendableTypes).map((letterType) => (
             <Button
               key={letterType}
               type="button"
@@ -647,7 +699,7 @@ export default function MyLettersPage() {
         {/* Folders (RTL start = right) */}
         <aside className="hidden w-56 shrink-0 border-l border-border bg-muted/30 p-3 md:block">
           <LetterComposeToolbar
-            allowedTypes={sendableTypes}
+            allowedTypes={isAdmin ? ADMIN_MONITOR_LETTER_TYPES : sendableTypes}
             onCompose={openCompose}
             onReport={openReport}
           />
@@ -666,9 +718,14 @@ export default function MyLettersPage() {
           </nav>
           {showSentFolders && (
             <>
-              <p className="mb-2 mt-4 px-2 text-[11px] font-bold text-muted-foreground">ارسالی</p>
-              <nav className="space-y-1" aria-label="پوشه‌های نامه‌های ارسالی">
-                {SENT_FOLDERS.map((item) => (
+              <p className="mb-2 mt-4 px-2 text-[11px] font-bold text-muted-foreground">
+                {sentSectionLabel}
+              </p>
+              <nav
+                className="space-y-1"
+                aria-label={isAdmin ? "پوشه‌های نظارت بر نامه‌ها" : "پوشه‌های نامه‌های ارسالی"}
+              >
+                {sentFolderItems.map((item) => (
                   <FolderNavButton
                     key={item.id}
                     label={item.label}
@@ -722,9 +779,12 @@ export default function MyLettersPage() {
               {[
                 ...FOLDERS,
                 ...(showSentFolders
-                  ? SENT_FOLDERS.map((item) => ({
+                  ? sentFolderItems.map((item) => ({
                       ...item,
-                      label: item.id === "sent" ? "ارسالی" : `ارسالی: ${item.label}`,
+                      label:
+                        item.id === "sent"
+                          ? sentSectionLabel
+                          : `${sentSectionLabel}: ${item.label}`,
                     }))
                   : []),
               ].map((item) => (
@@ -742,91 +802,103 @@ export default function MyLettersPage() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
-            {sentFolderActive ? (
-              <SentLettersList
-                letters={filteredSent}
-                loading={sentLoading && sentLetters.length === 0}
-                selectedId={selectedSent?.batch_id ?? null}
-                onSelect={setSelectedSent}
-              />
-            ) : folder === "drafts" ? (
-              <LetterDraftsList
-                drafts={drafts}
-                loading={draftsLoading}
-                deletingId={deletingDraftId}
-                onDelete={(draft) => void removeDraft(draft)}
-              />
-            ) : loading ? (
-              <div className="flex h-40 items-center justify-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="animate-spin" size={18} />
-                در حال دریافت...
-              </div>
-            ) : filteredLetters.length === 0 ? (
-              <div className="p-8 text-center text-sm text-muted-foreground">
-                نامه‌ای در این پوشه نیست.
-              </div>
-            ) : (
-              <ul className="divide-y divide-border">
-                {filteredLetters.map((letter) => {
-                  const active = selected?.id === letter.id;
-                  const unread = letter.is_read === false;
-                  return (
-                    <li key={letter.id}>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        disabled={detailLoading}
-                        onClick={() => void openLetter(letter)}
-                        className={cn(
-                          "h-auto w-full flex-col items-stretch gap-1 rounded-none px-4 py-3 text-right whitespace-normal",
-                          active && "bg-primary/10",
-                          unread && !active && "bg-amber-50/60",
-                        )}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <span
-                            className={cn(
-                              "line-clamp-1 text-sm",
-                              unread ? "font-extrabold text-foreground" : "font-semibold text-foreground",
-                            )}
-                          >
-                            {letterTitle(letter)}
-                          </span>
-                          <span className="shrink-0 text-[10px] text-muted-foreground">
-                            {formatPersianDateTime(letter.created_at)}
-                          </span>
-                        </div>
-                        <p
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {sentFolderActive ? (
+                <SentLettersList
+                  letters={sentPagination.pageItems}
+                  loading={sentLoading && sentLetters.length === 0}
+                  selectedId={selectedSent?.batch_id ?? null}
+                  onSelect={setSelectedSent}
+                />
+              ) : folder === "drafts" ? (
+                <LetterDraftsList
+                  drafts={draftPagination.pageItems}
+                  loading={draftsLoading}
+                  deletingId={deletingDraftId}
+                  onDelete={(draft) => void removeDraft(draft)}
+                />
+              ) : loading ? (
+                <div className="flex h-40 items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="animate-spin" size={18} />
+                  در حال دریافت...
+                </div>
+              ) : filteredLetters.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  نامه‌ای در این پوشه نیست.
+                </div>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {inboxPagination.pageItems.map((letter) => {
+                    const active = selected?.id === letter.id;
+                    const unread = letter.is_read === false;
+                    return (
+                      <li key={letter.id}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          disabled={detailLoading}
+                          onClick={() => void openLetter(letter)}
                           className={cn(
-                            "line-clamp-1 text-sm",
-                            unread ? "font-bold text-foreground" : "text-foreground/80",
+                            "h-auto w-full flex-col items-stretch gap-1 rounded-none px-4 py-3 text-right whitespace-normal",
+                            active && "bg-primary/10",
+                            unread && !active && "bg-amber-50/60",
                           )}
                         >
-                          از: {letter.submitted_by || "فرستنده نامشخص"}
-                        </p>
-                        <div className="flex flex-wrap gap-1">
-                          {unread && (
+                          <div className="flex items-start justify-between gap-2">
+                            <span
+                              className={cn(
+                                "line-clamp-1 text-sm",
+                                unread
+                                  ? "font-extrabold text-foreground"
+                                  : "font-semibold text-foreground",
+                              )}
+                            >
+                              {letterTitle(letter)}
+                            </span>
+                            <span className="shrink-0 text-[10px] text-muted-foreground">
+                              {formatPersianDateTime(letter.created_at)}
+                            </span>
+                          </div>
+                          <p
+                            className={cn(
+                              "line-clamp-1 text-sm",
+                              unread ? "font-bold text-foreground" : "text-foreground/80",
+                            )}
+                          >
+                            از: {letter.submitted_by || "فرستنده نامشخص"}
+                          </p>
+                          <div className="flex flex-wrap gap-1">
+                            {unread && (
+                              <Badge
+                                variant="outline"
+                                className="border-amber-300 bg-amber-100 text-[10px] text-amber-900"
+                              >
+                                خوانده‌نشده
+                              </Badge>
+                            )}
                             <Badge
                               variant="outline"
-                              className="border-amber-300 bg-amber-100 text-[10px] text-amber-900"
+                              className="border-slate-200 bg-slate-50 text-[10px] text-slate-700"
                             >
-                              خوانده‌نشده
+                              {statusBadgeForList(letter)}
                             </Badge>
-                          )}
-                          <Badge
-                            variant="outline"
-                            className="border-slate-200 bg-slate-50 text-[10px] text-slate-700"
-                          >
-                            {statusBadgeForList(letter)}
-                          </Badge>
-                        </div>
-                      </Button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+                          </div>
+                        </Button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+            <LetterListPagination
+              page={safeListPage}
+              pageCount={listPageCount}
+              total={listTotal}
+              rangeStart={listRangeStart}
+              rangeEnd={listRangeEnd}
+              onPageChange={setListPage}
+            />
           </div>
         </section>
 

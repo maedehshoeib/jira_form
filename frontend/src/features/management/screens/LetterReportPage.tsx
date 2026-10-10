@@ -131,6 +131,7 @@ export default function LetterReportPage({
       );
       setAllowed(access.data.allowed);
       if (!access.data.allowed) return;
+      // Omit mine so admins receive every letter of this type for monitoring.
       const { data } = await client.get<LetterReportItem[]>(
         endpoints.managementLetterReport,
         { params: { letter_type: letterType } },

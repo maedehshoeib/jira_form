@@ -134,12 +134,16 @@ export function sentAttachmentNames(letter: SentLetter) {
   return letter.attachment_name ? [letter.attachment_name] : [];
 }
 
-export async function listSentLetters(letterTypes: LetterType[]) {
+export async function listSentLetters(
+  letterTypes: LetterType[],
+  options: { mine?: boolean } = {},
+) {
+  const mine = options.mine ?? true;
   const batches = await Promise.all(
     letterTypes.map((letterType) =>
       client
         .get<SentLetter[]>(endpoints.managementLetterReport, {
-          params: { letter_type: letterType, mine: true },
+          params: { letter_type: letterType, ...(mine ? { mine: true } : {}) },
         })
         .then(({ data }) => data.map((item) => ({ ...item, letter_type: letterType })))
         .catch(() => [] as SentLetter[]),

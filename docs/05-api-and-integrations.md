@@ -169,11 +169,14 @@ letter type. The compose form opens at `/my-letters?compose={internal|external}`
 URLs redirect to these, keeping any `draft` parameter.
 
 The sidebar has a «دریافتی» group (inbox folders, drafts, archive) and an
-«ارسالی» group built from `GET /management-letters/report?letter_type=&mine=true`.
-`mine=true` limits the report to the caller's own letters even for admins, and
-each recipient row carries `is_read`. Sent sub-folders are computed client-side:
+«ارسالی» / «نظارت» group built from
+`GET /management-letters/report?letter_type=`. Non-admins call it with
+`mine=true` (own sent letters only). Admins omit `mine` so they can monitor
+every organizational letter after letters moved out of «درخواست‌های من». Each
+recipient row carries `is_read`. Sent sub-folders are computed client-side:
 not read by every recipient, awaiting action, past `due_date` while still
-pending, completed by all direct recipients, and «جهت اطلاع».
+pending, completed by all direct recipients, and «جهت اطلاع». The mailbox
+list is paginated client-side (20 items per page).
 
 The home page also shows a small welcome bot that greets the signed-in user by
 display name. When `birth_date` matches today (Tehran calendar day, same rule as
