@@ -372,7 +372,9 @@ def _task_response(
     *,
     can_act: bool,
 ) -> SubmissionResponse:
-    workflow_context = build_submission_workflow_context(
+    # Letter batches keep one inbox card per recipient copy; merge sibling
+    # status/referral/attachment history so the timeline stays complete.
+    workflow_context = build_letter_aware_workflow_context(
         db,
         [submission],
         viewer_user_id=current_user.id,
@@ -1156,7 +1158,7 @@ def get_task(
         raise HTTPException(status_code=404, detail="درخواست یافت نشد")
 
     mark_task_viewed(db, current_user, submission)
-    workflow_context = build_submission_workflow_context(
+    workflow_context = build_letter_aware_workflow_context(
         db,
         [submission],
         viewer_user_id=current_user.id,
@@ -1366,7 +1368,9 @@ def download_task_status_attachment(
     current_user: User = Depends(get_current_user),
 ):
     submission = _get_viewable_submission(db, current_user, submission_id)
-    history = _latest_status_attachment(db, submission)
+    history = _latest_status_attachment(
+        db, submission, include_letter_batch=True
+    )
     return _serve_task_action_file(history.attachment_path, history.attachment_name)
 
 
@@ -1391,7 +1395,9 @@ def download_task_status_history_attachment(
     current_user: User = Depends(get_current_user),
 ):
     submission = _get_viewable_submission(db, current_user, submission_id)
-    history = _status_history_attachment(db, submission, history_id)
+    history = _status_history_attachment(
+        db, submission, history_id, include_letter_batch=True
+    )
     return _serve_task_action_file(history.attachment_path, history.attachment_name)
 
 
@@ -1462,7 +1468,13 @@ def download_task_referral_attachment(
     current_user: User = Depends(get_current_user),
 ):
     submission = _get_viewable_submission(db, current_user, submission_id)
-    return _download_referral_attachment(db, submission, referral_id, index)
+    return _download_referral_attachment(
+        db,
+        submission,
+        referral_id,
+        index,
+        include_letter_batch=True,
+    )
 
 
 @router.get("/submissions/{submission_id}/referrals/{referral_id}/attachment")

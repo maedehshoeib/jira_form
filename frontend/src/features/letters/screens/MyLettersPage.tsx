@@ -41,7 +41,6 @@ import {
   isManagementLetterTask,
   LETTER_NO_ACTION_VALUE,
   parseSubmittedAt,
-  timelineEventLabel,
   type SubmissionDetail,
   type SubmissionListItem,
 } from "@/features/tasks";
@@ -58,6 +57,7 @@ import { setLetterArchived } from "../api";
 import { LetterActionsPanel } from "../components/LetterActionsPanel";
 import { LetterComposeToolbar, useLetterSendAccess } from "../components/LetterComposeToolbar";
 import { LetterDraftsList } from "../components/LetterDraftsList";
+import { LetterWorkflowHistory } from "../components/LetterWorkflowHistory";
 import {
   LetterListPagination,
   LETTER_LIST_PAGE_SIZE,
@@ -1090,60 +1090,17 @@ export default function MyLettersPage() {
                   </ul>
                 )
                 ) : detailTab === "workflow" ? (
-                  <div className="space-y-5">
-                    <section className="rounded-2xl border border-border bg-card p-5">
-                      <h4 className="mb-4 text-sm font-bold text-foreground">گردش کار و پیگیری</h4>
-                      {(selected.timeline?.length ?? 0) === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                          هنوز رویدادی برای این نامه ثبت نشده است.
-                        </p>
-                      ) : (
-                        <ol className="relative space-y-4 border-r border-border pr-5">
-                          {(selected.timeline ?? []).map((item) => (
-                            <li key={item.id} className="relative">
-                              <span className="absolute -right-[1.4rem] top-1.5 h-2.5 w-2.5 rounded-full bg-teal-600 ring-4 ring-teal-100" />
-                              <p className="text-sm font-bold text-foreground">
-                                {timelineEventLabel(item)}
-                              </p>
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                {item.actor_name || "سامانه"} ·{" "}
-                                {formatPersianDateTime(item.created_at)}
-                              </p>
-                              {item.note ? (
-                                <p className="mt-2 whitespace-pre-wrap text-sm text-foreground/80">
-                                  {item.note}
-                                </p>
-                              ) : null}
-                            </li>
-                          ))}
-                        </ol>
-                      )}
-                    </section>
-
-                    {(selected.referrals?.length ?? 0) > 0 && (
-                      <section className="rounded-2xl border border-sky-100 bg-sky-50/50 p-5">
-                        <h4 className="mb-3 text-sm font-bold text-foreground">سوابق ارجاع</h4>
-                        <div className="space-y-2">
-                          {selected.referrals?.map((referral) => (
-                            <div
-                              key={referral.id}
-                              className="rounded-xl border border-sky-100 bg-card px-3 py-2 text-xs text-sky-900"
-                            >
-                              <div>
-                                از {referral.from_user_name} ← به {referral.to_user_name}
-                              </div>
-                              {referral.note ? (
-                                <div className="mt-1 text-sky-700">{referral.note}</div>
-                              ) : null}
-                              <div className="mt-1 text-sky-600">
-                                {formatPersianDateTime(referral.created_at)}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </section>
-                    )}
-                  </div>
+                  <LetterWorkflowHistory
+                    submissionId={selected.id}
+                    apiScope="tasks"
+                    timeline={selected.timeline}
+                    referrals={selected.referrals}
+                    assigneeProgress={selected.assignee_progress}
+                    ccRecipients={selected.cc_recipients}
+                    statusNote={selected.status_note}
+                    statusAttachmentName={selected.status_attachment_name}
+                    onError={setActionError}
+                  />
                 ) : (
                   <div className="rounded-2xl border border-border bg-card p-4">
                     <TaskConversation
@@ -1235,6 +1192,17 @@ export default function MyLettersPage() {
                   ))}
                 </div>
               )}
+              <LetterWorkflowHistory
+                submissionId={selected.id}
+                apiScope="tasks"
+                timeline={selected.timeline}
+                referrals={selected.referrals}
+                assigneeProgress={selected.assignee_progress}
+                ccRecipients={selected.cc_recipients}
+                statusNote={selected.status_note}
+                statusAttachmentName={selected.status_attachment_name}
+                onError={setActionError}
+              />
               <div className="rounded-2xl border border-border p-3">
                 <TaskConversation
                   submissionId={selected.id}

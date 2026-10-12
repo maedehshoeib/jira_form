@@ -108,6 +108,48 @@ export function matchesStatusTab(task: SubmissionListItem, tab: StatusTab) {
   return (task.referrals?.length ?? 0) > 0;
 }
 
+export function timelineEventDotClass(item: {
+  event_type: string;
+  to_status?: string | null;
+}) {
+  if (item.event_type === "viewed" || item.event_type === "seen") {
+    return "bg-sky-500 ring-sky-100";
+  }
+  if (item.event_type === "referred") {
+    return "bg-violet-500 ring-violet-100";
+  }
+  if (
+    item.event_type === "progress_updated" ||
+    item.event_type === "in_progress" ||
+    (item.event_type === "status_changed" && item.to_status === "in_progress")
+  ) {
+    return "bg-blue-600 ring-blue-100";
+  }
+  if (
+    item.event_type === "completed" ||
+    item.event_type === "approved" ||
+    (item.event_type === "status_changed" &&
+      (item.to_status === "approved" || item.to_status === "completed"))
+  ) {
+    return "bg-emerald-600 ring-emerald-100";
+  }
+  if (
+    item.event_type === "rejected" ||
+    (item.event_type === "status_changed" && item.to_status === "rejected")
+  ) {
+    return "bg-primary ring-red-100";
+  }
+  return "bg-muted ring-slate-100";
+}
+
+export function parseTimelineEntityId(itemId: number | string, prefix: string) {
+  const raw = String(itemId);
+  const expected = `${prefix}:`;
+  if (!raw.startsWith(expected)) return null;
+  const value = Number(raw.slice(expected.length));
+  return Number.isFinite(value) ? value : null;
+}
+
 export function timelineEventLabel(item: {
   event_type: string;
   from_status?: string | null;

@@ -13,6 +13,8 @@ export {
   parseSubmittedAt,
   apiErrorDetail,
   timelineEventLabel,
+  timelineEventDotClass,
+  parseTimelineEntityId,
   normalizedProgress,
 } from "./utils";
 export { REFERRAL_NOTE_MAX_LENGTH } from "./constants";

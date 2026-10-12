@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { Download, Eye, EyeOff, Paperclip } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Download, Eye, EyeOff, Loader2, Paperclip } from "lucide-react";
 
+import client from "@/api/client";
+import { endpoints } from "@/api/endpoints";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { API_BASE } from "@/config/portal";
 import { formatPersianDate, formatPersianDateTime } from "@/lib/persianDate";
 import { cn } from "@/lib/utils";
+import type { SubmissionDetail } from "@/features/tasks";
 
 import { downloadAuthFile } from "../download";
 import {
@@ -18,6 +21,7 @@ import {
   type SentLetter,
   type SentRecipient,
 } from "../sentLetters";
+import { LetterWorkflowHistory } from "./LetterWorkflowHistory";
 
 function recipientStatus(row: SentRecipient) {
   if (row.delivery_type === "cc") return "رونوشت";
@@ -46,8 +50,11 @@ function letterSender(letter: SentLetter) {
 
 export function SentLetterDetail({ letter }: { letter: SentLetter }) {
   const [error, setError] = useState("");
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [history, setHistory] = useState<SubmissionDetail | null>(null);
   const attachments = sentAttachmentNames(letter);
   const read = sentReadSummary(letter);
+  const historySubmissionId = letter.recipients[0]?.submission_id;
   const meta = [
     {
       label: "شماره نامه",
@@ -59,11 +66,36 @@ export function SentLetterDetail({ letter }: { letter: SentLetter }) {
     { label: "مهلت انجام", value: letter.due_date || "—" },
   ];
 
+  useEffect(() => {
+    if (!historySubmissionId) {
+      setHistory(null);
+      return;
+    }
+    let cancelled = false;
+    setHistoryLoading(true);
+    void client
+      .get<SubmissionDetail>(`${endpoints.submissions}/${historySubmissionId}`)
+      .then(({ data }) => {
+        if (!cancelled) setHistory(data);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHistory(null);
+          setError("بارگذاری تاریخچه نامه با مشکل مواجه شد.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setHistoryLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [historySubmissionId, letter.batch_id]);
+
   const download = async (index: number, name: string) => {
-    const submissionId = letter.recipients[0]?.submission_id;
-    if (!submissionId) return;
+    if (!historySubmissionId) return;
     const ok = await downloadAuthFile(
-      `${API_BASE}/submissions/${submissionId}/attachment?index=${index}`,
+      `${API_BASE}/submissions/${historySubmissionId}/attachment?index=${index}`,
       name,
     );
     setError(ok ? "" : "دانلود پیوست با مشکل مواجه شد.");
@@ -187,6 +219,25 @@ export function SentLetterDetail({ letter }: { letter: SentLetter }) {
           ))}
         </ul>
       </section>
+
+      {historyLoading ? (
+        <div className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-border py-10 text-sm text-muted-foreground">
+          <Loader2 size={16} className="animate-spin" />
+          در حال بارگذاری تاریخچه نامه…
+        </div>
+      ) : history ? (
+        <LetterWorkflowHistory
+          submissionId={history.id}
+          apiScope="submissions"
+          timeline={history.timeline}
+          referrals={history.referrals}
+          assigneeProgress={history.assignee_progress}
+          ccRecipients={history.cc_recipients}
+          statusNote={history.status_note}
+          statusAttachmentName={history.status_attachment_name}
+          onError={setError}
+        />
+      ) : null}
     </div>
   );
 }

@@ -102,9 +102,11 @@ recipient''s `delivery_type` as `direct` or `cc`.
 
 Multi-recipient sends still persist one submission per person (shared
 `letter_batch_id`). Sender-facing list endpoints collapse those copies to one
-card, while detail/timeline responses merge sibling status history, referrals,
-CC rows, views, and assignee progress so attachments from every recipient stay
-visible. Recipient task endpoints continue to show only that person's copy.
+card. Both `GET /api/v1/submissions/{id}` and `GET /api/v1/tasks/{id}` merge
+sibling status history, referrals, CC rows, views, and assignee progress so
+responses and attachments from every recipient stay visible on the letter
+timeline. Task download routes for status-history and referral attachments also
+resolve files across the same letter batch.
 
 ## Task inbox notifications
 

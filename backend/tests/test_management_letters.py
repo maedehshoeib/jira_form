@@ -315,6 +315,76 @@ class ManagementLetterServiceTests(unittest.TestCase):
         )
         self.assertEqual(len(detail.referrals), 2)
 
+    def test_recipient_task_detail_merges_sibling_letter_history(self):
+        from app.api.routes.submissions_helpers import (
+            _submission_to_response,
+            build_letter_aware_workflow_context,
+        )
+
+        submissions = self._create_letters(
+            needs_action="دارد",
+            recipient_ids=[self.first_recipient.id, self.second_recipient.id],
+            cc_recipient_ids=[],
+        )
+        first, second = submissions
+        self.db.add_all(
+            [
+                SubmissionStatusHistory(
+                    submission_id=first.id,
+                    changed_by_id=self.first_recipient.id,
+                    from_status="submitted",
+                    to_status="in_progress",
+                    from_progress_percent=0,
+                    to_progress_percent=25,
+                    note="پاسخ گیرنده اول",
+                    attachment_name="mine.pdf",
+                    attachment_path="/tmp/mine.pdf",
+                ),
+                SubmissionStatusHistory(
+                    submission_id=second.id,
+                    changed_by_id=self.second_recipient.id,
+                    from_status="submitted",
+                    to_status="in_progress",
+                    from_progress_percent=0,
+                    to_progress_percent=50,
+                    note="پاسخ گیرنده دوم",
+                    attachment_name="theirs.pdf",
+                    attachment_path="/tmp/theirs.pdf",
+                ),
+            ]
+        )
+        self.db.commit()
+
+        # Inbox opens a single recipient copy via /tasks/{id}; history must
+        # still include sibling responses and attachments.
+        context = build_letter_aware_workflow_context(
+            self.db,
+            [first],
+            viewer_user_id=self.first_recipient.id,
+            include_history=True,
+        )
+        detail = _submission_to_response(
+            first,
+            self.actor,
+            db=self.db,
+            workflow_context=context,
+            can_act=True,
+        )
+        status_events = [
+            event
+            for event in detail.timeline
+            if event.event_type == "status_changed"
+        ]
+        self.assertEqual(len(status_events), 2)
+        self.assertEqual(
+            {event.attachment_name for event in status_events},
+            {"mine.pdf", "theirs.pdf"},
+        )
+        self.assertEqual(
+            {event.note for event in status_events},
+            {"پاسخ گیرنده اول", "پاسخ گیرنده دوم"},
+        )
+
     def test_cc_recipient_receives_read_only_announcement(self):
         submissions = self._create_letters(
             needs_action="دارد",

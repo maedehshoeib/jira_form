@@ -17,6 +17,11 @@ export type TimelineItem = {
   actor_name?: string | null;
   from_status?: string | null;
   to_status?: string | null;
+  from_progress_percent?: number | null;
+  to_progress_percent?: number | null;
+  progress_percent?: number | null;
+  to_user_id?: number | null;
+  to_user_name?: string | null;
   note?: string;
   attachment_name?: string | null;
   attachment_names?: string[];
