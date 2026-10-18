@@ -1,5 +1,7 @@
 node_modules/
 frontend/dist/
+frontend/.next/
+frontend/.next-prod/
 backend/data/
 backend/.env
 *.db

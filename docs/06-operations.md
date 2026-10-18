@@ -76,3 +76,17 @@ importer preserves legacy data.
 - Build both containers from a clean checkout.
 
 Do not bake `.env` files, database files, uploads, or `users.xlsx` credentials into a public image registry.
+
+## Compiled delivery branch
+
+`delivery` keeps the application source and the packaging scripts. The generated source-free snapshot is a separate orphan branch named `delivery-artifact`. Build that snapshot on the production server, where Docker is available. A Windows checkout cannot produce the Linux Cython modules or the Alpine frontend bundle.
+
+1. Check out `delivery` on the server. The script runs only from that branch.
+2. Run `bash scripts/delivery/build.sh`.
+3. The script compiles `backend/app` with Cython, builds the Next.js standalone frontend, and commits that output on local branch `delivery-artifact`. It does not modify `delivery` or `refactor`, and it does not delete an existing branch.
+4. If `delivery-artifact` already exists, the script stops. Inspect that branch and move it aside before rebuilding.
+5. Push `delivery-artifact` only to a remote that does not contain the source branches. Do not merge it back.
+
+Before starting that snapshot, set `USERS_SEED_HOST_PATH` in its `.env` to the absolute path of `users.xlsx`. The workbook, `.env`, credentials, and database files stay out of the artifact commit. Keep the Compose project `name` aligned with the existing `postgres_data` and `portal_data` volumes.
+
+Cython binaries and the minified frontend are not encryption. Alembic keeps `env.py` and small Python revision stubs whose upgrade logic is compiled, and readable strings remain inside the binaries. The containers still start with Docker, the `.env` file, and the workbook path.
