@@ -22,13 +22,17 @@ if [ "$current_branch" != "delivery" ]; then
   echo "Run this script from the delivery branch. Current branch: ${current_branch:-detached}." >&2
   exit 1
 fi
+if [ -n "$(git -C "$ROOT" status --porcelain)" ]; then
+  echo "The delivery working tree is not clean. Review and commit every change before building." >&2
+  git -C "$ROOT" status --short >&2
+  exit 1
+fi
 if git -C "$ROOT" show-ref --verify --quiet refs/heads/delivery-artifact; then
   echo "Branch delivery-artifact already exists. Inspect it and move it aside before rebuilding. This script does not delete branches." >&2
   exit 1
 fi
 
-echo "Building from the delivery working tree."
-echo "Uncommitted files in this checkout are included. Files that exist only on another machine are not."
+echo "Building from the clean delivery commit."
 
 OUT="$(mktemp -d)"
 WT="$(mktemp -d)"

@@ -1,9 +1,8 @@
-name: ${COMPOSE_PROJECT_NAME:-jira_form}
+name: ${COMPOSE_PROJECT_NAME:-jira_form_delivery}
 
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: jira-form-postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-portal}
       POSTGRES_USER: ${POSTGRES_USER:-portal}
@@ -23,7 +22,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: jira-form-backend
     ports:
       - "8000:8000"
     volumes:
@@ -60,7 +58,6 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: jira-form-web
     depends_on:
       - backend
     ports:
@@ -74,7 +71,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: jira-form-init-db
     volumes:
       - portal_data:/app/data
       - ${USERS_SEED_HOST_PATH:?Set USERS_SEED_HOST_PATH to the employee workbook}:/users.xlsx:ro

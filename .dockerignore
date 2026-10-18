@@ -8,6 +8,10 @@ backend/.env
 __pycache__/
 *.pyc
 .env
+.env.*
+!.env.example
+!**/.env.example
+users.xlsx
 .git/
 *.md
 !README.md
