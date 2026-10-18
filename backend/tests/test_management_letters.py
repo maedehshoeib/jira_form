@@ -44,6 +44,8 @@ from app.services.task_workflow_service import (
     is_no_action_letter,
     list_pending_task_ids,
     list_task_submissions,
+    list_unseen_letter_ids,
+    list_unseen_task_ids,
     user_can_access_task,
     user_can_view_task,
 )
@@ -475,6 +477,21 @@ class ManagementLetterServiceTests(unittest.TestCase):
         self.assertIn(actionable.id, pending_ids)
         self.assertNotIn(inform_only.id, pending_ids)
         self.assertNotIn(cc_copy.id, list_pending_task_ids(self.db, self.second_recipient.id))
+
+        # Actionable letters feed the tasks badge; inform/CC feed the letters badge.
+        self.assertIn(actionable.id, list_unseen_task_ids(self.db, self.first_recipient.id))
+        self.assertNotIn(
+            inform_only.id, list_unseen_task_ids(self.db, self.first_recipient.id)
+        )
+        self.assertIn(
+            inform_only.id, list_unseen_letter_ids(self.db, self.first_recipient.id)
+        )
+        self.assertIn(
+            cc_copy.id, list_unseen_letter_ids(self.db, self.second_recipient.id)
+        )
+        self.assertNotIn(
+            actionable.id, list_unseen_letter_ids(self.db, self.first_recipient.id)
+        )
 
     def test_backfill_expands_existing_incomplete_letter_batch_snapshots(self):
         submissions = self._create_letters(

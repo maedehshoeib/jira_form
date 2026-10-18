@@ -63,7 +63,6 @@ import {
   initialAssigneeNames,
   isInternalLetterTask,
   isLetterInboxItem,
-  isManagementLetterTask,
   LETTER_NO_ACTION_VALUE,
   matchesStatusTab,
   normalizedProgress,
@@ -195,7 +194,7 @@ export default function MyTasksPage() {
       referred: 0,
     };
     tasks.forEach((task) => {
-      if (isManagementLetterTask(task)) return;
+      if (isLetterInboxItem(task)) return;
       if (task.status === "submitted") counts.pending += 1;
       if (task.status === "in_progress") counts.in_progress += 1;
       if (task.status === "rejected") counts.rejected += 1;
@@ -206,7 +205,7 @@ export default function MyTasksPage() {
   }, [tasks]);
 
   const actionableTasks = useMemo(
-    () => tasks.filter((task) => !isManagementLetterTask(task)),
+    () => tasks.filter((task) => !isLetterInboxItem(task)),
     [tasks],
   );
 
@@ -224,7 +223,7 @@ export default function MyTasksPage() {
 
     return tasks
       .filter((task) => {
-        if (isManagementLetterTask(task)) return false;
+        if (isLetterInboxItem(task)) return false;
         if (!matchesStatusTab(task, statusTab)) return false;
 
         const searchableText = [
@@ -341,7 +340,7 @@ export default function MyTasksPage() {
     const task = tasks.find((item) => item.id === openId);
     if (!task) return;
     openedFromQueryRef.current = openId;
-    if (isManagementLetterTask(task)) {
+    if (isLetterInboxItem(task)) {
       router.replace(`/my-letters?open=${openId}`);
       return;
     }

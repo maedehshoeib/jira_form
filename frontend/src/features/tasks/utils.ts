@@ -99,8 +99,8 @@ export function isActionableLetter(task: SubmissionListItem) {
 }
 
 export function matchesStatusTab(task: SubmissionListItem, tab: StatusTab) {
-  // All management letters live on /my-letters — keep task tabs free of them.
-  if (isManagementLetterTask(task)) return false;
+  // Inform-only / CC letters stay on /my-letters; actionable letters are tasks.
+  if (isLetterInboxItem(task)) return false;
   if (tab === "in_progress") return task.status === "in_progress";
   if (tab === "pending") return task.status === "submitted";
   if (tab === "rejected") return task.status === "rejected";

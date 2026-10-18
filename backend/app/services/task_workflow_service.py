@@ -272,16 +272,20 @@ def _list_unseen_submissions(db: Session, user_id: int) -> list[Submission]:
 
 
 def list_unseen_task_ids(db: Session, user_id: int) -> list[int]:
-    """IDs of actionable tasks not yet opened (excludes management letters)."""
+    """IDs of actionable tasks not yet opened.
+
+    Includes management letters marked نیاز به اقدام دارد. Inform-only / CC
+    copies stay on the نامه badge instead.
+    """
     return [
         row.id
         for row in _list_unseen_submissions(db, user_id)
-        if row.form_id != "management-letter-form"
+        if not is_letter_inbox_item(row)
     ]
 
 
 def list_unseen_letter_ids(db: Session, user_id: int) -> list[int]:
-    """IDs of non-archived management letters not yet opened."""
+    """IDs of non-archived inform/CC letters not yet opened."""
     archived_ids = {
         row.submission_id
         for row in db.query(SubmissionView.submission_id).filter(
@@ -292,7 +296,7 @@ def list_unseen_letter_ids(db: Session, user_id: int) -> list[int]:
     return [
         row.id
         for row in _list_unseen_submissions(db, user_id)
-        if row.form_id == "management-letter-form" and row.id not in archived_ids
+        if is_letter_inbox_item(row) and row.id not in archived_ids
     ]
 
 

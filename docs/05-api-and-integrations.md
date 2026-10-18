@@ -125,12 +125,13 @@ icon; the sidebar badge next to «وظایف من» shows unread actionable task
 Clicking an inbox message navigates to `/my-tasks?open={submission_id}` (or
 `/my-letters?open={id}` for نامه inbox items) and opens the item.
 
-نامه inbox and actionable management letters are shown on `/my-letters` in an
+Inform-only and CC/رونوشت letters are shown on `/my-letters` in an
 Outlook-style layout (folders / list / reading pane with متن نامه، پیوست‌ها،
-گردش کار و پیگیری، یادداشت‌ها). Attachments download via
-`GET /api/v1/tasks/{id}/attachment`. Actionable letters keep refer/progress
-actions when `can_act` is true. «نامه‌ها» (`/my-letters`) is the only inbox for management letters. Sender and
-recipient letter rows are excluded from «درخواست‌های من» and «وظایف من».
+گردش کار و پیگیری، یادداشت‌ها). Letters marked `needs_action=دارد` also appear
+in «وظایف من» (`/my-tasks`) as normal actionable tasks (pending badge, progress,
+refer). Attachments download via `GET /api/v1/tasks/{id}/attachment`. Actionable
+letters keep refer/progress actions when `can_act` is true. Sender letter rows
+remain excluded from «درخواست‌های من»; inform/CC rows stay out of «وظایف من».
 
 ### Letter archive (بایگانی)
 
