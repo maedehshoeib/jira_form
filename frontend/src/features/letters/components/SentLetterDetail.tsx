@@ -8,19 +8,24 @@ import { endpoints } from "@/api/endpoints";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { API_BASE } from "@/config/portal";
+import { useAuth } from "@/context/AuthContext";
 import { formatPersianDate, formatPersianDateTime } from "@/lib/persianDate";
 import { cn } from "@/lib/utils";
 import type { SubmissionDetail } from "@/features/tasks";
 
 import { downloadAuthFile } from "../download";
+import type { LetterFolder } from "../letterFolders";
 import {
   sentAttachmentNames,
   sentIsOverdue,
+  sentPrimarySubmissionId,
   sentReadSummary,
   sentStatusLabel,
   type SentLetter,
   type SentRecipient,
 } from "../sentLetters";
+import { LetterFinishPanel } from "./LetterFinishPanel";
+import { LetterFolderAssign } from "./LetterFolderAssign";
 import { LetterWorkflowHistory } from "./LetterWorkflowHistory";
 
 function recipientStatus(row: SentRecipient) {
@@ -48,13 +53,27 @@ function letterSender(letter: SentLetter) {
   return sender || letter.sent_by;
 }
 
-export function SentLetterDetail({ letter }: { letter: SentLetter }) {
+type Props = {
+  letter: SentLetter;
+  folders: LetterFolder[];
+  onFoldersChanged: () => void;
+  onLetterChanged: () => void;
+};
+
+export function SentLetterDetail({
+  letter,
+  folders,
+  onFoldersChanged,
+  onLetterChanged,
+}: Props) {
+  const { user } = useAuth();
   const [error, setError] = useState("");
   const [historyLoading, setHistoryLoading] = useState(false);
   const [history, setHistory] = useState<SubmissionDetail | null>(null);
   const attachments = sentAttachmentNames(letter);
   const read = sentReadSummary(letter);
-  const historySubmissionId = letter.recipients[0]?.submission_id;
+  const historySubmissionId = sentPrimarySubmissionId(letter);
+  const canFinish = Boolean(user && letter.sent_by_id === user.id);
   const meta = [
     {
       label: "شماره نامه",
@@ -148,6 +167,20 @@ export function SentLetterDetail({ letter }: { letter: SentLetter }) {
         </div>
       )}
 
+      <LetterFolderAssign
+        scope="sent"
+        folders={folders}
+        batchId={letter.batch_id}
+        onChanged={onFoldersChanged}
+        onError={setError}
+      />
+
+      <LetterFinishPanel
+        letter={letter}
+        canFinish={canFinish}
+        onUpdated={onLetterChanged}
+      />
+
       <article className="rounded-2xl border border-border bg-card p-5 shadow-sm">
         {letter.description ? (
           <div className="whitespace-pre-wrap text-sm leading-8 text-foreground">
@@ -190,6 +223,9 @@ export function SentLetterDetail({ letter }: { letter: SentLetter }) {
                 <p className="text-sm font-semibold text-foreground">{row.display_name}</p>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
                   {row.referred_to ? `ارجاع به ${row.referred_to} · ` : ""}
+                  {row.delivery_type !== "cc"
+                    ? `پیشرفت ${(row.progress_percent ?? 0).toLocaleString("fa-IR")}٪ · `
+                    : ""}
                   {formatPersianDateTime(row.status_updated_at) || "بدون تغییر وضعیت"}
                 </p>
                 {row.comment ? (

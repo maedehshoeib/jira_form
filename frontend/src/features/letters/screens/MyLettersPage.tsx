@@ -56,7 +56,9 @@ import {
 import { setLetterArchived } from "../api";
 import { LetterActionsPanel } from "../components/LetterActionsPanel";
 import { LetterComposeToolbar, useLetterSendAccess } from "../components/LetterComposeToolbar";
+import { LetterCustomFoldersNav } from "../components/LetterCustomFoldersNav";
 import { LetterDraftsList } from "../components/LetterDraftsList";
+import { LetterFolderAssign } from "../components/LetterFolderAssign";
 import { LetterWorkflowHistory } from "../components/LetterWorkflowHistory";
 import {
   LetterListPagination,
@@ -66,6 +68,12 @@ import {
 import { SentLetterDetail } from "../components/SentLetterDetail";
 import { SentLettersList } from "../components/SentLettersList";
 import { downloadAuthFile } from "../download";
+import {
+  customFolderKey,
+  listLetterFolders,
+  parseCustomFolderKey,
+  type LetterFolder as CustomLetterFolder,
+} from "../letterFolders";
 import {
   isSentFolder,
   listSentLetters,
@@ -84,7 +92,7 @@ type InboxFolder =
   | "inform"
   | "drafts"
   | "archive";
-type LetterFolder = InboxFolder | SentFolder;
+type LetterFolder = InboxFolder | SentFolder | `custom:${number}`;
 type DetailTab = "body" | "attachments" | "workflow" | "notes";
 
 const ADMIN_MONITOR_LETTER_TYPES: LetterType[] = ["internal", "external"];
@@ -301,7 +309,11 @@ export default function MyLettersPage() {
   const [sentLetters, setSentLetters] = useState<SentLetter[]>([]);
   const [sentLoading, setSentLoading] = useState(false);
   const [selectedSent, setSelectedSent] = useState<SentLetter | null>(null);
-  const sentFolderActive = isSentFolder(folder);
+  const [customFolders, setCustomFolders] = useState<CustomLetterFolder[]>([]);
+  const customFolderId = parseCustomFolderKey(folder);
+  const activeCustomFolder = customFolders.find((item) => item.id === customFolderId) ?? null;
+  const sentFolderActive =
+    isSentFolder(folder) || activeCustomFolder?.scope === "sent";
   const showSentFolders = isAdmin || sendableTypes.length > 0 || sentLetters.length > 0;
   const sentSectionLabel = isAdmin ? "نظارت" : "ارسالی";
   const sentFolderItems = useMemo(
@@ -328,9 +340,21 @@ export default function MyLettersPage() {
     }
   };
 
+  const loadCustomFolders = async () => {
+    try {
+      setCustomFolders(await listLetterFolders());
+    } catch {
+      setError("دریافت پوشه‌های شخصی با مشکل مواجه شد.");
+    }
+  };
+
   useEffect(() => {
     void loadSent();
   }, [monitorLetterTypes, isAdmin]);
+
+  useEffect(() => {
+    void loadCustomFolders();
+  }, []);
 
   const loadDrafts = async () => {
     setDraftsLoading(true);
@@ -372,10 +396,13 @@ export default function MyLettersPage() {
     void loadSent();
   };
 
-  const selectFolder = (next: LetterFolder) => {
-    setFolder(next);
+  const selectFolder = (next: LetterFolder | string) => {
+    const resolved = next as LetterFolder;
+    setFolder(resolved);
     setListPage(1);
-    if (isSentFolder(next)) setSelected(null);
+    const custom = parseCustomFolderKey(resolved);
+    const customScope = customFolders.find((item) => item.id === custom)?.scope;
+    if (isSentFolder(resolved) || customScope === "sent") setSelected(null);
     else setSelectedSent(null);
     if (workspaceOpen) backToMailbox();
   };
@@ -469,10 +496,13 @@ export default function MyLettersPage() {
   const sentCounts = useMemo(() => sentFolderCounts(sentLetters), [sentLetters]);
 
   const filteredSent = useMemo(() => {
-    if (!isSentFolder(folder)) return [];
     const query = searchQuery.trim().toLocaleLowerCase("fa");
     return sentLetters.filter((letter) => {
-      if (!matchesSentFolder(letter, folder)) return false;
+      if (activeCustomFolder?.scope === "sent") {
+        if (!activeCustomFolder.batch_ids.includes(letter.batch_id)) return false;
+      } else if (!isSentFolder(folder) || !matchesSentFolder(letter, folder)) {
+        return false;
+      }
       if (!query) return true;
       return [
         letter.subject,
@@ -486,14 +516,21 @@ export default function MyLettersPage() {
         .toLocaleLowerCase("fa")
         .includes(query);
     });
-  }, [sentLetters, folder, searchQuery]);
+  }, [sentLetters, folder, searchQuery, activeCustomFolder]);
 
   const filteredLetters = useMemo(() => {
-    if (isSentFolder(folder)) return [];
-    const inboxFolder = folder;
+    if (sentFolderActive) return [];
     const query = searchQuery.trim().toLocaleLowerCase("fa");
     return letters
-      .filter((letter) => matchesFolder(letter, inboxFolder))
+      .filter((letter) => {
+        if (activeCustomFolder?.scope === "received") {
+          return activeCustomFolder.submission_ids.includes(letter.id);
+        }
+        if (!isSentFolder(folder) && parseCustomFolderKey(folder) == null) {
+          return matchesFolder(letter, folder as InboxFolder);
+        }
+        return false;
+      })
       .filter((letter) => {
         if (!query) return true;
         const haystack = [
@@ -512,7 +549,7 @@ export default function MyLettersPage() {
         const bTime = parseSubmittedAt(b.created_at)?.getTime() ?? 0;
         return bTime - aTime;
       });
-  }, [letters, folder, searchQuery]);
+  }, [letters, folder, searchQuery, sentFolderActive, activeCustomFolder]);
 
   useEffect(() => {
     setListPage(1);
@@ -679,6 +716,7 @@ export default function MyLettersPage() {
               void loadLetters();
               void loadDrafts();
               void loadSent();
+              void loadCustomFolders();
             }}
             disabled={loading}
             className="h-10 gap-2 rounded-xl px-4"
@@ -716,6 +754,15 @@ export default function MyLettersPage() {
               />
             ))}
           </nav>
+          <LetterCustomFoldersNav
+            scope="received"
+            folders={customFolders}
+            activeFolder={folder}
+            workspaceOpen={workspaceOpen}
+            onSelect={selectFolder}
+            onChanged={() => void loadCustomFolders()}
+            onError={setError}
+          />
           {showSentFolders && (
             <>
               <p className="mb-2 mt-4 px-2 text-[11px] font-bold text-muted-foreground">
@@ -736,6 +783,15 @@ export default function MyLettersPage() {
                   />
                 ))}
               </nav>
+              <LetterCustomFoldersNav
+                scope="sent"
+                folders={customFolders}
+                activeFolder={folder}
+                workspaceOpen={workspaceOpen}
+                onSelect={selectFolder}
+                onChanged={() => void loadCustomFolders()}
+                onError={setError}
+              />
             </>
           )}
         </aside>
@@ -777,15 +833,29 @@ export default function MyLettersPage() {
             </div>
             <div className="mt-2 flex gap-1 overflow-x-auto md:hidden">
               {[
-                ...FOLDERS,
+                ...FOLDERS.map((item) => ({ id: item.id as string, label: item.label })),
+                ...customFolders
+                  .filter((item) => item.scope === "received")
+                  .map((item) => ({
+                    id: customFolderKey(item.id),
+                    label: item.name,
+                  })),
                 ...(showSentFolders
                   ? sentFolderItems.map((item) => ({
-                      ...item,
+                      id: item.id as string,
                       label:
                         item.id === "sent"
                           ? sentSectionLabel
                           : `${sentSectionLabel}: ${item.label}`,
                     }))
+                  : []),
+                ...(showSentFolders
+                  ? customFolders
+                      .filter((item) => item.scope === "sent")
+                      .map((item) => ({
+                        id: customFolderKey(item.id),
+                        label: `${sentSectionLabel}: ${item.name}`,
+                      }))
                   : []),
               ].map((item) => (
                 <Button
@@ -906,7 +976,13 @@ export default function MyLettersPage() {
         <section className="hidden min-w-0 flex-1 flex-col bg-background lg:flex">
           {sentFolderActive && selectedSent ? (
             <div className="flex-1 overflow-y-auto p-6">
-              <SentLetterDetail key={selectedSent.batch_id} letter={selectedSent} />
+              <SentLetterDetail
+                key={selectedSent.batch_id}
+                letter={selectedSent}
+                folders={customFolders}
+                onFoldersChanged={() => void loadCustomFolders()}
+                onLetterChanged={() => void loadSent()}
+              />
             </div>
           ) : sentFolderActive || !selected ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 p-10 text-center text-muted-foreground">
@@ -950,12 +1026,23 @@ export default function MyLettersPage() {
                   </div>
                 )}
 
+                <LetterFolderAssign
+                  scope="received"
+                  folders={customFolders}
+                  submissionId={selected.id}
+                  onChanged={() => void loadCustomFolders()}
+                  onError={setActionError}
+                />
+
                 <LetterActionsPanel
                   selected={selected}
                   actionLoading={actionLoading}
                   onActionLoading={setActionLoading}
                   onError={setActionError}
-                  onUpdated={syncLetter}
+                  onUpdated={(data) => {
+                    syncLetter(data);
+                    void loadSent();
+                  }}
                 />
               </header>
 
@@ -1131,7 +1218,13 @@ export default function MyLettersPage() {
               </Button>
             </div>
             <div className="p-4">
-              <SentLetterDetail key={selectedSent.batch_id} letter={selectedSent} />
+              <SentLetterDetail
+                key={selectedSent.batch_id}
+                letter={selectedSent}
+                folders={customFolders}
+                onFoldersChanged={() => void loadCustomFolders()}
+                onLetterChanged={() => void loadSent()}
+              />
             </div>
           </section>
         </div>
@@ -1162,6 +1255,28 @@ export default function MyLettersPage() {
             </div>
             <div className="space-y-4 p-4">
               <LetterInfoBox letter={selected} />
+              {(actionError || error) && (
+                <div className="rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary">
+                  {actionError || error}
+                </div>
+              )}
+              <LetterFolderAssign
+                scope="received"
+                folders={customFolders}
+                submissionId={selected.id}
+                onChanged={() => void loadCustomFolders()}
+                onError={setActionError}
+              />
+              <LetterActionsPanel
+                selected={selected}
+                actionLoading={actionLoading}
+                onActionLoading={setActionLoading}
+                onError={setActionError}
+                onUpdated={(data) => {
+                  syncLetter(data);
+                  void loadSent();
+                }}
+              />
               <article className="rounded-2xl border border-border p-4">
                 <p className="mb-3 text-sm font-semibold text-foreground">با سلام و احترام،</p>
                 {letterBody ? (

@@ -22,6 +22,7 @@ import { API_BASE } from "@/config/portal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/context/AuthContext";
 import {
   formatPersianDate,
   formatPersianDateTime,
@@ -112,6 +113,8 @@ export default function LetterReportPage({
   onCompose: () => void;
 }) {
   const workflow = LETTER_WORKFLOWS[letterType];
+  const { user } = useAuth();
+  const isAdmin = Boolean(user?.is_admin);
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [items, setItems] = useState<LetterReportItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -131,10 +134,10 @@ export default function LetterReportPage({
       );
       setAllowed(access.data.allowed);
       if (!access.data.allowed) return;
-      // Omit mine so admins receive every letter of this type for monitoring.
+      // Non-admins only see their own sent letters; admins monitor the org.
       const { data } = await client.get<LetterReportItem[]>(
         endpoints.managementLetterReport,
-        { params: { letter_type: letterType } },
+        { params: { letter_type: letterType, ...(isAdmin ? {} : { mine: true }) } },
       );
       setItems(data);
     } catch {
@@ -147,7 +150,7 @@ export default function LetterReportPage({
 
   useEffect(() => {
     void load();
-  }, [letterType]);
+  }, [letterType, isAdmin]);
 
   const dateFiltered = useMemo(() => {
     if (fromDate && toDate && fromDate > toDate) return [];

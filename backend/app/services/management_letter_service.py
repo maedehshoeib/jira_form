@@ -12,6 +12,7 @@ from app.core.jalali import jalali_to_gregorian
 from app.core.timezone import tehran_date_bounds_to_utc_naive
 from app.models.submission import (
     Submission,
+    SubmissionAssigneeProgress,
     SubmissionCcRecipient,
     SubmissionReferral,
     SubmissionReminder,
@@ -634,6 +635,17 @@ def list_sent_letters(
         else set()
     )
     viewed_submission_ids = {submission_id for submission_id, _ in submission_view_pairs}
+    progress_by_submission: dict[int, int] = {}
+    if submission_ids:
+        for row in (
+            db.query(SubmissionAssigneeProgress)
+            .filter(SubmissionAssigneeProgress.submission_id.in_(submission_ids))
+            .all()
+        ):
+            current = progress_by_submission.get(row.submission_id, 0)
+            progress_by_submission[row.submission_id] = max(
+                current, int(row.progress_percent or 0)
+            )
     sender_ids = {item.user_id for item in submissions}
     senders = {
         item.id: item
@@ -716,6 +728,14 @@ def list_sent_letters(
         recipient["delivery_type"] = str(
             data.get("recipient_delivery_type") or "direct"
         )
+        if display_status == "approved":
+            recipient["progress_percent"] = 100
+        elif display_status == "rejected":
+            recipient["progress_percent"] = progress_by_submission.get(submission.id, 0)
+        else:
+            recipient["progress_percent"] = progress_by_submission.get(
+                submission.id, int(submission.progress_percent or 0)
+            )
 
         if batch_id not in groups:
             sender = senders.get(submission.user_id)

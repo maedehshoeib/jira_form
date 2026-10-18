@@ -23,6 +23,7 @@ export type SentRecipient = {
   comment?: string;
   delivery_type?: "direct" | "cc";
   is_read?: boolean;
+  progress_percent?: number;
 };
 
 export type SentLetter = {
@@ -41,6 +42,7 @@ export type SentLetter = {
   attachment_names?: string[];
   created_at: string;
   sent_by: string;
+  sent_by_id?: number;
   recipients: SentRecipient[];
 };
 
@@ -76,7 +78,13 @@ function isInformOnly(letter: SentLetter) {
 }
 
 export function sentHasUnread(letter: SentLetter) {
+  // Unread monitoring includes everyone who received a copy (direct + CC).
   return letter.recipients.some((row) => !row.is_read);
+}
+
+export function sentPrimarySubmissionId(letter: SentLetter) {
+  const direct = letter.recipients.find((row) => row.delivery_type !== "cc");
+  return (direct ?? letter.recipients[0])?.submission_id;
 }
 
 export function sentIsPending(letter: SentLetter) {
@@ -140,14 +148,16 @@ export async function listSentLetters(
 ) {
   const mine = options.mine ?? true;
   const batches = await Promise.all(
-    letterTypes.map((letterType) =>
-      client
-        .get<SentLetter[]>(endpoints.managementLetterReport, {
+    letterTypes.map(async (letterType) => {
+      try {
+        const { data } = await client.get<SentLetter[]>(endpoints.managementLetterReport, {
           params: { letter_type: letterType, ...(mine ? { mine: true } : {}) },
-        })
-        .then(({ data }) => data.map((item) => ({ ...item, letter_type: letterType })))
-        .catch(() => [] as SentLetter[]),
-    ),
+        });
+        return data.map((item) => ({ ...item, letter_type: letterType }));
+      } catch {
+        return [] as SentLetter[];
+      }
+    }),
   );
   return batches.flat().sort((a, b) => b.created_at.localeCompare(a.created_at));
 }

@@ -48,6 +48,12 @@ export const endpoints = {
   managementLetterDrafts: "/management-letters/drafts",
   managementLetterDraft: (draftId: number) => `/management-letters/drafts/${draftId}`,
   managementLetterDraftSend: (draftId: number) => `/management-letters/drafts/${draftId}/send`,
+  managementLetterFolders: "/management-letters/folders",
+  managementLetterFolder: (folderId: number) => `/management-letters/folders/${folderId}`,
+  managementLetterFolderItems: (folderId: number) =>
+    `/management-letters/folders/${folderId}/items`,
+  managementLetterFolderItem: (folderId: number, itemId: number) =>
+    `/management-letters/folders/${folderId}/items/${itemId}`,
   taskArchive: (submissionId: number) => `/tasks/${submissionId}/archive`,
   calendarEvents: "/calendar/events",
   calendarUsers: "/calendar/users",

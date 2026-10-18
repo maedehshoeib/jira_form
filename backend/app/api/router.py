@@ -10,6 +10,7 @@ from app.api.routes.contracts import router as contracts_router
 from app.api.routes.jira import router as jira_router
 from app.api.routes.job_descriptions import admin_router as job_descriptions_admin_router
 from app.api.routes.job_descriptions import router as job_descriptions_router
+from app.api.routes.letter_folders import router as letter_folders_router
 from app.api.routes.management_letter_drafts import (
     router as management_letter_drafts_router,
 )
@@ -36,6 +37,7 @@ api_router.include_router(
 api_router.include_router(portal_router, tags=["portal"])
 api_router.include_router(management_letters_router, tags=["management-letters"])
 api_router.include_router(management_letter_drafts_router, tags=["management-letters"])
+api_router.include_router(letter_folders_router, tags=["management-letters"])
 api_router.include_router(reports_router, prefix="/reports", tags=["reports"])
 api_router.include_router(contracts_router, prefix="/contracts", tags=["contracts"])
 api_router.include_router(jira_router, prefix="/jira", tags=["jira"])

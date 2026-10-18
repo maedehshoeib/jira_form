@@ -175,10 +175,33 @@ The sidebar has a «دریافتی» group (inbox folders, drafts, archive) and 
 `GET /management-letters/report?letter_type=`. Non-admins call it with
 `mine=true` (own sent letters only). Admins omit `mine` so they can monitor
 every organizational letter after letters moved out of «درخواست‌های من». Each
-recipient row carries `is_read`. Sent sub-folders are computed client-side:
-not read by every recipient, awaiting action, past `due_date` while still
-pending, completed by all direct recipients, and «جهت اطلاع». The mailbox
-list is paginated client-side (20 items per page).
+recipient row carries `is_read` and `progress_percent`. Sent sub-folders are
+computed client-side: not read by every recipient, awaiting action, past
+`due_date` while still pending, completed by all direct recipients, and
+«جهت اطلاع». The mailbox list is paginated client-side (20 items per page).
+
+Receivers still submit progress (0–99) and referrals from the inbox reading
+pane (desktop and mobile) via `PATCH /tasks/{id}/status`. Senders monitor
+recipient progress in ارسالی and, when a direct recipient reaches 99%, close
+the letter with `PATCH /submissions/{id}/status` (`approved` / `rejected`, or
+`submitted` to reopen). Inform-only letters stay read-only for both sides.
+
+### Personal letter folders
+
+Users can create personal folders under دریافتی or ارسالی and add letters to
+them without removing the letter from the system folders:
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/management-letters/folders?scope=` | List the caller's folders (`received` / `sent`) |
+| `POST` | `/api/v1/management-letters/folders` | Create `{name, scope}` |
+| `PATCH` | `/api/v1/management-letters/folders/{id}` | Rename |
+| `DELETE` | `/api/v1/management-letters/folders/{id}` | Delete folder (membership only) |
+| `POST` | `/api/v1/management-letters/folders/{id}/items` | Add `{submission_id}` or `{batch_id}` |
+| `DELETE` | `/api/v1/management-letters/folders/{id}/items/{item_id}` | Remove membership |
+
+Folders are owner-only. Received membership requires task view access; sent
+membership requires owning the batch (or admin monitor access).
 
 The home page also shows a small welcome bot that greets the signed-in user by
 display name. When `birth_date` matches today (Tehran calendar day, same rule as

@@ -52,6 +52,7 @@ class LetterRecipientStatus(BaseModel):
     comment: str = ""
     delivery_type: Literal["direct", "cc"] = "direct"
     is_read: bool = False
+    progress_percent: int = 0
 
 
 class LetterReportItem(BaseModel):
@@ -255,6 +256,7 @@ def management_letter_report(
                         comment=item.get("comment") or "",
                         delivery_type=item.get("delivery_type") or "direct",
                         is_read=bool(item.get("is_read")),
+                        progress_percent=int(item.get("progress_percent") or 0),
                     )
                     for item in row["recipients"]
                 ],

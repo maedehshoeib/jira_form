@@ -21,6 +21,7 @@ from app.models import (  # noqa: F401
     department,
     form_template,  # FormDutyAssignment + form access tables
     job_description,
+    letter_folder,
     pdf_form,
     report,
     site_banner,
