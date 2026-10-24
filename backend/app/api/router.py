@@ -16,6 +16,8 @@ from app.api.routes.management_letter_drafts import (
 )
 from app.api.routes.management_letters import router as management_letters_router
 from app.api.routes.portal import router as portal_router
+from app.api.routes.portal_cards import admin_router as portal_cards_admin_router
+from app.api.routes.portal_cards import router as portal_cards_router
 from app.api.routes.reports import router as reports_router
 from app.api.routes.timesheet import router as timesheet_router
 
@@ -26,6 +28,16 @@ api_router.include_router(
     job_descriptions_admin_router,
     prefix="/admin/job-descriptions",
     tags=["admin"],
+)
+api_router.include_router(
+    portal_cards_admin_router,
+    prefix="/admin/portal-cards",
+    tags=["admin"],
+)
+api_router.include_router(
+    portal_cards_router,
+    prefix="/portal-cards",
+    tags=["portal-cards"],
 )
 api_router.include_router(chat_router, prefix="/chat", tags=["chat"])
 api_router.include_router(calendar_router, prefix="/calendar", tags=["calendar"])

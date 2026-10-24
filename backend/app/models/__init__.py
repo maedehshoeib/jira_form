@@ -5,6 +5,7 @@ from app.models.job_description import JobDescription
 from app.models.site_banner import SiteBanner, SiteBannerImage
 from app.models.site_news import SiteNews
 from app.models.pdf_form import PdfForm
+from app.models.portal_card import PortalCard, PortalCardFile
 from app.models.user import User
 
 __all__ = [
@@ -17,6 +18,8 @@ __all__ = [
     "ChatReaction",
     "JobDescription",
     "PdfForm",
+    "PortalCard",
+    "PortalCardFile",
     "SiteBanner",
     "SiteNews",
     "User",

@@ -18,6 +18,7 @@ import {
   BellRing,
   GitBranch,
   History,
+  LayoutGrid,
   Megaphone,
   Users,
   X,
@@ -71,6 +72,7 @@ const navigationItems: NavigationItem[] = [
 const adminNavigationItems: NavigationItem[] = [
   { label: "داشبورد", href: "/admin/dashboard", icon: BarChart3 },
   { label: "مدیریت بنر و اخبار", href: "/admin/banner", icon: Megaphone },
+  { label: "مدیریت کارت‌ها", href: "/admin/cards", icon: LayoutGrid },
   { label: "مدیریت کاربران", href: "/admin/users", icon: Users },
   { label: "مسیریابی وظایف", href: "/admin/duties", icon: GitBranch },
   { label: "دستگاه‌ها و ورودها", href: "/admin/sessions", icon: History },

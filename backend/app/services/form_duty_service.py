@@ -40,7 +40,7 @@ def list_assignments(db: Session) -> list[DutyEdge]:
         .order_by(User.display_name.asc(), User.username.asc(), FormDutyAssignment.id.asc())
         .all()
     )
-    catalog = {target.key: target for target in duty_catalog()}
+    catalog = {target.key: target for target in duty_catalog(db)}
     edges: list[DutyEdge] = []
     for assignment, user in rows:
         key = target_key(
@@ -258,7 +258,7 @@ def replace_assignments(
 
     target_keys = [key for _, key in edges]
     targets_by_key: dict[str, AccessTarget] = {
-        target.key: target for target in parse_duty_target_keys(target_keys)
+        target.key: target for target in parse_duty_target_keys(target_keys, db)
     }
 
     seen: set[tuple[int, str]] = set()

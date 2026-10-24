@@ -4,6 +4,13 @@ from sqlalchemy.orm import Session
 
 from app.models.form_template import DepartmentFormAccess, UserFormAccess
 from app.models.user import User
+from app.repositories.portal_card import PortalCardRepository
+from app.services.portal_card_targets import (
+    CUSTOM_DEPARTMENT_ID,
+    CUSTOM_DEPARTMENT_TITLE,
+    custom_form_id,
+    custom_section_id,
+)
 from app.services.portal_service import (
     DEPARTMENTS,
     INTERNAL_LETTERS_WORKFLOW_ID,
@@ -30,7 +37,33 @@ class AccessTarget:
         return f"{self.portal_department_id}:{self.section_id}:{self.form_id}"
 
 
-def access_catalog() -> list[AccessTarget]:
+def custom_card_targets(db: Session) -> list[AccessTarget]:
+    """Targets for admin-built form cards; the section title carries the card path."""
+    cards = PortalCardRepository(db).list_all()
+    by_id = {card.id: card for card in cards}
+    targets: list[AccessTarget] = []
+    for card in cards:
+        if card.kind != "form":
+            continue
+        trail, seen, parent = [card.title], {card.id}, by_id.get(card.parent_id)
+        while parent is not None and parent.id not in seen:
+            trail.append(parent.title)
+            seen.add(parent.id)
+            parent = by_id.get(parent.parent_id)
+        targets.append(
+            AccessTarget(
+                portal_department_id=CUSTOM_DEPARTMENT_ID,
+                portal_department_title=CUSTOM_DEPARTMENT_TITLE,
+                section_id=custom_section_id(card.id),
+                section_title=" › ".join(reversed(trail)),
+                form_id=custom_form_id(card.id),
+            )
+        )
+    return targets
+
+
+def access_catalog(db: Session | None = None) -> list[AccessTarget]:
+    """Return every grantable target; pass ``db`` to include admin-built cards."""
     targets: list[AccessTarget] = []
     for department in DEPARTMENTS:
         if department.sections:
@@ -55,12 +88,14 @@ def access_catalog() -> list[AccessTarget]:
                     form_id=department.id,
                 )
             )
+    if db is not None:
+        targets.extend(custom_card_targets(db))
     return targets
 
 
-def duty_catalog() -> list[AccessTarget]:
+def duty_catalog(db: Session | None = None) -> list[AccessTarget]:
     """Return only real form routes that can own task-duty assignments."""
-    return [target for target in access_catalog() if target.section_id]
+    return [target for target in access_catalog(db) if target.section_id]
 
 
 def target_key(portal_department_id: str, section_id: str, form_id: str) -> str:
@@ -71,16 +106,20 @@ def restricted_department_key(portal_department_id: str) -> str:
     return target_key(portal_department_id, "", portal_department_id)
 
 
-def parse_target_keys(keys: list[str]) -> list[AccessTarget]:
-    by_key = {target.key: target for target in access_catalog()}
+def parse_target_keys(
+    keys: list[str], db: Session | None = None
+) -> list[AccessTarget]:
+    by_key = {target.key: target for target in access_catalog(db)}
     invalid = sorted(set(keys) - set(by_key))
     if invalid:
         raise ValueError(f"Unknown form access target: {invalid[0]}")
     return [by_key[key] for key in dict.fromkeys(keys)]
 
 
-def parse_duty_target_keys(keys: list[str]) -> list[AccessTarget]:
-    by_key = {target.key: target for target in duty_catalog()}
+def parse_duty_target_keys(
+    keys: list[str], db: Session | None = None
+) -> list[AccessTarget]:
+    by_key = {target.key: target for target in duty_catalog(db)}
     invalid = sorted(set(keys) - set(by_key))
     if invalid:
         raise ValueError(f"Unknown form duty target: {invalid[0]}")

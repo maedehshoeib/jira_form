@@ -3,292 +3,55 @@ import { Table } from "@/components/ui/table";
 import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
-  CheckCircle2,
   ChevronLeft,
   ClipboardList,
-  Clock3,
-  Eye,
-  EyeOff,
   FileText,
   Forward,
   Grid2X2,
   Loader2,
-  Paperclip,
   RefreshCw,
   Rows3,
   Search,
   SlidersHorizontal,
   UserRound,
   X,
-  XCircle,
 } from "lucide-react";
 
 import client from "@/api/client";
 import { endpoints } from "@/api/endpoints";
 import AppShell from "@/components/layout/AppShell";
-import TaskConversation from "@/components/tasks/TaskConversation";
-import UserDisplayName from "@/components/UserDisplayName";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { API_BASE, FormField, FormTemplate } from "@/config/portal";
 import { useAuth } from "@/context/AuthContext";
-import {
-  formatPersianDateTime,
-  getTehranNowDate,
-} from "@/lib/persianDate";
+import { formatPersianDateTime, getTehranNowDate } from "@/lib/persianDate";
 
-import {
-  STATUS_TABS,
-  WORKFLOW_STATUS_META,
-} from "../constants";
+import { AssigneeProgressList } from "../components/AssigneeProgressList";
+import { RequestDetailDialog } from "../components/RequestDetailDialog";
+import { STATUS_TABS, WORKFLOW_STATUS_META } from "../constants";
 import type {
   SortOrder,
   StatusTab,
-  AssigneeProgress,
-  Colleague,
   SubmissionDetail,
   SubmissionListItem,
   TimeRange,
-  TimelineItem,
   ViewMode,
-  WorkflowStatus,
 } from "../types";
 import {
   compactNames,
-  downloadWithAuth,
   isTrackedRequest,
-  normalizedProgress,
   parseSubmittedAt,
-  parseTimelineEntityId,
   requestDisplayTitle,
   cleanDisplayText,
-  timelineEventDotClass,
-  timelineEventLabel,
   uniqueNames,
   workflowStatusMeta,
-  workflowStepIndex,
 } from "../utils";
-
-function WorkflowStatusIcon({
-  status,
-  size = 15,
-}: {
-  status: WorkflowStatus;
-  size?: number;
-}) {
-  if (status === "unseen") return <EyeOff size={size} aria-hidden="true" />;
-  if (status === "seen") return <Eye size={size} aria-hidden="true" />;
-  if (status === "referred") return <Forward size={size} aria-hidden="true" />;
-  if (status === "in_progress") return <Clock3 size={size} aria-hidden="true" />;
-  if (status === "completed") return <CheckCircle2 size={size} aria-hidden="true" />;
-  return <XCircle size={size} aria-hidden="true" />;
-}
-
-function AssigneeProgressList({
-  items,
-  compact = false,
-  maxVisible,
-}: {
-  items: AssigneeProgress[];
-  compact?: boolean;
-  /** When set, only this many rows render; remaining count is summarized. */
-  maxVisible?: number;
-}) {
-  const limit = maxVisible ?? (compact ? 3 : undefined);
-  const visible = limit != null ? items.slice(0, limit) : items;
-  const hiddenCount = items.length - visible.length;
-
-  return (
-    <div className={compact ? "max-h-36 space-y-2 overflow-hidden" : "grid gap-3 sm:grid-cols-2"}>
-      {visible.map((item) => {
-        const progress = normalizedProgress(item.progress_percent);
-        const name = item.display_name || item.username || "نامشخص";
-        return (
-          <div key={item.user_id} className="rounded-xl border border-border/70 bg-muted/40 p-3">
-            <div className="mb-2 flex items-center justify-between gap-3 text-xs">
-              <span className="min-w-0 truncate font-semibold text-foreground" title={name}>
-                {name}
-              </span>
-              <span className="shrink-0 font-extrabold tabular-nums text-foreground">
-                {progress.toLocaleString("fa-IR")}٪
-              </span>
-            </div>
-            <div
-              role="progressbar"
-              aria-label={`درصد پیشرفت ${name}`}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={progress}
-              className="h-2 overflow-hidden rounded-full bg-slate-200"
-            >
-              <div
-                className="h-full rounded-full bg-blue-600 transition-all"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
-        );
-      })}
-      {hiddenCount > 0 && (
-        <p className="px-1 text-[11px] font-semibold text-muted-foreground">
-          و {hiddenCount.toLocaleString("fa-IR")} نفر دیگر
-        </p>
-      )}
-    </div>
-  );
-}
-
-function WorkflowOverview({ status }: { status: WorkflowStatus }) {
-  const currentStep = workflowStepIndex(status);
-  const statusMeta = workflowStatusMeta(status);
-  const steps = [
-    "ثبت درخواست",
-    "مشاهده توسط مسئول",
-    status === "referred"
-      ? "ارجاع به مسئول"
-      : status === "in_progress"
-        ? "در حال رسیدگی"
-        : "رسیدگی درخواست",
-    status === "completed"
-      ? "انجام‌شده"
-      : status === "rejected"
-        ? "رد‌شده"
-        : "نتیجه نهایی",
-  ];
-
-  return (
-    <section
-      aria-label="جایگاه فعلی درخواست در فرایند رسیدگی"
-      className="rounded-3xl border border-border bg-muted/40 p-4 sm:p-5"
-    >
-      <div className="mb-5 flex items-start gap-3">
-        <div
-          className={
-            "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border " +
-            statusMeta.badgeClass
-          }
-        >
-          <WorkflowStatusIcon status={status} size={19} />
-        </div>
-        <div>
-          <h4 className="font-bold text-foreground">
-            جایگاه فعلی: {statusMeta.label}
-          </h4>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            {statusMeta.description}
-          </p>
-        </div>
-      </div>
-
-      <ol className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {steps.map((label, index) => {
-          const passed = index < currentStep;
-          const current = index === currentStep;
-          return (
-            <li
-              key={label}
-              aria-current={current ? "step" : undefined}
-              className={[
-                "flex min-h-20 items-center gap-2 rounded-2xl border px-3 py-3 text-xs font-semibold transition",
-                passed
-                  ? "border-emerald-100 bg-emerald-50 text-emerald-700"
-                  : current
-                    ? statusMeta.badgeClass
-                    : "border-border bg-card text-muted-foreground",
-              ].join(" ")}
-            >
-              <span
-                className={[
-                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-extrabold",
-                  passed
-                    ? "bg-emerald-600 text-white"
-                    : current
-                      ? "bg-card/80"
-                      : "bg-muted text-muted-foreground",
-                ].join(" ")}
-              >
-                {passed ? (
-                  <CheckCircle2 size={15} aria-hidden="true" />
-                ) : current ? (
-                  <WorkflowStatusIcon status={status} size={14} />
-                ) : (
-                  (index + 1).toLocaleString("fa-IR")
-                )}
-              </span>
-              <span className="leading-5">{label}</span>
-            </li>
-          );
-        })}
-      </ol>
-    </section>
-  );
-}
-
-function displayValue(value: unknown, field?: FormField) {
-  if (value === null || value === undefined || value === "") {
-    return <span className="text-muted-foreground">ثبت نشده</span>;
-  }
-
-  if (field?.type === "select") {
-    const option = field.options?.find((item) => item.value === String(value));
-    return option?.label ?? String(value);
-  }
-
-  if (Array.isArray(value)) {
-    const rows = value.filter(
-      (row) => row && typeof row === "object" && Object.values(row).some(Boolean)
-    ) as Record<string, unknown>[];
-    if (!rows.length) return <span className="text-muted-foreground">ثبت نشده</span>;
-
-    const columns = field?.columns?.length
-      ? field.columns
-      : Object.keys(rows[0]).map((key) => ({ key, title: key }));
-
-    return (
-      <div className="overflow-x-auto rounded-xl border border-border">
-        <Table className="min-w-full divide-y divide-slate-200 text-sm">
-          <thead className="bg-muted/40">
-            <tr>
-              {columns.map((column) => (
-                <th key={column.key} className="whitespace-nowrap px-3 py-2 text-right font-semibold text-muted-foreground">
-                  {column.title}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 bg-card">
-            {rows.map((row, index) => (
-              <tr key={index}>
-                {columns.map((column) => (
-                  <td key={column.key} className="whitespace-pre-wrap px-3 py-2 text-foreground">
-                    {String(row[column.key] ?? "—")}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      </div>
-    );
-  }
-
-  if (typeof value === "object") {
-    return <pre className="overflow-x-auto text-xs">{JSON.stringify(value, null, 2)}</pre>;
-  }
-
-  return <span className="whitespace-pre-wrap">{String(value)}</span>;
-}
 
 export default function MyRequestsPage() {
   const { user } = useAuth();
   const [requests, setRequests] = useState<SubmissionListItem[]>([]);
-  const [selected, setSelected] = useState<SubmissionDetail | null>(null);
-  const [template, setTemplate] = useState<FormTemplate | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
@@ -297,18 +60,12 @@ export default function MyRequestsPage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
   const [statusTab, setStatusTab] = useState<StatusTab>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
-  const [referOpen, setReferOpen] = useState(false);
-  const [referLoading, setReferLoading] = useState(false);
-  const [referError, setReferError] = useState("");
-  const [colleagues, setColleagues] = useState<Colleague[]>([]);
-  const [colleaguesLoading, setColleaguesLoading] = useState(false);
-  const [colleagueQuery, setColleagueQuery] = useState("");
-  const [selectedColleagueIds, setSelectedColleagueIds] = useState<number[]>([]);
-  const [referNote, setReferNote] = useState("");
-  const [referAttachments, setReferAttachments] = useState<File[]>([]);
-  const [finalStatusLoading, setFinalStatusLoading] = useState(false);
-  const [finalStatusError, setFinalStatusError] = useState("");
-  const [finalStatusNote, setFinalStatusNote] = useState("");
+
+  const syncRequest = (updated: SubmissionDetail) => {
+    setRequests((previous) =>
+      previous.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)),
+    );
+  };
 
   const loadRequests = async () => {
     setLoading(true);
@@ -472,197 +229,7 @@ export default function MyRequestsPage() {
     setSortOrder("newest");
   };
 
-  const openRequest = async (request: SubmissionListItem) => {
-    setDetailLoading(true);
-    setError("");
-    setReferOpen(false);
-    setReferError("");
-    setSelectedColleagueIds([]);
-    setReferNote("");
-    setReferAttachments([]);
-    try {
-      const detailResponse = await client.get<SubmissionDetail>(
-        `${endpoints.submissions}/${request.id}`,
-      );
-      setSelected(detailResponse.data);
-      setTemplate(null);
-
-      // Historical details remain available if form access changed or the
-      // original template is no longer available.
-      void client
-        .get<FormTemplate>(`${endpoints.forms}/${request.form_id}`, {
-          params: {
-            department: request.department_id,
-            section: request.section_id,
-          },
-        })
-        .then((response) => setTemplate(response.data))
-        .catch(() => undefined);
-    } catch {
-      setError("نمایش جزئیات این درخواست با مشکل مواجه شد.");
-    } finally {
-      setDetailLoading(false);
-    }
-  };
-
-  const openReferPanel = async () => {
-    setReferOpen(true);
-    setReferError("");
-    setColleagueQuery("");
-    setSelectedColleagueIds([]);
-    setReferNote("");
-    setReferAttachments([]);
-    if (colleagues.length > 0) return;
-    setColleaguesLoading(true);
-    try {
-      const { data } = await client.get<Colleague[]>(endpoints.taskColleagues);
-      setColleagues(data);
-    } catch {
-      setReferError("دریافت فهرست همکاران با مشکل مواجه شد.");
-    } finally {
-      setColleaguesLoading(false);
-    }
-  };
-
-  const submitRefer = async () => {
-    if (!selected || selectedColleagueIds.length === 0) return;
-    setReferLoading(true);
-    setReferError("");
-    try {
-      const formData = new FormData();
-      selectedColleagueIds.forEach((id) =>
-        formData.append("to_user_ids", String(id)),
-      );
-      formData.append("note", referNote.trim());
-      formData.append(
-        "allow_repeat",
-        String((selected.referrals?.length ?? 0) > 0),
-      );
-      referAttachments.forEach((file) =>
-        formData.append("attachments", file),
-      );
-      const { data } = await client.post<SubmissionDetail>(
-        `${endpoints.submissions}/${selected.id}/refer`,
-        formData,
-      );
-      setSelected((previous) =>
-        previous ? { ...data, data: previous.data } : data,
-      );
-      setRequests((previous) =>
-        previous.map((item) =>
-          item.id === data.id ? { ...item, ...data } : item,
-        ),
-      );
-      setReferOpen(false);
-      setSelectedColleagueIds([]);
-      setReferNote("");
-      setReferAttachments([]);
-    } catch {
-      setReferError("ارجاع مجدد درخواست با مشکل مواجه شد.");
-    } finally {
-      setReferLoading(false);
-    }
-  };
-
-  const updateFinalStatus = async (
-    status: "approved" | "rejected" | "submitted",
-  ) => {
-    if (!selected || selected.submitted_by_username !== user?.username) return;
-    setFinalStatusLoading(true);
-    setFinalStatusError("");
-    try {
-      const { data } = await client.patch<SubmissionDetail>(
-        `${endpoints.submissions}/${selected.id}/status`,
-        {
-          status,
-          note: finalStatusNote.trim(),
-          // A multi-recipient letter is closed/reopened once for all recipients.
-          apply_to_letter_batch: selected.form_id === "management-letter-form",
-        },
-      );
-      setSelected((previous) =>
-        previous ? { ...data, data: previous.data } : data,
-      );
-      setRequests((previous) =>
-        previous.map((item) =>
-          item.id === data.id ? { ...item, ...data } : item,
-        ),
-      );
-      setFinalStatusNote("");
-      window.dispatchEvent(new Event("tasks:refresh-notifications"));
-    } catch {
-      setFinalStatusError(
-        "ثبت نتیجه نهایی درخواست با مشکل مواجه شد. لطفاً دوباره تلاش کنید.",
-      );
-    } finally {
-      setFinalStatusLoading(false);
-    }
-  };
-  const filteredColleagues = useMemo(() => {
-    const query = colleagueQuery.trim().toLocaleLowerCase("fa");
-    if (!query) return colleagues;
-    return colleagues.filter((colleague) =>
-      [
-        colleague.display_name,
-        colleague.username,
-        colleague.department,
-        colleague.job_title,
-      ]
-        .join(" ")
-        .toLocaleLowerCase("fa")
-        .includes(query),
-    );
-  }, [colleagueQuery, colleagues]);
-
-  const visibleFields = useMemo(() => {
-    if (!selected) return [];
-    const isInternalLetter =
-      selected.form_id === "management-letter-form" &&
-      selected.data.letter_type === "internal";
-    const fieldsByName = new Map(template?.fields.map((field) => [field.name, field]));
-    return Object.entries(selected.data)
-      .filter(([name, value]) => {
-        if (
-          isInternalLetter &&
-          (name === "letter_number" || name === "sender" || name === "sender_detail")
-        ) {
-          return false;
-        }
-        if (
-          name === "_report_id" ||
-          name === "attachment" ||
-          name === "attachments" ||
-          name === "_attachments" ||
-          name === "letter_batch_id" ||
-          name === "letter_type" ||
-          name === "recipient_id" ||
-          name === "recipient_name"
-        ) {
-          return false;
-        }
-        if (name === "sender_detail" && (value == null || String(value).trim() === "")) {
-          return false;
-        }
-        if (name === "due_date" && (value == null || String(value).trim() === "")) {
-          return false;
-        }
-        return true;
-      })
-      .map(([name, value]) => ({ name, value, field: fieldsByName.get(name) }));
-  }, [selected, template]);
-
-  const selectedInitialAssigneeNames = selected
-    ? uniqueNames(
-        (selected.initial_assignees ?? []).map(
-          (assignee) => assignee.display_name || assignee.username,
-        ),
-      )
-    : [];
-  const selectedReferralTargetNames = selected
-    ? uniqueNames(
-        (selected.referrals ?? []).map((referral) => referral.to_user_name),
-      )
-    : [];
+  const openRequest = (request: SubmissionListItem) => setSelectedId(request.id);
 
   return (
     <AppShell>
@@ -905,7 +472,7 @@ export default function MyRequestsPage() {
                 size="free"
                 type="button"
                 key={request.id}
-                onClick={() => void openRequest(request)}
+                onClick={() => openRequest(request)}
                 aria-label={
                   "مشاهده جزئیات درخواست " +
                   requestTitle +
@@ -923,7 +490,6 @@ export default function MyRequestsPage() {
                     ? "border-amber-200 bg-amber-50/30 hover:border-amber-300"
                     : "border-border bg-card hover:border-primary/20",
                 ].join(" ")}
-                disabled={detailLoading}
               >
                 <div className={"absolute inset-x-0 top-0 h-1 " + statusMeta.barClass} />
                 <div className="mb-4 flex w-full shrink-0 items-start justify-between gap-3">
@@ -1094,9 +660,8 @@ export default function MyRequestsPage() {
                         <Button
                           type="button"
                           variant="ghost"
-                          onClick={() => void openRequest(request)}
-                          disabled={detailLoading}
-                          className="h-auto w-full min-w-0 flex-col items-start gap-0.5 rounded-xl px-3 py-2 text-right font-bold text-foreground hover:bg-muted hover:text-primary"
+                          onClick={() => openRequest(request)}
+                                    className="h-auto w-full min-w-0 flex-col items-start gap-0.5 rounded-xl px-3 py-2 text-right font-bold text-foreground hover:bg-muted hover:text-primary"
                         >
                           <span className="block min-w-0 max-w-full truncate" title={requestTitle}>
                             {requestTitle}
@@ -1151,9 +716,8 @@ export default function MyRequestsPage() {
                       <td className="whitespace-nowrap px-5 py-3.5">
                         <Button
                           type="button"
-                          onClick={() => void openRequest(request)}
-                          disabled={detailLoading}
-                          aria-label={`مشاهده جزئیات درخواست ${requestTitle}`}
+                          onClick={() => openRequest(request)}
+                                    aria-label={`مشاهده جزئیات درخواست ${requestTitle}`}
                           variant="outline"
                           className="h-9 gap-1.5 rounded-xl bg-card px-3 text-primary hover:bg-primary/10 hover:text-primary"
                         >
@@ -1170,572 +734,13 @@ export default function MyRequestsPage() {
         </div>
       )}
 
-      {selected && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/45 p-0 backdrop-blur-sm sm:items-center sm:p-6" onMouseDown={() => setSelected(null)}>
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-label="جزئیات درخواست"
-            className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-t-3xl bg-card shadow-2xl sm:rounded-3xl"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b bg-card/95 p-6 backdrop-blur">
-              <div>
-                <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <Badge
-                    variant="outline"
-                    aria-label={
-                      "وضعیت درخواست: " +
-                      workflowStatusMeta(selected.workflow_status).label
-                    }
-                    className={
-                      "gap-1.5 " +
-                      workflowStatusMeta(selected.workflow_status).badgeClass
-                    }
-                  >
-                    <WorkflowStatusIcon status={selected.workflow_status} />
-                    {workflowStatusMeta(selected.workflow_status).label}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">شناسه درخواست: {selected.id}</span>
-                </div>
-                <h3 className="break-words text-2xl font-bold text-foreground [overflow-wrap:anywhere]">
-                  {requestDisplayTitle(selected)}
-                </h3>
-                <p className="mt-1 text-sm text-muted-foreground">{selected.department_title} / {selected.section_title || selected.form_title}</p>
-              </div>
-              <Button variant="outline" onClick={() => setSelected(null)} className="shrink-0 rounded-xl">بستن</Button>
-            </div>
-
-            <div className="space-y-6 p-6 sm:p-8">
-              <WorkflowOverview status={selected.workflow_status} />
-
-              {selected.form_id !== "meeting-room-reservation-form" &&
-                selected.submitted_by_username === user?.username && (
-                  <section className="space-y-4 rounded-3xl border border-emerald-100 bg-emerald-50/50 p-5">
-                    <div>
-                      <h4 className="font-bold text-foreground">
-                        نتیجه نهایی درخواست
-                      </h4>
-                      <p className="mt-1 text-xs leading-6 text-muted-foreground">
-                        فقط شما به‌عنوان ارسال‌کننده می‌توانید انجام‌شدن یا
-                        انجام‌نشدن این درخواست را تأیید کنید.
-                      </p>
-                    </div>
-                    <Textarea
-                      value={finalStatusNote}
-                      onChange={(event) => setFinalStatusNote(event.target.value)}
-                      maxLength={512}
-                      placeholder="توضیح نتیجه نهایی (اختیاری)"
-                      className="min-h-20 bg-card"
-                    />
-                    {finalStatusError && (
-                      <p role="alert" className="text-sm font-semibold text-primary">
-                        {finalStatusError}
-                      </p>
-                    )}
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        onClick={() => void updateFinalStatus("approved")}
-                        disabled={finalStatusLoading || selected.status === "approved"}
-                        className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
-                      >
-                        {finalStatusLoading ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <CheckCircle2 className="h-4 w-4" />
-                        )}
-                        انجام شده است
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => void updateFinalStatus("rejected")}
-                        disabled={finalStatusLoading || selected.status === "rejected"}
-                        className="gap-2 border-primary/30 text-primary hover:bg-primary/10"
-                      >
-                        <XCircle className="h-4 w-4" />
-                        انجام نشده است
-                      </Button>
-                      {(selected.status === "approved" ||
-                        selected.status === "rejected") && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => void updateFinalStatus("submitted")}
-                          disabled={finalStatusLoading}
-                          className="border-amber-200 text-amber-800 hover:bg-amber-50"
-                        >
-                          بازگشایی درخواست
-                        </Button>
-                      )}
-                    </div>
-                  </section>
-                )}
-              {selected.form_id !== "meeting-room-reservation-form" &&
-                (selected.status === "submitted" ||
-                  selected.status === "in_progress") && (
-                  <section className="space-y-3 rounded-3xl border border-sky-100 bg-sky-50/60 p-5">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <h4 className="font-bold text-foreground">
-                          {(selected.referrals?.length ?? 0) > 0
-                            ? "ارجاع مجدد درخواست"
-                            : "ارجاع درخواست"}
-                        </h4>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          درخواست را همراه با چند پیوست برای یک یا چند همکار ارسال کنید.
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        onClick={() =>
-                          referOpen
-                            ? setReferOpen(false)
-                            : void openReferPanel()
-                        }
-                        disabled={referLoading}
-                        className="gap-2 bg-sky-600 text-white hover:bg-sky-700"
-                      >
-                        <Forward size={16} />
-                        {(selected.referrals?.length ?? 0) > 0
-                          ? "ارجاع مجدد"
-                          : "ارجاع"}
-                      </Button>
-                    </div>
-
-                    {referOpen && (
-                      <div className="space-y-3 border-t border-sky-100 pt-4">
-                        <Input
-                          value={colleagueQuery}
-                          onChange={(event) => setColleagueQuery(event.target.value)}
-                          placeholder="جستجوی نام همکار..."
-                          className="bg-card"
-                        />
-                        <div className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-border bg-card p-2">
-                          {colleaguesLoading ? (
-                            <div className="flex items-center justify-center gap-2 py-5 text-sm text-muted-foreground">
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              در حال دریافت...
-                            </div>
-                          ) : filteredColleagues.length === 0 ? (
-                            <p className="py-5 text-center text-sm text-muted-foreground">
-                              همکاری یافت نشد.
-                            </p>
-                          ) : (
-                            filteredColleagues.map((colleague) => {
-                              const isSelected = selectedColleagueIds.includes(
-                                colleague.id,
-                              );
-                              const wasReferred = (selected.referrals ?? []).some(
-                                (item) => item.to_user_id === colleague.id,
-                              );
-                              return (
-                                <Button
-                                  key={colleague.id}
-                                  type="button"
-                                  variant="ghost"
-                                  onClick={() =>
-                                    setSelectedColleagueIds((ids) =>
-                                      ids.includes(colleague.id)
-                                        ? ids.filter((id) => id !== colleague.id)
-                                        : [...ids, colleague.id],
-                                    )
-                                  }
-                                  className={
-                                    "flex h-auto w-full justify-between rounded-xl px-3 py-2 text-right " +
-                                    (isSelected
-                                      ? "bg-sky-100 text-sky-800"
-                                      : "")
-                                  }
-                                >
-                                  <UserDisplayName user={colleague} />
-                                  <span className="text-xs text-muted-foreground">
-                                    {wasReferred
-                                      ? "قبلاً ارجاع شده"
-                                      : colleague.job_title ||
-                                        colleague.department ||
-                                        colleague.username}
-                                  </span>
-                                </Button>
-                              );
-                            })
-                          )}
-                        </div>
-                        <Textarea
-                          value={referNote}
-                          onChange={(event) => setReferNote(event.target.value)}
-                          maxLength={512}
-                          placeholder="یادداشت ارجاع (اختیاری)"
-                          className="min-h-20 bg-card"
-                        />
-                        <div className="space-y-2">
-                          <Label className="text-xs text-muted-foreground">
-                            پیوست‌ها (اختیاری، امکان انتخاب چند فایل)
-                          </Label>
-                          <Input
-                            type="file"
-                            multiple
-                            onChange={(event) => {
-                              const addedFiles = Array.from(
-                                event.target.files ?? [],
-                              );
-                              setReferAttachments((currentFiles) => [
-                                ...currentFiles,
-                                ...addedFiles.filter(
-                                  (file) =>
-                                    !currentFiles.some(
-                                      (current) =>
-                                        current.name === file.name &&
-                                        current.size === file.size &&
-                                        current.lastModified ===
-                                          file.lastModified,
-                                    ),
-                                ),
-                              ]);
-                              event.currentTarget.value = "";
-                            }}
-                            className="bg-card"
-                          />
-                          {referAttachments.map((file, index) => (
-                            <div
-                              key={`${file.name}-${file.lastModified}-${index}`}
-                              className="flex items-center gap-2 text-xs text-muted-foreground"
-                            >
-                              <Paperclip size={13} />
-                              <span className="font-semibold">{file.name}</span>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                onClick={() =>
-                                  setReferAttachments((files) =>
-                                    files.filter(
-                                      (_, fileIndex) => fileIndex !== index,
-                                    ),
-                                  )
-                                }
-                                className="h-7 px-2"
-                              >
-                                حذف
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                        {referError && (
-                          <p role="alert" className="text-sm font-semibold text-primary">
-                            {referError}
-                          </p>
-                        )}
-                        <Button
-                          type="button"
-                          onClick={() => void submitRefer()}
-                          disabled={
-                            referLoading || selectedColleagueIds.length === 0
-                          }
-                          className="gap-2"
-                        >
-                          {referLoading ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Forward className="h-4 w-4" />
-                          )}
-                          ثبت{" "}
-                          {(selected.referrals?.length ?? 0) > 0
-                            ? "ارجاع مجدد"
-                            : "ارجاع"}
-                        </Button>
-                      </div>
-                    )}
-                  </section>
-                )}
-
-              <section
-                aria-label="میزان پیشرفت رسیدگی"
-                className="rounded-3xl border border-border bg-card p-5 shadow-sm"
-              >
-                <div className="mb-4">
-                  <h4 className="font-bold text-foreground">پیشرفت هر مسئول رسیدگی</h4>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    درصد پیشرفت هر فرد به‌صورت جداگانه نمایش داده می‌شود.
-                  </p>
-                </div>
-                {(selected.assignee_progress?.length ?? 0) > 0 ? (
-                  <AssigneeProgressList items={selected.assignee_progress ?? []} />
-                ) : (
-                  <p className="text-sm text-muted-foreground">هنوز پیشرفتی ثبت نشده است.</p>
-                )}
-              </section>
-
-              <div className="grid gap-3 rounded-2xl bg-muted/40 p-4 text-sm sm:grid-cols-2">
-                <div><span className="text-muted-foreground">تاریخ ثبت:</span> <span className="font-semibold text-foreground">{formatPersianDateTime(selected.created_at)}</span></div>
-                <div><span className="text-muted-foreground">نوع فرم:</span> <span className="font-semibold text-foreground">{selected.form_title}</span></div>
-                {(selected.jira_issue_key || selected.jira_status) && (
-                  <div className="sm:col-span-2 rounded-2xl border border-border bg-card p-3">
-                    <div className="mb-2 text-xs font-bold uppercase text-muted-foreground">Jira</div>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {selected.jira_issue_key && (
-                        <div>
-                          <span className="text-muted-foreground">Jira Issue:</span>{" "}
-                          <span className="font-semibold text-foreground">
-                            {selected.jira_issue_key}
-                          </span>
-                        </div>
-                      )}
-                      {selected.jira_status && (
-                        <div>
-                          <span className="text-muted-foreground">Jira Status:</span>{" "}
-                          <span className="whitespace-pre-wrap font-semibold text-foreground">
-                            {selected.jira_status}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-                <div className="flex items-start gap-2 sm:col-span-2">
-                  <UserRound
-                    size={16}
-                    className="mt-0.5 shrink-0 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                  <span className="shrink-0 text-muted-foreground">
-                    ارسال اولیه به:
-                  </span>
-                  <div className="flex min-w-0 flex-wrap gap-1.5">
-                    {selectedInitialAssigneeNames.length > 0 ? (
-                      selectedInitialAssigneeNames.map((name) => (
-                        <span
-                          key={name}
-                          className="rounded-full border border-border bg-card px-2.5 py-0.5 text-xs font-semibold text-foreground"
-                        >
-                          {name}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="font-semibold text-muted-foreground">نامشخص</span>
-                    )}
-                  </div>
-                </div>
-                {selectedReferralTargetNames.length > 0 && (
-                  <div className="flex items-start gap-2 sm:col-span-2">
-                    <Forward
-                      size={16}
-                      className="mt-0.5 shrink-0 text-violet-600"
-                      aria-hidden="true"
-                    />
-                    <span className="shrink-0 text-muted-foreground">
-                      ارجاع‌شده به:
-                    </span>
-                    <div className="flex min-w-0 flex-wrap gap-1.5">
-                      {selectedReferralTargetNames.map((name) => (
-                        <span
-                          key={name}
-                          className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-xs font-bold text-violet-700"
-                        >
-                          {name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <div className="flex items-center gap-2 sm:col-span-2">
-                  {selected.first_viewed_at ? (
-                    <Eye size={16} className="text-sky-600" aria-hidden="true" />
-                  ) : (
-                    <EyeOff size={16} className="text-amber-600" aria-hidden="true" />
-                  )}
-                  <span className="text-muted-foreground">اولین مشاهده توسط مسئول:</span>
-                  <span className="font-semibold text-foreground">
-                    {selected.first_viewed_at
-                      ? formatPersianDateTime(selected.first_viewed_at)
-                      : "هنوز مشاهده نشده"}
-                  </span>
-                </div>
-                {selected.attachment_name && (
-                  <div className="flex items-center gap-2 sm:col-span-2">
-                    <Paperclip size={16} className="text-red-500" />
-                    <span className="text-muted-foreground">پیوست:</span>
-                    <Button
-                      type="button"
-                      onClick={async () => {
-                        const token = localStorage.getItem("access_token");
-                        const res = await fetch(
-                          `${API_BASE}/submissions/${selected.id}/attachment`,
-                          {
-                            headers: token
-                              ? { Authorization: `Bearer ${token}` }
-                              : {},
-                          },
-                        );
-                        if (!res.ok) return;
-                        const blob = await res.blob();
-                        const url = window.URL.createObjectURL(blob);
-                        const link = document.createElement("a");
-                        link.href = url;
-                        link.download = selected.attachment_name!;
-                        document.body.appendChild(link);
-                        link.click();
-                        link.remove();
-                        window.URL.revokeObjectURL(url);
-                      }}
-                      className="font-semibold text-primary underline-offset-2 hover:underline"
-                    >
-                      {selected.attachment_name}
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              <TaskConversation submissionId={selected.id} canRemind />
-
-              <section aria-labelledby="request-timeline-title" className="space-y-4">
-                <div>
-                  <h4
-                    id="request-timeline-title"
-                    className="text-lg font-extrabold text-foreground"
-                  >
-                    مسیر درخواست
-                  </h4>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    همه تغییرات از زمان ثبت تا وضعیت فعلی
-                  </p>
-                </div>
-
-                {(selected.timeline ?? []).length > 0 ? (
-                  <ol className="relative space-y-1 before:absolute before:bottom-5 before:right-[7px] before:top-5 before:w-px before:bg-slate-200">
-                    {(selected.timeline ?? []).map((item) => {
-                      const eventProgress =
-                        item.to_progress_percent ?? item.progress_percent;
-                      return (
-                        <li key={item.id} className="relative flex gap-4 pb-5">
-                          <span
-                            className={
-                              "relative z-[1] mt-2 h-3.5 w-3.5 shrink-0 rounded-full ring-4 " +
-                              timelineEventDotClass(item)
-                            }
-                            aria-hidden="true"
-                          />
-                          <div className="min-w-0 flex-1 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
-                            <div className="flex flex-wrap items-start justify-between gap-2">
-                              <div>
-                                <p className="font-bold text-foreground">
-                                  {timelineEventLabel(item)}
-                                </p>
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                  {item.event_type === "referred" &&
-                                  item.to_user_name ? (
-                                    <>
-                                      از{" "}
-                                      <span className="font-semibold text-foreground">
-                                        {item.actor_name || "سامانه"}
-                                      </span>{" "}
-                                      به{" "}
-                                      <span className="font-semibold text-violet-700">
-                                        {item.to_user_name}
-                                      </span>
-                                    </>
-                                  ) : (
-                                    <>توسط {item.actor_name || "سامانه"}</>
-                                  )}
-                                </p>
-                              </div>
-                              <time className="whitespace-nowrap text-xs text-muted-foreground">
-                                {formatPersianDateTime(item.created_at)}
-                              </time>
-                            </div>
-
-                            {(eventProgress !== null ||
-                              item.note ||
-                              item.attachment_name ||
-                              (item.attachment_names?.length ?? 0) > 0) && (
-                              <div className="mt-3 flex flex-wrap items-start gap-2">
-                                {eventProgress !== null && (
-                                  <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
-                                    پیشرفت:{" "}
-                                    {normalizedProgress(eventProgress).toLocaleString(
-                                      "fa-IR",
-                                    )}
-                                    ٪
-                                  </span>
-                                )}
-                                {item.note && (
-                                  <p className="min-w-0 flex-1 whitespace-pre-wrap rounded-xl bg-muted/40 px-3 py-2 text-xs leading-6 text-muted-foreground">
-                                    {item.note}
-                                  </p>
-                                )}
-                                {(item.attachment_names?.length
-                                  ? item.attachment_names
-                                  : item.attachment_name
-                                    ? [item.attachment_name]
-                                    : []
-                                ).map((fileName, index) => (
-                                  <Button
-                                    key={`${fileName}-${index}`}
-                                    type="button"
-                                    onClick={() => {
-                                      void (async () => {
-                                        if (item.event_type === "referred") {
-                                          const referralId = parseTimelineEntityId(
-                                            item.id,
-                                            "referral",
-                                          );
-                                          if (!referralId) return;
-                                          await downloadWithAuth(
-                                            `${API_BASE}/submissions/${selected.id}/referrals/${referralId}/attachment?index=${index}`,
-                                            fileName,
-                                          );
-                                          return;
-                                        }
-                                        if (item.event_type === "status_changed") {
-                                          const historyId = parseTimelineEntityId(
-                                            item.id,
-                                            "status",
-                                          );
-                                          if (!historyId) return;
-                                          await downloadWithAuth(
-                                            `${API_BASE}/submissions/${selected.id}/status-history/${historyId}/attachment`,
-                                            fileName,
-                                          );
-                                        }
-                                      })();
-                                    }}
-                                    className="inline-flex items-center gap-1 rounded-full border border-violet-100 bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-100"
-                                  >
-                                    <Paperclip size={12} />
-                                    {fileName}
-                                  </Button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ol>
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-border bg-muted/40 p-5 text-center text-sm text-muted-foreground">
-                    هنوز رویدادی برای این درخواست ثبت نشده است.
-                  </div>
-                )}
-              </section>
-
-              <div className="space-y-4">
-                {visibleFields.map(({ name, value, field }) => (
-                  <div key={name} className="rounded-2xl border border-border p-4">
-                    <div className="mb-2 text-sm font-semibold text-muted-foreground">{field?.label ?? name}</div>
-                    <div className="text-foreground">{displayValue(value, field)}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        </div>
-      )}
-
-      {detailLoading && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/20">
-          <div className="flex items-center gap-3 rounded-2xl bg-card px-5 py-4 shadow-xl"><Loader2 className="animate-spin text-primary" />در حال دریافت جزئیات...</div>
-        </div>
+      {selectedId !== null && (
+        <RequestDetailDialog
+          key={selectedId}
+          submissionId={selectedId}
+          onClose={() => setSelectedId(null)}
+          onChanged={syncRequest}
+        />
       )}
     </AppShell>
   );

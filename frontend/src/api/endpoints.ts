@@ -11,6 +11,8 @@ export const endpoints = {
   pdfForms: "/pdf-forms",
   jobDescriptions: "/job-descriptions",
   adminJobDescriptions: "/admin/job-descriptions",
+  portalCards: "/portal-cards",
+  adminPortalCards: "/admin/portal-cards",
   forms: "/forms",
   reports: "/reports",
   reportsPublic: "/reports/public",

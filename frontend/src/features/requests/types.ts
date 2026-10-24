@@ -71,6 +71,7 @@ export type SubmissionListItem = {
   initial_assignees?: InitialAssignee[];
   referrals?: ReferralItem[];
   attachment_name: string | null;
+  attachment_names?: string[];
   status_attachment_name?: string | null;
   created_at: string;
   submitted_by?: string;

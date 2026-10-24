@@ -28,6 +28,8 @@ from app.schemas.submission import (
     SubmissionResponse,
     SubmissionTimelineItem,
 )
+from app.services.portal_card_service import custom_form_titles
+from app.services.portal_card_targets import CUSTOM_DEPARTMENT_ID
 from app.services.portal_service import DEPARTMENTS, FORM_TEMPLATES
 from app.services.management_letter_service import (
     expand_with_letter_batch_siblings,
@@ -114,16 +116,28 @@ def _report_id_from_data(raw: str) -> int | None:
         return None
 
 
-def _form_title(form_id: str) -> str:
+def _form_title(form_id: str, db: Session | None = None) -> str:
     form = FORM_TEMPLATES.get(form_id)
-    return form.title if form else form_id
+    if form:
+        return form.title
+    custom = custom_form_titles(db, form_id) if db is not None else None
+    return custom[1] if custom else form_id
 
 
 def _department_and_section_titles(
     department_id: str,
     section_id: str,
     submission_data: str | None = None,
+    db: Session | None = None,
+    form_id: str = "",
 ) -> tuple[str, str]:
+    custom = (
+        custom_form_titles(db, form_id)
+        if db is not None and department_id == CUSTOM_DEPARTMENT_ID
+        else None
+    )
+    if custom:
+        return custom
     from app.services.portal_service import (
         MANAGEMENT_LETTER_SECTION,
         MANAGEMENT_WORKFLOW_ID,
@@ -714,6 +728,8 @@ def _submission_to_list_item(
         submission.department_id,
         submission.section_id,
         submission.data,
+        db,
+        submission.form_id,
     )
     initial_assignees = _initial_assignee_items(context, submission.id)
     assignee_progress = _assignee_progress_items(context, submission.id)
@@ -725,7 +741,7 @@ def _submission_to_list_item(
     return SubmissionListItem(
         id=submission.id,
         form_id=submission.form_id,
-        form_title=_form_title(submission.form_id),
+        form_title=_form_title(submission.form_id, db),
         department_id=submission.department_id,
         department_title=department_title,
         section_id=submission.section_id,
@@ -798,6 +814,8 @@ def _submission_to_response(
         submission.department_id,
         submission.section_id,
         submission.data,
+        db,
+        submission.form_id,
     )
     initial_assignees = _initial_assignee_items(context, submission.id)
     assignee_progress = _assignee_progress_items(context, submission.id)
@@ -809,7 +827,7 @@ def _submission_to_response(
     return SubmissionResponse(
         id=submission.id,
         form_id=submission.form_id,
-        form_title=_form_title(submission.form_id),
+        form_title=_form_title(submission.form_id, db),
         department_id=submission.department_id,
         department_title=department_title,
         section_id=submission.section_id,

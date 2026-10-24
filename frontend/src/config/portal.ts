@@ -1,4 +1,4 @@
-export type FieldType = 'text' | 'textarea' | 'select' | 'date' | 'time' | 'file' | 'email' | 'table';
+export type FieldType = 'text' | 'textarea' | 'select' | 'date' | 'time' | 'file' | 'email' | 'number' | 'table';
 
 export type SelectOption = {
   label: string;

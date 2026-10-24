@@ -23,6 +23,7 @@ from app.models import (  # noqa: F401
     job_description,
     letter_folder,
     pdf_form,
+    portal_card,
     report,
     site_banner,
     site_news,

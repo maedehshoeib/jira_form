@@ -87,6 +87,8 @@ from app.services.meeting_room_workflow_service import (
     initialize_meeting_room_workflow,
     prepare_meeting_room_data,
 )
+from app.services.portal_card_form import derive_subject, validate_submission
+from app.services.portal_card_service import PortalCardService
 from app.services.task_notification_service import TaskNotificationService
 from app.services.task_workflow_service import (
     add_task_comment,
@@ -674,11 +676,15 @@ def get_form(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    form = FORM_TEMPLATES.get(form_id)
+    custom = PortalCardService(db).resolve_form(form_id)
+    form = custom.template if custom else FORM_TEMPLATES.get(form_id)
     if not form:
         raise HTTPException(status_code=404, detail="Form not found")
     portal_department_id = department or form.department_id
     section_id = section or form.section_id
+    if custom:
+        # Admin-built forms have one canonical target; ignore client-supplied ids.
+        portal_department_id, section_id = form.department_id, form.section_id
     if is_purchase_request_target(form_id, portal_department_id, section_id):
         form = PURCHASE_REQUEST_FORM
     if form_id == MANAGEMENT_LETTER_FORM_ID:
@@ -698,9 +704,14 @@ def get_form(
         .first()
         is not None
     )
-    if not can_access_target(
-        db, current_user, portal_department_id, section_id, form_id
-    ) and not handles and not referred:
+    has_access = (
+        PortalCardService(db).is_visible(current_user, custom.card)
+        if custom
+        else can_access_target(
+            db, current_user, portal_department_id, section_id, form_id
+        )
+    )
+    if not has_access and not handles and not referred:
         raise HTTPException(status_code=403, detail="شما به این فرم دسترسی ندارید.")
     return form
 
@@ -720,9 +731,18 @@ async def create_submission(
             status_code=400,
             detail="برای ارسال نامه از بخش نامه‌های سازمانی استفاده کنید.",
         )
-    if form_id not in FORM_TEMPLATES or not can_access_target(
-        db, current_user, department_id, section_id, form_id
-    ):
+    card_service = PortalCardService(db)
+    custom = card_service.resolve_form(form_id)
+    if custom:
+        # Admin-built forms have one canonical target; ignore client-supplied ids.
+        department_id = custom.template.department_id
+        section_id = custom.template.section_id
+        allowed = card_service.is_visible(current_user, custom.card)
+    else:
+        allowed = form_id in FORM_TEMPLATES and can_access_target(
+            db, current_user, department_id, section_id, form_id
+        )
+    if not allowed:
         raise HTTPException(status_code=403, detail="شما به این فرم دسترسی ندارید.")
     form_data: dict = {}
     attachment_path = None
@@ -742,6 +762,14 @@ async def create_submission(
             continue
         form_data[key] = str(value)
 
+    if custom:
+        try:
+            form_data = validate_submission(custom.schema, form_data)
+        except ValueError as exc:
+            if attachment_path:
+                Path(attachment_path).unlink(missing_ok=True)
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
     meeting_room_approvers = []
     if form_id == MEETING_ROOM_FORM_ID:
         try:
@@ -752,6 +780,8 @@ async def create_submission(
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     subject = form_data.get("subject", "")
+    if custom:
+        subject = derive_subject(custom.schema, form_data, custom.card.title)
     if is_purchase_request_target(form_id, department_id, section_id):
         subject = purchase_request_subject(form_data)
         form_data["subject"] = subject

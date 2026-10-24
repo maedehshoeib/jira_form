@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
+import { RequestDetailDialog } from "@/features/requests";
 import {
   formatPersianDate,
   formatPersianDateTime,
@@ -90,6 +91,12 @@ function statusBadgeClass(status: string) {
   return "border-amber-200 bg-amber-50 text-amber-700";
 }
 
+/** The direct recipient copy carries the full workflow of the whole batch. */
+function primarySubmissionId(item: LetterReportItem) {
+  const direct = item.recipients.find((row) => row.delivery_type !== "cc");
+  return (direct ?? item.recipients[0])?.submission_id ?? null;
+}
+
 function batchSummary(item: LetterReportItem) {
   const total = item.recipients.length;
   const actionable = item.recipients.filter((row) => row.delivery_type !== "cc");
@@ -108,13 +115,10 @@ export default function LetterReportPage({
   letterType,
   onClose,
   onCompose,
-  onOpenLetter,
 }: {
   letterType: LetterType;
   onClose: () => void;
   onCompose: () => void;
-  /** Opens the full letter (text, attachments, workflow, conversation, actions). */
-  onOpenLetter?: (batchId: string) => void;
 }) {
   const workflow = LETTER_WORKFLOWS[letterType];
   const { user } = useAuth();
@@ -124,6 +128,7 @@ export default function LetterReportPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [detailId, setDetailId] = useState<number | null>(null);
 
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -474,18 +479,18 @@ export default function LetterReportPage({
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {onOpenLetter ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => onOpenLetter(item.batch_id)}
-                          className="h-7 gap-1.5 rounded-lg border-primary/30 text-xs font-bold text-primary hover:bg-primary/10"
-                        >
-                          <Eye size={13} />
-                          جزئیات و گردش کار
-                        </Button>
-                      ) : null}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setDetailId(primarySubmissionId(item))}
+                        disabled={!primarySubmissionId(item)}
+                        className="h-7 gap-1.5 rounded-lg border-primary/30 text-xs font-bold text-primary hover:bg-primary/10"
+                      >
+                        <Eye size={13} />
+                        جزئیات کامل و گردش کار
+                      </Button>
+                      
                       <Badge className="border-border bg-muted/40 text-muted-foreground">
                         {summary.total.toLocaleString("fa-IR")} گیرنده
                       </Badge>
@@ -564,6 +569,14 @@ export default function LetterReportPage({
           </div>
         )}
       </div>
+      {detailId !== null && (
+        <RequestDetailDialog
+          key={detailId}
+          submissionId={detailId}
+          onClose={() => setDetailId(null)}
+          onChanged={() => void load()}
+        />
+      )}
     </>
   );
 }

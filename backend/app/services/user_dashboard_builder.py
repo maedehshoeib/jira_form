@@ -107,7 +107,7 @@ def build_user_dashboard(db: Session, user: User) -> UserDashboardResponse:
     request_forms: dict[str, int] = defaultdict(int)
     for submission in requests:
         request_departments[_portal_department_title(submission.department_id)] += 1
-        request_forms[_form_title(submission.form_id)] += 1
+        request_forms[_form_title(submission.form_id, db)] += 1
 
     sent_batches: dict[str, list[Submission]] = defaultdict(list)
     received_letters: list[Submission] = []

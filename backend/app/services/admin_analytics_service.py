@@ -49,6 +49,11 @@ from app.schemas.admin import (
     ProjectAnalyticsRow,
     SubprojectAnalyticsRow,
 )
+from app.services.portal_card_service import custom_form_titles
+from app.services.portal_card_targets import (
+    CUSTOM_DEPARTMENT_ID,
+    CUSTOM_DEPARTMENT_TITLE,
+)
 from app.services.portal_service import (
     DEPARTMENTS,
     FORM_TEMPLATES,
@@ -92,13 +97,18 @@ def _portal_department_title(department_id: str) -> str:
     for department in DEPARTMENTS:
         if department.id == department_id:
             return department.title
+    if department_id == CUSTOM_DEPARTMENT_ID:
+        return CUSTOM_DEPARTMENT_TITLE
     return department_id
 
 
-def _form_title(form_id: str) -> str:
+def _form_title(form_id: str, db: Session | None = None) -> str:
     template = FORM_TEMPLATES.get(form_id)
     if template:
         return template.title
+    custom = custom_form_titles(db, form_id) if db is not None else None
+    if custom:
+        return custom[1]
     return form_id or "فرم نامشخص"
 
 
@@ -527,7 +537,7 @@ def build_analytics(
         status_counts[submission.status or "نامشخص"] += 1
         org_dept_forms[_org_department(user)] += 1
         portal_dept_forms[_portal_department_title(submission.department_id)] += 1
-        form_type_counts[_form_title(submission.form_id)] += 1
+        form_type_counts[_form_title(submission.form_id, db)] += 1
         submitter_name = (
             (user.display_name or user.username) if user else "کاربر حذف‌شده"
         )

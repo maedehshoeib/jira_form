@@ -755,8 +755,11 @@ def delete_department(
 
 
 @router.get("/form-access/catalog", response_model=list[FormAccessTarget])
-def get_form_access_catalog(_: User = Depends(get_admin_user)):
-    return [FormAccessTarget(**target.__dict__) for target in access_catalog()]
+def get_form_access_catalog(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    return [FormAccessTarget(**target.__dict__) for target in access_catalog(db)]
 
 
 def _duty_edge_response(edge) -> FormDutyEdge:
@@ -833,7 +836,7 @@ def update_department_form_access(
 ):
     department = _department_or_404(db, department_id)
     try:
-        targets = parse_target_keys(body.targets)
+        targets = parse_target_keys(body.targets, db)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     db.query(DepartmentFormAccess).filter(
@@ -889,7 +892,7 @@ def update_user_form_access(
     if not user:
         raise HTTPException(status_code=404, detail="کاربر یافت نشد.")
     try:
-        targets = parse_target_keys(body.targets)
+        targets = parse_target_keys(body.targets, db)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     db.query(UserFormAccess).filter(UserFormAccess.user_id == user.id).delete(

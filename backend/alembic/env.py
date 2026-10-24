@@ -14,6 +14,7 @@ from app.models import (  # noqa: F401
     department,
     form_template,
     pdf_form,
+    portal_card,
     report,
     site_banner,
     site_news,

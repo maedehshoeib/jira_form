@@ -12,6 +12,11 @@ The web UI is exposed on `8080`, the API on `8000`, and PostgreSQL on `5432`.
 PostgreSQL data persists in `postgres_data`; uploads and legacy SQLite files stay
 in `portal_data`.
 
+Admin-managed card logos and document files are stored under
+`UPLOAD_DIR/portal-cards` with random UUID filenames. Back up that folder with
+the rest of `portal_data`. The `20261024_0007` Alembic revision creates the
+`portal_cards` and `portal_card_files` tables (run `alembic upgrade head`).
+
 ## First production migration from SQLite
 
 See **[Production SQLite migration](07-production-sqlite-migration.md)** for the

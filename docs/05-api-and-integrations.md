@@ -12,6 +12,49 @@ for other `/api` paths.
 | Chat and WebSocket | `/api/v1/chat` |
 | Calendar | `/api/v1/calendar` |
 | Job descriptions (شرح وظایف) | `/api/v1/job-descriptions` |
+| Admin-managed cards | `/api/v1/portal-cards`, `/api/v1/admin/portal-cards` |
+
+## Admin-managed portal cards
+
+Administrators build homepage content without code in `/admin/cards`. A card is a
+node in a tree (`parent_id = null` is the homepage, maximum depth 5) with a
+`kind`:
+
+- `group` — holds more cards.
+- `form` — a form built from sections and fields (text, textarea, number, email,
+  date, time, select, file, table; optional required flag and "show only when
+  select X equals Y" rule). Field names are generated (`f_xxxxxx`) and stay
+  stable so stored answers survive label edits.
+- `document` — text plus up to 30 downloadable files (≤20 MB each; PDFs can be
+  viewed inline).
+
+Cards have a title, description, optional logo (JPG/PNG/WebP ≤5 MB) and a
+published flag. Drafts and everything below a draft are visible to admins only.
+
+Employee endpoints (authenticated):
+
+- `GET /api/v1/portal-cards?parent_id=` — visible children (root when omitted)
+- `GET /api/v1/portal-cards/{id}` — breadcrumbs, children, form template, content, files
+- `GET /api/v1/portal-cards/{id}/logo` — public image (like news/job-description images)
+- `GET /api/v1/portal-cards/{id}/files/{file_id}` — download, requires visibility
+
+Admin endpoints (`get_admin_user`): `GET/POST /admin/portal-cards`,
+`GET/PUT/DELETE /admin/portal-cards/{id}`, `POST .../reorder`, `POST .../{id}/move`,
+`PUT .../{id}/form`, `PUT .../{id}/content`, `POST .../{id}/files`,
+`DELETE .../{id}/files/{file_id}`. Create/update use multipart form data.
+
+Custom forms reuse the existing form pipeline: the template is served by
+`GET /api/v1/forms/custom-<id>` and answers are posted to `POST /api/v1/submissions`
+with the server-side target `department_id=custom`, `section_id=card-<id>`,
+`form_id=custom-<id>` (client-supplied department/section are ignored). Submission
+data is validated against the stored schema (required, select options, number,
+email, conditional visibility; unknown keys are dropped). Form-access rules and
+task-duty routing treat custom forms as a «کارت‌های سفارشی» department whose
+sections are the card paths, so admins assign access and handlers in the existing
+admin screens. A custom form is visible to an employee only when it and all its
+ancestors are published and access rules allow it. Deleting a card removes its
+descendants, files, and access/duty assignments; historical submissions keep the
+`custom-<id>` id.
 
 ## Calendar
 
@@ -107,6 +150,15 @@ sibling status history, referrals, CC rows, views, and assignee progress so
 responses and attachments from every recipient stay visible on the letter
 timeline. Task download routes for status-history and referral attachments also
 resolve files across the same letter batch.
+
+The letter report pages (`/my-letters?report=internal|external`, used for admin
+monitoring and sender follow-up) open the same «جزئیات درخواست» dialog as
+«همه درخواست‌ها» (`RequestDetailDialog`, button «جزئیات کامل و گردش کار») for a
+letter's primary submission: workflow overview, per-assignee progress, initial
+and referred recipients, attachments, conversation (mentions/reminders),
+timeline, and refer/re-refer. Only the sender can close, reject, or reopen a
+letter (applied to the whole batch); administrators monitor and refer but get
+`403` on terminal status changes.
 
 ## Task inbox notifications
 

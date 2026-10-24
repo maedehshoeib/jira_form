@@ -31,6 +31,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { API_BASE, Department } from "@/config/portal";
 import { bannerImageUrl, SiteBanner } from "@/features/banner";
 import { SiteNews } from "@/features/news";
+import { HomeCustomCards } from "@/features/portal-cards";
 import { formatPersianDateTime } from "@/lib/persianDate";
 import { cn } from "@/lib/utils";
 import HomeNotifications from "../components/HomeNotifications";
@@ -598,6 +599,7 @@ export default function HomePage() {
                 ))}
               </div>
             ))}
+            <HomeCustomCards />
           </div>
         </section>
       </div>

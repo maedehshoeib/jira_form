@@ -423,19 +423,6 @@ export default function MyLettersPage() {
     if (workspaceOpen) backToMailbox();
   };
 
-  const openSentLetter = (batchId: string) => {
-    const match = sentLetters.find((item) => item.batch_id === batchId);
-    if (!match) {
-      setError("جزئیات این نامه در دسترس نیست. فهرست را به‌روزرسانی کنید.");
-      return;
-    }
-    setSelected(null);
-    setFolder("sent");
-    setListPage(1);
-    setSelectedSent(match);
-    router.push(LETTERS_HOME_PATH);
-  };
-
   const toggleArchive = async () => {
     if (!selected || archiveLoading) return;
     const archived = !selected.is_archived;
@@ -842,7 +829,6 @@ export default function MyLettersPage() {
               letterType={reportType}
               onClose={backToMailbox}
               onCompose={() => openCompose(reportType)}
-              onOpenLetter={openSentLetter}
             />
           </section>
         ) : (
