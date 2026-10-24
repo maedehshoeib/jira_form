@@ -112,7 +112,7 @@ Every signed-in user can manage their own timesheet:
 - Manual entrance/exit: `POST /api/v1/timesheet/attendance/entries`, `POST /api/v1/timesheet/attendance/entries/{id}`, `POST /api/v1/timesheet/attendance/entries/{id}/delete`
 - Tasks: `POST /api/v1/timesheet/tasks`, `POST /api/v1/timesheet/tasks/entries/{id}`, `POST /api/v1/timesheet/tasks/entries/{id}/delete`
 
-Users may only create or change their own attendance and tasks. Other-day attendance must include both entrance and exit. Tasks must still fall inside a presence window. Admin-only `/api/v1/timesheet/admin/*` routes continue to manage other employees, projects, and reports.
+Users may only create or change their own attendance and tasks. Other-day attendance must include both entrance and exit. Tasks must still fall inside a presence window. Admin-only `/api/v1/timesheet/admin/*` routes continue to manage other employees, projects, and reports. The admin report screen exports the open tab (employees, tasks, or attendance) as a UTF-8 CSV of the rows that match the current filters, including rows beyond the visible page.
 
 WebSocket clients use `NEXT_PUBLIC_WS_BASE_URL` when configured. The local fallback connects to port `8000` on the current hostname. Production should provide a TLS WebSocket origin or reverse-proxy `/api/v1/chat/ws` to FastAPI.
 
