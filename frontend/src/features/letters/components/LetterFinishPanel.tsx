@@ -23,7 +23,6 @@ export function LetterFinishPanel({ letter, canFinish, onUpdated }: Props) {
   const direct = letter.recipients.filter((row) => row.delivery_type !== "cc");
   const openRows = direct.filter((row) => !FINAL.has(row.status));
   const closedRows = direct.filter((row) => FINAL.has(row.status));
-  const readyRows = openRows.filter((row) => (row.progress_percent ?? 0) >= 99);
 
   const [note, setNote] = useState("");
   const [loadingId, setLoadingId] = useState<number | "all" | null>(null);
@@ -33,6 +32,12 @@ export function LetterFinishPanel({ letter, canFinish, onUpdated }: Props) {
     return null;
   }
   if (direct.length === 0) return null;
+
+  const notifyChanged = () => {
+    onUpdated();
+    window.dispatchEvent(new Event("tasks:refresh-notifications"));
+    window.dispatchEvent(new Event("letters:refresh-notifications"));
+  };
 
   const updateStatus = async (
     submissionId: number,
@@ -46,9 +51,7 @@ export function LetterFinishPanel({ letter, canFinish, onUpdated }: Props) {
         note: note.trim(),
       });
       setNote("");
-      onUpdated();
-      window.dispatchEvent(new Event("tasks:refresh-notifications"));
-      window.dispatchEvent(new Event("letters:refresh-notifications"));
+      notifyChanged();
     } catch (err: unknown) {
       setError(apiErrorDetail(err, "ثبت نتیجه نهایی نامه با مشکل مواجه شد."));
     } finally {
@@ -56,24 +59,23 @@ export function LetterFinishPanel({ letter, canFinish, onUpdated }: Props) {
     }
   };
 
-  const finishAllReady = async () => {
-    if (readyRows.length === 0) return;
+  const finishAllOpen = async () => {
+    if (openRows.length === 0) return;
     setLoadingId("all");
     setError("");
     try {
-      for (const row of readyRows) {
+      for (const row of openRows) {
         await client.patch(`${endpoints.submissions}/${row.submission_id}/status`, {
           status: "approved",
           note: note.trim(),
         });
       }
       setNote("");
-      onUpdated();
-      window.dispatchEvent(new Event("tasks:refresh-notifications"));
-      window.dispatchEvent(new Event("letters:refresh-notifications"));
     } catch (err: unknown) {
-      setError(apiErrorDetail(err, "بستن نامه‌های آماده با مشکل مواجه شد."));
+      setError(apiErrorDetail(err, "بستن نامه با مشکل مواجه شد."));
     } finally {
+      // Some copies may already be closed even when a later one failed.
+      notifyChanged();
       setLoadingId(null);
     }
   };
@@ -83,8 +85,9 @@ export function LetterFinishPanel({ letter, canFinish, onUpdated }: Props) {
       <div>
         <h4 className="text-sm font-bold text-foreground">نتیجه نهایی نامه</h4>
         <p className="mt-1 text-xs leading-6 text-muted-foreground">
-          فقط شما به‌عنوان فرستنده می‌توانید نامه را پس از پیشرفت گیرنده ببندید.
-          وقتی پیشرفت به ۹۹٪ برسد، بستن نامه در دسترس است.
+          فقط شما به‌عنوان فرستنده می‌توانید انجام‌شدن یا انجام‌نشدن نامه را ثبت کنید.
+          پس از ثبت، نامه در پوشهٔ «انجام‌شده» قرار می‌گیرد و در صورت نیاز می‌توانید
+          آن را بازگشایی کنید.
         </p>
       </div>
 
@@ -102,15 +105,19 @@ export function LetterFinishPanel({ letter, canFinish, onUpdated }: Props) {
         </p>
       ) : null}
 
-      {readyRows.length > 1 ? (
+      {openRows.length > 1 ? (
         <Button
           type="button"
-          onClick={() => void finishAllReady()}
+          onClick={() => void finishAllOpen()}
           disabled={loadingId !== null}
           className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
         >
-          {loadingId === "all" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-          بستن همه گیرنده‌های ۹۹٪
+          {loadingId === "all" ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <CheckCircle2 className="h-4 w-4" />
+          )}
+          بستن نامه برای همه گیرنده‌ها
         </Button>
       ) : null}
 
@@ -145,16 +152,14 @@ function RecipientFinishRow({
 }) {
   const progress = row.progress_percent ?? 0;
   const isFinal = FINAL.has(row.status);
-  const canClose = !isFinal && progress >= 99;
 
   return (
     <li className="rounded-xl border border-border bg-card px-3 py-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">{row.display_name}</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground" dir="ltr">
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
             پیشرفت {progress.toLocaleString("fa-IR")}٪
-            {canClose ? " · آماده بستن" : ""}
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -164,15 +169,15 @@ function RecipientFinishRow({
                 type="button"
                 size="sm"
                 onClick={() => onFinish("approved")}
-                disabled={loading || !canClose}
-                title={
-                  canClose
-                    ? "بستن نامه به‌عنوان انجام‌شده"
-                    : "پس از رسیدن پیشرفت به ۹۹٪ فعال می‌شود"
-                }
-                className="h-8 gap-1 bg-emerald-600 px-2.5 text-xs text-white hover:bg-emerald-700 disabled:opacity-50"
+                disabled={loading}
+                title="بستن نامه به‌عنوان انجام‌شده"
+                className="h-8 gap-1 bg-emerald-600 px-2.5 text-xs text-white hover:bg-emerald-700"
               >
-                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                {loading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                )}
                 انجام شد
               </Button>
               <Button

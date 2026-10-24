@@ -59,7 +59,7 @@ import type {
 import {
   compactNames,
   downloadWithAuth,
-  isManagementLetterRequest,
+  isTrackedRequest,
   normalizedProgress,
   parseSubmittedAt,
   parseTimelineEntityId,
@@ -327,7 +327,7 @@ export default function MyRequestsPage() {
         offset += pageSize;
       }
 
-      setRequests(allRequests.filter((request) => !isManagementLetterRequest(request)));
+      setRequests(allRequests.filter(isTrackedRequest));
     } catch {
       setError("دریافت درخواست‌ها با مشکل مواجه شد. لطفاً دوباره تلاش کنید.");
     } finally {
@@ -573,7 +573,12 @@ export default function MyRequestsPage() {
     try {
       const { data } = await client.patch<SubmissionDetail>(
         `${endpoints.submissions}/${selected.id}/status`,
-        { status, note: finalStatusNote.trim() },
+        {
+          status,
+          note: finalStatusNote.trim(),
+          // A multi-recipient letter is closed/reopened once for all recipients.
+          apply_to_letter_batch: selected.form_id === "management-letter-form",
+        },
       );
       setSelected((previous) =>
         previous ? { ...data, data: previous.data } : data,

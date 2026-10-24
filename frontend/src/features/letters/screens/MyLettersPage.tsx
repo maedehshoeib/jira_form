@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   Archive,
   ArchiveRestore,
+  CheckCircle2,
   Download,
   FilePenLine,
   Forward,
@@ -88,6 +89,7 @@ type InboxFolder =
   | "inbox"
   | "unread"
   | "actionable"
+  | "done"
   | "cc"
   | "inform"
   | "drafts"
@@ -101,6 +103,7 @@ const FOLDERS: { id: InboxFolder; label: string; icon: typeof Inbox }[] = [
   { id: "inbox", label: "صندوق ورودی", icon: Inbox },
   { id: "unread", label: "خوانده‌نشده", icon: Mail },
   { id: "actionable", label: "نیاز به اقدام", icon: Forward },
+  { id: "done", label: "انجام‌شده", icon: CheckCircle2 },
   { id: "cc", label: "رونوشت", icon: MailOpen },
   { id: "inform", label: "جهت اطلاع", icon: MailOpen },
   { id: "drafts", label: "پیش‌نویس‌ها", icon: FilePenLine },
@@ -188,11 +191,24 @@ function resolveAttachmentNames(letter: SubmissionDetail) {
   return letterAttachmentNames(letter);
 }
 
+const CLOSED_STATUSES = new Set(["approved", "rejected"]);
+
+/** Actionable letters stay open until the sender closes them. */
+function isOpenActionableLetter(letter: SubmissionListItem) {
+  return isActionableLetter(letter) && !CLOSED_STATUSES.has(letter.status);
+}
+
+/** Letters the sender closed as done (same meaning as the tasks «انجام‌شده» tab). */
+function isDoneLetter(letter: SubmissionListItem) {
+  return isActionableLetter(letter) && letter.status === "approved";
+}
+
 function matchesFolder(letter: SubmissionListItem, folder: InboxFolder) {
   if (folder === "archive") return Boolean(letter.is_archived);
   if (letter.is_archived || folder === "drafts") return false;
   if (folder === "unread") return letter.is_read === false;
-  if (folder === "actionable") return isActionableLetter(letter);
+  if (folder === "actionable") return isOpenActionableLetter(letter);
+  if (folder === "done") return isDoneLetter(letter);
   if (folder === "cc") return Boolean(letter.is_announcement);
   if (folder === "inform") {
     return (
@@ -407,6 +423,19 @@ export default function MyLettersPage() {
     if (workspaceOpen) backToMailbox();
   };
 
+  const openSentLetter = (batchId: string) => {
+    const match = sentLetters.find((item) => item.batch_id === batchId);
+    if (!match) {
+      setError("جزئیات این نامه در دسترس نیست. فهرست را به‌روزرسانی کنید.");
+      return;
+    }
+    setSelected(null);
+    setFolder("sent");
+    setListPage(1);
+    setSelectedSent(match);
+    router.push(LETTERS_HOME_PATH);
+  };
+
   const toggleArchive = async () => {
     if (!selected || archiveLoading) return;
     const archived = !selected.is_archived;
@@ -472,6 +501,7 @@ export default function MyLettersPage() {
       inbox: 0,
       unread: 0,
       actionable: 0,
+      done: 0,
       cc: 0,
       inform: 0,
       drafts: drafts.length,
@@ -484,7 +514,8 @@ export default function MyLettersPage() {
       }
       counts.inbox += 1;
       if (letter.is_read === false) counts.unread += 1;
-      if (isActionableLetter(letter)) counts.actionable += 1;
+      if (isOpenActionableLetter(letter)) counts.actionable += 1;
+      if (isDoneLetter(letter)) counts.done += 1;
       if (letter.is_announcement) counts.cc += 1;
       if (!letter.is_announcement && letter.needs_action === LETTER_NO_ACTION_VALUE) {
         counts.inform += 1;
@@ -811,6 +842,7 @@ export default function MyLettersPage() {
               letterType={reportType}
               onClose={backToMailbox}
               onCompose={() => openCompose(reportType)}
+              onOpenLetter={openSentLetter}
             />
           </section>
         ) : (

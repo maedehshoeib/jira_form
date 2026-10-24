@@ -114,14 +114,16 @@ resolve files across the same letter batch.
 signed-in user:
 
 - reminder and deadline rows from `submission_reminders` that are due and newer
-  than the user's last task view
+  than the user's last task view (reminders appear **only** here; they never
+  bump the sidebar badges)
 - completed-task rows from `approved` status history on tasks the user can view,
   excluding changes made by the same user
 
 Opening a task (`GET /api/v1/tasks/{id}`) updates the view timestamp and clears
 matching inbox items. The home page shows these messages behind the notification
-icon; the sidebar badge next to «وظایف من» shows unread actionable tasks, and
-«نامه‌ها» shows unread inform/CC letters via `GET /api/v1/tasks/letters/unseen-count`.
+icon; the sidebar badge next to «وظایف من» counts only unread (never opened)
+actionable tasks, and «نامه‌ها» counts only unread inform/CC letters via
+`GET /api/v1/tasks/letters/unseen-count`. Reminders do not change these numbers.
 Clicking an inbox message navigates to `/my-tasks?open={submission_id}` (or
 `/my-letters?open={id}` for نامه inbox items) and opens the item.
 
@@ -130,8 +132,11 @@ Outlook-style layout (folders / list / reading pane with متن نامه، پی�
 گردش کار و پیگیری، یادداشت‌ها). Letters marked `needs_action=دارد` also appear
 in «وظایف من» (`/my-tasks`) as normal actionable tasks (pending badge, progress,
 refer). Attachments download via `GET /api/v1/tasks/{id}/attachment`. Actionable
-letters keep refer/progress actions when `can_act` is true. Sender letter rows
-remain excluded from «درخواست‌های من»; inform/CC rows stay out of «وظایف من».
+letters keep refer/progress actions when `can_act` is true. For the sender, a
+letter with `needs_action=دارد` also appears in «درخواست‌های من»
+(`/my-requests`), mirroring the recipient's «وظایف من»; inform-only letters
+(`needs_action=ندارد(جهت اطلاع)`) stay only in «نامه‌ها». CC rows stay out of
+«وظایف من».
 
 ### Letter archive (بایگانی)
 
@@ -179,13 +184,37 @@ every organizational letter after letters moved out of «درخواست‌های
 recipient row carries `is_read` and `progress_percent`. Sent sub-folders are
 computed client-side: not read by every recipient, awaiting action, past
 `due_date` while still pending, completed by all direct recipients, and
-«جهت اطلاع». The mailbox list is paginated client-side (20 items per page).
+«جهت اطلاع». The mailbox list is paginated client-side (10 items per page).
 
 Receivers still submit progress (0–99) and referrals from the inbox reading
 pane (desktop and mobile) via `PATCH /tasks/{id}/status`. Senders monitor
-recipient progress in ارسالی and, when a direct recipient reaches 99%, close
-the letter with `PATCH /submissions/{id}/status` (`approved` / `rejected`, or
-`submitted` to reopen). Inform-only letters stay read-only for both sides.
+recipient progress in ارسالی and can close the letter at any time (no progress
+threshold, same as «درخواست‌های من») with `PATCH /submissions/{id}/status`
+(`approved` / `rejected`, or `submitted` to reopen), per recipient copy or for
+all open direct recipients at once. In «درخواست‌های من» a multi-recipient letter
+is one row; its status PATCH accepts `apply_to_letter_batch: true`, which
+applies the change to every direct copy of the batch (CC copies are untouched).
+A letter closed as `approved` appears in the
+recipient's «وظایف من» → «انجام‌شده» tab, in the «انجام‌شده» folder of
+`/my-letters`, and in the sender's «انجام‌شده» sent folder. Inform-only letters
+stay read-only for both sides.
+
+Letters behave like tasks for the sender too: from a sent letter's recipient
+row the sender can re-refer (ارجاع مجدد) that copy to other colleagues through
+`POST /submissions/{id}/refer` (allowed for the submitter, repeat referrals
+allowed, blocked while the copy is closed until it is reopened), and can use the
+conversation and send reminders (`/submissions/{id}/conversation|comments|reminders`).
+Admins monitor every letter (`/my-letters` → «نظارت», or «گزارش ارسالی» →
+«جزئیات و گردش کار») with the same detail a task shows: letter text and
+attachments, the full workflow timeline with referral/progress/final-answer
+attachments, per-recipient progress, CC list and the conversation. Admins can
+join the conversation (including @mentions), send reminders and refer / re-refer
+a letter copy through `/submissions/{id}/refer`; closing, rejecting and
+reopening remain sender-only, exactly as for tasks.
+
+Which letters reach «وظایف من» is derived at read time (`needs_action` is not
+`ندارد(جهت اطلاع)` and the copy is not a CC), so letters sent before this
+behaviour was introduced follow the same rule.
 
 ### Personal letter folders
 

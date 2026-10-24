@@ -5,6 +5,7 @@ import {
   BarChart3,
   CalendarRange,
   ChevronLeft,
+  Eye,
   Loader2,
   Paperclip,
   RefreshCw,
@@ -107,10 +108,13 @@ export default function LetterReportPage({
   letterType,
   onClose,
   onCompose,
+  onOpenLetter,
 }: {
   letterType: LetterType;
   onClose: () => void;
   onCompose: () => void;
+  /** Opens the full letter (text, attachments, workflow, conversation, actions). */
+  onOpenLetter?: (batchId: string) => void;
 }) {
   const workflow = LETTER_WORKFLOWS[letterType];
   const { user } = useAuth();
@@ -470,6 +474,18 @@ export default function LetterReportPage({
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
+                      {onOpenLetter ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onOpenLetter(item.batch_id)}
+                          className="h-7 gap-1.5 rounded-lg border-primary/30 text-xs font-bold text-primary hover:bg-primary/10"
+                        >
+                          <Eye size={13} />
+                          جزئیات و گردش کار
+                        </Button>
+                      ) : null}
                       <Badge className="border-border bg-muted/40 text-muted-foreground">
                         {summary.total.toLocaleString("fa-IR")} گیرنده
                       </Badge>

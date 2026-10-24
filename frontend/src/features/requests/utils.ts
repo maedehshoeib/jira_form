@@ -4,6 +4,7 @@ import {
   submissionDisplayTitle,
 } from "@/lib/displayText";
 import { parseTehranDateTime } from "@/lib/persianDate";
+import { LETTER_NO_ACTION_VALUE } from "@/features/tasks";
 
 import { INTERNAL_LETTERS_TITLE, WORKFLOW_STATUS_META } from "./constants";
 import type { SubmissionListItem, TimelineItem, WorkflowStatus } from "./types";
@@ -21,6 +22,18 @@ const LETTER_DEPARTMENT_TITLES = new Set([
 
 export function parseSubmittedAt(value: string) {
   return parseTehranDateTime(value);
+}
+
+/**
+ * Letters marked «نیاز به اقدام دارد» are tracked like requests by the sender;
+ * inform-only letters (جهت اطلاع) stay on the نامه‌ها page only.
+ */
+export function isTrackedRequest(request: SubmissionListItem) {
+  if (!isManagementLetterRequest(request)) return true;
+  return (
+    request.form_id === "management-letter-form" &&
+    request.needs_action !== LETTER_NO_ACTION_VALUE
+  );
 }
 
 export function requestDisplayTitle(

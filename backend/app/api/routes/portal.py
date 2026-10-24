@@ -117,6 +117,7 @@ from app.services.report_submission_service import (
 from app.services.management_letter_service import (
     collapse_letter_batch_submissions,
     list_letter_batch_siblings,
+    set_letter_batch_status,
 )
 from app.services.user_dashboard_builder import build_user_dashboard
 
@@ -1214,6 +1215,7 @@ async def update_task_status(
     content_type = (request.headers.get("content-type") or "").lower()
     attachment_path: str | None = None
     attachment_name: str | None = None
+    apply_to_letter_batch = False
     if "multipart/form-data" in content_type:
         form = await request.form()
         status = str(form.get("status") or "").strip()
@@ -1255,18 +1257,24 @@ async def update_task_status(
         status = body.status
         note = body.note
         progress_percent = body.progress_percent
+        apply_to_letter_batch = body.apply_to_letter_batch
 
     try:
-        submission = set_task_status(
-            db,
-            current_user,
-            submission_id,
-            status,
-            note,
-            progress_percent,
-            attachment_path=attachment_path,
-            attachment_name=attachment_name,
-        )
+        if apply_to_letter_batch:
+            submission = set_letter_batch_status(
+                db, current_user, submission_id, status, note
+            )
+        else:
+            submission = set_task_status(
+                db,
+                current_user,
+                submission_id,
+                status,
+                note,
+                progress_percent,
+                attachment_path=attachment_path,
+                attachment_name=attachment_name,
+            )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except PermissionError as exc:

@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 10;
 
 export function paginateItems<T>(items: T[], page: number, pageSize = DEFAULT_PAGE_SIZE) {
   const total = items.length;

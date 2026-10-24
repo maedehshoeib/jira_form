@@ -1,17 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, Eye, EyeOff, Loader2, Paperclip } from "lucide-react";
+import { Download, Loader2, Paperclip } from "lucide-react";
 
 import client from "@/api/client";
 import { endpoints } from "@/api/endpoints";
+import TaskConversation from "@/components/tasks/TaskConversation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { API_BASE } from "@/config/portal";
 import { useAuth } from "@/context/AuthContext";
-import { formatPersianDate, formatPersianDateTime } from "@/lib/persianDate";
+import { formatPersianDate } from "@/lib/persianDate";
 import { cn } from "@/lib/utils";
-import type { SubmissionDetail } from "@/features/tasks";
+import { LETTER_NO_ACTION_VALUE, type SubmissionDetail } from "@/features/tasks";
 
 import { downloadAuthFile } from "../download";
 import type { LetterFolder } from "../letterFolders";
@@ -22,29 +23,12 @@ import {
   sentReadSummary,
   sentStatusLabel,
   type SentLetter,
-  type SentRecipient,
 } from "../sentLetters";
 import { LetterFinishPanel } from "./LetterFinishPanel";
 import { LetterFolderAssign } from "./LetterFolderAssign";
+import { LetterReferForm } from "./LetterReferForm";
 import { LetterWorkflowHistory } from "./LetterWorkflowHistory";
-
-function recipientStatus(row: SentRecipient) {
-  if (row.delivery_type === "cc") return "رونوشت";
-  if (row.status === "in_progress") return "در حال انجام";
-  if (row.status === "approved") return "انجام‌شده";
-  if (row.status === "rejected") return "رد‌شده";
-  if (row.status === "referred") return "ارجاع‌شده";
-  return "اقدام‌نشده";
-}
-
-function recipientStatusClass(row: SentRecipient) {
-  if (row.delivery_type === "cc") return "border-violet-200 bg-violet-50 text-violet-700";
-  if (row.status === "in_progress") return "border-sky-200 bg-sky-50 text-sky-700";
-  if (row.status === "approved") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (row.status === "rejected") return "border-primary/30 bg-primary/10 text-primary";
-  if (row.status === "referred") return "border-blue-200 bg-blue-50 text-blue-700";
-  return "border-amber-200 bg-amber-50 text-amber-700";
-}
+import { SentRecipientRow } from "./SentRecipientRow";
 
 function letterSender(letter: SentLetter) {
   const sender = (letter.sender || "").trim();
@@ -70,10 +54,17 @@ export function SentLetterDetail({
   const [error, setError] = useState("");
   const [historyLoading, setHistoryLoading] = useState(false);
   const [history, setHistory] = useState<SubmissionDetail | null>(null);
+  const [historyVersion, setHistoryVersion] = useState(0);
+  const [referSubmissionId, setReferSubmissionId] = useState<number | null>(null);
+  const [referLoading, setReferLoading] = useState(false);
   const attachments = sentAttachmentNames(letter);
   const read = sentReadSummary(letter);
   const historySubmissionId = sentPrimarySubmissionId(letter);
   const canFinish = Boolean(user && letter.sent_by_id === user.id);
+  // Admins monitor every letter with the same task toolkit: refer, re-refer,
+  // conversation and reminders. Closing stays with the sender (as with tasks).
+  const canFollowUp = canFinish || Boolean(user?.is_admin);
+  const canRefer = canFollowUp && letter.needs_action !== LETTER_NO_ACTION_VALUE;
   const meta = [
     {
       label: "شماره نامه",
@@ -109,7 +100,7 @@ export function SentLetterDetail({
     return () => {
       cancelled = true;
     };
-  }, [historySubmissionId, letter.batch_id]);
+  }, [historySubmissionId, letter.batch_id, historyVersion]);
 
   const download = async (index: number, name: string) => {
     if (!historySubmissionId) return;
@@ -178,7 +169,10 @@ export function SentLetterDetail({
       <LetterFinishPanel
         letter={letter}
         canFinish={canFinish}
-        onUpdated={onLetterChanged}
+        onUpdated={() => {
+          setHistoryVersion((value) => value + 1);
+          onLetterChanged();
+        }}
       />
 
       <article className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -214,47 +208,47 @@ export function SentLetterDetail({
           گیرندگان و پیگیری
         </h4>
         <ul className="divide-y divide-border">
-          {letter.recipients.map((row) => (
-            <li
-              key={row.submission_id}
-              className="flex flex-wrap items-center justify-between gap-2 px-4 py-3"
-            >
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-foreground">{row.display_name}</p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  {row.referred_to ? `ارجاع به ${row.referred_to} · ` : ""}
-                  {row.delivery_type !== "cc"
-                    ? `پیشرفت ${(row.progress_percent ?? 0).toLocaleString("fa-IR")}٪ · `
-                    : ""}
-                  {formatPersianDateTime(row.status_updated_at) || "بدون تغییر وضعیت"}
-                </p>
-                {row.comment ? (
-                  <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">
-                    {row.comment}
-                  </p>
+          {letter.recipients.map((row) => {
+            const referOpen = referSubmissionId === row.submission_id;
+            return (
+              <SentRecipientRow
+                key={row.submission_id}
+                row={row}
+                canRefer={canRefer}
+                referOpen={referOpen}
+                onToggleRefer={() =>
+                  setReferSubmissionId(referOpen ? null : row.submission_id)
+                }
+              >
+                {referOpen ? (
+                  <LetterReferForm
+                    submissionId={row.submission_id}
+                    apiScope="submissions"
+                    title={`ارجاع مجدد نامه (گیرنده: ${row.display_name})`}
+                    previouslyReferredIds={row.user_id ? [row.user_id] : []}
+                    allowRepeat
+                    actionLoading={referLoading}
+                    onActionLoading={setReferLoading}
+                    onError={setError}
+                    onReferred={() => {
+                      setReferSubmissionId(null);
+                      setHistoryVersion((value) => value + 1);
+                      onLetterChanged();
+                    }}
+                    onClose={() => setReferSubmissionId(null)}
+                  />
                 ) : null}
-              </div>
-              <div className="flex shrink-0 items-center gap-1.5">
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "gap-1 text-[10px]",
-                    row.is_read
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                      : "border-amber-200 bg-amber-50 text-amber-800",
-                  )}
-                >
-                  {row.is_read ? <Eye size={11} /> : <EyeOff size={11} />}
-                  {row.is_read ? "خوانده شد" : "خوانده نشده"}
-                </Badge>
-                <Badge variant="outline" className={cn("text-[10px]", recipientStatusClass(row))}>
-                  {recipientStatus(row)}
-                </Badge>
-              </div>
-            </li>
-          ))}
+              </SentRecipientRow>
+            );
+          })}
         </ul>
       </section>
+
+      {historySubmissionId ? (
+        <section className="rounded-2xl border border-border bg-card p-4">
+          <TaskConversation submissionId={historySubmissionId} canRemind={canFollowUp} />
+        </section>
+      ) : null}
 
       {historyLoading ? (
         <div className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-border py-10 text-sm text-muted-foreground">

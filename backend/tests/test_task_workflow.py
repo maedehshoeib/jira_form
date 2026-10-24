@@ -185,8 +185,17 @@ class TaskWorkflowMockTests(unittest.TestCase):
         self.assertEqual(self.db.query(SubmissionReminder).count(), 1)
 
         self._as(self.handler)
+        # Reminders show in the home notification tab, not in the sidebar badge.
         unseen = self.client.get("/api/v1/tasks/unseen-count")
-        self.assertIn(self.submission.id, unseen.json()["ids"])
+        self.assertNotIn(self.submission.id, unseen.json()["ids"])
+        notifications = self.client.get("/api/v1/tasks/notifications")
+        self.assertEqual(notifications.status_code, 200)
+        self.assertTrue(
+            any(
+                item["kind"] == "reminder"
+                for item in notifications.json()["items"]
+            )
+        )
 
     def test_participants_can_comment_and_mention_each_other(self):
         self._as(self.handler)

@@ -27,7 +27,10 @@ from app.services.portal_service import (
     MANAGEMENT_LETTER_SECTION,
     MANAGEMENT_WORKFLOW_ID,
 )
-from app.services.task_workflow_service import list_submission_referrals
+from app.services.task_workflow_service import (
+    list_submission_referrals,
+    set_task_status,
+)
 
 
 LetterType = Literal["internal", "external"]
@@ -134,6 +137,36 @@ def list_letter_batch_siblings(
         item for item in candidates if letter_batch_id(item) == batch_id
     ]
     return matched or [submission]
+
+
+def set_letter_batch_status(
+    db: Session,
+    actor: User,
+    submission_id: int,
+    status: str,
+    note: str = "",
+) -> Submission:
+    """Apply the sender's final status to every direct copy of one letter.
+
+    A multi-recipient letter is stored as one submission per recipient. The
+    sender closes/reopens the logical letter once, so the same status is
+    applied to each direct copy (CC copies are read-only and stay untouched).
+    Authorization is still enforced per copy by ``set_task_status``.
+    """
+    submission = db.query(Submission).filter(Submission.id == submission_id).first()
+    if submission is None:
+        raise LookupError("درخواست یافت نشد")
+    siblings = list_letter_batch_siblings(db, submission)
+    targets = [
+        item
+        for item in siblings
+        if str(_parse_letter_data(item).get("recipient_delivery_type") or "direct")
+        != "cc"
+    ] or [submission]
+    updated: dict[int, Submission] = {}
+    for item in targets:
+        updated[item.id] = set_task_status(db, actor, item.id, status, note)
+    return updated.get(submission.id) or next(iter(updated.values()))
 
 
 def expand_with_letter_batch_siblings(

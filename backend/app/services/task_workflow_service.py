@@ -5,7 +5,6 @@ from pathlib import Path
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
-from app.core.timezone import utc_now
 from app.models.submission import (
     Submission,
     SubmissionAssigneeProgress,
@@ -237,16 +236,8 @@ def _list_unseen_submissions(db: Session, user_id: int) -> list[Submission]:
         )
         .exists()
     )
-    newer_reminder_exists = (
-        db.query(SubmissionReminder.id)
-        .filter(
-            SubmissionReminder.submission_id == Submission.id,
-            SubmissionReminder.recipient_id == user_id,
-            SubmissionReminder.created_at <= utc_now(),
-            SubmissionReminder.created_at > SubmissionView.last_viewed_at,
-        )
-        .exists()
-    )
+    # Reminders are surfaced only by the home-page notification tab; they must
+    # not bump the sidebar badges for «وظایف من» / «نامه‌ها».
     return (
         db.query(Submission)
         .outerjoin(
@@ -263,7 +254,6 @@ def _list_unseen_submissions(db: Session, user_id: int) -> list[Submission]:
                 newer_referral_exists,
                 newer_cc_exists,
                 newer_comment_exists,
-                newer_reminder_exists,
             ),
         )
         .order_by(Submission.created_at.desc())

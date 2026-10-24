@@ -152,6 +152,8 @@ class TaskStatusUpdate(BaseModel):
     status: Literal["approved", "rejected", "submitted", "in_progress"]
     progress_percent: int | None = Field(default=None, ge=0, le=100)
     note: str = Field(default="", max_length=512)
+    # Sender-side close of a multi-recipient letter: apply to every direct copy.
+    apply_to_letter_batch: bool = False
 
 
 class TaskReferRequest(BaseModel):

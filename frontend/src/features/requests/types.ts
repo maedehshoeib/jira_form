@@ -75,6 +75,8 @@ export type SubmissionListItem = {
   created_at: string;
   submitted_by?: string;
   submitted_by_username?: string;
+  /** Management letters only: «دارد» or inform-only «ندارد(جهت اطلاع)». */
+  needs_action?: string;
 };
 
 export type SubmissionDetail = SubmissionListItem & {
