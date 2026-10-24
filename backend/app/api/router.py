@@ -18,6 +18,7 @@ from app.api.routes.management_letters import router as management_letters_route
 from app.api.routes.portal import router as portal_router
 from app.api.routes.portal_cards import admin_router as portal_cards_admin_router
 from app.api.routes.portal_cards import router as portal_cards_router
+from app.api.routes.recipient_groups import router as recipient_groups_router
 from app.api.routes.reports import router as reports_router
 from app.api.routes.timesheet import router as timesheet_router
 
@@ -50,6 +51,7 @@ api_router.include_router(portal_router, tags=["portal"])
 api_router.include_router(management_letters_router, tags=["management-letters"])
 api_router.include_router(management_letter_drafts_router, tags=["management-letters"])
 api_router.include_router(letter_folders_router, tags=["management-letters"])
+api_router.include_router(recipient_groups_router, tags=["recipient-groups"])
 api_router.include_router(reports_router, prefix="/reports", tags=["reports"])
 api_router.include_router(contracts_router, prefix="/contracts", tags=["contracts"])
 api_router.include_router(jira_router, prefix="/jira", tags=["jira"])

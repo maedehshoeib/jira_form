@@ -24,6 +24,7 @@ from app.models import (  # noqa: F401
     letter_folder,
     pdf_form,
     portal_card,
+    recipient_group,
     report,
     site_banner,
     site_news,

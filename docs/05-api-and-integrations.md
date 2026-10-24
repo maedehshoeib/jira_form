@@ -301,6 +301,26 @@ them without removing the letter from the system folders:
 Folders are owner-only. Received membership requires task view access; sent
 membership requires owning the batch (or admin monitor access).
 
+### Recipient groups
+
+Each signed-in user can save personal groups of colleagues (for example
+«مدیران») and apply a group with one click wherever a letter is sent or a
+request or letter is referred or re-referred. The click selects every group
+member who is a valid target on that screen. Clicking the same group again
+clears those people. Groups are visible only to their owner and do not change
+who is allowed to receive a letter or referral.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/recipient-groups` | List the caller's groups and members |
+| `POST` | `/api/v1/recipient-groups` | Create `{name, member_ids}` |
+| `PUT` | `/api/v1/recipient-groups/{id}` | Replace the name and members |
+| `DELETE` | `/api/v1/recipient-groups/{id}` | Delete the caller's group |
+
+Member ids must be active users. Names are unique per owner, at most 80
+characters, with at most 30 groups and 100 members each. Another user's group
+returns 404.
+
 The home page also shows a small welcome bot that greets the signed-in user by
 display name. When `birth_date` matches today (Tehran calendar day, same rule as
 `is_birthday` on `/api/v1/auth/me`), the bot switches to a birthday message.

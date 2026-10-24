@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { RecipientGroupBar } from "@/features/recipient-groups";
 import {
   REFERRAL_NOTE_MAX_LENGTH,
   apiErrorDetail,
@@ -131,6 +132,12 @@ export function LetterReferForm({
           <X size={16} />
         </Button>
       </div>
+      <RecipientGroupBar
+        people={colleagues}
+        selectedIds={selectedIds}
+        disabled={actionLoading}
+        onSelectedIdsChange={setSelectedIds}
+      />
       <Input
         value={colleagueQuery}
         onChange={(event) => setColleagueQuery(event.target.value)}

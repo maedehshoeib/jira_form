@@ -22,6 +22,8 @@ export const endpoints = {
   userDashboard: "/user-dashboard",
   tasks: "/tasks",
   taskColleagues: "/tasks/colleagues",
+  recipientGroups: "/recipient-groups",
+  recipientGroup: (groupId: number) => `/recipient-groups/${groupId}`,
   taskPendingCount: "/tasks/pending-count",
   taskUnseenCount: "/tasks/unseen-count",
   letterUnseenCount: "/tasks/letters/unseen-count",

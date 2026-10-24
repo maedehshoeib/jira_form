@@ -40,6 +40,7 @@ import {
   getTehranNowDate,
 } from "@/lib/persianDate";
 import UserDisplayName from "@/components/UserDisplayName";
+import { RecipientGroupBar } from "@/features/recipient-groups";
 
 import { DisplayValue } from "../components/DisplayValue";
 import { TaskProgress } from "../components/TaskProgress";
@@ -1648,6 +1649,12 @@ export default function MyTasksPage() {
                       ? ` (${selectedColleagueIds.length.toLocaleString("fa-IR")} نفر انتخاب شده)`
                       : ""}
                   </p>
+                  <RecipientGroupBar
+                    people={colleagues}
+                    selectedIds={selectedColleagueIds}
+                    disabled={actionLoading}
+                    onSelectedIdsChange={setSelectedColleagueIds}
+                  />
                   <Input
                     value={colleagueQuery}
                     onChange={(event) => setColleagueQuery(event.target.value)}

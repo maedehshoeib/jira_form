@@ -20,6 +20,7 @@ import client from "@/api/client";
 import { endpoints } from "@/api/endpoints";
 import type { LetterDraft } from "@/api/letterDrafts";
 import UserDisplayName from "@/components/UserDisplayName";
+import { RecipientGroupBar } from "@/features/recipient-groups";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -428,6 +429,14 @@ export default function SendLetterPage({
         return next;
       });
     }
+  };
+
+  const applyDirectRecipientIds = (nextIds: number[]) => {
+    const next = new Set(nextIds);
+    const removed = [...selectedIds].filter((id) => !next.has(id));
+    const added = nextIds.filter((id) => !selectedIds.has(id));
+    removed.forEach((id) => setRecipientSelected(id, false));
+    added.forEach((id) => setRecipientSelected(id, true));
   };
 
   const setCcSelected = (id: number, selected: boolean) => {
@@ -984,6 +993,12 @@ export default function SendLetterPage({
                   />
                 </div>
               </div>
+
+              <RecipientGroupBar
+                people={recipients}
+                selectedIds={[...selectedIds]}
+                onSelectedIdsChange={applyDirectRecipientIds}
+              />
 
               {recipients.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-border bg-muted/40 p-6 text-center text-sm text-muted-foreground">

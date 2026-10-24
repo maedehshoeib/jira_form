@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { RecipientGroupBar } from "@/features/recipient-groups";
 
 import type { Colleague, SubmissionDetail } from "../types";
 
@@ -112,6 +113,12 @@ export function RequestReferPanel({ selected, onUpdated }: RequestReferPanelProp
 
       {open && (
         <div className="space-y-3 border-t border-sky-100 pt-4">
+          <RecipientGroupBar
+            people={colleagues}
+            selectedIds={selectedIds}
+            disabled={loading}
+            onSelectedIdsChange={setSelectedIds}
+          />
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}

@@ -11,6 +11,7 @@ The Jira Form Portal is an internal, Persian-first service portal for employee r
 | Submission | A user's persisted form request |
 | Task | Workflow work assigned to a user or administrator |
 | Management letter | Internal or external correspondence workflow |
+| Recipient group | A personal named set of colleagues, such as مدیران, selected with one click when sending or referring |
 | Portal API | FastAPI endpoints under `/api/v1` |
 | Web app | Next.js application that renders UI and forwards API requests |
 
