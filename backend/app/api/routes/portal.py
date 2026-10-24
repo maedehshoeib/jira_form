@@ -65,7 +65,7 @@ from app.schemas.submission import (
 )
 from app.schemas.pdf_form import PdfFormResponse
 from app.schemas.user_dashboard import UserDashboardResponse
-from app.services.pdf_form_service import normalize_pdf_category
+from app.services.pdf_form_service import library_media_type, normalize_pdf_category
 from app.services.form_access_service import (
     RESTRICTED_PORTAL_DEPARTMENTS,
     allowed_target_keys,
@@ -502,13 +502,13 @@ def get_pdf_form_file(
         query = query.filter(PdfForm.category == normalize_pdf_category(category))
     item = query.first()
     if not item:
-        raise HTTPException(status_code=404, detail="فایل PDF یافت نشد.")
+        raise HTTPException(status_code=404, detail="فایل یافت نشد.")
     file_path = Path(item.file_path)
     if not file_path.is_file():
-        raise HTTPException(status_code=404, detail="فایل PDF یافت نشد.")
+        raise HTTPException(status_code=404, detail="فایل یافت نشد.")
     return FileResponse(
         file_path,
-        media_type="application/pdf",
+        media_type=library_media_type(file_path.name),
         filename=item.file_name,
     )
 

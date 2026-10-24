@@ -44,7 +44,7 @@ export const PDF_LIBRARY_CONFIG: Record<PdfLibraryCategory, PdfLibraryConfig> = 
     category: "forms",
     title: "فرم‌های سازمانی",
     singular: "فرم",
-    description: "فرم موردنظر را مشاهده کنید یا نسخه PDF آن را دریافت کنید.",
+    description: "فرم موردنظر را مشاهده یا دانلود کنید.",
     searchPlaceholder: "جستجو در فرم‌ها",
     addLabel: "افزودن فرم",
     emptyLabel: "هنوز فرمی منتشر نشده است.",
@@ -64,7 +64,7 @@ export const PDF_LIBRARY_CONFIG: Record<PdfLibraryCategory, PdfLibraryConfig> = 
     category: "training",
     title: "آموزش",
     singular: "آموزش",
-    description: "محتوای آموزشی را مشاهده کنید یا نسخه PDF آن را دریافت کنید.",
+    description: "محتوای آموزشی را مشاهده یا دانلود کنید.",
     searchPlaceholder: "جستجو در آموزش‌ها",
     addLabel: "افزودن آموزش",
     emptyLabel: "هنوز محتوای آموزشی منتشر نشده است.",
@@ -104,7 +104,7 @@ export const PDF_LIBRARY_CONFIG: Record<PdfLibraryCategory, PdfLibraryConfig> = 
     category: "documents",
     title: "مستندات",
     singular: "مستند",
-    description: "اسناد و مستندات را مشاهده کنید یا نسخه PDF آن را دریافت کنید.",
+    description: "اسناد و مستندات را مشاهده یا دانلود کنید.",
     searchPlaceholder: "جستجو در مستندات",
     addLabel: "افزودن مستند",
     emptyLabel: "هنوز مستندی منتشر نشده است.",
@@ -131,6 +131,78 @@ export async function getPdfBlob(formId: number, category?: PdfLibraryCategory) 
     },
   );
   return data;
+}
+
+export const LIBRARY_FILE_ACCEPT = [
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".xls",
+  ".xlsx",
+  ".ppt",
+  ".pptx",
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+  ".gif",
+  ".txt",
+  ".csv",
+  ".zip",
+].join(",");
+
+export const LIBRARY_UPLOAD_HINT =
+  "PDF، Word، Excel، PowerPoint، JPG، PNG، WebP، GIF، TXT، CSV یا ZIP — حداکثر ۲۰ مگابایت";
+
+const LIBRARY_EXTENSIONS = new Set([
+  "pdf",
+  "doc",
+  "docx",
+  "xls",
+  "xlsx",
+  "ppt",
+  "pptx",
+  "jpg",
+  "jpeg",
+  "png",
+  "webp",
+  "gif",
+  "txt",
+  "csv",
+  "zip",
+]);
+
+const PREVIEW_IMAGES = new Set(["jpg", "jpeg", "png", "webp", "gif"]);
+const PREVIEW_FRAMES = new Set(["pdf", "txt", "csv"]);
+
+export function libraryFileExtension(fileName: string) {
+  const base = fileName.split(/[/\\]/).pop() ?? "";
+  const dot = base.lastIndexOf(".");
+  if (dot <= 0) return "";
+  return base.slice(dot + 1).toLowerCase();
+}
+
+export function libraryFileKind(fileName: string) {
+  const extension = libraryFileExtension(fileName);
+  return extension ? extension.toUpperCase() : "فایل";
+}
+
+export function libraryPreviewKind(fileName: string): "image" | "frame" | null {
+  const extension = libraryFileExtension(fileName);
+  if (PREVIEW_IMAGES.has(extension)) return "image";
+  if (PREVIEW_FRAMES.has(extension)) return "frame";
+  return null;
+}
+
+export function libraryFileRejection(file: File) {
+  if (!LIBRARY_EXTENSIONS.has(libraryFileExtension(file.name))) {
+    return "فرمت فایل مجاز نیست. PDF، Word، Excel، PowerPoint، تصویر، TXT، CSV یا ZIP انتخاب کنید.";
+  }
+  if (file.size > 20 * 1024 * 1024) {
+    return "حجم فایل نباید بیشتر از ۲۰ مگابایت باشد.";
+  }
+  if (file.size === 0) return "فایل خالی است.";
+  return null;
 }
 
 export function downloadBlob(blob: Blob, fileName: string) {

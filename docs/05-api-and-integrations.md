@@ -56,6 +56,22 @@ ancestors are published and access rules allow it. Deleting a card removes its
 descendants, files, and access/duty assignments; historical submissions keep the
 `custom-<id>` id.
 
+## Document libraries
+
+Homepage libraries for دستورالعمل، آموزش، فرم‌ها، and مستندات share
+`/api/v1/pdf-forms`. The `category` query is one of `guidelines`, `training`,
+`forms`, or `documents`.
+
+- `GET /api/v1/pdf-forms?category=` — list for the signed-in user
+- `GET /api/v1/pdf-forms/{id}/file` — download; `Content-Type` follows the stored extension
+- Admin: `GET/POST /api/v1/admin/pdf-forms` and `PUT/DELETE /api/v1/admin/pdf-forms/{id}`
+
+Each file is at most 20 MB. Allowed types are PDF, Word (`doc`/`docx`), Excel
+(`xls`/`xlsx`), PowerPoint (`ppt`/`pptx`), JPG, PNG, WebP, GIF, TXT, CSV, and
+ZIP. The server checks the file signature as well as the extension. PDF, text,
+and images can be previewed in the browser; Office files and ZIP are download-only.
+The multipart field name remains `pdf`.
+
 ## Calendar
 
 Authenticated users share a team calendar under `/api/v1/calendar`:

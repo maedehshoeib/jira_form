@@ -49,8 +49,8 @@ from app.services.form_duty_service import list_assignments, replace_assignments
 from app.services.pdf_form_service import (
     delete_pdf_file,
     normalize_pdf_category,
-    read_pdf_upload,
-    save_pdf_file,
+    read_library_upload,
+    save_library_file,
     validate_pdf_metadata,
 )
 
@@ -85,15 +85,15 @@ async def upload_pdf_form(
     normalized_title, normalized_description = validate_pdf_metadata(
         title, description, normalized_category
     )
-    content = await read_pdf_upload(pdf)
-    new_path = save_pdf_file(normalized_category, content)
+    content, extension, original_name = await read_library_upload(pdf)
+    new_path = save_library_file(normalized_category, content, extension)
 
     item = PdfForm(
         category=normalized_category,
         title=normalized_title,
         description=normalized_description,
         file_path=str(new_path),
-        file_name=(pdf.filename or f"{normalized_title}.pdf")[:256],
+        file_name=original_name,
         file_size=len(content),
         uploaded_by=current_user.username,
     )
@@ -114,7 +114,7 @@ async def update_pdf_form(
 ):
     item = db.query(PdfForm).filter(PdfForm.id == form_id).first()
     if not item:
-        raise HTTPException(status_code=404, detail="فایل PDF یافت نشد.")
+        raise HTTPException(status_code=404, detail="فایل یافت نشد.")
 
     normalized_title, normalized_description = validate_pdf_metadata(
         title, description, item.category
@@ -125,11 +125,11 @@ async def update_pdf_form(
     item.updated_at = datetime.utcnow()
 
     if pdf is not None and pdf.filename:
-        content = await read_pdf_upload(pdf)
+        content, extension, original_name = await read_library_upload(pdf)
         old_path = item.file_path
-        new_path = save_pdf_file(item.category, content)
+        new_path = save_library_file(item.category, content, extension)
         item.file_path = str(new_path)
-        item.file_name = (pdf.filename or f"{normalized_title}.pdf")[:256]
+        item.file_name = original_name
         item.file_size = len(content)
         delete_pdf_file(old_path, item.category)
 
@@ -146,7 +146,7 @@ def delete_pdf_form(
 ):
     item = db.query(PdfForm).filter(PdfForm.id == form_id).first()
     if not item:
-        raise HTTPException(status_code=404, detail="فایل PDF یافت نشد.")
+        raise HTTPException(status_code=404, detail="فایل یافت نشد.")
 
     category = item.category or DEFAULT_PDF_CATEGORY
     file_path = item.file_path

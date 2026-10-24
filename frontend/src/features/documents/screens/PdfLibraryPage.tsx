@@ -1,41 +1,25 @@
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  Download,
-  Eye,
-  FilePlus2,
-  FileText,
-  FolderOpen,
-  GraduationCap,
-  Loader2,
-  Pencil,
-  Search,
-  Trash2,
-  Upload,
-  X,
-} from "lucide-react";
+import { FilePlus2, FileText, FolderOpen, GraduationCap, Loader2, Search, X } from "lucide-react";
 
 import client from "@/api/client";
 import { endpoints } from "@/api/endpoints";
 import AppShell from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/AuthContext";
 import {
   downloadBlob,
   getPdfBlob,
+  libraryFileRejection,
+  libraryPreviewKind,
   PDF_LIBRARY_CONFIG,
   PdfFormItem,
   PdfLibraryCategory,
-  PdfLibraryConfig,
 } from "@/features/pdf-forms";
-
-const fileSize = (bytes: number) =>
-  bytes < 1024 * 1024
-    ? `${(bytes / 1024).toLocaleString("fa-IR", { maximumFractionDigits: 0 })} کیلوبایت`
-    : `${(bytes / 1024 / 1024).toLocaleString("fa-IR", { maximumFractionDigits: 1 })} مگابایت`;
+import LibraryCard from "../components/LibraryCard";
+import LibraryEditorDialog from "../components/LibraryEditorDialog";
 
 const CATEGORY_ICONS = {
   forms: FileText,
@@ -97,6 +81,11 @@ export default function PdfLibraryPage({ category }: PdfLibraryPageProps) {
   }, [items, query]);
 
   const viewItem = async (item: PdfFormItem) => {
+    const kind = libraryPreviewKind(item.file_name);
+    if (!kind) {
+      setError("این نوع فایل در مرورگر قابل مشاهده نیست. آن را دانلود کنید.");
+      return;
+    }
     setWorkingId(item.id);
     setError("");
     try {
@@ -106,7 +95,7 @@ export default function PdfLibraryPage({ category }: PdfLibraryPageProps) {
         return { title: item.title, url: URL.createObjectURL(blob) };
       });
     } catch {
-      setError("نمایش فایل PDF با مشکل مواجه شد.");
+      setError("نمایش فایل با مشکل مواجه شد.");
     } finally {
       setWorkingId(null);
     }
@@ -118,7 +107,7 @@ export default function PdfLibraryPage({ category }: PdfLibraryPageProps) {
     try {
       downloadBlob(await getPdfBlob(item.id, category), item.file_name);
     } catch {
-      setError("دانلود فایل PDF با مشکل مواجه شد.");
+      setError("دانلود فایل با مشکل مواجه شد.");
     } finally {
       setWorkingId(null);
     }
@@ -161,8 +150,15 @@ export default function PdfLibraryPage({ category }: PdfLibraryPageProps) {
   const saveItem = async (event: FormEvent) => {
     event.preventDefault();
     if (editorMode === "create" && !draftFile) {
-      setSaveError("لطفاً یک فایل PDF انتخاب کنید.");
+      setSaveError("لطفاً یک فایل انتخاب کنید.");
       return;
+    }
+    if (draftFile) {
+      const rejection = libraryFileRejection(draftFile);
+      if (rejection) {
+        setSaveError(rejection);
+        return;
+      }
     }
 
     setSaving(true);
@@ -189,8 +185,7 @@ export default function PdfLibraryPage({ category }: PdfLibraryPageProps) {
       resetEditor();
     } catch (requestError: any) {
       setSaveError(
-        requestError.response?.data?.detail ||
-          `ذخیره ${config.singular} با مشکل مواجه شد.`,
+        requestError.response?.data?.detail || `ذخیره ${config.singular} با مشکل مواجه شد.`,
       );
     } finally {
       setSaving(false);
@@ -207,10 +202,7 @@ export default function PdfLibraryPage({ category }: PdfLibraryPageProps) {
       setItems((current) => current.filter((entry) => entry.id !== item.id));
       if (editingItem?.id === item.id) resetEditor();
     } catch (requestError: any) {
-      setError(
-        requestError.response?.data?.detail ||
-          `حذف ${config.singular} با مشکل مواجه شد.`,
-      );
+      setError(requestError.response?.data?.detail || `حذف ${config.singular} با مشکل مواجه شد.`);
     } finally {
       setWorkingId(null);
     }
@@ -303,141 +295,22 @@ export default function PdfLibraryPage({ category }: PdfLibraryPageProps) {
       </div>
 
       {editorOpen && user?.is_admin && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="pdf-library-editor-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
-        >
-          <form
-            dir="rtl"
-            onSubmit={saveItem}
-            className="w-full max-w-xl rounded-3xl bg-card p-6 shadow-2xl sm:p-8"
-          >
-            <div className="mb-6 flex items-start justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div
-                  className={`flex h-12 w-12 items-center justify-center rounded-2xl ${config.accent.iconBg} ${config.accent.iconText}`}
-                >
-                  {editorMode === "create" ? <FilePlus2 size={24} /> : <Pencil size={24} />}
-                </div>
-                <div>
-                  <h2
-                    id="pdf-library-editor-title"
-                    className="text-xl font-extrabold text-foreground"
-                  >
-                    {editorMode === "create"
-                      ? `${config.addLabel}`
-                      : `ویرایش ${config.singular}`}
-                  </h2>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {editorMode === "create"
-                      ? "فایل PDF و اطلاعات مرتبط با آن را وارد کنید."
-                      : "عنوان، توضیحات یا فایل PDF را به‌روزرسانی کنید."}
-                  </p>
-                </div>
-              </div>
-              <Button
-                type="button"
-                disabled={saving}
-                onClick={closeEditor}
-                aria-label="بستن پنجره"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
-              >
-                <X size={20} />
-              </Button>
-            </div>
-
-            <div className="space-y-5">
-              <Label className="block">
-                <span className="mb-2 block text-sm font-bold text-foreground">
-                  عنوان {config.singular}
-                </span>
-                <Input
-                  required
-                  autoFocus
-                  maxLength={256}
-                  value={draftTitle}
-                  onChange={(event) => setDraftTitle(event.target.value)}
-                  placeholder={`عنوان ${config.singular}`}
-                  className={`h-12 w-full rounded-xl border border-border px-4 outline-none transition focus:ring-4 ${config.accent.focusBorder} ${config.accent.focusRing}`}
-                />
-              </Label>
-
-              <Label className="block">
-                <span className="mb-2 block text-sm font-bold text-foreground">توضیحات</span>
-                <Textarea
-                  rows={3}
-                  maxLength={2000}
-                  value={draftDescription}
-                  onChange={(event) => setDraftDescription(event.target.value)}
-                  placeholder={`توضیح کوتاهی درباره ${config.singular}`}
-                  className={`w-full resize-none rounded-xl border border-border px-4 py-3 outline-none transition focus:ring-4 ${config.accent.focusBorder} ${config.accent.focusRing}`}
-                />
-              </Label>
-
-              <Label className="block">
-                <span className="mb-2 block text-sm font-bold text-foreground">
-                  فایل PDF
-                  {editorMode === "edit" && (
-                    <span className="mr-2 font-normal text-muted-foreground">
-                      (اختیاری — برای جایگزینی فایل)
-                    </span>
-                  )}
-                </span>
-                <span className="flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-muted/40 px-4 text-center transition hover:border-border hover:bg-muted/70">
-                  <Upload size={23} className={`mb-2 ${config.accent.iconText}`} />
-                  <span className="max-w-full truncate text-sm font-bold text-foreground">
-                    {draftFile?.name ||
-                      (editorMode === "edit"
-                        ? editingItem?.file_name || "برای جایگزینی فایل کلیک کنید"
-                        : "برای انتخاب فایل کلیک کنید")}
-                  </span>
-                  <span className="mt-1 text-xs text-muted-foreground">PDF، حداکثر ۲۰ مگابایت</span>
-                  <Input
-                    type="file"
-                    required={editorMode === "create"}
-                    accept="application/pdf,.pdf"
-                    className="sr-only"
-                    onChange={(event) => setDraftFile(event.target.files?.[0] || null)}
-                  />
-                </span>
-              </Label>
-            </div>
-
-            {saveError && (
-              <div className="mt-5 rounded-xl border border-primary/30 bg-primary/10 p-3 text-sm text-primary">
-                {saveError}
-              </div>
-            )}
-
-            <div className="mt-6 flex justify-end gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={saving}
-                onClick={closeEditor}
-                className="h-11 rounded-xl px-5"
-              >
-                انصراف
-              </Button>
-              <Button
-                type="submit"
-                disabled={saving}
-                className={`h-11 gap-2 rounded-xl px-6 text-white ${config.accent.button} ${config.accent.buttonHover}`}
-              >
-                {saving ? (
-                  <Loader2 size={17} className="animate-spin" />
-                ) : editorMode === "create" ? (
-                  <Upload size={17} />
-                ) : (
-                  <Pencil size={17} />
-                )}
-                {editorMode === "create" ? "بارگذاری و انتشار" : "ذخیره تغییرات"}
-              </Button>
-            </div>
-          </form>
-        </div>
+        <LibraryEditorDialog
+          config={config}
+          mode={editorMode}
+          title={draftTitle}
+          description={draftDescription}
+          file={draftFile}
+          existingFileName={editingItem?.file_name || ""}
+          saving={saving}
+          error={saveError}
+          onTitleChange={setDraftTitle}
+          onDescriptionChange={setDraftDescription}
+          onFileChange={setDraftFile}
+          onReject={setSaveError}
+          onClose={closeEditor}
+          onSubmit={saveItem}
+        />
       )}
 
       {viewer && (
@@ -469,91 +342,5 @@ export default function PdfLibraryPage({ category }: PdfLibraryPageProps) {
         </div>
       )}
     </AppShell>
-  );
-}
-
-function LibraryCard({
-  item,
-  config,
-  Icon,
-  isAdmin,
-  working,
-  onView,
-  onDownload,
-  onEdit,
-  onDelete,
-}: {
-  item: PdfFormItem;
-  config: PdfLibraryConfig;
-  Icon: typeof FileText;
-  isAdmin: boolean;
-  working: boolean;
-  onView: () => void;
-  onDownload: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  return (
-    <article className="flex min-h-64 flex-col rounded-3xl border border-border bg-card p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-      <div className="flex items-start justify-between gap-4">
-        <div
-          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${config.accent.iconBg} ${config.accent.iconText}`}
-        >
-          <Icon size={23} />
-        </div>
-        <div className="flex items-center gap-2">
-          {isAdmin && (
-            <>
-              <Button
-                type="button"
-                disabled={working}
-                onClick={onEdit}
-                aria-label={`ویرایش ${item.title}`}
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition hover:border-border hover:bg-muted/40 hover:text-foreground disabled:opacity-50"
-              >
-                <Pencil size={16} />
-              </Button>
-              <Button
-                type="button"
-                disabled={working}
-                onClick={onDelete}
-                aria-label={`حذف ${item.title}`}
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-primary/30 bg-card text-primary transition hover:bg-primary hover:text-white disabled:opacity-50"
-              >
-                <Trash2 size={16} />
-              </Button>
-            </>
-          )}
-          <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-            PDF · {fileSize(item.file_size)}
-          </span>
-        </div>
-      </div>
-      <h2 className="mt-5 text-lg font-extrabold text-foreground">{item.title}</h2>
-      <p className="mt-2 flex-1 text-sm leading-7 text-muted-foreground">
-        {item.description || config.defaultItemDescription}
-      </p>
-      <div className="mt-5 grid grid-cols-2 gap-3">
-        <Button
-          type="button"
-          variant="outline"
-          disabled={working}
-          onClick={onView}
-          className="h-11 gap-2 rounded-xl"
-        >
-          {working ? <Loader2 size={17} className="animate-spin" /> : <Eye size={17} />}
-          مشاهده
-        </Button>
-        <Button
-          type="button"
-          disabled={working}
-          onClick={onDownload}
-          className={`h-11 gap-2 rounded-xl text-white ${config.accent.button} ${config.accent.buttonHover}`}
-        >
-          <Download size={17} />
-          دانلود
-        </Button>
-      </div>
-    </article>
   );
 }
