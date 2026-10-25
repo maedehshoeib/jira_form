@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Pencil, Plus, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/AuthContext";
 
 import { groupErrorMessage, listRecipientGroups } from "../api";
 import type { RecipientGroup, RecipientGroupPerson } from "../types";
@@ -23,6 +24,8 @@ export function RecipientGroupBar({
   onSelectedIdsChange,
   disabled = false,
 }: RecipientGroupBarProps) {
+  const { user } = useAuth();
+  const isAdmin = Boolean(user?.is_admin);
   const [groups, setGroups] = useState<RecipientGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -103,6 +106,7 @@ export function RecipientGroupBar({
             const active =
               eligible.length > 0 &&
               eligible.every((member) => selectedIds.includes(member.id));
+            const canManage = !group.is_shared || isAdmin;
             return (
               <span
                 key={group.id}
@@ -121,26 +125,35 @@ export function RecipientGroupBar({
                   className={`rounded-full px-2.5 hover:bg-transparent ${
                     active ? "text-primary-foreground hover:text-primary-foreground" : ""
                   }`}
-                  title="انتخاب همه اعضای گروه"
+                  title={
+                    group.is_shared
+                      ? "گروه همگانی — انتخاب همه اعضای گروه"
+                      : "انتخاب همه اعضای گروه"
+                  }
                 >
+                  {group.is_shared && (
+                    <span className="text-[10px] font-bold opacity-80">همگانی</span>
+                  )}
                   {group.name}
                   <span className="opacity-80">
                     {eligible.length.toLocaleString("fa-IR")}
                   </span>
                 </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-xs"
-                  disabled={disabled}
-                  onClick={() => openEditor(group)}
-                  aria-label={`ویرایش گروه ${group.name}`}
-                  className={`rounded-full ${
-                    active ? "text-primary-foreground hover:text-primary-foreground" : ""
-                  }`}
-                >
-                  <Pencil />
-                </Button>
+                {canManage && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    disabled={disabled}
+                    onClick={() => openEditor(group)}
+                    aria-label={`ویرایش گروه ${group.name}`}
+                    className={`rounded-full ${
+                      active ? "text-primary-foreground hover:text-primary-foreground" : ""
+                    }`}
+                  >
+                    <Pencil />
+                  </Button>
+                )}
               </span>
             );
           })
@@ -154,7 +167,7 @@ export function RecipientGroupBar({
           className="rounded-full"
         >
           <Plus />
-          گروه جدید
+          {isAdmin ? "گروه همگانی" : "گروه جدید"}
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
@@ -172,6 +185,7 @@ export function RecipientGroupBar({
           open={editorOpen}
           people={people}
           group={editing}
+          isAdmin={isAdmin}
           onOpenChange={setEditorOpen}
           onSaved={() => void reload()}
         />

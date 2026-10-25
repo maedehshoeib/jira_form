@@ -1,4 +1,4 @@
-"""Personal recipient group ownership, validation, and membership."""
+"""Recipient group ownership, shared admin groups, and membership."""
 
 from __future__ import annotations
 
@@ -89,6 +89,7 @@ class RecipientGroupTests(unittest.TestCase):
         self.assertEqual(created.status_code, 201, created.text)
         body = created.json()
         self.assertEqual(body["name"], "مدیران")
+        self.assertFalse(body["is_shared"])
         self.assertEqual(
             [member["id"] for member in body["members"]],
             sorted(
@@ -174,3 +175,67 @@ class RecipientGroupTests(unittest.TestCase):
         listing = self.client.get("/api/v1/recipient-groups").json()
         self.assertEqual(listing[0]["name"], "مدیران")
         self.assertEqual(listing[0]["members"][0]["id"], self.manager.id)
+
+    def test_admin_group_is_available_to_everyone(self):
+        self.owner.is_admin = True
+        self.db.commit()
+        created = self.client.post(
+            "/api/v1/recipient-groups",
+            json={"name": "مدیران", "member_ids": [self.manager.id]},
+        )
+        self.assertEqual(created.status_code, 201, created.text)
+        body = created.json()
+        self.assertTrue(body["is_shared"])
+
+        self._actor = self.stranger
+        listing = self.client.get("/api/v1/recipient-groups")
+        self.assertEqual(listing.status_code, 200)
+        self.assertEqual([item["id"] for item in listing.json()], [body["id"]])
+        self.assertTrue(listing.json()[0]["is_shared"])
+
+        forbidden = self.client.put(
+            f"/api/v1/recipient-groups/{body['id']}",
+            json={"name": "ربوده", "member_ids": [self.stranger.id]},
+        )
+        forbidden_delete = self.client.delete(f"/api/v1/recipient-groups/{body['id']}")
+        self.assertEqual(forbidden.status_code, 403)
+        self.assertEqual(forbidden_delete.status_code, 403)
+
+        self.stranger.is_admin = True
+        self.db.commit()
+        updated = self.client.put(
+            f"/api/v1/recipient-groups/{body['id']}",
+            json={"name": "هیئت مدیره", "member_ids": [self.other_manager.id]},
+        )
+        self.assertEqual(updated.status_code, 200, updated.text)
+        self.assertEqual(updated.json()["name"], "هیئت مدیره")
+        self.assertTrue(updated.json()["is_shared"])
+
+    def test_shared_names_are_unique_and_personal_names_can_match(self):
+        self.owner.is_admin = True
+        self.stranger.is_admin = True
+        self.db.commit()
+        first = self.client.post(
+            "/api/v1/recipient-groups",
+            json={"name": "مدیران", "member_ids": [self.manager.id]},
+        )
+        self.assertEqual(first.status_code, 201, first.text)
+
+        self._actor = self.stranger
+        duplicate = self.client.post(
+            "/api/v1/recipient-groups",
+            json={"name": "مدیران", "member_ids": [self.other_manager.id]},
+        )
+        self.assertEqual(duplicate.status_code, 409)
+
+        self.stranger.is_admin = False
+        self.db.commit()
+        personal = self.client.post(
+            "/api/v1/recipient-groups",
+            json={"name": "مدیران", "member_ids": [self.other_manager.id]},
+        )
+        self.assertEqual(personal.status_code, 201, personal.text)
+        self.assertFalse(personal.json()["is_shared"])
+        listing = self.client.get("/api/v1/recipient-groups").json()
+        self.assertEqual([item["is_shared"] for item in listing], [True, False])
+        self.assertEqual([item["name"] for item in listing], ["مدیران", "مدیران"])

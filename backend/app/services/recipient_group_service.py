@@ -1,4 +1,4 @@
-"""Owner-scoped recipient groups used when sending or referring work."""
+"""Recipient groups used when sending or referring work."""
 
 from collections.abc import Callable
 from datetime import datetime
@@ -29,7 +29,7 @@ class RecipientGroupService(BaseService):
         self.users = UserRepository(db)
 
     def list_groups(self, actor: User) -> list[RecipientGroupResponse]:
-        groups = self.repo.list_for_owner(actor.id)
+        groups = self.repo.list_visible(actor.id)
         members = self.repo.members_by_group([group.id for group in groups])
         return [self._serialize(group, members.get(group.id, [])) for group in groups]
 
@@ -37,7 +37,8 @@ class RecipientGroupService(BaseService):
         self, actor: User, body: RecipientGroupWrite
     ) -> RecipientGroupResponse:
         name = self._clean_name(body.name)
-        self._ensure_name_available(actor.id, name)
+        shared = bool(actor.is_admin)
+        self._ensure_name_available(actor.id, name, shared=shared)
         if self.repo.count_for_owner(actor.id) >= MAX_GROUPS_PER_USER:
             raise HTTPException(status_code=400, detail="حداکثر ۳۰ گروه می‌توانید بسازید.")
         members = self._active_members(body.member_ids)
@@ -45,6 +46,7 @@ class RecipientGroupService(BaseService):
         group = RecipientGroup(
             owner_id=actor.id,
             name=name,
+            is_shared=shared,
             created_at=now,
             updated_at=now,
         )
@@ -58,9 +60,11 @@ class RecipientGroupService(BaseService):
     def update_group(
         self, actor: User, group_id: int, body: RecipientGroupWrite
     ) -> RecipientGroupResponse:
-        group = self._owned_group(actor, group_id)
+        group = self._editable_group(actor, group_id)
         name = self._clean_name(body.name)
-        self._ensure_name_available(actor.id, name, ignore_id=group.id)
+        self._ensure_name_available(
+            group.owner_id, name, shared=group.is_shared, ignore_id=group.id
+        )
         members = self._active_members(body.member_ids)
         group.name = name
         group.updated_at = datetime.utcnow()
@@ -70,19 +74,34 @@ class RecipientGroupService(BaseService):
         return self._serialize(group, members)
 
     def delete_group(self, actor: User, group_id: int) -> None:
-        group = self._owned_group(actor, group_id)
+        group = self._editable_group(actor, group_id)
         self.repo.delete(group)
         self._commit()
 
-    def _owned_group(self, actor: User, group_id: int) -> RecipientGroup:
-        group = self.repo.get_for_owner(group_id, actor.id)
+    def _editable_group(self, actor: User, group_id: int) -> RecipientGroup:
+        group = self.repo.get_visible(group_id, actor.id)
         if group is None:
             raise HTTPException(status_code=404, detail="گروه پیدا نشد.")
+        if group.is_shared and not actor.is_admin:
+            raise HTTPException(
+                status_code=403, detail="فقط مدیر می‌تواند گروه همگانی را تغییر دهد."
+            )
         return group
 
     def _ensure_name_available(
-        self, owner_id: int, name: str, *, ignore_id: int | None = None
+        self,
+        owner_id: int,
+        name: str,
+        *,
+        shared: bool,
+        ignore_id: int | None = None,
     ) -> None:
+        if shared:
+            shared_group = self.repo.get_shared_by_name(name)
+            if shared_group is not None and shared_group.id != ignore_id:
+                raise HTTPException(
+                    status_code=409, detail="گروهی با این نام از قبل وجود دارد."
+                )
         existing = self.repo.get_by_name(owner_id, name)
         if existing is not None and existing.id != ignore_id:
             raise HTTPException(
@@ -137,6 +156,7 @@ class RecipientGroupService(BaseService):
         return RecipientGroupResponse(
             id=group.id,
             name=group.name,
+            is_shared=bool(group.is_shared),
             members=[self._member(user) for user in ordered],
         )
 

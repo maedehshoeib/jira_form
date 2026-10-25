@@ -18,4 +18,5 @@ class RecipientGroupMemberResponse(BaseModel):
 class RecipientGroupResponse(BaseModel):
     id: int
     name: str
+    is_shared: bool
     members: list[RecipientGroupMemberResponse]

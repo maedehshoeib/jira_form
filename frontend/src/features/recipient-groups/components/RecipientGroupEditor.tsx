@@ -38,6 +38,7 @@ type RecipientGroupEditorProps = {
   open: boolean;
   people: RecipientGroupPerson[];
   group: RecipientGroup | null;
+  isAdmin: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
 };
@@ -46,6 +47,7 @@ export function RecipientGroupEditor({
   open,
   people,
   group,
+  isAdmin,
   onOpenChange,
   onSaved,
 }: RecipientGroupEditorProps) {
@@ -130,9 +132,19 @@ export function RecipientGroupEditor({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="text-right sm:max-w-lg">
         <DialogHeader className="ps-8 text-right sm:text-right">
-          <DialogTitle>{group ? "ویرایش گروه" : "گروه جدید"}</DialogTitle>
+          <DialogTitle>
+            {group
+              ? group.is_shared
+                ? "ویرایش گروه همگانی"
+                : "ویرایش گروه"
+              : isAdmin
+                ? "گروه همگانی"
+                : "گروه جدید"}
+          </DialogTitle>
           <DialogDescription>
-            مثلاً «مدیران». بعداً با یک کلیک همه اعضای گروه انتخاب می‌شوند.
+            {group?.is_shared || (!group && isAdmin)
+              ? "این گروه برای همه کاربران قابل استفاده است و فقط مدیر می‌تواند آن را تغییر دهد."
+              : "مثلاً «مدیران». بعداً با یک کلیک همه اعضای گروه انتخاب می‌شوند."}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">

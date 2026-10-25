@@ -15,6 +15,7 @@ export type RecipientGroupMember = RecipientGroupPerson & {
 export type RecipientGroup = {
   id: number;
   name: string;
+  is_shared: boolean;
   members: RecipientGroupMember[];
 };
 

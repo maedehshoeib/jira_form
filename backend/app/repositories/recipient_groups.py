@@ -1,3 +1,4 @@
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models.recipient_group import RecipientGroup, RecipientGroupMember
@@ -9,11 +10,16 @@ class RecipientGroupRepository(BaseRepository):
     def __init__(self, db: Session) -> None:
         super().__init__(db)
 
-    def list_for_owner(self, owner_id: int) -> list[RecipientGroup]:
+    def list_visible(self, owner_id: int) -> list[RecipientGroup]:
         return (
             self.db.query(RecipientGroup)
-            .filter(RecipientGroup.owner_id == owner_id)
-            .order_by(RecipientGroup.id.asc())
+            .filter(
+                or_(
+                    RecipientGroup.owner_id == owner_id,
+                    RecipientGroup.is_shared.is_(True),
+                )
+            )
+            .order_by(RecipientGroup.is_shared.desc(), RecipientGroup.id.asc())
             .all()
         )
 
@@ -24,12 +30,15 @@ class RecipientGroupRepository(BaseRepository):
             .count()
         )
 
-    def get_for_owner(self, group_id: int, owner_id: int) -> RecipientGroup | None:
+    def get_visible(self, group_id: int, owner_id: int) -> RecipientGroup | None:
         return (
             self.db.query(RecipientGroup)
             .filter(
                 RecipientGroup.id == group_id,
-                RecipientGroup.owner_id == owner_id,
+                or_(
+                    RecipientGroup.owner_id == owner_id,
+                    RecipientGroup.is_shared.is_(True),
+                ),
             )
             .first()
         )
@@ -38,6 +47,13 @@ class RecipientGroupRepository(BaseRepository):
         return (
             self.db.query(RecipientGroup)
             .filter(RecipientGroup.owner_id == owner_id, RecipientGroup.name == name)
+            .first()
+        )
+
+    def get_shared_by_name(self, name: str) -> RecipientGroup | None:
+        return (
+            self.db.query(RecipientGroup)
+            .filter(RecipientGroup.is_shared.is_(True), RecipientGroup.name == name)
             .first()
         )
 

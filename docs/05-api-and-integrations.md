@@ -311,19 +311,23 @@ Each signed-in user can save personal groups of colleagues (for example
 «مدیران») and apply a group with one click wherever a letter is sent or a
 request or letter is referred or re-referred. The click selects every group
 member who is a valid target on that screen. Clicking the same group again
-clears those people. Groups are visible only to their owner and do not change
-who is allowed to receive a letter or referral.
+clears those people. A group created by an admin is shared: every user can
+apply it, and only an admin can rename, change, or delete it. Personal groups
+stay visible only to their owner. Groups do not change who is allowed to
+receive a letter or referral.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/v1/recipient-groups` | List the caller's groups and members |
-| `POST` | `/api/v1/recipient-groups` | Create `{name, member_ids}` |
+| `GET` | `/api/v1/recipient-groups` | List the caller's personal groups and every shared group |
+| `POST` | `/api/v1/recipient-groups` | Create `{name, member_ids}`; admin groups are shared |
 | `PUT` | `/api/v1/recipient-groups/{id}` | Replace the name and members |
-| `DELETE` | `/api/v1/recipient-groups/{id}` | Delete the caller's group |
+| `DELETE` | `/api/v1/recipient-groups/{id}` | Delete a personal group, or a shared group when the caller is an admin |
 
-Member ids must be active users. Names are unique per owner, at most 80
-characters, with at most 30 groups and 100 members each. Another user's group
-returns 404.
+Responses include `is_shared`. Member ids must be active users. Personal names
+are unique per owner; shared names are unique across all shared groups. Names
+are at most 80 characters, with at most 30 groups created by one user and 100
+members each. A hidden group returns 404. Changing a shared group without
+admin access returns 403.
 
 The home page also shows a small welcome bot that greets the signed-in user by
 display name. When `birth_date` matches today (Tehran calendar day, same rule as
