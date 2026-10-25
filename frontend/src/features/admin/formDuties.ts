@@ -7,6 +7,8 @@ export type FormDutyCatalogTarget = {
   section_id: string;
   section_title: string;
   form_id: string;
+  kind?: string;
+  is_published?: boolean;
 };
 
 export type FormDutyEdge = {
@@ -33,6 +35,14 @@ export type DutyEdgeInput = {
 export const formTargetKey = (target: FormDutyCatalogTarget) =>
   `${target.portal_department_id}:${target.section_id}:${target.form_id}`;
 
+export function formDutyLabel(target: FormDutyCatalogTarget) {
+  const kind =
+    target.kind === "group" ? "کارت گروهی" : target.kind === "form" ? "فرم" : "";
+  const draft = target.is_published === false ? "پیش‌نویس" : "";
+  const label = [kind, target.section_title].filter(Boolean).join(" · ");
+  return draft ? `${label} — ${draft}` : label;
+}
+
 export const edgeKey = (userId: number, targetKey: string) =>
   `${userId}::${targetKey}`;
 
@@ -40,7 +50,12 @@ export async function fetchFormDutyCatalog() {
   const { data } = await client.get<FormDutyCatalogTarget[]>(
     endpoints.adminFormAccessCatalog,
   );
-  return data.filter((target) => Boolean(target.section_id));
+  return data.filter(
+    (target) =>
+      Boolean(target.section_id) &&
+      target.kind !== "document" &&
+      !target.form_id.startsWith("document-"),
+  );
 }
 
 export async function fetchFormDuties() {

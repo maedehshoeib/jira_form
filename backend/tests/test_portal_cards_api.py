@@ -206,6 +206,73 @@ class PortalCardApiTests(unittest.TestCase):
         response = self.client.put(f"/api/v1/admin/portal-cards/{form['id']}/form", json=bad)
         self.assertEqual(response.status_code, 422)
 
+    def test_grant_and_duty_make_every_card_usable(self):
+        group = self._create("group", "گروه", is_published="false")
+        first = self._create("form", "فرم اول", group["id"], is_published="false")
+        second = self._create("form", "فرم دوم", is_published="false")
+        self._create("document", "مستند", group["id"], is_published="false")
+        handler = User(
+            username="handler", display_name="مسئول", is_active=True, is_admin=False,
+            must_change_password=False,
+        )
+        self.db.add(handler)
+        self.db.commit()
+
+        def target_key(item: dict) -> str:
+            return f"{item['portal_department_id']}:{item['section_id']}:{item['form_id']}"
+
+        catalog = self.client.get("/api/v1/admin/form-access/catalog")
+        self.assertEqual(catalog.status_code, 200, catalog.text)
+        custom = [item for item in catalog.json() if item["portal_department_id"] == "custom"]
+        self.assertEqual(
+            sorted(item["kind"] for item in custom),
+            ["document", "form", "form", "group"],
+        )
+        self.assertTrue(all(item["is_published"] is False for item in custom))
+
+        self.current = self.employee
+        self.assertEqual(self.client.get("/api/v1/portal-cards").json(), [])
+
+        self.current = self.admin
+        form_keys = [target_key(item) for item in custom if item["kind"] == "form"]
+        document_key = next(target_key(item) for item in custom if item["kind"] == "document")
+        group_key = next(target_key(item) for item in custom if item["kind"] == "group")
+        granted = self.client.put(
+            f"/api/v1/admin/users/{self.employee.id}/form-access",
+            json={"configured": True, "targets": [*form_keys, document_key]},
+        )
+        self.assertEqual(granted.status_code, 200, granted.text)
+        routed = self.client.put(
+            "/api/v1/admin/form-duties",
+            json={"assignments": [{"user_id": handler.id, "target_key": group_key}]},
+        )
+        self.assertEqual(routed.status_code, 200, routed.text)
+
+        self.current = self.employee
+        root = [card["title"] for card in self.client.get("/api/v1/portal-cards").json()]
+        self.assertEqual(root, ["گروه", "فرم دوم"])
+        children = [
+            card["title"]
+            for card in self.client.get(f"/api/v1/portal-cards/{group['id']}").json()["children"]
+        ]
+        self.assertEqual(children, ["فرم اول", "مستند"])
+        opened = self.client.get(f"/api/v1/portal-cards/{first['id']}")
+        self.assertEqual(opened.status_code, 200, opened.text)
+        submitted = self.client.post(
+            "/api/v1/submissions",
+            data={"form_id": f"custom-{first['id']}"},
+        )
+        self.assertEqual(submitted.status_code, 200, submitted.text)
+
+        self.current = handler
+        tasks = self.client.get("/api/v1/tasks")
+        self.assertEqual(tasks.status_code, 200, tasks.text)
+        self.assertEqual([item["id"] for item in tasks.json()], [submitted.json()["id"]])
+        self.assertEqual(
+            [card["title"] for card in self.client.get("/api/v1/portal-cards").json()],
+            ["گروه"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

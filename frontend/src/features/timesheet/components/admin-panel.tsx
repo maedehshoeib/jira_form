@@ -130,6 +130,24 @@ function escapeCsv(value: string | number): string {
   return `"${String(value).replace(/"/g, '""')}"`;
 }
 
+function employeeStatus(attendance: number, efficiency: number): string {
+  if (attendance === 0) return 'بدون رکورد';
+  if (efficiency >= 70) return 'مطلوب';
+  return 'نیازمند بررسی';
+}
+
+function downloadCsv(filename: string, header: string[], rows: Array<Array<string | number>>): void {
+  const csv = `\uFEFF${[header, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\n')}`;
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 function SelectField({
   label,
   value,
@@ -608,17 +626,58 @@ export function AdminPanel({
   }, [page, pageCount]);
 
   const exportCsv = () => {
-    const header = ['تاریخ', 'کارمند', 'واحد', 'پروژه', 'زیرپروژه', 'شرح فعالیت', 'شروع', 'پایان', 'مدت (دقیقه)'];
-    const rows = filteredTasks.map((row) => [
-      row.work_date, row.full_name, row.department, row.project_code, row.subproject_code || '', row.task_name, row.start_time, row.end_time, row.minutes_spent,
-    ]);
-    const csv = `\uFEFF${[header, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\n')}`;
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `timesheet-${asDate(startDate)}-${asDate(endDate)}.csv`.replaceAll('/', '-');
-    anchor.click();
-    URL.revokeObjectURL(url);
+    const range = `${asDate(startDate)}-${asDate(endDate)}`.replaceAll('/', '-');
+    if (reportTab === 'employees') {
+      downloadCsv(
+        `timesheet-employees-${range}.csv`,
+        ['کارمند', 'نام کاربری', 'سمت', 'واحد', 'روز فعال', 'حضور (دقیقه)', 'زمان ثبت‌شده (دقیقه)', 'ثبت‌نشده (دقیقه)', 'نرخ ثبت', 'وضعیت'],
+        visibleEmployeeRows.map((row) => [
+          row.full_name,
+          row.username,
+          row.job_title || '',
+          row.department,
+          row.activeDays,
+          row.attendance,
+          row.tracked,
+          row.untracked,
+          row.efficiency,
+          employeeStatus(row.attendance, row.efficiency),
+        ]),
+      );
+      return;
+    }
+    if (reportTab === 'attendance') {
+      downloadCsv(
+        `timesheet-attendance-${range}.csv`,
+        ['تاریخ', 'کارمند', 'نام کاربری', 'واحد', 'ورود', 'خروج', 'مدت حضور (دقیقه)', 'وضعیت'],
+        filteredAttendance.map((row) => [
+          row.work_date,
+          row.full_name,
+          row.username,
+          row.department,
+          row.check_in_time || '',
+          row.check_out_time || '',
+          durationMinutes(row.check_in_time, row.check_out_time, row.work_date),
+          row.check_out_time ? 'تکمیل‌شده' : 'در حال حضور',
+        ]),
+      );
+      return;
+    }
+    downloadCsv(
+      `timesheet-tasks-${range}.csv`,
+      ['تاریخ', 'کارمند', 'واحد', 'پروژه', 'زیرپروژه', 'شرح فعالیت', 'شروع', 'پایان', 'مدت (دقیقه)'],
+      filteredTasks.map((row) => [
+        row.work_date,
+        row.full_name,
+        row.department,
+        row.project_code,
+        row.subproject_code || '',
+        row.task_name,
+        row.start_time,
+        row.end_time,
+        row.minutes_spent,
+      ]),
+    );
   };
 
   const createProject = async () => {
@@ -969,8 +1028,13 @@ export function AdminPanel({
             <Button variant='outline' onClick={() => window.print()} className='gap-2 bg-card dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'>
               <Printer className='h-4 w-4' /> چاپ
             </Button>
-            <Button variant='outline' onClick={exportCsv} className='gap-2 bg-card dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'>
-              <Download className='h-4 w-4' /> خروجی CSV
+            <Button
+              variant='outline'
+              onClick={exportCsv}
+              disabled={!records || activeRowCount === 0}
+              className='gap-2 bg-card dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'
+            >
+              <Download className='h-4 w-4' /> خروجی گزارش
             </Button>
           </div>
         </section>
@@ -1567,10 +1631,20 @@ export function AdminPanel({
                 </Button>
               ))}
             </div>
-            <Label className='no-print relative block sm:w-72'>
-              <Search className='absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground' />
-              <Input value={query} onChange={(event) => setQuery(event.target.value)} className='pr-9 dark:border-slate-600 dark:bg-slate-900' placeholder='جستجو در گزارش...' />
-            </Label>
+            <div className='no-print flex flex-col gap-2 sm:flex-row sm:items-center'>
+              <Button
+                variant='outline'
+                onClick={exportCsv}
+                disabled={!records || activeRowCount === 0}
+                className='gap-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'
+              >
+                <Download className='h-4 w-4' /> خروجی CSV
+              </Button>
+              <Label className='relative block sm:w-72'>
+                <Search className='absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground' />
+                <Input value={query} onChange={(event) => setQuery(event.target.value)} className='pr-9 dark:border-slate-600 dark:bg-slate-900' placeholder='جستجو در گزارش...' />
+              </Label>
+            </div>
           </div>
           <div className='overflow-x-auto'>
             {reportTab === 'employees' && (

@@ -1,8 +1,15 @@
+from collections import defaultdict
 from dataclasses import dataclass
 
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
-from app.models.form_template import DepartmentFormAccess, UserFormAccess
+from app.models.form_template import (
+    DepartmentFormAccess,
+    FormDutyAssignment,
+    UserFormAccess,
+)
+from app.models.portal_card import PortalCard
 from app.models.user import User
 from app.repositories.portal_card import PortalCardRepository
 from app.services.portal_card_targets import (
@@ -10,6 +17,10 @@ from app.services.portal_card_targets import (
     CUSTOM_DEPARTMENT_TITLE,
     custom_form_id,
     custom_section_id,
+    document_target_id,
+    group_target_id,
+    parse_custom_form_id,
+    parse_custom_section_id,
 )
 from app.services.portal_service import (
     DEPARTMENTS,
@@ -31,20 +42,28 @@ class AccessTarget:
     section_id: str
     section_title: str
     form_id: str
+    kind: str = ""
+    is_published: bool = True
 
     @property
     def key(self) -> str:
         return f"{self.portal_department_id}:{self.section_id}:{self.form_id}"
 
 
+def _access_form_id(card: PortalCard) -> str:
+    if card.kind == "form":
+        return custom_form_id(card.id)
+    if card.kind == "document":
+        return document_target_id(card.id)
+    return group_target_id(card.id)
+
+
 def custom_card_targets(db: Session) -> list[AccessTarget]:
-    """Targets for admin-built form cards; the section title carries the card path."""
+    """Targets for every admin-built card; the section title carries the card path."""
     cards = PortalCardRepository(db).list_all()
     by_id = {card.id: card for card in cards}
     targets: list[AccessTarget] = []
     for card in cards:
-        if card.kind != "form":
-            continue
         trail, seen, parent = [card.title], {card.id}, by_id.get(card.parent_id)
         while parent is not None and parent.id not in seen:
             trail.append(parent.title)
@@ -56,7 +75,9 @@ def custom_card_targets(db: Session) -> list[AccessTarget]:
                 portal_department_title=CUSTOM_DEPARTMENT_TITLE,
                 section_id=custom_section_id(card.id),
                 section_title=" › ".join(reversed(trail)),
-                form_id=custom_form_id(card.id),
+                form_id=_access_form_id(card),
+                kind=card.kind,
+                is_published=bool(card.is_published),
             )
         )
     return targets
@@ -94,8 +115,16 @@ def access_catalog(db: Session | None = None) -> list[AccessTarget]:
 
 
 def duty_catalog(db: Session | None = None) -> list[AccessTarget]:
-    """Return only real form routes that can own task-duty assignments."""
-    return [target for target in access_catalog(db) if target.section_id]
+    """Return routes that can own task-duty assignments.
+
+    Custom groups are included because a duty on a group covers the forms
+    inside it. Documents have no submission to route.
+    """
+    return [
+        target
+        for target in access_catalog(db)
+        if target.section_id and target.kind != "document"
+    ]
 
 
 def target_key(portal_department_id: str, section_id: str, form_id: str) -> str:
@@ -177,3 +206,89 @@ def can_access_target(
     return allowed is None or target_key(
         portal_department_id, section_id, form_id
     ) in allowed
+
+
+def expand_duty_targets(db: Session, assignments) -> list[tuple[str, str, str]]:
+    """Triples a duty row should match.
+
+    A group row covers every form card inside that group. Documents match nothing.
+    """
+    cards = PortalCardRepository(db).list_all()
+    by_id = {card.id: card for card in cards}
+    children: dict[int | None, list[PortalCard]] = defaultdict(list)
+    for card in cards:
+        children[card.parent_id].append(card)
+    triples: list[tuple[str, str, str]] = []
+    seen: set[tuple[str, str, str]] = set()
+
+    def add(triple: tuple[str, str, str]) -> None:
+        if triple not in seen:
+            seen.add(triple)
+            triples.append(triple)
+
+    for assignment in assignments:
+        department_id = assignment.portal_department_id
+        if department_id != CUSTOM_DEPARTMENT_ID:
+            add((department_id, assignment.section_id, assignment.form_id))
+            continue
+        card_id = parse_custom_section_id(assignment.section_id)
+        card = by_id.get(card_id) if card_id is not None else None
+        if card is None or card.kind == "document":
+            continue
+        if card.kind == "form":
+            add((CUSTOM_DEPARTMENT_ID, custom_section_id(card.id), custom_form_id(card.id)))
+            continue
+        stack = list(children.get(card.id, []))
+        while stack:
+            current = stack.pop()
+            if current.kind == "form":
+                add(
+                    (
+                        CUSTOM_DEPARTMENT_ID,
+                        custom_section_id(current.id),
+                        custom_form_id(current.id),
+                    )
+                )
+            elif current.kind == "group":
+                stack.extend(children.get(current.id, []))
+    return triples
+
+
+def group_duty_user_ids(db: Session, department_id: str, form_id: str) -> list[int]:
+    """Users whose group duty covers this custom form."""
+    if department_id != CUSTOM_DEPARTMENT_ID:
+        return []
+    card_id = parse_custom_form_id(form_id)
+    card = db.get(PortalCard, card_id) if card_id is not None else None
+    if card is None:
+        return []
+    group_ids: list[int] = []
+    seen = {card.id}
+    parent_id = card.parent_id
+    while parent_id and parent_id not in seen:
+        seen.add(parent_id)
+        parent = db.get(PortalCard, parent_id)
+        if parent is None:
+            break
+        if parent.kind == "group":
+            group_ids.append(parent.id)
+        parent_id = parent.parent_id
+    if not group_ids:
+        return []
+    clauses = [
+        and_(
+            FormDutyAssignment.section_id == custom_section_id(group_id),
+            FormDutyAssignment.form_id == group_target_id(group_id),
+        )
+        for group_id in group_ids
+    ]
+    rows = (
+        db.query(FormDutyAssignment.user_id)
+        .filter(
+            FormDutyAssignment.portal_department_id == CUSTOM_DEPARTMENT_ID,
+            or_(*clauses),
+        )
+        .order_by(FormDutyAssignment.id.asc())
+        .all()
+    )
+    return list(dict.fromkeys(row.user_id for row in rows))

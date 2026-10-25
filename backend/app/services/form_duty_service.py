@@ -12,6 +12,8 @@ from app.models.user import User
 from app.services.form_access_service import (
     AccessTarget,
     duty_catalog,
+    expand_duty_targets,
+    group_duty_user_ids,
     parse_duty_target_keys,
     target_key,
 )
@@ -95,6 +97,9 @@ def snapshot_submission_initial_assignees(
             .order_by(FormDutyAssignment.id.asc())
             .all()
         ]
+        candidate_ids.extend(
+            group_duty_user_ids(db, submission.department_id, submission.form_id)
+        )
     else:
         candidate_ids = list(explicit_user_ids)
 
@@ -301,7 +306,7 @@ def user_handles_target(
     section_id: str,
     form_id: str,
 ) -> bool:
-    return (
+    exact = (
         db.query(FormDutyAssignment.id)
         .filter(
             FormDutyAssignment.user_id == user_id,
@@ -312,6 +317,9 @@ def user_handles_target(
         .first()
         is not None
     )
+    if exact:
+        return True
+    return user_id in group_duty_user_ids(db, portal_department_id, form_id)
 
 
 def list_duty_submissions(
@@ -330,12 +338,14 @@ def list_duty_submissions(
 
     conditions = [
         and_(
-            Submission.department_id == assignment.portal_department_id,
-            Submission.section_id == assignment.section_id,
-            Submission.form_id == assignment.form_id,
+            Submission.department_id == department_id,
+            Submission.section_id == section_id,
+            Submission.form_id == form_id,
         )
-        for assignment in assignments
+        for department_id, section_id, form_id in expand_duty_targets(db, assignments)
     ]
+    if not conditions:
+        return []
     query = db.query(Submission).filter(or_(*conditions)).order_by(
         Submission.created_at.desc()
     )

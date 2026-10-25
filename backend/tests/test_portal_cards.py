@@ -16,6 +16,7 @@ from app.models.form_template import (
     UserFormAccess,
 )
 from app.models.portal_card import PortalCard, PortalCardFile
+from app.models.submission import Submission
 from app.models.user import User
 from app.schemas.portal_card import CardFormSchema, PortalCardFields
 from app.services.form_access_service import access_catalog, duty_catalog
@@ -28,11 +29,18 @@ from app.services.portal_card_form import (
     validate_submission,
 )
 from app.services.portal_card_service import PortalCardService, custom_form_titles
+from app.services.form_duty_service import (
+    replace_assignments,
+    snapshot_submission_initial_assignees,
+)
 from app.services.portal_card_targets import (
     custom_form_id,
     custom_section_id,
+    document_target_id,
+    group_target_id,
     parse_custom_form_id,
 )
+from app.services.task_workflow_service import list_task_submissions
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 32
 
@@ -315,15 +323,20 @@ class FormCardTests(PortalCardTestCase):
     async def test_access_and_duty_catalog_include_custom_forms(self):
         group = await self.make("group", "معاونت")
         form = await self.make("form", "فرم", parent_id=group.id)
-        await self.make("document", "سند", parent_id=group.id)
+        document = await self.make("document", "سند", parent_id=group.id)
 
         self.assertFalse([t for t in access_catalog() if t.portal_department_id == "custom"])
         custom = [t for t in access_catalog(self.db) if t.portal_department_id == "custom"]
-        self.assertEqual([t.key for t in custom], [
-            f"custom:{custom_section_id(form.id)}:{custom_form_id(form.id)}"
-        ])
-        self.assertEqual(custom[0].section_title, "معاونت › فرم")
-        self.assertIn(custom[0].key, {t.key for t in duty_catalog(self.db)})
+        form_key = f"custom:{custom_section_id(form.id)}:{custom_form_id(form.id)}"
+        group_key = f"custom:{custom_section_id(group.id)}:group-{group.id}"
+        document_key = f"custom:{custom_section_id(document.id)}:document-{document.id}"
+        self.assertEqual([item.key for item in custom], [group_key, form_key, document_key])
+        form_target = next(item for item in custom if item.kind == "form")
+        self.assertEqual(form_target.section_title, "معاونت › فرم")
+        duty_keys = {item.key for item in duty_catalog(self.db)}
+        self.assertIn(group_key, duty_keys)
+        self.assertIn(form_key, duty_keys)
+        self.assertNotIn(document_key, duty_keys)
 
     async def test_titles_for_submission_lists(self):
         group = await self.make("group", "معاونت")
@@ -385,6 +398,108 @@ class SubmissionValidationTests(unittest.TestCase):
         self.assertEqual(parse_custom_form_id("custom-12"), 12)
         for value in ("custom-", "custom-x", "custom-1.5", "common-form", "custom-١٢"):
             self.assertIsNone(parse_custom_form_id(value), value)
+
+
+class CardAccessRoutingTests(PortalCardTestCase):
+    def setUp(self):
+        super().setUp()
+        self.handler = User(
+            username="handler", display_name="مسئول", is_active=True, is_admin=False,
+            must_change_password=False,
+        )
+        self.outsider = User(
+            username="outsider", display_name="بدون دسترسی", is_active=True,
+            is_admin=False, must_change_password=False, form_access_configured=True,
+        )
+        self.db.add_all([self.handler, self.outsider])
+        self.db.commit()
+
+    def _grant(self, user: User, *cards: PortalCard) -> None:
+        user.form_access_configured = True
+        self.db.query(UserFormAccess).filter(UserFormAccess.user_id == user.id).delete(
+            synchronize_session=False
+        )
+        self.db.add_all(
+            [
+                UserFormAccess(
+                    user_id=user.id,
+                    portal_department_id="custom",
+                    section_id=custom_section_id(card.id),
+                    form_id=custom_form_id(card.id)
+                    if card.kind == "form"
+                    else group_target_id(card.id)
+                    if card.kind == "group"
+                    else document_target_id(card.id),
+                )
+                for card in cards
+            ]
+        )
+        self.db.commit()
+
+    def _titles(self, user: User, parent_id: int | None = None) -> list[str]:
+        return [card.title for card in self.reader.list_children(user, parent_id)]
+
+    async def test_two_root_forms_are_granted_independently(self):
+        first = await self.make("form", "فرم اول")
+        second = await self.make("form", "فرم دوم")
+        keys = {item.key for item in access_catalog(self.db) if item.kind == "form"}
+        self.assertIn(f"custom:{custom_section_id(first.id)}:{custom_form_id(first.id)}", keys)
+        self.assertIn(f"custom:{custom_section_id(second.id)}:{custom_form_id(second.id)}", keys)
+
+        self._grant(self.employee, first)
+        self.assertEqual(self._titles(self.employee), ["فرم اول"])
+        self._grant(self.employee, first, second)
+        self.assertEqual(self._titles(self.employee), ["فرم اول", "فرم دوم"])
+
+    async def test_grant_on_unpublished_form_shows_it_and_its_group(self):
+        group = await self.make("group", "گروه", published=False)
+        form = await self.make("form", "فرم داخلی", parent_id=group.id, published=False)
+        other = await self.make("form", "فرم دیگر", published=False)
+
+        self.assertEqual(self._titles(self.employee), [])
+        self._grant(self.employee, form)
+        self.assertEqual(self._titles(self.employee), ["گروه"])
+        self.assertEqual(self._titles(self.employee, group.id), ["فرم داخلی"])
+        self.assertFalse(self.reader.is_visible(self.employee, self.reader.require(other.id)))
+        detail = self.reader.get_detail(self.employee, form.id)
+        self.assertEqual(detail.kind, "form")
+
+    async def test_group_grant_reveals_the_folder_and_routes_its_forms(self):
+        group = await self.make("group", "گروه", published=False)
+        form = await self.make("form", "فرم داخلی", parent_id=group.id, published=False)
+        self._grant(self.employee, group)
+        self.assertEqual(self._titles(self.employee, group.id), ["فرم داخلی"])
+
+        group_key = f"custom:{custom_section_id(group.id)}:{group_target_id(group.id)}"
+        replace_assignments(self.db, [(self.handler.id, group_key)])
+        self.assertEqual(self._titles(self.handler), ["گروه"])
+        self.assertEqual(self.reader.get_detail(self.handler, form.id).title, "فرم داخلی")
+
+        with self.assertRaises(ValueError):
+            replace_assignments(
+                self.db,
+                [(self.handler.id, f"custom:{custom_section_id(form.id)}:document-{form.id}")],
+            )
+        replace_assignments(self.db, [(self.handler.id, group_key)])
+
+        submission = Submission(
+            form_id=custom_form_id(form.id),
+            department_id="custom",
+            section_id=custom_section_id(form.id),
+            user_id=self.employee.id,
+            subject="درخواست",
+            data="{}",
+        )
+        self.db.add(submission)
+        self.db.flush()
+        snapshot_submission_initial_assignees(self.db, submission)
+        self.db.commit()
+
+        handler_ids = [item.id for item in list_task_submissions(self.db, self.handler.id)]
+        employee_ids = [item.id for item in list_task_submissions(self.db, self.employee.id)]
+        self.assertEqual(handler_ids, [submission.id])
+        self.assertEqual(employee_ids, [])
+        self.assertEqual(self._titles(self.outsider), [])
 
 
 if __name__ == "__main__":

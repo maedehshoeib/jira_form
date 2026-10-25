@@ -112,8 +112,12 @@ export default function CreateCardDialog({ parentId, parentTitle, onClose, onCre
         <LogoPicker file={logo} onFile={setLogo} />
         <label className="flex items-center gap-2 text-sm">
           <Checkbox checked={published} onCheckedChange={(checked) => setPublished(checked === true)} />
-          همین حالا برای کاربران نمایش داده شود
+          همین حالا برای کاربرانی که دسترسی باز دارند نمایش داده شود
         </label>
+        <p className="text-xs text-muted-foreground">
+          اگر این گزینه خاموش باشد کارت پیش‌نویس است. پیش‌نویس فقط برای مدیر و
+          کاربرانی دیده می‌شود که در دسترسی فرم‌ها یا مسیریابی وظایف به آن‌ها داده شده است.
+        </p>
 
         {error && (
           <p role="alert" className="text-sm text-destructive">

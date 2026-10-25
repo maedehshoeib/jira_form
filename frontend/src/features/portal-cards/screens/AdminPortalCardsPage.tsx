@@ -93,6 +93,7 @@ export default function AdminPortalCardsPage() {
         <h1 className="text-2xl font-bold text-foreground">مدیریت کارت‌های صفحه اصلی</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           کارت جدید بسازید، داخل آن کارت یا فرم یا مستند اضافه کنید و ترتیب نمایش را تعیین کنید.
+          دسترسی هر کارت از صفحه کاربران و مسیریابی فرم‌ها از مسیریابی وظایف تنظیم می‌شود.
         </p>
       </div>
 

@@ -20,15 +20,16 @@ from app.schemas.portal_card import (
     PortalCardSummary,
 )
 from app.services.base import BaseService
-from app.services.form_access_service import allowed_target_keys, target_key
+from app.services.form_access_service import allowed_target_keys
+from app.services.form_duty_service import list_user_duty_assignments
+from app.services.portal_card_visibility import visible_card_ids
 from app.services.portal_card_form import build_template, parse_schema
 from app.services.portal_card_storage import PortalCardStorage
 from app.services.portal_card_targets import (
     CUSTOM_DEPARTMENT_ID,
     CUSTOM_DEPARTMENT_TITLE,
-    custom_form_id,
-    custom_section_id,
     parse_custom_form_id,
+    parse_custom_section_id,
 )
 
 NOT_FOUND = "کارت یافت نشد."
@@ -148,33 +149,31 @@ class PortalCardService(BaseService):
     def _visible_ids(self, user: User, cards: list[PortalCard]) -> set[int]:
         if user.is_admin:
             return {card.id for card in cards}
-        children: dict[int | None, list[PortalCard]] = defaultdict(list)
-        for card in cards:
-            children[card.parent_id].append(card)
         allowed = allowed_target_keys(self.db, user)
-        visible: set[int] = set()
+        return visible_card_ids(
+            cards,
+            open_access=allowed is None,
+            explicit=self._explicit_custom_ids(user, allowed),
+        )
 
-        def visit(card: PortalCard) -> bool:
-            if not card.is_published:
-                return False
-            if card.kind == "group":
-                shown = [child for child in children[card.id] if visit(child)]
-                ok = bool(shown)
-            elif card.kind == "form":
-                ok = allowed is None or target_key(
-                    CUSTOM_DEPARTMENT_ID,
-                    custom_section_id(card.id),
-                    custom_form_id(card.id),
-                ) in allowed
-            else:
-                ok = True
-            if ok:
-                visible.add(card.id)
-            return ok
-
-        for root in children[None]:
-            visit(root)
-        return visible
+    def _explicit_custom_ids(self, user: User, allowed: set[str] | None) -> set[int]:
+        """Cards granted to this user, including duty assignments."""
+        explicit: set[int] = set()
+        if allowed is not None:
+            for key in allowed:
+                parts = key.split(":")
+                if len(parts) < 2 or parts[0] != CUSTOM_DEPARTMENT_ID:
+                    continue
+                card_id = parse_custom_section_id(parts[1])
+                if card_id is not None:
+                    explicit.add(card_id)
+        for row in list_user_duty_assignments(self.db, user.id):
+            if row.portal_department_id != CUSTOM_DEPARTMENT_ID:
+                continue
+            card_id = parse_custom_section_id(row.section_id)
+            if card_id is not None:
+                explicit.add(card_id)
+        return explicit
 
     @staticmethod
     def _child_counts(cards: list[PortalCard], visible: set[int]) -> dict[int, int]:

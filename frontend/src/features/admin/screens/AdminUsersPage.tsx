@@ -62,6 +62,21 @@ type AccessTarget = {
   section_id: string;
   section_title: string;
   form_id: string;
+  kind?: string;
+  is_published?: boolean;
+};
+
+const accessTargetLabel = (target: AccessTarget) => {
+  const kind =
+    target.kind === "group"
+      ? "کارت گروهی"
+      : target.kind === "form"
+        ? "فرم"
+        : target.kind === "document"
+          ? "مستند"
+          : "";
+  const draft = target.is_published === false ? "پیش‌نویس" : "";
+  return [kind, target.section_title, draft].filter(Boolean).join(" · ");
 };
 
 type UserForm = {
@@ -362,12 +377,15 @@ export default function AdminUsersPage() {
         editor.kind === "department"
           ? endpoints.adminDepartments
           : endpoints.adminUsers;
-      const { data } = await client.get<{
-        configured: boolean;
-        targets: string[];
-      }>(`${base}/${editor.id}/form-access`);
-      setAccessConfigured(data.configured);
-      setSelectedTargets(new Set(data.targets));
+      const [catalogResponse, accessResponse] = await Promise.all([
+        client.get<AccessTarget[]>(endpoints.adminFormAccessCatalog),
+        client.get<{ configured: boolean; targets: string[] }>(
+          `${base}/${editor.id}/form-access`,
+        ),
+      ]);
+      setCatalog(catalogResponse.data);
+      setAccessConfigured(accessResponse.data.configured);
+      setSelectedTargets(new Set(accessResponse.data.targets));
     } catch (requestError: any) {
       setAccessError(
         requestError?.response?.data?.detail ||
@@ -977,8 +995,9 @@ export default function AdminUsersPage() {
                 </h3>
                 <p className="mt-1 text-xs text-muted-foreground">
                   دسترسی اختصاصی کاربر بر تنظیمات واحد سازمانی اولویت دارد.
-                  دسترسی کارت‌های «نامه‌های درون‌سازمانی» و «نامه‌های برون‌سازمانی»
-                  به‌صورت مستقل از همین فهرست قابل انتخاب است.
+                  همه کارت‌های ساخته‌شده، از جمله گروه، فرم و مستند، زیر «کارت‌های
+                  سفارشی» هستند. با دادن دسترسی، همان کارت برای کاربر باز می‌شود؛
+                  حتی اگر هنوز برای همه منتشر نشده باشد.
                 </p>
               </div>
               <Button
@@ -1065,7 +1084,7 @@ export default function AdminUsersPage() {
                                 onChange={() => toggleTarget(key)}
                                 className="h-4 w-4 accent-red-600"
                               />
-                              {target.section_title}
+                              {accessTargetLabel(target)}
                             </Label>
                           );
                         })}

@@ -296,6 +296,8 @@ class FormAccessTarget(BaseModel):
     section_id: str
     section_title: str
     form_id: str
+    kind: str = ""
+    is_published: bool = True
 
 
 class FormAccessSelection(BaseModel):

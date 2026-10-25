@@ -27,6 +27,7 @@ import {
   fetchFormDuties,
   fetchFormDutyCatalog,
   FormDutyCatalogTarget,
+  formDutyLabel,
   formTargetKey,
   saveFormDuties,
 } from "@/features/admin/formDuties";
@@ -114,6 +115,14 @@ export default function AdminDutiesPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const refreshCatalog = () => {
+      void fetchFormDutyCatalog().then(setCatalog).catch(() => undefined);
+    };
+    window.addEventListener("focus", refreshCatalog);
+    return () => window.removeEventListener("focus", refreshCatalog);
+  }, []);
 
   useEffect(() => {
     const onResize = () => setLayoutTick((tick) => tick + 1);
@@ -546,7 +555,7 @@ export default function AdminDutiesPage() {
                             </Button>
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-sm font-medium text-foreground">
-                                {target.section_title}
+                                {formDutyLabel(target)}
                               </p>
                               <p className="truncate text-xs text-muted-foreground">
                                 {target.portal_department_title}
@@ -666,7 +675,7 @@ export default function AdminDutiesPage() {
                     title="حذف اتصال"
                   >
                     <span className="font-medium">
-                      {form?.section_title || edge.target_key}
+                      {form ? formDutyLabel(form) : edge.target_key}
                     </span>
                     <span className="text-muted-foreground">←</span>
                     <span>

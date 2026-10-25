@@ -19,6 +19,7 @@ from app.models.submission import (
 )
 from app.models.user import User
 from app.repositories.submissions import SubmissionRepository
+from app.services.form_access_service import expand_duty_targets
 from app.services.form_duty_service import list_user_duty_assignments, user_handles_target
 from app.services.meeting_room_workflow_service import (
     active_meeting_room_approver_id,
@@ -121,11 +122,11 @@ def _task_action_conditions(db: Session, user_id: int):
     assignments = list_user_duty_assignments(db, user_id)
     conditions = [
         and_(
-            Submission.department_id == assignment.portal_department_id,
-            Submission.section_id == assignment.section_id,
-            Submission.form_id == assignment.form_id,
+            Submission.department_id == department_id,
+            Submission.section_id == section_id,
+            Submission.form_id == form_id,
         )
-        for assignment in assignments
+        for department_id, section_id, form_id in expand_duty_targets(db, assignments)
     ]
     referred_ids = [
         row.submission_id

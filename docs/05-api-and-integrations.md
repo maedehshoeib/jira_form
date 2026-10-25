@@ -49,10 +49,14 @@ with the server-side target `department_id=custom`, `section_id=card-<id>`,
 `form_id=custom-<id>` (client-supplied department/section are ignored). Submission
 data is validated against the stored schema (required, select options, number,
 email, conditional visibility; unknown keys are dropped). Form-access rules and
-task-duty routing treat custom forms as a «کارت‌های سفارشی» department whose
+task-duty routing treat custom cards as a «کارت‌های سفارشی» department whose
 sections are the card paths, so admins assign access and handlers in the existing
-admin screens. A custom form is visible to an employee only when it and all its
-ancestors are published and access rules allow it. Deleting a card removes its
+admin screens. Every card (group, form, and document) can be granted. Forms and
+groups appear in task routing; a duty on a group covers the forms inside it and
+puts those submissions in the assignee's task list. An employee sees a published
+card when access rules allow it. A draft stays hidden unless that employee was
+granted the card, was granted a parent group, or has a duty on it; granted drafts
+stay reachable through their parent groups. Deleting a card removes its
 descendants, files, and access/duty assignments; historical submissions keep the
 `custom-<id>` id.
 
