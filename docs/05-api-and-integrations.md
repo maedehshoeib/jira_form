@@ -188,16 +188,22 @@ signed-in user:
 - reminder and deadline rows from `submission_reminders` that are due and newer
   than the user's last task view (reminders appear **only** here; they never
   bump the sidebar badges)
+- task referrals and comments that arrive after the user has already opened
+  the task (they do not bump «وظایف من»)
 - completed-task rows from `approved` status history on tasks the user can view,
   excluding changes made by the same user
 
+Each item has `area`: `task` opens `/my-tasks?open={submission_id}`, `letter`
+opens `/my-letters?open={id}`.
+
 Opening a task (`GET /api/v1/tasks/{id}`) updates the view timestamp and clears
 matching inbox items. The home page shows these messages behind the notification
-icon; the sidebar badge next to «وظایف من» counts only unread (never opened)
-actionable tasks, and «نامه‌ها» counts only unread inform/CC letters via
-`GET /api/v1/tasks/letters/unseen-count`. Reminders do not change these numbers.
-Clicking an inbox message navigates to `/my-tasks?open={submission_id}` (or
-`/my-letters?open={id}` for نامه inbox items) and opens the item.
+icon. The sidebar badge next to «وظایف من» counts only actionable tasks the
+user has never opened (`GET /api/v1/tasks/unseen-count`). A reminder, a later
+referral, or a new comment does not change that number. «نامه‌ها» still counts
+unread inform/CC letters, including a later referral, CC, or comment, via
+`GET /api/v1/tasks/letters/unseen-count`. Reminders do not change that number
+either.
 
 Inform-only and CC/رونوشت letters are shown on `/my-letters` in an
 Outlook-style layout (folders / list / reading pane with متن نامه، پیوست‌ها،

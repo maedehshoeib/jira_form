@@ -1049,9 +1049,15 @@ class TaskWorkflowMockTests(unittest.TestCase):
         row = self.client.get("/api/v1/tasks").json()[0]
         self.assertFalse(row["is_read"])
         self.assertEqual(len(row["referrals"]), 2)
+        # A later referral stays off the sidebar and shows in the home tab.
         self.assertEqual(
             self.client.get("/api/v1/tasks/unseen-count").json(),
-            {"count": 1, "ids": [self.submission.id]},
+            {"count": 0, "ids": []},
+        )
+        notifications = self.client.get("/api/v1/tasks/notifications")
+        self.assertEqual(notifications.status_code, 200)
+        self.assertTrue(
+            any(item["kind"] == "referral" for item in notifications.json()["items"])
         )
 
         reopened = self.client.get(f"/api/v1/tasks/{self.submission.id}")
@@ -1070,6 +1076,39 @@ class TaskWorkflowMockTests(unittest.TestCase):
             .count(),
             1,
         )
+        cleared = self.client.get("/api/v1/tasks/notifications").json()["items"]
+        self.assertFalse(any(item["kind"] == "referral" for item in cleared))
+
+    def test_comment_after_open_stays_off_the_task_sidebar(self):
+        self._as(self.handler)
+        referred = self.client.post(
+            f"/api/v1/tasks/{self.submission.id}/refer",
+            json={"to_user_id": self.colleague.id, "note": "please handle"},
+        )
+        self.assertEqual(referred.status_code, 200, referred.text)
+
+        self._as(self.colleague)
+        opened = self.client.get(f"/api/v1/tasks/{self.submission.id}")
+        self.assertEqual(opened.status_code, 200, opened.text)
+        self.assertEqual(
+            self.client.get("/api/v1/tasks/unseen-count").json(),
+            {"count": 0, "ids": []},
+        )
+
+        self._as(self.handler)
+        commented = self.client.post(
+            f"/api/v1/submissions/{self.submission.id}/comments",
+            json={"body": "یک پیام جدید", "mention_user_ids": []},
+        )
+        self.assertEqual(commented.status_code, 200, commented.text)
+
+        self._as(self.colleague)
+        self.assertEqual(
+            self.client.get("/api/v1/tasks/unseen-count").json(),
+            {"count": 0, "ids": []},
+        )
+        items = self.client.get("/api/v1/tasks/notifications").json()["items"]
+        self.assertTrue(any(item["kind"] == "comment" for item in items))
 
     def test_in_progress_updates_progress_history_and_terminal_precedence(self):
         self._as(self.handler)

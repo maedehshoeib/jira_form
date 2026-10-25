@@ -148,6 +148,7 @@ export default function TaskConversation({
       setConversation(parseConversation(data));
       setReminderMessage("");
       setReminderOpen(false);
+      window.dispatchEvent(new Event("tasks:refresh-notifications"));
     } catch {
       setError("ارسال یادآوری انجام نشد. برای این درخواست باید مسئول فعالی وجود داشته باشد.");
     } finally {

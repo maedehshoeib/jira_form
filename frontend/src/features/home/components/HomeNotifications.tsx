@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { AlarmClock, BellRing, CheckCircle2, Loader2 } from "lucide-react";
+import {
+  AlarmClock,
+  BellRing,
+  CheckCircle2,
+  Forward,
+  Loader2,
+  MessageCircle,
+} from "lucide-react";
 
 import client from "@/api/client";
 import { endpoints } from "@/api/endpoints";
@@ -16,11 +23,12 @@ import { cn } from "@/lib/utils";
 
 export type TaskInboxNotification = {
   id: string;
-  kind: "reminder" | "deadline" | "completed" | string;
+  kind: "reminder" | "deadline" | "completed" | "referral" | "comment" | string;
   submission_id: number;
   subject: string;
   message: string;
   created_at: string;
+  area?: "task" | "letter";
 };
 
 type TaskInboxNotificationResponse = {
@@ -46,6 +54,16 @@ const KIND_META: Record<
     label: "انجام‌شده",
     icon: CheckCircle2,
     className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200",
+  },
+  referral: {
+    label: "ارجاع",
+    icon: Forward,
+    className: "bg-sky-100 text-sky-800 dark:bg-sky-400/15 dark:text-sky-200",
+  },
+  comment: {
+    label: "پیام",
+    icon: MessageCircle,
+    className: "bg-violet-100 text-violet-800 dark:bg-violet-400/15 dark:text-violet-200",
   },
 };
 
@@ -85,9 +103,10 @@ export default function HomeNotifications() {
     void refresh().finally(() => setLoading(false));
   }, [open, refresh]);
 
-  const openTask = (submissionId: number) => {
+  const openItem = (item: TaskInboxNotification) => {
     setOpen(false);
-    router.push(`/my-tasks?open=${submissionId}`);
+    const path = item.area === "letter" ? "/my-letters" : "/my-tasks";
+    router.push(`${path}?open=${item.submission_id}`);
   };
 
   return (
@@ -126,7 +145,7 @@ export default function HomeNotifications() {
         <div className="border-b border-border bg-muted/40 px-4 py-3">
           <p className="text-sm font-bold text-foreground">اعلان‌های وظایف</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            یادآوری‌ها، مهلت‌ها و وظایف انجام‌شده
+            یادآوری‌ها، ارجاع‌ها، پیام‌ها و وظایف انجام‌شده
           </p>
         </div>
         <div className="max-h-[min(28rem,60vh)] overflow-y-auto">
@@ -149,7 +168,7 @@ export default function HomeNotifications() {
                     <Button
                       type="button"
                       variant="ghost"
-                      onClick={() => openTask(item.submission_id)}
+                      onClick={() => openItem(item)}
                       className="h-auto w-full items-start justify-start gap-3 rounded-none px-4 py-3.5 text-right whitespace-normal hover:bg-muted/70"
                     >
                       <span

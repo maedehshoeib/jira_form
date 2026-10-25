@@ -204,6 +204,7 @@ class TaskInboxNotificationItem(BaseModel):
     subject: str
     message: str
     created_at: str
+    area: Literal["task", "letter"] = "task"
 
 
 class TaskInboxNotificationResponse(BaseModel):

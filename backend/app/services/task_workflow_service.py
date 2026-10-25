@@ -205,8 +205,17 @@ def list_pending_task_ids(db: Session, user_id: int) -> list[int]:
     ]
 
 
-def _list_unseen_submissions(db: Session, user_id: int) -> list[Submission]:
-    """Accessible submissions not opened since their latest referral/CC/comment."""
+def _list_unseen_submissions(
+    db: Session,
+    user_id: int,
+    *,
+    include_follow_ups: bool = True,
+) -> list[Submission]:
+    """Accessible submissions the user has not opened.
+
+    ``include_follow_ups`` also counts a later referral, CC, or comment.
+    Reminders never count: they belong on the home-page notification tab.
+    """
     conditions = _task_view_conditions(db, user_id)
     if not conditions:
         return []
@@ -239,6 +248,16 @@ def _list_unseen_submissions(db: Session, user_id: int) -> list[Submission]:
     )
     # Reminders are surfaced only by the home-page notification tab; they must
     # not bump the sidebar badges for «وظایف من» / «نامه‌ها».
+    unseen = (
+        or_(
+            SubmissionView.id.is_(None),
+            newer_referral_exists,
+            newer_cc_exists,
+            newer_comment_exists,
+        )
+        if include_follow_ups
+        else SubmissionView.id.is_(None)
+    )
     return (
         db.query(Submission)
         .outerjoin(
@@ -248,29 +267,24 @@ def _list_unseen_submissions(db: Session, user_id: int) -> list[Submission]:
                 SubmissionView.user_id == user_id,
             ),
         )
-        .filter(
-            or_(*conditions),
-            or_(
-                SubmissionView.id.is_(None),
-                newer_referral_exists,
-                newer_cc_exists,
-                newer_comment_exists,
-            ),
-        )
+        .filter(or_(*conditions), unseen)
         .order_by(Submission.created_at.desc())
         .all()
     )
 
 
 def list_unseen_task_ids(db: Session, user_id: int) -> list[int]:
-    """IDs of actionable tasks not yet opened.
+    """IDs of actionable tasks the user has never opened.
 
     Includes management letters marked نیاز به اقدام دارد. Inform-only / CC
-    copies stay on the نامه badge instead.
+    copies stay on the نامه badge. A later reminder, referral, or comment
+    does not bump «وظایف من»; those show on the home notification tab.
     """
     return [
         row.id
-        for row in _list_unseen_submissions(db, user_id)
+        for row in _list_unseen_submissions(
+            db, user_id, include_follow_ups=False
+        )
         if not is_letter_inbox_item(row)
     ]
 
