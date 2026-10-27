@@ -550,6 +550,36 @@ class CardAccessRoutingTests(PortalCardTestCase):
         self.assertEqual([item.id for item in routed], [submission.id])
         self.assertIn("متن درخواست", routed[0].data)
 
+    async def test_inactive_user_does_not_block_a_new_card_route(self):
+        form = await self.make("form", "فرم تازه")
+        form_key = f"custom:{custom_section_id(form.id)}:{custom_form_id(form.id)}"
+        inactive = User(
+            username="inactive-52",
+            display_name="غیرفعال",
+            is_active=False,
+            is_admin=False,
+            must_change_password=False,
+        )
+        self.db.add(inactive)
+        self.db.commit()
+
+        saved = replace_assignments(
+            self.db,
+            [(inactive.id, form_key), (self.handler.id, form_key)],
+        )
+        self.assertEqual([edge.user_id for edge in saved], [self.handler.id])
+        self.assertEqual(
+            [edge.user_id for edge in list_assignments(self.db)],
+            [self.handler.id],
+        )
+
+        with self.assertRaisesRegex(ValueError, "Unknown or inactive user"):
+            replace_assignments(self.db, [(inactive.id, form_key)])
+        self.assertEqual(
+            [edge.user_id for edge in list_assignments(self.db)],
+            [self.handler.id],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

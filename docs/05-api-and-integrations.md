@@ -54,8 +54,9 @@ sections are the card paths, so admins assign access and handlers in the existin
 admin screens. Every card (group, form, and document) can be granted. Forms and
 groups appear in task routing; a duty on a group covers the forms inside it and
 puts those submissions in the assignee's task list. Saving routes replaces the
-full list. A target for a card that no longer exists is skipped, so it cannot
-reject routes for cards that are still there. An employee sees a published
+full list. A target for a card that no longer exists, and an assignee who is
+missing or inactive, are skipped, so they cannot reject routes for cards that
+are still there. An employee sees a published
 card when access rules allow it. A draft stays hidden unless that employee was
 granted the card, was granted a parent group, or has a duty on it; granted drafts
 stay reachable through their parent groups. Deleting a card removes its

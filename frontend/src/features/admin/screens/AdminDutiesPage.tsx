@@ -90,6 +90,7 @@ export default function AdminDutiesPage() {
   const [layoutTick, setLayoutTick] = useState(0);
   const saveVersion = useRef(0);
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
+  const inactiveUserIds = useRef<Set<number>>(new Set());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -101,10 +102,16 @@ export default function AdminDutiesPage() {
         client.get<ManagedUser[]>(endpoints.adminUsers),
       ]);
       setCatalog(catalogData);
-      const nextEdges = dutiesData.assignments.map((edge) => ({
-        user_id: edge.user_id,
-        target_key: edge.target_key,
-      }));
+      const inactiveIds = new Set(
+        usersRes.data.filter((user) => !user.is_active).map((user) => user.id),
+      );
+      inactiveUserIds.current = inactiveIds;
+      const nextEdges = dutiesData.assignments
+        .filter((edge) => !inactiveIds.has(edge.user_id))
+        .map((edge) => ({
+          user_id: edge.user_id,
+          target_key: edge.target_key,
+        }));
       setEdges(nextEdges);
       setSavedEdges(nextEdges);
       setUsers(usersRes.data.filter((user) => user.is_active && !user.is_admin));
@@ -346,7 +353,9 @@ export default function AdminDutiesPage() {
         setError("");
         setSaved(false);
         try {
-          const data = await saveFormDuties(list);
+          const data = await saveFormDuties(
+            list.filter((edge) => !inactiveUserIds.current.has(edge.user_id)),
+          );
           if (version !== saveVersion.current) return;
           applySavedEdges(
             data.assignments.map((edge) => ({

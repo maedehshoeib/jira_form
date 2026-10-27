@@ -38,6 +38,7 @@ def list_assignments(db: Session) -> list[DutyEdge]:
     rows = (
         db.query(FormDutyAssignment, User)
         .join(User, User.id == FormDutyAssignment.user_id)
+        .filter(User.is_active.is_(True))
         .order_by(User.display_name.asc(), User.username.asc(), FormDutyAssignment.id.asc())
         .all()
     )
@@ -259,15 +260,29 @@ def _catalog_edges(
     return unique
 
 
+def _active_edges(
+    db: Session, edges: list[tuple[int, AccessTarget]]
+) -> list[tuple[int, AccessTarget]]:
+    """Drop assignees who are missing or inactive so they cannot reject a save."""
+    user_ids = sorted({user_id for user_id, _ in edges})
+    active_ids = {
+        user.id
+        for user in db.query(User)
+        .filter(User.id.in_(user_ids), User.is_active.is_(True))
+        .all()
+    }
+    return [(user_id, target) for user_id, target in edges if user_id in active_ids]
+
+
 def replace_assignments(
     db: Session, edges: list[tuple[int, str]]
 ) -> list[DutyEdge]:
     """Replace duty edges. Each item is (user_id, target_key).
 
-    A removed card used to make the whole save fail, so a new card's route
-    never reached the database and disappeared on refresh. Unknown targets
-    are now skipped. The save still fails, without changing stored routes,
-    when every target is unknown or a user is inactive.
+    A removed card or an inactive assignee used to make the whole save fail,
+    so a new card's route never reached the database and disappeared on
+    refresh. Those edges are now skipped. The save still fails, without
+    changing stored routes, when nothing routable remains.
     """
     if not edges:
         db.query(FormDutyAssignment).delete(synchronize_session=False)
@@ -278,16 +293,9 @@ def replace_assignments(
     if not unique_edges:
         raise ValueError("Unknown form duty target")
 
-    user_ids = sorted({user_id for user_id, _ in unique_edges})
-    active_ids = {
-        user.id
-        for user in db.query(User)
-        .filter(User.id.in_(user_ids), User.is_active.is_(True))
-        .all()
-    }
-    missing = [user_id for user_id in user_ids if user_id not in active_ids]
-    if missing:
-        raise ValueError(f"Unknown or inactive user: {missing[0]}")
+    active_edges = _active_edges(db, unique_edges)
+    if not active_edges:
+        raise ValueError(f"Unknown or inactive user: {unique_edges[0][0]}")
 
     db.query(FormDutyAssignment).delete(synchronize_session=False)
     db.add_all(
@@ -298,7 +306,7 @@ def replace_assignments(
                 section_id=target.section_id,
                 form_id=target.form_id,
             )
-            for user_id, target in unique_edges
+            for user_id, target in active_edges
         ]
     )
     db.commit()
