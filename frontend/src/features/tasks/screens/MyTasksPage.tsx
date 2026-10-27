@@ -1328,6 +1328,26 @@ export default function MyTasksPage() {
                 </div>
               )}
 
+              {!isSelectedPurchaseRequest && (
+                <div className="space-y-4">
+                  <h4 className="text-sm font-semibold text-foreground">اطلاعات ثبت‌شده</h4>
+                  {visibleFields.length === 0 ? (
+                    <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+                      متنی برای این درخواست ثبت نشده است.
+                    </p>
+                  ) : (
+                    visibleFields.map(({ name, value, field }) => (
+                      <div key={name} className="rounded-2xl border border-border p-4">
+                        <div className="mb-2 text-sm font-semibold text-muted-foreground">
+                          {field?.label ?? name}
+                        </div>
+                        <div className="text-foreground">{DisplayValue(value, field)}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
 
               {isSelectedPurchaseRequest && (
                 <div className="space-y-4 rounded-2xl border border-primary/20 bg-primary/10 p-4">
@@ -2067,16 +2087,6 @@ export default function MyTasksPage() {
                 </div>
               )}
 
-              <div className="space-y-4">
-                {!isSelectedPurchaseRequest && visibleFields.map(({ name, value, field }) => (
-                  <div key={name} className="rounded-2xl border border-border p-4">
-                    <div className="mb-2 text-sm font-semibold text-muted-foreground">
-                      {field?.label ?? name}
-                    </div>
-                    <div className="text-foreground">{DisplayValue(value, field)}</div>
-                  </div>
-                ))}
-              </div>
             </div>
           </section>
         </div>

@@ -5,6 +5,7 @@ from pathlib import Path
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
+from app.models.form_template import FormDutyAssignment
 from app.models.submission import (
     Submission,
     SubmissionAssigneeProgress,
@@ -19,7 +20,7 @@ from app.models.submission import (
 )
 from app.models.user import User
 from app.repositories.submissions import SubmissionRepository
-from app.services.form_access_service import expand_duty_targets
+from app.services.form_access_service import expand_duty_targets, group_duty_user_ids
 from app.services.form_duty_service import list_user_duty_assignments, user_handles_target
 from app.services.meeting_room_workflow_service import (
     active_meeting_room_approver_id,
@@ -702,9 +703,37 @@ def list_colleagues(db: Session, exclude_user_id: int) -> list[User]:
     )
 
 
+def _current_duty_user_ids(db: Session, submission: Submission) -> set[int]:
+    """Active people who handle this form now, including a parent-group route."""
+    rows = (
+        db.query(FormDutyAssignment.user_id)
+        .join(User, User.id == FormDutyAssignment.user_id)
+        .filter(
+            FormDutyAssignment.portal_department_id == submission.department_id,
+            FormDutyAssignment.section_id == submission.section_id,
+            FormDutyAssignment.form_id == submission.form_id,
+            User.is_active.is_(True),
+        )
+        .all()
+    )
+    ids = {row.user_id for row in rows}
+    candidate_ids = set(group_duty_user_ids(
+        db, submission.department_id, submission.form_id
+    ))
+    if candidate_ids:
+        ids.update(
+            row.id
+            for row in db.query(User.id)
+            .filter(User.id.in_(candidate_ids), User.is_active.is_(True))
+            .all()
+        )
+    return ids
+
+
 def task_participant_ids(db: Session, submission: Submission) -> set[int]:
     """Return everyone allowed to take part in the task-card conversation."""
     ids = {submission.user_id}
+    ids.update(_current_duty_user_ids(db, submission))
     ids.update(
         row.user_id
         for row in db.query(SubmissionInitialAssignee.user_id)

@@ -53,7 +53,9 @@ task-duty routing treat custom cards as a «کارت‌های سفارشی» dep
 sections are the card paths, so admins assign access and handlers in the existing
 admin screens. Every card (group, form, and document) can be granted. Forms and
 groups appear in task routing; a duty on a group covers the forms inside it and
-puts those submissions in the assignee's task list. Saving routes replaces the
+puts those submissions in the assignee's task list, including the filled
+answers. A person who currently handles the form can open its conversation
+even when the route was saved after the form was submitted. Saving routes replaces the
 full list. A target for a card that no longer exists, and an assignee who is
 missing or inactive, are skipped, so they cannot reject routes for cards that
 are still there. An employee sees a published

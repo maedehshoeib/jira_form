@@ -325,6 +325,55 @@ class PortalCardApiTests(unittest.TestCase):
         detail = self.client.get(f"/api/v1/tasks/{submitted.json()['id']}")
         self.assertEqual(detail.status_code, 200, detail.text)
         self.assertEqual(detail.json()["data"]["reason"], "متن درخواست")
+        conversation = self.client.get(
+            f"/api/v1/submissions/{submitted.json()['id']}/conversation"
+        )
+        self.assertEqual(conversation.status_code, 200, conversation.text)
+        self.assertIn(handler.id, {item["id"] for item in conversation.json()["participants"]})
+
+    def test_handler_sees_answers_and_conversation_when_routed_after_submit(self):
+        form = self._create("form", "فرم تازه")
+        schema = {"sections": [{"id": "main", "title": "اطلاعات", "fields": [
+            {"name": "reason", "label": "دلیل", "type": "textarea", "required": True}
+        ]}]}
+        saved_form = self.client.put(f"/api/v1/admin/portal-cards/{form['id']}/form", json=schema)
+        self.assertEqual(saved_form.status_code, 200, saved_form.text)
+        handler = User(
+            username="late-handler", display_name="مسئول بعدی", is_active=True,
+            is_admin=False, must_change_password=False,
+        )
+        self.db.add(handler)
+        self.db.commit()
+
+        self.current = self.employee
+        submitted = self.client.post(
+            "/api/v1/submissions",
+            data={"form_id": f"custom-{form['id']}", "reason": "متن درخواست"},
+        )
+        self.assertEqual(submitted.status_code, 200, submitted.text)
+
+        self.current = self.admin
+        catalog = self.client.get("/api/v1/admin/form-access/catalog")
+        form_key = next(
+            f"{item['portal_department_id']}:{item['section_id']}:{item['form_id']}"
+            for item in catalog.json()
+            if item["kind"] == "form" and item["section_title"] == "فرم تازه"
+        )
+        routed = self.client.put(
+            "/api/v1/admin/form-duties",
+            json={"assignments": [{"user_id": handler.id, "target_key": form_key}]},
+        )
+        self.assertEqual(routed.status_code, 200, routed.text)
+
+        self.current = handler
+        detail = self.client.get(f"/api/v1/tasks/{submitted.json()['id']}")
+        self.assertEqual(detail.status_code, 200, detail.text)
+        self.assertEqual(detail.json()["data"]["reason"], "متن درخواست")
+        conversation = self.client.get(
+            f"/api/v1/submissions/{submitted.json()['id']}/conversation"
+        )
+        self.assertEqual(conversation.status_code, 200, conversation.text)
+        self.assertIn(handler.id, {item["id"] for item in conversation.json()["participants"]})
 
 
 if __name__ == "__main__":
