@@ -71,7 +71,13 @@ function isFieldFilled(value: unknown): boolean {
   return true;
 }
 
-export default function DynamicForm({ form }: { form: FormTemplate }) {
+export default function DynamicForm({
+  form,
+  submitOnEnter = true,
+}: {
+  form: FormTemplate;
+  submitOnEnter?: boolean;
+}) {
   const searchParams = useSearchParams();
   const departmentId = searchParams.get("department") || form.department_id || "";
   const sectionId = searchParams.get("section") || form.section_id || "";
@@ -300,7 +306,18 @@ export default function DynamicForm({ form }: { form: FormTemplate }) {
         </div>
       </div>
 
-      <form key={formKey} onSubmit={handleSubmit} className="space-y-8">
+      <form
+        key={formKey}
+        onSubmit={handleSubmit}
+        onKeyDown={(event) => {
+          if (submitOnEnter || event.key !== "Enter" || event.nativeEvent.isComposing) return;
+          const target = event.target;
+          if (!(target instanceof HTMLElement)) return;
+          if (target.closest("textarea, [role='listbox'], [role='option']")) return;
+          event.preventDefault();
+        }}
+        className="space-y-8"
+      >
         {isPurchaseRequest ? (
           <PurchaseRequestDocument data={values} editable onChange={handleChange} />
         ) : (

@@ -48,7 +48,8 @@ Custom forms reuse the existing form pipeline: the template is served by
 with the server-side target `department_id=custom`, `section_id=card-<id>`,
 `form_id=custom-<id>` (client-supplied department/section are ignored). Submission
 data is validated against the stored schema (required, select options, number,
-email, conditional visibility; unknown keys are dropped). Form-access rules and
+email, conditional visibility; unknown keys are dropped). Pressing Enter in a
+card field does not send the request; the user submits with the form button. Form-access rules and
 task-duty routing treat custom cards as a «کارت‌های سفارشی» department whose
 sections are the card paths, so admins assign access and handlers in the existing
 admin screens. Every card (group, form, and document) can be granted. Forms and

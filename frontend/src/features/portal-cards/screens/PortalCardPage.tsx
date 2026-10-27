@@ -117,7 +117,7 @@ export default function PortalCardPage() {
       )}
       {card.kind === "form" &&
         (card.form && card.form.fields.length > 0 ? (
-          <DynamicForm form={card.form} />
+          <DynamicForm form={card.form} submitOnEnter={false} />
         ) : (
           <p className="rounded-3xl border border-dashed border-primary/20 bg-card p-8 text-center text-sm text-muted-foreground">
             فیلدهای این فرم هنوز تعریف نشده است.
