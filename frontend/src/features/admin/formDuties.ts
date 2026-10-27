@@ -69,3 +69,12 @@ export async function saveFormDuties(assignments: DutyEdgeInput[]) {
   });
   return data;
 }
+
+export function dutyRequestError(error: unknown, fallback: string) {
+  if (typeof error === "object" && error !== null && "response" in error) {
+    const detail = (error as { response?: { data?: { detail?: unknown } } }).response
+      ?.data?.detail;
+    if (typeof detail === "string" && detail.trim()) return detail;
+  }
+  return fallback;
+}

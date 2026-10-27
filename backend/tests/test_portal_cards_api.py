@@ -273,6 +273,59 @@ class PortalCardApiTests(unittest.TestCase):
             ["گروه"],
         )
 
+    def test_direct_card_route_reloads_and_delivers_the_filled_form(self):
+        form = self._create("form", "فرم تازه")
+        schema = {"sections": [{"id": "main", "title": "اطلاعات", "fields": [
+            {"name": "reason", "label": "دلیل", "type": "text", "required": True}
+        ]}]}
+        saved_form = self.client.put(f"/api/v1/admin/portal-cards/{form['id']}/form", json=schema)
+        self.assertEqual(saved_form.status_code, 200, saved_form.text)
+        handler = User(
+            username="direct-handler", display_name="مسئول فرم", is_active=True,
+            is_admin=False, must_change_password=False,
+        )
+        self.db.add(handler)
+        self.db.commit()
+
+        catalog = self.client.get("/api/v1/admin/form-access/catalog")
+        form_key = next(
+            f"{item['portal_department_id']}:{item['section_id']}:{item['form_id']}"
+            for item in catalog.json()
+            if item["kind"] == "form" and item["section_title"] == "فرم تازه"
+        )
+        routed = self.client.put(
+            "/api/v1/admin/form-duties",
+            json={"assignments": [
+                {"user_id": handler.id, "target_key": "custom:card-99999:custom-99999"},
+                {"user_id": handler.id, "target_key": form_key},
+            ]},
+        )
+        self.assertEqual(routed.status_code, 200, routed.text)
+        self.assertEqual(
+            [item["target_key"] for item in routed.json()["assignments"]],
+            [form_key],
+        )
+        reloaded = self.client.get("/api/v1/admin/form-duties")
+        self.assertEqual(
+            [item["target_key"] for item in reloaded.json()["assignments"]],
+            [form_key],
+        )
+
+        self.current = self.employee
+        submitted = self.client.post(
+            "/api/v1/submissions",
+            data={"form_id": f"custom-{form['id']}", "reason": "متن درخواست"},
+        )
+        self.assertEqual(submitted.status_code, 200, submitted.text)
+
+        self.current = handler
+        tasks = self.client.get("/api/v1/tasks")
+        self.assertEqual(tasks.status_code, 200, tasks.text)
+        self.assertEqual([item["id"] for item in tasks.json()], [submitted.json()["id"]])
+        detail = self.client.get(f"/api/v1/tasks/{submitted.json()['id']}")
+        self.assertEqual(detail.status_code, 200, detail.text)
+        self.assertEqual(detail.json()["data"]["reason"], "متن درخواست")
+
 
 if __name__ == "__main__":
     unittest.main()

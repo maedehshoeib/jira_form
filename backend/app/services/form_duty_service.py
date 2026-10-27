@@ -14,7 +14,6 @@ from app.services.form_access_service import (
     duty_catalog,
     expand_duty_targets,
     group_duty_user_ids,
-    parse_duty_target_keys,
     target_key,
 )
 
@@ -241,39 +240,54 @@ def backfill_submission_initial_assignees(db: Session) -> int:
     return created
 
 
+def _catalog_edges(
+    db: Session, edges: list[tuple[int, str]]
+) -> list[tuple[int, AccessTarget]]:
+    """Keep routable targets and ignore ones the catalog no longer contains."""
+    catalog = {target.key: target for target in duty_catalog(db)}
+    seen: set[tuple[int, str]] = set()
+    unique: list[tuple[int, AccessTarget]] = []
+    for user_id, raw_key in edges:
+        key = raw_key.strip()
+        pair = (user_id, key)
+        if pair in seen:
+            continue
+        seen.add(pair)
+        target = catalog.get(key)
+        if target is not None:
+            unique.append((user_id, target))
+    return unique
+
+
 def replace_assignments(
     db: Session, edges: list[tuple[int, str]]
 ) -> list[DutyEdge]:
-    """Replace all duty edges. Each item is (user_id, target_key)."""
+    """Replace duty edges. Each item is (user_id, target_key).
+
+    A removed card used to make the whole save fail, so a new card's route
+    never reached the database and disappeared on refresh. Unknown targets
+    are now skipped. The save still fails, without changing stored routes,
+    when every target is unknown or a user is inactive.
+    """
     if not edges:
         db.query(FormDutyAssignment).delete(synchronize_session=False)
         db.commit()
         return []
 
-    user_ids = sorted({user_id for user_id, _ in edges})
-    users = {
-        user.id: user
+    unique_edges = _catalog_edges(db, edges)
+    if not unique_edges:
+        raise ValueError("Unknown form duty target")
+
+    user_ids = sorted({user_id for user_id, _ in unique_edges})
+    active_ids = {
+        user.id
         for user in db.query(User)
         .filter(User.id.in_(user_ids), User.is_active.is_(True))
         .all()
     }
-    missing = [user_id for user_id in user_ids if user_id not in users]
+    missing = [user_id for user_id in user_ids if user_id not in active_ids]
     if missing:
         raise ValueError(f"Unknown or inactive user: {missing[0]}")
-
-    target_keys = [key for _, key in edges]
-    targets_by_key: dict[str, AccessTarget] = {
-        target.key: target for target in parse_duty_target_keys(target_keys, db)
-    }
-
-    seen: set[tuple[int, str]] = set()
-    unique_edges: list[tuple[int, AccessTarget]] = []
-    for user_id, key in edges:
-        pair = (user_id, key)
-        if pair in seen:
-            continue
-        seen.add(pair)
-        unique_edges.append((user_id, targets_by_key[key]))
 
     db.query(FormDutyAssignment).delete(synchronize_session=False)
     db.add_all(

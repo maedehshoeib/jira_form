@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import {
   DutyEdgeInput,
   edgeKey,
+  dutyRequestError,
   fetchFormDuties,
   fetchFormDutyCatalog,
   FormDutyCatalogTarget,
@@ -87,6 +88,8 @@ export default function AdminDutiesPage() {
   const [drag, setDrag] = useState<DragState>(null);
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
   const [layoutTick, setLayoutTick] = useState(0);
+  const saveVersion = useRef(0);
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -268,8 +271,12 @@ export default function AdminDutiesPage() {
     const target = document.elementFromPoint(event.clientX, event.clientY) as
       | HTMLElement
       | null;
-    const formKey = target?.closest<HTMLElement>("[data-form-key]")?.dataset.formKey;
-    const userIdRaw = target?.closest<HTMLElement>("[data-user-id]")?.dataset.userId;
+    const formKey = target
+      ?.closest<HTMLElement>("[data-form-key]")
+      ?.getAttribute("data-form-key");
+    const userIdRaw = target
+      ?.closest<HTMLElement>("[data-user-id]")
+      ?.getAttribute("data-user-id");
     const userId = userIdRaw ? Number(userIdRaw) : null;
 
     if (drag.from === "form" && userId) {
@@ -324,24 +331,52 @@ export default function AdminDutiesPage() {
     return bezierPath(from, { x: drag.x, y: drag.y });
   }, [drag, handleCenter]);
 
-  const handleSave = async () => {
-    setSaving(true);
-    setError("");
-    setSaved(false);
-    try {
-      const data = await saveFormDuties(edges);
-      const nextEdges = data.assignments.map((edge) => ({
-        user_id: edge.user_id,
-        target_key: edge.target_key,
-      }));
-      setEdges(nextEdges);
-      setSavedEdges(nextEdges);
-      setSaved(true);
-    } catch {
-      setError("ذخیره مسیریابی وظایف انجام نشد.");
-    } finally {
-      setSaving(false);
-    }
+  const applySavedEdges = useCallback((nextEdges: LocalEdge[]) => {
+    setEdges(nextEdges);
+    setSavedEdges(nextEdges);
+    setSaved(true);
+  }, []);
+
+  const persistEdges = useCallback(
+    (list: LocalEdge[]) => {
+      const version = ++saveVersion.current;
+      const run = saveQueue.current.then(async () => {
+        if (version !== saveVersion.current) return;
+        setSaving(true);
+        setError("");
+        setSaved(false);
+        try {
+          const data = await saveFormDuties(list);
+          if (version !== saveVersion.current) return;
+          applySavedEdges(
+            data.assignments.map((edge) => ({
+              user_id: edge.user_id,
+              target_key: edge.target_key,
+            })),
+          );
+        } catch (error) {
+          if (version !== saveVersion.current) return;
+          setError(dutyRequestError(error, "ذخیره مسیریابی وظایف انجام نشد."));
+        } finally {
+          if (version === saveVersion.current) setSaving(false);
+        }
+      });
+      saveQueue.current = run.catch(() => undefined);
+      return run;
+    },
+    [applySavedEdges],
+  );
+
+  useEffect(() => {
+    if (loading || !dirty) return;
+    const handle = window.setTimeout(() => {
+      void persistEdges(edges);
+    }, 400);
+    return () => window.clearTimeout(handle);
+  }, [dirty, edges, loading, persistEdges]);
+
+  const handleSave = () => {
+    void persistEdges(edges);
   };
 
   const connectedFormCount = useMemo(

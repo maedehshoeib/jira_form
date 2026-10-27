@@ -53,11 +53,14 @@ task-duty routing treat custom cards as a «کارت‌های سفارشی» dep
 sections are the card paths, so admins assign access and handlers in the existing
 admin screens. Every card (group, form, and document) can be granted. Forms and
 groups appear in task routing; a duty on a group covers the forms inside it and
-puts those submissions in the assignee's task list. An employee sees a published
+puts those submissions in the assignee's task list. Saving routes replaces the
+full list. A target for a card that no longer exists is skipped, so it cannot
+reject routes for cards that are still there. An employee sees a published
 card when access rules allow it. A draft stays hidden unless that employee was
 granted the card, was granted a parent group, or has a duty on it; granted drafts
 stay reachable through their parent groups. Deleting a card removes its
-descendants, files, and access/duty assignments; historical submissions keep the
+descendants, files, and access/duty rows for that card and every descendant,
+including a route stored on the group itself. Historical submissions keep the
 `custom-<id>` id.
 
 ## Document libraries

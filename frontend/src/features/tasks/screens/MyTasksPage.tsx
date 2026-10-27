@@ -305,15 +305,9 @@ export default function MyTasksPage() {
     setProgressAttachment(null);
     setReferAttachments([]);
     try {
-      const [detailResponse, templateResponse] = await Promise.all([
-        client.get<SubmissionDetail>(`${endpoints.tasks}/${task.id}`),
-        client.get<FormTemplate>(`${endpoints.forms}/${task.form_id}`, {
-          params: {
-            department: task.department_id,
-            section: task.section_id,
-          },
-        }),
-      ]);
+      const detailResponse = await client.get<SubmissionDetail>(
+        `${endpoints.tasks}/${task.id}`,
+      );
       syncTask(detailResponse.data);
       setSelected(detailResponse.data);
       setProgressDraft(
@@ -322,8 +316,21 @@ export default function MyTasksPage() {
           detailResponse.data.status === "approved" ? "approved" : "in_progress",
         ),
       );
-      setTemplate(templateResponse.data);
       window.dispatchEvent(new Event("tasks:refresh-notifications"));
+      try {
+        const templateResponse = await client.get<FormTemplate>(
+          `${endpoints.forms}/${task.form_id}`,
+          {
+            params: {
+              department: task.department_id,
+              section: task.section_id,
+            },
+          },
+        );
+        setTemplate(templateResponse.data);
+      } catch {
+        setTemplate(null);
+      }
     } catch {
       setError("نمایش جزئیات این وظیفه با مشکل مواجه شد.");
     } finally {

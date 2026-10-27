@@ -30,9 +30,11 @@ from app.services.portal_card_form import (
 )
 from app.services.portal_card_service import PortalCardService, custom_form_titles
 from app.services.form_duty_service import (
+    list_assignments,
     replace_assignments,
     snapshot_submission_initial_assignees,
 )
+from app.services.task_workflow_service import list_task_submissions
 from app.services.portal_card_targets import (
     custom_form_id,
     custom_section_id,
@@ -40,7 +42,6 @@ from app.services.portal_card_targets import (
     group_target_id,
     parse_custom_form_id,
 )
-from app.services.task_workflow_service import list_task_submissions
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 32
 
@@ -190,6 +191,11 @@ class CardTreeTests(PortalCardTestCase):
             FormDutyAssignment(
                 user_id=self.employee.id, portal_department_id="custom",
                 section_id=form_key[0], form_id=form_key[1],
+            ),
+            FormDutyAssignment(
+                user_id=self.employee.id, portal_department_id="custom",
+                section_id=custom_section_id(group.id),
+                form_id=group_target_id(group.id),
             ),
         ])
         self.db.commit()
@@ -500,6 +506,49 @@ class CardAccessRoutingTests(PortalCardTestCase):
         self.assertEqual(handler_ids, [submission.id])
         self.assertEqual(employee_ids, [])
         self.assertEqual(self._titles(self.outsider), [])
+
+    async def test_new_card_route_survives_an_obsolete_target_and_receives_answers(self):
+        form = await self.make("form", "فرم تازه")
+        form_key = f"custom:{custom_section_id(form.id)}:{custom_form_id(form.id)}"
+        self.admin_service.set_form(
+            form.id,
+            CardFormSchema.model_validate({
+                "sections": [{
+                    "id": "main",
+                    "title": "اطلاعات",
+                    "fields": [{"name": "reason", "label": "دلیل", "type": "text", "required": True}],
+                }]
+            }),
+        )
+        saved = replace_assignments(
+            self.db,
+            [
+                (self.handler.id, "custom:card-99999:custom-99999"),
+                (self.handler.id, form_key),
+            ],
+        )
+        self.assertEqual([edge.target_key for edge in saved], [form_key])
+        self.assertEqual(
+            [edge.target_key for edge in list_assignments(self.db)],
+            [form_key],
+        )
+
+        submission = Submission(
+            form_id=custom_form_id(form.id),
+            department_id="custom",
+            section_id=custom_section_id(form.id),
+            user_id=self.employee.id,
+            subject="درخواست",
+            data='{"reason": "متن درخواست"}',
+        )
+        self.db.add(submission)
+        self.db.flush()
+        snapshot_submission_initial_assignees(self.db, submission)
+        self.db.commit()
+
+        routed = list_task_submissions(self.db, self.handler.id)
+        self.assertEqual([item.id for item in routed], [submission.id])
+        self.assertIn("متن درخواست", routed[0].data)
 
 
 if __name__ == "__main__":

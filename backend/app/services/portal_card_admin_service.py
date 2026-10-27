@@ -18,7 +18,7 @@ from app.schemas.portal_card import (
 )
 from app.services.base import BaseService
 from app.services.portal_card_service import PortalCardService
-from app.services.portal_card_targets import CUSTOM_DEPARTMENT_ID, custom_form_id
+from app.services.portal_card_targets import CUSTOM_DEPARTMENT_ID, custom_section_id
 
 MAX_DEPTH = 5
 MAX_FILES_PER_CARD = 30
@@ -85,9 +85,7 @@ class PortalCardAdminService(BaseService):
         subtree = self._subtree(card)
         stored_paths = [item.logo_path for item in subtree if item.logo_path]
         stored_paths += [file.file_path for item in subtree for file in item.files]
-        form_ids = [custom_form_id(item.id) for item in subtree if item.kind == "form"]
-        if form_ids:
-            self._drop_form_targets(form_ids)
+        self._drop_form_targets(subtree)
         self.db.delete(card)  # ORM cascade removes descendants and their files
         self.db.commit()
         for stored in stored_paths:
@@ -222,9 +220,18 @@ class PortalCardAdminService(BaseService):
                 queue.append(child)
         return result
 
-    def _drop_form_targets(self, form_ids: list[str]) -> None:
+    def _drop_form_targets(self, cards: list[PortalCard]) -> None:
+        """Remove access and duty rows for every card in a deleted subtree.
+
+        Group routes are stored as ``group-<id>``, not ``custom-<id>``, so
+        matching only form ids left those routes behind. The next save then
+        rejected the whole routing list.
+        """
+        section_ids = [custom_section_id(card.id) for card in cards]
+        if not section_ids:
+            return
         for model in (DepartmentFormAccess, UserFormAccess, FormDutyAssignment):
             self.db.query(model).filter(
                 model.portal_department_id == CUSTOM_DEPARTMENT_ID,
-                model.form_id.in_(form_ids),
+                model.section_id.in_(section_ids),
             ).delete(synchronize_session=False)
